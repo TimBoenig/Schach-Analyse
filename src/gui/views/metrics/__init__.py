@@ -1,11 +1,14 @@
 from src.gui.views.metrics.accuracy_trend_card import AccuracyTrendCard
 from src.gui.views.metrics.ai_coach_card import AICoachCard
 from src.gui.views.metrics.base_card import MetricCard
-from src.gui.views.metrics.color_performance_card import ColorPerformanceCard
+from src.gui.views.metrics.brilliancy_hall_card import BrilliancyHallCard
 from src.gui.views.metrics.ending_distribution_card import EndingDistributionCard
+from src.gui.views.metrics.hanging_pieces_card import HangingPiecesCard
 from src.gui.views.metrics.move_quality_card import MoveQualityCard
 from src.gui.views.metrics.openings_list_card import OpeningsListCard
 from src.gui.views.metrics.phase_performance_card import PhasePerformanceCard
+from src.gui.views.metrics.tactical_themes_card import TacticalThemesCard
+from src.gui.views.metrics.time_management_card import TimeManagementCard
 
 __all__ = [
     "MetricCard",
@@ -13,7 +16,10 @@ __all__ = [
     "MoveQualityCard",
     "AccuracyTrendCard",
     "PhasePerformanceCard",
-    "ColorPerformanceCard",
+    "HangingPiecesCard",
+    "TacticalThemesCard",
+    "BrilliancyHallCard",
     "OpeningsListCard",
+    "TimeManagementCard",
     "AICoachCard",
 ]

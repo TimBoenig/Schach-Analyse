@@ -134,3 +134,122 @@ def test_analyze_game_tactics_advantage_conversion():
     # Phase accuracies
     phase_acc = tactics["phase_accuracies"]
     assert phase_acc["opening"] is not None
+
+
+def test_pinned_defender_cannot_protect():
+    """Test that a piece whose only defender is pinned to the King is detected as hanging."""
+    # White King on h1, Pawn on g2 pinned by Black Bishop on b7.
+    # White Knight on h3 is attacked by Black Queen on h8.
+    # The pawn on g2 cannot legally capture on h3 because it is pinned along the long diagonal.
+    board = chess.Board("7q/1b6/8/8/8/7N/6P1/7K w - - 0 1")
+    hanging = get_hanging_pieces(board, chess.WHITE)
+    hanging_sqs = [h["square"] for h in hanging]
+    assert "h3" in hanging_sqs
+
+
+def test_defended_pawn_attacked_by_higher_piece_not_hanging():
+    """Test that a defended pawn attacked by higher-value pieces is NOT classified as hanging."""
+    # White pawn on e4 defended by pawn on d3 (1 defender).
+    # Attacked by Black Knight on f6 and Black Bishop on c5 (2 attackers of value 3).
+    # Since min attacker value (3) > piece value (1), Black cannot profitably take, so e4 is safe.
+    board = chess.Board("r1bqk2r/pppp1ppp/2n2n2/2b5/4P3/3P4/PPP2PPP/RNBQKBNR w KQkq - 1 5")
+    hanging = get_hanging_pieces(board, chess.WHITE)
+    hanging_sqs = [h["square"] for h in hanging]
+    assert "e4" not in hanging_sqs
+
+
+def test_sacrifices_and_best_moves_never_marked_hanging():
+    """Test that intentional piece sacrifices and top engine moves are not counted as hung pieces."""
+    # User plays Bxh7+ (Bxf7 or Bxh7) classified as Brilliant or Best move
+    moves_data = [
+        {
+            "ply": 1,
+            "move_number": 1,
+            "san": "Bxh7+",
+            "uci": "d3h7",
+            # Position where Bishop on h7 is attacked by Black King on g8 and undefended
+            "fen_before": "r1bq1rk1/pppp1ppp/2n5/4p3/4P3/3B4/PPP2PPP/RNBQK2R w KQ - 0 6",
+            "eval_before_cp": 250,
+            "win_chance_before": 0.75,
+            "win_chance_after": 0.85,
+            "classification": "Brilliant",
+            "explanation": "Brilliant greek gift sacrifice",
+            "is_book_move": False,
+        }
+    ]
+    tactics = analyze_game_tactics(moves_data, user_color="white", result="1-0")
+    h_metrics = tactics["hanging_metrics"]
+    assert h_metrics["total_hung"] == 0
+    assert h_metrics["hanging_blunders"] == 0
+
+
+def test_opp_hanging_captured_good_vs_trap():
+    """Test that capturing an opponent hanging piece counts only when sound, not when blundering into a trap."""
+    # 1. Sound capture
+    sound_capture = [
+        {
+            "ply": 1,
+            "move_number": 1,
+            "san": "Qxf7+",
+            "uci": "d1f7",
+            # Black pawn on f7 is hanging and undefended
+            "fen_before": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1",
+            "eval_before_cp": 50,
+            "win_chance_before": 0.55,
+            "win_chance_after": 0.65,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+    tactics = analyze_game_tactics(sound_capture, user_color="white", result="1-0")
+    assert tactics["hanging_metrics"]["opponent_hanging_captured"] == 0
+    # e5 was hanging on board_before (from standard undefended pawn) or e5 pawn
+    # User captured on f7 which wasn't hanging, but let's test capturing e5:
+    sound_capture_e5 = [
+        {
+            "ply": 1,
+            "move_number": 1,
+            "san": "Nxe5",
+            "uci": "f3e5",
+            # Black pawn on e5 is hanging and undefended
+            "fen_before": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 2",
+            "eval_before_cp": 100,
+            "win_chance_before": 0.60,
+            "win_chance_after": 0.65,
+            "classification": "Best",
+            "is_book_move": False,
+        }
+    ]
+    tactics_e5 = analyze_game_tactics(sound_capture_e5, user_color="white", result="1-0")
+    assert tactics_e5["hanging_metrics"]["opponent_hanging_captured"] == 1
+    assert tactics_e5["hanging_metrics"]["captured_by_piece"]["pawn"] == 1
+
+
+def test_detect_tactical_motifs():
+    """Test detection of forks, pins, and discovered attacks."""
+    from src.backend.analysis.tactics import detect_tactical_motifs
+
+    # 1. Knight fork on c7 attacking e8 (King) and a8 (Rook)
+    board_b = chess.Board("r3k2r/pppb1ppp/8/4N3/1b2P3/8/PPP2PPP/R1B1KB1R w KQkq - 1 10")
+    move_fork = chess.Move.from_uci("e5c7")
+    board_a = board_b.copy()
+    board_a.push(move_fork)
+    motifs_fork = detect_tactical_motifs(board_b, board_a, move_fork, chess.WHITE)
+    assert "fork" in motifs_fork
+
+    # 2. Pin: Bishop moving to b5 pins Knight on c6 to King on e8 (d7 is vacant)
+    board_pin_b = chess.Board("r1bqkbnr/pp2pppp/2n5/3p4/4P3/8/PPPPBPPP/RNBQK1NR w KQkq - 0 4")
+    move_pin = chess.Move.from_uci("e2b5")
+    board_pin_a = board_pin_b.copy()
+    board_pin_a.push(move_pin)
+    motifs_pin = detect_tactical_motifs(board_pin_b, board_pin_a, move_pin, chess.WHITE)
+    assert "pin" in motifs_pin
+
+    # 3. Discovered Check: Rook on e1, Knight on e4 moves away giving check from Rook
+    board_disc_b = chess.Board("4k3/8/8/8/4N3/8/8/4R2K w - - 0 1")
+    move_disc = chess.Move.from_uci("e4f6")
+    board_disc_a = board_disc_b.copy()
+    board_disc_a.push(move_disc)
+    motifs_disc = detect_tactical_motifs(board_disc_b, board_disc_a, move_disc, chess.WHITE)
+    assert "discovered_attack" in motifs_disc
+
