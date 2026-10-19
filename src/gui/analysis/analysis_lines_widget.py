@@ -1,6 +1,7 @@
 """
 Analysis Lines Widget - Renders candidate lines from the engine.
 """
+
 import chess
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -29,6 +30,7 @@ class AnalysisRowWidget(QWidget):
         if event.button() == Qt.MouseButton.LeftButton and self.uci_move:
             self.clicked.emit(self.uci_move)
 
+
 class AnalysisLinesWidget(QFrame):
     line_clicked = pyqtSignal(str)
 
@@ -45,11 +47,11 @@ class AnalysisLinesWidget(QFrame):
 
         self._last_multi_pvs = None
         self._last_turn_color = chess.WHITE
-        self.rows = [] # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
+        self.rows = []  # List of (widget, lbl_depth, lbl_eval, lbl_pv) tuples
         self.lines_layout = QVBoxLayout()
         self.lines_layout.setSpacing(6)
         self.layout.addLayout(self.lines_layout)
-        self.layout.addStretch() # Push lines to top
+        self.layout.addStretch()  # Push lines to top
 
     def _apply_base_style(self):
         self.setStyleSheet(Styles.get_analysis_lines_style())
@@ -82,14 +84,20 @@ class AnalysisLinesWidget(QFrame):
                 continue
             # Check if it's a move number (e.g. "14.", "13...")
             if word[0].isdigit() or word.endswith("..."):
-                html_words.append(f"<span style='color: {Styles.COLOR_TEXT_MUTED}; font-weight: 500;'>{word}</span>")
+                html_words.append(
+                    f"<span style='color: {Styles.COLOR_TEXT_MUTED}; font-weight: 500;'>{word}</span>"
+                )
             else:
                 # It's a move
                 if first_move:
-                    html_words.append(f"<span style='color: {Styles.COLOR_ACCENT}; font-weight: 700;'>{word}</span>")
+                    html_words.append(
+                        f"<span style='color: {Styles.COLOR_ACCENT}; font-weight: 700;'>{word}</span>"
+                    )
                     first_move = False
                 else:
-                    html_words.append(f"<span style='color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600;'>{word}</span>")
+                    html_words.append(
+                        f"<span style='color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: 600;'>{word}</span>"
+                    )
         return " ".join(html_words)
 
     def update_lines(self, multi_pvs, turn_color):
@@ -131,10 +139,10 @@ class AnalysisLinesWidget(QFrame):
                     if score_val.startswith("M"):
                         # Mate score: M+ → White mates, M- → Black mates
                         if "-" in score_val:
-                            bg_color = "#1a1a1a"   # Very dark — Black is mating
+                            bg_color = "#1a1a1a"  # Very dark — Black is mating
                             text_color = "#E4E4E7"
                         else:
-                            bg_color = "#E8E8E8"   # Near-white — White is mating
+                            bg_color = "#E8E8E8"  # Near-white — White is mating
                             text_color = "#111111"
                     else:
                         val = float(score_val)
@@ -190,7 +198,7 @@ class AnalysisLinesWidget(QFrame):
 
     def _create_row(self):
         row_widget = AnalysisRowWidget()
-        row_widget.setToolTip("Click to play this candidate move line")
+        row_widget.setToolTip("Klicken, um diese Variante zu spielen")
         row_widget.clicked.connect(self.line_clicked.emit)
         row_widget.setObjectName("AnalysisRow")
         row_layout = QVBoxLayout(row_widget)
@@ -222,7 +230,7 @@ class AnalysisLinesWidget(QFrame):
         # PV Move sequence line (rendered below the badges)
         lbl_pv = QLabel("")
         lbl_pv.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        lbl_pv.setWordWrap(True) # Wrap text
+        lbl_pv.setWordWrap(True)  # Wrap text
         lbl_pv.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         lbl_pv.setStyleSheet(Styles.get_label_style(size=12))
         row_layout.addWidget(lbl_pv)

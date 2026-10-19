@@ -75,18 +75,18 @@ def main():
         # Process events to ensure splash is painted
         app.processEvents()
 
-        splash.update_progress(20, "Loading configuration...")
+        splash.update_progress(20, "Konfiguration wird geladen …")
         app.processEvents()
 
-        splash.update_progress(45, "Initializing core engine...")
+        splash.update_progress(45, "Engine wird initialisiert …")
         app.processEvents()
 
-        splash.update_progress(70, "Loading user interface...")
+        splash.update_progress(70, "Oberfläche wird geladen …")
         app.processEvents()
 
         window = MainWindow()
 
-        splash.update_progress(95, "Starting up...")
+        splash.update_progress(95, "Wird gestartet …")
         app.processEvents()
 
         # macOS Gatekeeper self-fix (only when bundled as .app)
@@ -115,7 +115,7 @@ def main():
         needs_setup = not has_completed_setup or not has_engine
         if needs_setup:
             # Finish splash before opening the wizard so it doesn't hang
-            splash.update_progress(100, "Starting setup...")
+            splash.update_progress(100, "Einrichtung wird gestartet …")
             splash.finish(window)
 
             from src.gui.dialogs.setup_wizard import SetupWizard
@@ -137,9 +137,7 @@ def main():
 
                     try:
                         window.analyzer = Analyzer(
-                            EngineManager(
-                                window.engine_path, config_manager=window.config_manager
-                            )
+                            EngineManager(window.engine_path, config_manager=window.config_manager)
                         )
                         if hasattr(window, "move_list_panel"):
                             window.move_list_panel.update_engine_path(new_path)
@@ -163,7 +161,7 @@ def main():
         window.show()
 
         if not needs_setup:
-            splash.update_progress(100, "Done!")
+            splash.update_progress(100, "Fertig!")
             splash.finish(window)
         # --- Splash Screen End ---
 
@@ -174,6 +172,7 @@ def main():
     except Exception as e:
         logger.critical(f"Unhandled exception: {e}", exc_info=True)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -2,11 +2,13 @@
 CircularAccuracyWidget - Centered circular progress arc gauge for accuracy % and ACPL stats.
 Matches reference UI design with centered number inside gauge, side label, and ACPL text.
 """
+
 from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QColor, QFont, QPainter, QPen
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 from src.gui.styles import Styles
+from src.utils.translations import tr_color
 
 
 class CircularArcGauge(QWidget):
@@ -75,7 +77,7 @@ class CircularAccuracyWidget(QWidget):
         layout.addWidget(self.gauge, 0, Qt.AlignmentFlag.AlignCenter)
 
         # Side Title ("White" / "Black")
-        self.side_label = QLabel(self.side)
+        self.side_label = QLabel(tr_color(self.side))
         self.side_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.side_label.setStyleSheet(
             Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
@@ -87,7 +89,9 @@ class CircularAccuracyWidget(QWidget):
         self.acpl_label = QLabel(acpl_str)
         self.acpl_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.acpl_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
         layout.addWidget(self.acpl_label)
 
@@ -103,7 +107,9 @@ class CircularAccuracyWidget(QWidget):
             Styles.get_label_style(size=13, bold=True) + " " + Styles.get_transparent_label_style()
         )
         self.acpl_label.setStyleSheet(
-            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
-        if hasattr(self, 'gauge'):
+        if hasattr(self, "gauge"):
             self.gauge.update()

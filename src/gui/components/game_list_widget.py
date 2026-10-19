@@ -58,7 +58,7 @@ class GameListWidget(QWidget):
         header_bar_layout = QHBoxLayout(self.header_bar_widget)
         header_bar_layout.setContentsMargins(16, 0, 16, 0)
 
-        self.title_lbl = QLabel("Games")
+        self.title_lbl = QLabel("Partien")
         self.title_lbl.setStyleSheet(
             Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
             + " "
@@ -71,12 +71,12 @@ class GameListWidget(QWidget):
         # View mode toggle buttons
         self.btn_detailed = QPushButton()
         self.btn_detailed.setFixedSize(30, 26)
-        self.btn_detailed.setToolTip("Detailed Cards View")
+        self.btn_detailed.setToolTip("Detaillierte Kartenansicht")
         self.btn_detailed.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_compact = QPushButton()
         self.btn_compact.setFixedSize(30, 26)
-        self.btn_compact.setToolTip("Compact Table View")
+        self.btn_compact.setToolTip("Kompakte Tabellenansicht")
         self.btn_compact.setCursor(Qt.CursorShape.PointingHandCursor)
 
         if HAS_QTAWESOME:
@@ -216,7 +216,7 @@ class GameListWidget(QWidget):
         end = min(start + ps - 1, len(self._all_games))
         total_games = len(self._all_games)
 
-        counter_text = "No games" if total_games == 0 else f"{start}–{end} of {total_games}"
+        counter_text = "Keine Partien" if total_games == 0 else f"{start}–{end} von {total_games}"
 
         counter = QLabel(counter_text)
         counter.setStyleSheet(
@@ -228,7 +228,7 @@ class GameListWidget(QWidget):
         self._page_bar_layout.addStretch()
 
         # ── Prev button ──────────────────────────────────────────────────────
-        btn_prev = self._make_page_btn("‹ Prev", enabled=(current > 0))
+        btn_prev = self._make_page_btn("‹ Zurück", enabled=(current > 0))
         btn_prev.clicked.connect(self._go_prev)
         self._page_bar_layout.addWidget(btn_prev)
 
@@ -251,7 +251,7 @@ class GameListWidget(QWidget):
             self._page_bar_layout.addWidget(self._make_page_num_btn(total - 1))
 
         # ── Next button ──────────────────────────────────────────────────────
-        btn_next = self._make_page_btn("Next ›", enabled=(current < total - 1))
+        btn_next = self._make_page_btn("Weiter ›", enabled=(current < total - 1))
         btn_next.clicked.connect(self._go_next)
         self._page_bar_layout.addWidget(btn_next)
 
@@ -264,9 +264,9 @@ class GameListWidget(QWidget):
 
         if not confirm_dialog(
             self,
-            "Delete Game",
-            "Remove this game from history? This cannot be undone.",
-            confirm_label="Delete",
+            "Partie löschen",
+            "Diese Partie aus dem Verlauf entfernen? Das lässt sich nicht rückgängig machen.",
+            confirm_label="Löschen",
         ):
             return
 

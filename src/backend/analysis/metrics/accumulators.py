@@ -444,12 +444,12 @@ class StatsAccumulator:
                 "is_game": True,
                 "ply": 1,
                 "move_number": 1,
-                "move_display": "0 Blunders",
+                "move_display": "0 Patzer",
                 "classification": "Clean Game",
                 "description": (
-                    f"Accuracy: {rec.game_acc:.1f}% • 0 blunders"
+                    f"Genauigkeit: {rec.game_acc:.1f}% • 0 Patzer"
                     if rec.game_acc > 0
-                    else "0 blunders"
+                    else "0 Patzer"
                 ),
                 "fen_before": rec.raw_game.get("starting_fen")
                 or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -503,12 +503,14 @@ class StatsAccumulator:
                 "is_game": True,
                 "ply": 1,
                 "move_number": 1,
-                "move_display": rec.eco or "Opening",
+                "move_display": rec.eco or "Eröffnung",
                 "classification": (
-                    f"{rec.game_acc:.1f}% Acc" if rec.game_acc > 0 else (rec.eco or "Opening")
+                    f"{rec.game_acc:.1f}% Gen." if rec.game_acc > 0 else (rec.eco or "Eröffnung")
                 ),
                 "description": (
-                    f"{rec.opening} • {rec.game_acc:.1f}% Acc" if rec.game_acc > 0 else rec.opening
+                    f"{rec.opening} • {rec.game_acc:.1f}% Genauigkeit"
+                    if rec.game_acc > 0
+                    else rec.opening
                 ),
                 "fen_before": rec.raw_game.get("starting_fen")
                 or "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",

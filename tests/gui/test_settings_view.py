@@ -10,6 +10,7 @@ def isolated_config(tmp_path, monkeypatch):
     monkeypatch.delenv("LICHESS_TOKEN", raising=False)
     return tmp_path / "config.json"
 
+
 def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
     """Without Lichess API Token, game limit should be capped at 20."""
     from src.gui.views.settings_view import SettingsView
@@ -34,6 +35,7 @@ def test_settings_view_clamping_without_token(qapp, qtbot, isolated_config):
         # Verify clamped value is written to config and UI input
         assert view.config_manager.get("api_games_limit") == 20
         assert view.games_limit_input.text() == "20"
+
 
 def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
     """With Lichess API Token, game limit up to 30 is accepted and above 30 is capped."""
@@ -62,6 +64,7 @@ def test_settings_view_clamping_with_token(qapp, qtbot, isolated_config):
 
         assert view.config_manager.get("api_games_limit") == 30
         assert view.games_limit_input.text() == "30"
+
 
 def test_save_all_settings_flow(qapp, qtbot, isolated_config):
     """Test the consolidated save_all_settings flow."""

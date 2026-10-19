@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.utils.path_utils import get_resource_path
+from src.utils.translations import tr_board_theme
 
 PAGE_BG = f"background-color: {Styles.COLOR_BACKGROUND};"
 
@@ -29,7 +30,9 @@ def build_gatekeeper_page(wizard) -> QWidget:
 
     wizard.gatekeeper_label = QLabel()
     wizard.gatekeeper_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    wizard.gatekeeper_label.setStyleSheet(f"font-size: 18px; {Styles.get_transparent_label_style()}")
+    wizard.gatekeeper_label.setStyleSheet(
+        f"font-size: 18px; {Styles.get_transparent_label_style()}"
+    )
     layout.addWidget(wizard.gatekeeper_label)
 
     wizard.gatekeeper_detail = QLabel()
@@ -60,7 +63,8 @@ def build_welcome_page(wizard) -> QWidget:
     if os.path.exists(logo_path):
         logo_label = QLabel()
         pixmap = QPixmap(logo_path).scaled(
-            120, 120,
+            120,
+            120,
             Qt.AspectRatioMode.KeepAspectRatio,
             Qt.TransformationMode.SmoothTransformation,
         )
@@ -76,8 +80,8 @@ def build_welcome_page(wizard) -> QWidget:
     layout.addWidget(title)
 
     subtitle = QLabel(
-        "Analyze your games, find your weaknesses, and improve faster.\n"
-        "Let's get you set up in 2 minutes."
+        "Analysiere deine Partien, finde deine Schwächen und werde schneller besser.\n"
+        "In 2 Minuten bist du startklar."
     )
     subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
     subtitle.setWordWrap(True)
@@ -92,7 +96,7 @@ def build_welcome_page(wizard) -> QWidget:
     btn_space.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(btn_space)
 
-    wizard.get_started_btn = QPushButton("Get Started")
+    wizard.get_started_btn = QPushButton("Los geht's")
     wizard.get_started_btn.setCursor(Qt.CursorShape.PointingHandCursor)
     wizard.get_started_btn.setStyleSheet(f"""
         QPushButton {{
@@ -122,14 +126,15 @@ def build_profile_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setSpacing(6)
 
-    heading = QLabel("Your usernames")
+    heading = QLabel("Deine Benutzernamen")
     heading.setFont(QFont("", 16, QFont.Weight.Bold))
     heading.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(heading)
 
     helper = QLabel(
-        "Optional. Enter your usernames so we can autofill them when you fetch games "
-        "and build your stats over time. We never link or access your accounts."
+        "Optional. Gib deine Benutzernamen ein, damit sie beim Abrufen von Partien "
+        "automatisch ausgefüllt werden und deine Statistiken mitwachsen. Wir verknüpfen "
+        "deine Konten nie und greifen nicht darauf zu."
     )
     helper.setWordWrap(True)
     helper.setStyleSheet(
@@ -137,33 +142,33 @@ def build_profile_page(wizard) -> QWidget:
     )
     layout.addWidget(helper)
 
-    lbl = QLabel("Chess.com username")
+    lbl = QLabel("Chess.com-Benutzername")
     lbl.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(lbl)
     wizard.chesscom_input = QLineEdit()
-    wizard.chesscom_input.setPlaceholderText("e.g. magnuscarlsen")
+    wizard.chesscom_input.setPlaceholderText("z. B. magnuscarlsen")
     wizard.chesscom_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.chesscom_input)
-    hint = QLabel("Autofills your Chess.com username when fetching games")
+    hint = QLabel("Wird beim Abrufen von Partien automatisch eingesetzt")
     hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; {Styles.get_transparent_label_style()}"
     )
     layout.addWidget(hint)
 
-    lbl = QLabel("Lichess username")
+    lbl = QLabel("Lichess-Benutzername")
     lbl.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(lbl)
     wizard.lichess_input = QLineEdit()
-    wizard.lichess_input.setPlaceholderText("e.g. drnykterstein")
+    wizard.lichess_input.setPlaceholderText("z. B. drnykterstein")
     wizard.lichess_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.lichess_input)
-    hint = QLabel("Autofills your Lichess username when fetching games")
+    hint = QLabel("Wird beim Abrufen von Partien automatisch eingesetzt")
     hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; {Styles.get_transparent_label_style()}"
     )
     layout.addWidget(hint)
 
-    lbl = QLabel("Lichess API token (optional)")
+    lbl = QLabel("Lichess-API-Token (optional)")
     lbl.setStyleSheet(f"margin-top: 8px; {Styles.get_transparent_label_style()}")
     layout.addWidget(lbl)
     wizard.lichess_token_input = QLineEdit()
@@ -172,7 +177,7 @@ def build_profile_page(wizard) -> QWidget:
     wizard.lichess_token_input.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.lichess_token_input)
     hint = QLabel(
-        "Get one at lichess.org/account/oauth/token. Required to fetch your games."
+        "Erhältlich unter lichess.org/account/oauth/token. Nötig, um deine Partien abzurufen."
     )
     hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; {Styles.get_transparent_label_style()}"
@@ -191,32 +196,34 @@ def build_appearance_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setSpacing(8)
 
-    heading = QLabel("Personalize your experience")
+    heading = QLabel("Passe die App an dich an")
     heading.setFont(QFont("", 16, QFont.Weight.Bold))
     heading.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(heading)
 
-    helper = QLabel("Choose a board theme and accent color that suits your style.")
+    helper = QLabel("Wähle ein Brett-Design und eine Akzentfarbe, die zu dir passen.")
     helper.setWordWrap(True)
     helper.setStyleSheet(
         f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; margin-bottom: 12px; {Styles.get_transparent_label_style()}"
     )
     layout.addWidget(helper)
 
-    theme_lbl = QLabel("Board theme")
+    theme_lbl = QLabel("Brett-Design")
     theme_lbl.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(theme_lbl)
     wizard.wizard_theme_combo = QComboBox()
-    wizard.wizard_theme_combo.addItems(list(Styles.BOARD_THEMES.keys()))
-    wizard.wizard_theme_combo.setCurrentText("Green")
+    # Theme names are config values; show German labels and keep the key as item data.
+    for theme_name in Styles.BOARD_THEMES:
+        wizard.wizard_theme_combo.addItem(tr_board_theme(theme_name), theme_name)
+    wizard.wizard_theme_combo.setCurrentIndex(max(0, wizard.wizard_theme_combo.findData("Green")))
     wizard.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
     wizard.wizard_theme_combo.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
     layout.addWidget(wizard.wizard_theme_combo)
 
-    accent_lbl = QLabel("Accent color")
+    accent_lbl = QLabel("Akzentfarbe")
     accent_lbl.setStyleSheet(f"margin-top: 8px; {Styles.get_transparent_label_style()}")
     layout.addWidget(accent_lbl)
-    wizard.wizard_accent_btn = QPushButton("  Pick accent color")
+    wizard.wizard_accent_btn = QPushButton("  Akzentfarbe wählen")
     wizard.wizard_accent_btn.setCursor(Qt.CursorShape.PointingHandCursor)
     wizard.wizard_accent_btn.setStyleSheet(f"""
         QPushButton {{
@@ -244,7 +251,10 @@ def build_appearance_page(wizard) -> QWidget:
 def _pick_accent_color(wizard):
     from PyQt6.QtGui import QColor
     from PyQt6.QtWidgets import QColorDialog
-    color = QColorDialog.getColor(initial=QColor(wizard.wizard_accent_color), parent=wizard, title="Select Accent Color")
+
+    color = QColorDialog.getColor(
+        initial=QColor(wizard.wizard_accent_color), parent=wizard, title="Akzentfarbe auswählen"
+    )
     if color.isValid():
         wizard.wizard_accent_color = color.name()
         Styles.set_accent_color(color.name())
@@ -272,13 +282,13 @@ def build_stockfish_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setSpacing(12)
 
-    heading = QLabel("Chess Engine")
+    heading = QLabel("Schach-Engine")
     heading.setFont(QFont("", 16, QFont.Weight.Bold))
     heading.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(heading)
 
     helper = QLabel(
-        "Stockfish powers all analysis. We will find or download it for you."
+        "Stockfish übernimmt die gesamte Analyse. Wir finden oder laden es für dich herunter."
     )
     helper.setWordWrap(True)
     helper.setStyleSheet(
@@ -298,7 +308,7 @@ def build_stockfish_page(wizard) -> QWidget:
     )
     layout.addWidget(wizard.sf_detail)
 
-    wizard.sf_download_btn = QPushButton("Download Stockfish")
+    wizard.sf_download_btn = QPushButton("Stockfish herunterladen")
     wizard.sf_download_btn.setStyleSheet(f"""
         QPushButton {{
             background-color: {Styles.COLOR_ACCENT};
@@ -332,13 +342,13 @@ def build_llm_page(wizard) -> QWidget:
     layout.setContentsMargins(60, 40, 60, 40)
     layout.setSpacing(6)
 
-    heading = QLabel("AI Coach (optional)")
+    heading = QLabel("KI-Coach (optional)")
     heading.setFont(QFont("", 16, QFont.Weight.Bold))
     heading.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(heading)
 
     helper = QLabel(
-        "Connect Groq for AI-powered game summaries and personalized coaching tips."
+        "Verbinde Groq für KI-gestützte Partiezusammenfassungen und persönliche Coaching-Tipps."
     )
     helper.setWordWrap(True)
     helper.setStyleSheet(
@@ -347,7 +357,7 @@ def build_llm_page(wizard) -> QWidget:
     layout.addWidget(helper)
 
     provider_row = QHBoxLayout()
-    lbl = QLabel("Provider:")
+    lbl = QLabel("Anbieter:")
     lbl.setStyleSheet(Styles.get_transparent_label_style())
     provider_row.addWidget(lbl)
     wizard.provider_label = QLabel("Groq")
@@ -358,7 +368,7 @@ def build_llm_page(wizard) -> QWidget:
     provider_row.addStretch()
     layout.addLayout(provider_row)
 
-    lbl = QLabel("API Key")
+    lbl = QLabel("API-Schlüssel")
     lbl.setStyleSheet(Styles.get_transparent_label_style())
     layout.addWidget(lbl)
     wizard.llm_key_input = QLineEdit()
@@ -366,13 +376,13 @@ def build_llm_page(wizard) -> QWidget:
     wizard.llm_key_input.setEchoMode(QLineEdit.EchoMode.Password)
     layout.addWidget(wizard.llm_key_input)
 
-    key_hint = QLabel("Get a free key at console.groq.com")
+    key_hint = QLabel("Kostenlosen Schlüssel gibt's unter console.groq.com")
     key_hint.setStyleSheet(
         f"font-size: 12px; color: {Styles.COLOR_TEXT_MUTED}; {Styles.get_transparent_label_style()}"
     )
     layout.addWidget(key_hint)
 
-    wizard.llm_test_btn = QPushButton("Test Connection")
+    wizard.llm_test_btn = QPushButton("Verbindung testen")
     wizard.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
     wizard.llm_test_btn.clicked.connect(wizard._test_llm)
     layout.addWidget(wizard.llm_test_btn)
@@ -406,7 +416,7 @@ def build_done_page(wizard) -> QWidget:
 
     layout.addSpacing(16)
 
-    heading = QLabel("You're all set!")
+    heading = QLabel("Alles bereit!")
     heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
     heading.setFont(QFont("", 22, QFont.Weight.Bold))
     heading.setStyleSheet(Styles.get_transparent_label_style())
@@ -414,7 +424,7 @@ def build_done_page(wizard) -> QWidget:
 
     layout.addSpacing(6)
 
-    wizard.ready_label = QLabel("Ready to analyze your games!")
+    wizard.ready_label = QLabel("Bereit, deine Partien zu analysieren!")
     wizard.ready_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
     wizard.ready_label.setStyleSheet(
         f"font-size: 13px; color: {Styles.COLOR_ACCENT}; font-weight: bold; {Styles.get_transparent_label_style()}"
@@ -444,7 +454,7 @@ def build_done_page(wizard) -> QWidget:
 
     layout.addSpacing(20)
 
-    wizard.done_btn = QPushButton("Launch Chess Analyzer Pro")
+    wizard.done_btn = QPushButton("Chess Analyzer Pro starten")
     wizard.done_btn.setCursor(Qt.CursorShape.PointingHandCursor)
     wizard.done_btn.setFixedHeight(44)
     wizard.done_btn.setStyleSheet(f"""

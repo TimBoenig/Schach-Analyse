@@ -10,7 +10,7 @@ from .helpers import create_icon_button
 
 class DataSettings(QGroupBox):
     def __init__(self, parent=None):
-        super().__init__("Data Management", parent)
+        super().__init__("Datenverwaltung", parent)
         self.setStyleSheet(Styles.get_group_box_style())
 
         self.setup_ui()
@@ -21,17 +21,17 @@ class DataSettings(QGroupBox):
         data_layout.setSpacing(12)
 
         self.clear_cache_btn = create_icon_button(
-            "Clear Cache", "fa5s.broom", self.clear_cache, self
+            "Cache leeren", "fa5s.broom", self.clear_cache, self
         )
         data_layout.addWidget(self.clear_cache_btn, 0, 0)
 
         self.optimize_db_btn = create_icon_button(
-            "Optimize DB", "fa5s.tools", self.optimize_db, self
+            "DB optimieren", "fa5s.tools", self.optimize_db, self
         )
         data_layout.addWidget(self.optimize_db_btn, 0, 1)
 
         self.clear_data_btn = create_icon_button(
-            "Reset All Data", "fa5s.trash-alt", self.clear_all_data, self, danger=True
+            "Alle Daten löschen", "fa5s.trash-alt", self.clear_all_data, self, danger=True
         )
         data_layout.addWidget(self.clear_data_btn, 0, 2)
 
@@ -42,16 +42,16 @@ class DataSettings(QGroupBox):
         history = GameHistoryManager()
         history.vacuum()
         history.checkpoint()
-        MainWindow.toast_from_widget(self, "Database optimized and compacted.", "success")
+        MainWindow.toast_from_widget(self, "Datenbank optimiert und komprimiert.", "success")
 
     def clear_cache(self):
         from src.gui.utils.gui_utils import confirm_dialog
 
         if confirm_dialog(
             self,
-            "Clear Cache",
-            "Clear the analysis cache? Your game history will not be deleted.",
-            confirm_label="Clear Cache",
+            "Cache leeren",
+            "Analyse-Cache leeren? Dein Partieverlauf bleibt erhalten.",
+            confirm_label="Cache leeren",
         ):
             from src.backend.storage.cache import AnalysisCache
 
@@ -59,16 +59,16 @@ class DataSettings(QGroupBox):
             cache.clear_cache()
             from src.gui.main_window import MainWindow
 
-            MainWindow.toast_from_widget(self, "Analysis cache cleared.", "success")
+            MainWindow.toast_from_widget(self, "Analyse-Cache geleert.", "success")
 
     def clear_all_data(self):
         from src.gui.utils.gui_utils import confirm_dialog
 
         if confirm_dialog(
             self,
-            "Reset All Data",
-            "This will delete your ENTIRE game history and analysis cache. This cannot be undone.",
-            confirm_label="Reset All Data",
+            "Alle Daten löschen",
+            "Dein GESAMTER Partieverlauf und der Analyse-Cache werden gelöscht. Das kann nicht rückgängig gemacht werden.",
+            confirm_label="Alle Daten löschen",
         ):
             from src.backend.storage.cache import AnalysisCache
             from src.backend.storage.game_history import GameHistoryManager
@@ -90,7 +90,7 @@ class DataSettings(QGroupBox):
 
             from src.gui.main_window import MainWindow
 
-            MainWindow.toast_from_widget(self, "All data cleared.", "success")
+            MainWindow.toast_from_widget(self, "Alle Daten gelöscht.", "success")
 
     def set_advanced_visible(self, visible):
         self.setVisible(visible)

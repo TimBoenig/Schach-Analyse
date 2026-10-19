@@ -50,7 +50,7 @@ def test_classify_checkmate():
     )
     classify_move(move, wpl=0.0, side="white")
     assert move.classification == "Best"
-    assert "checkmate" in move.explanation.lower()
+    assert "schachmatt" in move.explanation.lower()
 
 
 def test_classify_missed_mate():
@@ -90,7 +90,7 @@ def test_classify_brilliant_move():
     )
     classify_move(move, wpl=0.0, side="white")
     assert move.classification == "Brilliant"
-    assert "sacrifice" in move.explanation.lower()
+    assert "opfer" in move.explanation.lower()
 
 
 def test_classify_brilliant_rook_sacrifice():
@@ -338,7 +338,7 @@ def test_classify_recapture_is_best_not_great():
     ]
     classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs, prev_move=prev_move)
     assert move.classification == "Best"
-    assert "Engine's top choice" in move.explanation
+    assert "Erste Wahl der Engine" in move.explanation
 
 
 def test_classify_equal_trade_is_best_not_great():
@@ -403,7 +403,7 @@ def test_classify_only_move_where_rest_worse_is_great():
     ]
     classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
     assert move.classification == "Great"
-    assert "Only good move" in move.explanation
+    assert "Einziger guter Zug" in move.explanation
 
 
 def test_classify_genuine_great_move():
@@ -426,4 +426,4 @@ def test_classify_genuine_great_move():
     ]
     classify_move(move, wpl=0.0, side="white", multi_pvs=multi_pvs)
     assert move.classification == "Great"
-    assert "Only good move" in move.explanation
+    assert "Einziger guter Zug" in move.explanation

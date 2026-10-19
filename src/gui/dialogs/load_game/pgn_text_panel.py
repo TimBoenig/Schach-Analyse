@@ -1,12 +1,14 @@
 """
 PGN Text panel for the Load Game dialog.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QTextEdit, QVBoxLayout, QWidget
 
 from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+from src.utils.translations import tr_speed
 
 from .helpers import classify_time_control
 from .inline_game_list import InlineGameList
@@ -18,7 +20,8 @@ class PgnTextPanel(QWidget):
     Handles pasting PGN text and parsing it. Like the file panel,
     single games load immediately, multiple games show a picker.
     """
-    pgn_ready     = pyqtSignal(str, object)   # (pgn_text, None)
+
+    pgn_ready = pyqtSignal(str, object)  # (pgn_text, None)
     pending_cleared = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -38,7 +41,7 @@ class PgnTextPanel(QWidget):
         input_layout.setSpacing(12)
 
         self._text_edit = QTextEdit()
-        self._text_edit.setPlaceholderText("Paste your PGN text here...")
+        self._text_edit.setPlaceholderText("Füge hier deinen PGN-Text ein...")
         self._text_edit.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -55,7 +58,7 @@ class PgnTextPanel(QWidget):
         """)
         input_layout.addWidget(self._text_edit)
 
-        parse_btn = create_button("Parse PGN", style="secondary", on_click=self._parse)
+        parse_btn = create_button("PGN einlesen", style="secondary", on_click=self._parse)
         parse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         parse_btn.setFixedHeight(36)
         input_layout.addWidget(parse_btn)
@@ -73,20 +76,25 @@ class PgnTextPanel(QWidget):
     def _parse(self):
         text = self._text_edit.toPlainText().strip()
         if not text:
-            Toast.show_message(self.window(), "Please paste some PGN text first.", "warning")
+            Toast.show_message(self.window(), "Bitte füge zuerst PGN-Text ein.", "warning")
             return
 
         from src.backend.storage.pgn_parser import PGNParser
+
         try:
             games = PGNParser.parse_pgn_text(text)
         except Exception:
-            Toast.show_message(self.window(),
-                               "Could not parse this PGN. It may be empty or corrupted.",
-                               "error")
+            Toast.show_message(
+                self.window(),
+                "Diese PGN konnte nicht gelesen werden. Sie ist evtl. leer oder beschädigt.",
+                "error",
+            )
             return
 
         if not games:
-            Toast.show_message(self.window(), "No valid games found in this text.", "warning")
+            Toast.show_message(
+                self.window(), "Keine gültigen Partien in diesem Text gefunden.", "warning"
+            )
             return
 
         self._parsed_games = games
@@ -104,14 +112,16 @@ class PgnTextPanel(QWidget):
             result = md.result or "?"
             date = md.date or md.headers.get("Date", "?")
             time_ctrl = md.headers.get("TimeControl", "")
-            tc_label = classify_time_control(time_ctrl)
+            tc_label = tr_speed(classify_time_control(time_ctrl))
             move_count = (len(g.moves) + 1) // 2
 
-            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
+            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} Züge"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
             rows.append((line1, line2))
 
-        header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
+        header_text = (
+            "1 Partie bereit zum Laden:" if n == 1 else f"Wähle eine Partie ({n} gefunden):"
+        )
         self._game_list.populate(rows, header_text)
         self._game_list.setVisible(True)
 

@@ -35,39 +35,39 @@ class TacticalThemesCard(MetricCard):
     MOTIF_CONFIG: dict[str, tuple[str, str, str, str]] = {
         # key: (Display Name, Icon, Description/Tooltip, Color Property Name)
         "fork": (
-            "Fork",
+            "Gabel",
             "fa5s.code-branch",
-            "Double attack against two enemy targets simultaneously",
+            "Doppelangriff auf zwei gegnerische Ziele gleichzeitig",
             "COLOR_BEST",
         ),
         "skewer": (
-            "Skewer",
+            "Spieß",
             "fa5s.arrows-alt-v",
-            "Attack through a higher-value piece to win material behind it",
+            "Angriff auf eine wertvollere Figur, um das Material dahinter zu gewinnen",
             "COLOR_GREAT",
         ),
         "sacrifice": (
-            "Sacrifice",
+            "Opfer",
             "fa5s.gem",
-            "Deliberate material investment for decisive tactical or positional gain",
+            "Bewusster Materialeinsatz für entscheidenden taktischen oder positionellen Gewinn",
             "COLOR_ACCENT",
         ),
         "pin": (
-            "Pin",
+            "Fesselung",
             "fa5s.thumbtack",
-            "Immobilizing an enemy piece against their King or high-value piece",
+            "Eine gegnerische Figur vor König oder wertvoller Figur festnageln",
             "COLOR_BOOK",
         ),
         "discovered_attack": (
-            "Discovered Attack",
+            "Abzugsangriff",
             "fa5s.eye",
-            "Moving one piece to unmask a deadly line of attack from another",
+            "Eine Figur zieht weg und öffnet die Angriffslinie einer anderen",
             "COLOR_GOOD",
         ),
         "back_rank": (
-            "Back-Rank Threat",
+            "Grundreihendrohung",
             "fa5s.chess-rook",
-            "Infiltrating the trapped enemy King along their baseline",
+            "Einbruch gegen den eingesperrten König auf der Grundreihe",
             "COLOR_TEXT_SECONDARY",
         ),
     }
@@ -76,7 +76,7 @@ class TacticalThemesCard(MetricCard):
         self.stats: dict = {}
         self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Pattern Execution")
+        self.action_badge = QLabel("Mustererkennung")
         self.action_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -88,7 +88,7 @@ class TacticalThemesCard(MetricCard):
         """)
 
         super().__init__(
-            "Tactical Motifs & Patterns",
+            "Taktische Motive & Muster",
             parent=parent,
             min_height=340,
             action_widget=self.action_badge,
@@ -116,9 +116,9 @@ class TacticalThemesCard(MetricCard):
 
         if total_games == 0 or total_tactics == 0:
             empty_lbl = QLabel(
-                "No tactical motifs recorded yet.\nAnalyze your games to reveal tactical patterns!"
+                "Noch keine taktischen Motive erfasst.\nAnalysiere deine Partien, um taktische Muster aufzudecken!"
                 if total_games > 0
-                else "No games available for tactical motif analysis."
+                else "Keine Partien für die Taktikanalyse vorhanden."
             )
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
@@ -162,7 +162,7 @@ class TacticalThemesCard(MetricCard):
 
         lbl_tot_val = QLabel(str(total_tactics))
         lbl_tot_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_tot_val.setToolTip("Click to inspect all executed tactics positions")
+        lbl_tot_val.setToolTip("Klicken, um alle Stellungen mit ausgeführter Taktik anzusehen")
         lbl_tot_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
             "tactical_themes", "all"
         )
@@ -174,7 +174,7 @@ class TacticalThemesCard(MetricCard):
         """)
         l_stat_row.addWidget(lbl_tot_val)
 
-        lbl_tot_title = QLabel("Tactics Executed")
+        lbl_tot_title = QLabel("Ausgeführte Taktiken")
         lbl_tot_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 13px;
@@ -185,7 +185,7 @@ class TacticalThemesCard(MetricCard):
         l_stat_row.addWidget(lbl_tot_title)
         left_box.addLayout(l_stat_row)
 
-        lbl_tot_sub = QLabel(f"{tpg:.1f} per game across {total_games} analyzed games")
+        lbl_tot_sub = QLabel(f"{tpg:.1f} pro Partie in {total_games} analysierten Partien")
         lbl_tot_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
@@ -221,7 +221,7 @@ class TacticalThemesCard(MetricCard):
         except Exception:
             pass
 
-        lbl_weapon = QLabel(f"Top Weapon: {top_name} ({top_share:.0f}%)")
+        lbl_weapon = QLabel(f"Top-Waffe: {top_name} ({top_share:.0f}%)")
         lbl_weapon.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 12px;
@@ -232,7 +232,7 @@ class TacticalThemesCard(MetricCard):
         tp_layout.addWidget(lbl_weapon)
         right_box.addWidget(top_pill, alignment=Qt.AlignmentFlag.AlignRight)
 
-        lbl_weapon_sub = QLabel(f"{top_count} of {total_tactics} total tactical strikes")
+        lbl_weapon_sub = QLabel(f"{top_count} von {total_tactics} taktischen Schlägen insgesamt")
         lbl_weapon_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
@@ -270,7 +270,7 @@ class TacticalThemesCard(MetricCard):
                 background-color: {seg_color};
                 border-radius: 2px;
             """)
-            seg.setToolTip(f"{self.MOTIF_CONFIG[key][0]}: {cnt} strikes ({pct:.1f}%)")
+            seg.setToolTip(f"{self.MOTIF_CONFIG[key][0]}: {cnt} Schläge ({pct:.1f}%)")
             r_layout.addWidget(seg, max(1, int(pct * 10)))
 
         main_vbox.addWidget(ribbon_frame)
@@ -303,7 +303,7 @@ class TacticalThemesCard(MetricCard):
                 }}
             """)
             row.setToolTip(
-                f"{name}: {desc}\nExecuted {cnt} times ({pct:.1f}% of arsenal)\nClick to view positions"
+                f"{name}: {desc}\n{cnt}-mal ausgeführt ({pct:.1f}% des Arsenals)\nKlicken, um Stellungen anzusehen"
             )
             row_l = QHBoxLayout(row)
             row_l.setContentsMargins(6, 4, 8, 4)
@@ -364,7 +364,7 @@ class TacticalThemesCard(MetricCard):
             row_l.addWidget(pbar)
 
             # Strikes count
-            lbl_cnt = QLabel(f"{cnt} strikes" if cnt != 1 else "1 strike")
+            lbl_cnt = QLabel(f"{cnt} Schläge" if cnt != 1 else "1 Schlag")
             lbl_cnt.setFixedWidth(70)
             lbl_cnt.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             lbl_cnt.setStyleSheet(f"""

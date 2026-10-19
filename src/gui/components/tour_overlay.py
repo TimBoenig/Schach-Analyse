@@ -91,7 +91,7 @@ class TourOverlay(QWidget):
         nav.setContentsMargins(0, 4, 0, 0)
         nav.setSpacing(8)
 
-        self.prev_btn = QPushButton("← Back")
+        self.prev_btn = QPushButton("← Zurück")
         self.prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.prev_btn.setStyleSheet(f"""
             QPushButton {{
@@ -110,7 +110,7 @@ class TourOverlay(QWidget):
 
         nav.addStretch()
 
-        self.next_btn = QPushButton("Next →")
+        self.next_btn = QPushButton("Weiter →")
         self.next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.next_btn.setStyleSheet(f"""
             QPushButton {{
@@ -128,7 +128,7 @@ class TourOverlay(QWidget):
         nav.addWidget(self.next_btn)
 
         self.close_btn = QPushButton("✕")
-        self.close_btn.setToolTip("Close tour  (Esc)")
+        self.close_btn.setToolTip("Tour schließen  (Esc)")
         self.close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.close_btn.setStyleSheet(f"""
             QPushButton {{
@@ -232,9 +232,9 @@ class TourOverlay(QWidget):
         self.text_label.setText(step.text or "")
         total = self.tour.total_steps
         idx = self.tour.current_step
-        self.step_label.setText(f"Step {idx + 1} of {total}")
+        self.step_label.setText(f"Schritt {idx + 1} von {total}")
         self.prev_btn.setEnabled(idx > 0)
-        self.next_btn.setText("Finish" if idx == total - 1 else "Next →")
+        self.next_btn.setText("Fertig" if idx == total - 1 else "Weiter →")
 
         # ── Target highlight rect ─────────────────────────────────────────
         self._highlight_rect = self._widget_rect_in_parent(step.target)

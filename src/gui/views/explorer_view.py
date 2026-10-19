@@ -1,6 +1,7 @@
 """
 Explorer View - The main container for the Opening Explorer.
 """
+
 import os
 
 import chess
@@ -58,7 +59,7 @@ class ExplorerView(QWidget):
         self.is_chess960 = False
         self.starting_fen = chess.STARTING_FEN
         self.board = chess.Board()
-        self.move_history = [] # list of (Move object, FEN before, FEN after, SAN)
+        self.move_history = []  # list of (Move object, FEN before, FEN after, SAN)
 
         # Classification State
         self.last_eval = None
@@ -91,10 +92,13 @@ class ExplorerView(QWidget):
 
         # Show loading while opening DB initializes (first launch imports TSV)
         if not self.opening_db.is_populated():
-            QTimer.singleShot(50, lambda: self.loading_overlay.start(
-                "Loading Opening Book...",
-                "Importing Lichess ECO database (first launch only)"
-            ))
+            QTimer.singleShot(
+                50,
+                lambda: self.loading_overlay.start(
+                    "Eröffnungsbuch wird geladen …",
+                    "Lichess-ECO-Datenbank wird importiert (nur beim ersten Start)",
+                ),
+            )
 
         self.live_worker.start()
         self._send_to_engine(self.board.fen())
@@ -109,36 +113,46 @@ class ExplorerView(QWidget):
 
         # Header Bar Container
         self.header_bar = QFrame()
-        self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND))
+        self.header_bar.setStyleSheet(
+            Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
+        )
         header_layout = QHBoxLayout(self.header_bar)
         header_layout.setContentsMargins(20, 6, 20, 6)
 
         # Title
-        self.title_lbl = QLabel("Opening Explorer")
-        self.title_lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        self.title_lbl = QLabel("Eröffnungs-Explorer")
+        self.title_lbl.setStyleSheet(
+            Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(self.title_lbl)
 
         # Opening badge (inline after title)
-        self.opening_badge = QLabel("Opening: -")
-        self.opening_badge.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; padding: 0px 0px 0px 12px; " + Styles.get_transparent_label_style())
+        self.opening_badge = QLabel("Eröffnung: -")
+        self.opening_badge.setStyleSheet(
+            Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
+            + "; padding: 0px 0px 0px 12px; "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(self.opening_badge)
 
         header_layout.addStretch()
 
         # Action buttons header style
-        self.btn_flip = QPushButton("Flip Board")
+        self.btn_flip = QPushButton("Brett drehen")
         self.btn_flip.setStyleSheet(Styles.get_action_button_style())
         self.btn_flip.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_flip.clicked.connect(self._flip_board)
         header_layout.addWidget(self.btn_flip)
 
-        self.btn_copy_fen = QPushButton("Copy FEN")
+        self.btn_copy_fen = QPushButton("FEN kopieren")
         self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
         self.btn_copy_fen.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_copy_fen.clicked.connect(self._copy_fen)
         header_layout.addWidget(self.btn_copy_fen)
 
-        self.btn_copy_pgn = QPushButton("Copy PGN")
+        self.btn_copy_pgn = QPushButton("PGN kopieren")
         self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
         self.btn_copy_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_copy_pgn.clicked.connect(self._copy_pgn)
@@ -164,7 +178,7 @@ class ExplorerView(QWidget):
         self.black_header_widget = QWidget()
         black_header = QHBoxLayout(self.black_header_widget)
         black_header.setContentsMargins(0, 0, 0, 0)
-        self.lbl_black = QLabel("Black")
+        self.lbl_black = QLabel("Schwarz")
         self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
         self.captured_black = CapturedPiecesWidget(side="black")
         black_header.addWidget(self.lbl_black)
@@ -181,7 +195,7 @@ class ExplorerView(QWidget):
         self.white_header_widget = QWidget()
         white_header = QHBoxLayout(self.white_header_widget)
         white_header.setContentsMargins(0, 0, 0, 0)
-        self.lbl_white = QLabel("White")
+        self.lbl_white = QLabel("Weiß")
         self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
         self.captured_white = CapturedPiecesWidget(side="white")
         white_header.addWidget(self.lbl_white)
@@ -205,23 +219,25 @@ class ExplorerView(QWidget):
         toggles_layout.setContentsMargins(0, 0, 0, 4)
         toggles_layout.setSpacing(8)
 
-        self.chk_classify = QCheckBox("Classify Moves")
+        self.chk_classify = QCheckBox("Züge bewerten")
         self.chk_classify.setChecked(self.classify_enabled)
         self.chk_classify.toggled.connect(self.on_classify_toggled)
 
-        self.chk_legal = QCheckBox("Legal Moves")
+        self.chk_legal = QCheckBox("Legale Züge")
         self.chk_legal.setChecked(True)
         self.chk_legal.toggled.connect(self.on_legal_moves_toggled)
 
-        self.chk_engine = QCheckBox("Engine Lines")
+        self.chk_engine = QCheckBox("Engine-Varianten")
         self.chk_engine.setChecked(False)
         self.chk_engine.toggled.connect(self.on_engine_toggled)
 
-        self.chk_cache = QCheckBox("Use Cache")
+        self.chk_cache = QCheckBox("Cache nutzen")
         self.chk_cache.setChecked(True)
 
         for chk in (self.chk_classify, self.chk_legal, self.chk_engine, self.chk_cache):
-            chk.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500))
+            chk.setStyleSheet(
+                Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY, weight=500)
+            )
             chk.setCursor(Qt.CursorShape.PointingHandCursor)
             toggles_layout.addWidget(chk)
 
@@ -236,7 +252,7 @@ class ExplorerView(QWidget):
 
         # Book Moves Toggle + Table
         self._current_book_count = 0
-        self.book_toggle = QPushButton("▶  Book Moves")
+        self.book_toggle = QPushButton("▶  Buchzüge")
         self.book_toggle.setCheckable(True)
         self.book_toggle.setChecked(True)
         self.book_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -260,10 +276,18 @@ class ExplorerView(QWidget):
 
         # Lichess Attribution footer
         self.lichess_attribution = QLabel()
-        self.lichess_attribution.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + "; padding: 4px 14px; " + Styles.get_transparent_label_style())
-        self.lichess_attribution.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        self.lichess_attribution.setStyleSheet(
+            Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+            + "; padding: 4px 14px; "
+            + Styles.get_transparent_label_style()
+        )
+        self.lichess_attribution.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
         self.lichess_attribution.setOpenExternalLinks(True)
-        self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
+        self.lichess_attribution.setText(
+            f'Daten von <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>'
+        )
         self.lichess_attribution.setVisible(False)
         right_layout.addWidget(self.lichess_attribution)
 
@@ -271,12 +295,14 @@ class ExplorerView(QWidget):
         moves_header = QHBoxLayout()
         moves_header.setContentsMargins(0, 0, 0, 0)
         moves_header.setSpacing(8)
-        self.move_list_label = QLabel("Moves")
+        self.move_list_label = QLabel("Züge")
         self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
         moves_header.addWidget(self.move_list_label)
         self.move_input = QLineEdit()
-        self.move_input.setPlaceholderText("type SAN move...")
-        self.move_input.setToolTip("Enter a move in standard algebraic notation (e.g. e4, Nf3, O-O)")
+        self.move_input.setPlaceholderText("Zug in SAN eingeben …")
+        self.move_input.setToolTip(
+            "Zug in algebraischer Notation (SAN) eingeben, z. B. e4, Nf3, O-O"
+        )
         self.move_input.setStyleSheet(Styles.get_line_edit_style())
         self.move_input.setMinimumWidth(120)
         self.move_input.returnPressed.connect(self._on_move_text_entered)
@@ -287,15 +313,23 @@ class ExplorerView(QWidget):
         self.move_list_widget = ExplorerMoveListWidget()
         self.move_list_widget.move_selected.connect(self.on_move_list_clicked)
         self.move_list_widget.nav_first.connect(lambda: self.on_move_list_clicked(-1))
-        self.move_list_widget.nav_prev.connect(lambda: self.on_move_list_clicked(self.move_list_widget.current_index - 1))
-        self.move_list_widget.nav_next.connect(lambda: self.on_move_list_clicked(self.move_list_widget.current_index + 1))
-        self.move_list_widget.nav_last.connect(lambda: self.on_move_list_clicked(len(self.move_history) - 1))
+        self.move_list_widget.nav_prev.connect(
+            lambda: self.on_move_list_clicked(self.move_list_widget.current_index - 1)
+        )
+        self.move_list_widget.nav_next.connect(
+            lambda: self.on_move_list_clicked(self.move_list_widget.current_index + 1)
+        )
+        self.move_list_widget.nav_last.connect(
+            lambda: self.on_move_list_clicked(len(self.move_history) - 1)
+        )
 
         right_layout.addWidget(self.move_list_widget, stretch=1)
 
         # Engine Status
         self.engine_status_label = QLabel("")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
+        )
         right_layout.addWidget(self.engine_status_label)
 
         self.splitter.addWidget(self.right_panel)
@@ -305,7 +339,7 @@ class ExplorerView(QWidget):
     def load_fen(self, fen):
         """Loads a starting position into the explorer."""
         castling = fen.split()[2]
-        self.is_chess960 = castling != '-' and any(c not in 'KQkq' for c in castling)
+        self.is_chess960 = castling != "-" and any(c not in "KQkq" for c in castling)
         self.starting_fen = fen
         try:
             test_board = chess.Board(fen, chess960=self.is_chess960)
@@ -378,7 +412,7 @@ class ExplorerView(QWidget):
         forward to the position AFTER the move and run classification."""
         self._classify_queue = []
         for i, _m in enumerate(self.move_history):
-            if not self.move_list_widget.moves[i].get('classification'):
+            if not self.move_list_widget.moves[i].get("classification"):
                 self._classify_queue.append(i)
         if not self._classify_queue:
             return
@@ -401,7 +435,9 @@ class ExplorerView(QWidget):
         self._classify_before_eval = None
         self._send_to_engine(self.board.fen())
 
-    def load_board_state(self, source_board, source_moves=None, *, chess960=None, starting_fen=None):
+    def load_board_state(
+        self, source_board, source_moves=None, *, chess960=None, starting_fen=None
+    ):
         """Loads a full board state including its move stack history and optional existing classifications.
 
         Parameters
@@ -420,7 +456,9 @@ class ExplorerView(QWidget):
         """
         # Phase 1: detect Chess960 mode — trust metadata (passed via kwargs)
         # over source_board, since the main widget may have lost the flag.
-        self.is_chess960 = chess960 if chess960 is not None else getattr(source_board, 'chess960', False)
+        self.is_chess960 = (
+            chess960 if chess960 is not None else getattr(source_board, "chess960", False)
+        )
         # Starting FEN: use metadata value when available, else fall back to
         # source_board (which is chess.STARTING_FEN for Chess960 boards).
         # When the metadata value is None but Chess960 is True, try to recover
@@ -522,7 +560,7 @@ class ExplorerView(QWidget):
 
         # Truncate history if we navigated back
         if self.move_list_widget.current_index < len(self.move_history) - 1:
-            self.move_history = self.move_history[:self.move_list_widget.current_index + 1]
+            self.move_history = self.move_history[: self.move_list_widget.current_index + 1]
 
         self.move_history.append((move, fen_before, fen_after, san))
         self.move_list_widget.add_move(san)
@@ -533,7 +571,9 @@ class ExplorerView(QWidget):
 
         # Show pending indicator if classification is enabled
         if self.classify_enabled:
-            self.move_list_widget.set_pending_classification(self.pending_classification_index, True)
+            self.move_list_widget.set_pending_classification(
+                self.pending_classification_index, True
+            )
 
         # Check if it's a book move instantly (compare by UCI to avoid SAN ambiguity)
         norm_fen = _normalize_fen(fen_before)
@@ -555,15 +595,18 @@ class ExplorerView(QWidget):
 
     def _get_piece_pixmap(self, symbol, size=18):
         cache_key = (symbol, size)
-        if not hasattr(self, '_piece_pixmap_cache'):
+        if not hasattr(self, "_piece_pixmap_cache"):
             self._piece_pixmap_cache = {}
         if cache_key not in self._piece_pixmap_cache:
             from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+
             pieces_svg = _load_theme_cached(get_current_theme_name())
             g_content = pieces_svg.get(symbol, "")
             if g_content:
-                svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
-                renderer = QSvgRenderer(QByteArray(svg_str.encode('utf-8')))
+                svg_str = (
+                    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
+                )
+                renderer = QSvgRenderer(QByteArray(svg_str.encode("utf-8")))
                 pixmap = QPixmap(size, size)
                 pixmap.fill(Qt.GlobalColor.transparent)
                 painter = QPainter(pixmap)
@@ -573,9 +616,6 @@ class ExplorerView(QWidget):
             else:
                 self._piece_pixmap_cache[cache_key] = None
         return self._piece_pixmap_cache[cache_key]
-
-
-
 
     def _create_book_row_widget(self, san, info_text, piece_symbol=None, stats=None):
         row_widget = BookRowWidget(san, on_click=self.on_book_move_clicked, parent=self)
@@ -599,7 +639,11 @@ class ExplorerView(QWidget):
                 left_layout.addWidget(icon_label)
 
         lbl_san = QLabel(san)
-        lbl_san.setStyleSheet(Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        lbl_san.setStyleSheet(
+            Styles.get_label_style(size=15, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         left_layout.addWidget(lbl_san)
 
         row_layout.addLayout(left_layout)
@@ -614,7 +658,11 @@ class ExplorerView(QWidget):
             right_layout.setSpacing(12)
 
             lbl_count = QLabel(count_str)
-            lbl_count.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED, weight=500) + " " + Styles.get_transparent_label_style())
+            lbl_count.setStyleSheet(
+                Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_MUTED, weight=500)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
             right_layout.addWidget(lbl_count)
 
             ratio_bar = RatioBar(w_pct, d_pct, b_pct, self)
@@ -623,7 +671,11 @@ class ExplorerView(QWidget):
             row_layout.addLayout(right_layout)
         elif info_text:
             lbl_info = QLabel(info_text)
-            lbl_info.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; font-style: italic; " + Styles.get_transparent_label_style())
+            lbl_info.setStyleSheet(
+                Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
+                + "; font-style: italic; "
+                + Styles.get_transparent_label_style()
+            )
             lbl_info.setMinimumWidth(0)
             row_layout.addWidget(lbl_info)
 
@@ -635,14 +687,14 @@ class ExplorerView(QWidget):
         self.board_widget.book_destinations = []
 
         # Remove all existing book row widgets
-        if hasattr(self, '_book_row_widgets'):
+        if hasattr(self, "_book_row_widgets"):
             for w in self._book_row_widgets:
                 self.book_layout.removeWidget(w)
                 w.deleteLater()
         self._book_row_widgets = []
 
         if not self.board_widget.board.move_stack:
-            self.opening_badge.setText("Opening: -")
+            self.opening_badge.setText("Eröffnung: -")
 
         # --- Update opening badge from SQLite (always) ---
         if node_id is not None:
@@ -650,19 +702,19 @@ class ExplorerView(QWidget):
             if openings:
                 best_name = max(openings, key=lambda x: len(x[1]))[1]
                 best_eco = max(openings, key=lambda x: len(x[1]))[0]
-                self.opening_badge.setText(f"Opening: {best_eco} - {best_name}")
+                self.opening_badge.setText(f"Eröffnung: {best_eco} - {best_name}")
 
         # Check if we should use Lichess Explorer (token present)
         lichess_token = self.config_manager.get("lichess_token", "").strip()
         if lichess_token:
             # Hide book scroll temporarily while fetching
             self.book_scroll.hide()
-            self.book_toggle.setText("▶  Book Moves  (loading...)")
+            self.book_toggle.setText("▶  Buchzüge  (lädt …)")
             self.book_toggle.show()
 
             # Start Lichess worker
             if (
-                hasattr(self, '_lichess_worker')
+                hasattr(self, "_lichess_worker")
                 and self._lichess_worker is not None
                 and self._lichess_worker.isRunning()
             ):
@@ -677,7 +729,7 @@ class ExplorerView(QWidget):
                 self.chk_cache.isChecked(),
                 GameHistoryManager(),
                 token=lichess_token,
-                parent=self
+                parent=self,
             )
             self._lichess_worker.finished.connect(self.on_lichess_explorer_finished)
             self._lichess_worker.error.connect(self.on_lichess_explorer_error)
@@ -753,7 +805,7 @@ class ExplorerView(QWidget):
 
         self._current_book_count = len(self._book_row_widgets)
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        self.book_toggle.setText(f"{arrow}  Buchzüge  ({self._current_book_count})")
 
         if self._current_book_count > 0:
             self.book_toggle.show()
@@ -772,14 +824,18 @@ class ExplorerView(QWidget):
             return
         try:
             move = self.board_widget.board.parse_san(san)
-            self.board_widget.attempt_move(move.from_square, move.to_square, promotion=move.promotion)
+            self.board_widget.attempt_move(
+                move.from_square, move.to_square, promotion=move.promotion
+            )
         except Exception as e:
             logger.warning(f"Failed to play book move {san}: {e}")
 
     def on_engine_line_clicked(self, uci_move):
         try:
             move = chess.Move.from_uci(uci_move)
-            self.board_widget.attempt_move(move.from_square, move.to_square, promotion=move.promotion)
+            self.board_widget.attempt_move(
+                move.from_square, move.to_square, promotion=move.promotion
+            )
         except Exception as e:
             logger.warning(f"Failed to play engine line move {uci_move}: {e}")
 
@@ -788,7 +844,7 @@ class ExplorerView(QWidget):
         letter (k,q,r,b,n), uppercase it for standard SAN."""
         if not text:
             return text
-        if text[0] in 'kqrbn' and text[0].islower():
+        if text[0] in "kqrbn" and text[0].islower():
             text = text[0].upper() + text[1:]
         return text
 
@@ -801,7 +857,9 @@ class ExplorerView(QWidget):
         try:
             text = self._normalize_san(text)
             move = self.board_widget.board.parse_san(text)
-            self.board_widget.attempt_move(move.from_square, move.to_square, promotion=move.promotion)
+            self.board_widget.attempt_move(
+                move.from_square, move.to_square, promotion=move.promotion
+            )
             if self.board_widget.board.fen() == fen_before:
                 raise ValueError(f"Illegal move: {text}")
             self.move_input.clear()
@@ -817,7 +875,7 @@ class ExplorerView(QWidget):
     def _toggle_book(self, checked):
         self.book_scroll.setVisible(checked)
         arrow = "▼" if checked else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        self.book_toggle.setText(f"{arrow}  Buchzüge  ({self._current_book_count})")
 
     def _flip_board(self):
         self.board_widget.flip_board()
@@ -830,21 +888,25 @@ class ExplorerView(QWidget):
             self.left_layout.insertWidget(0, self.white_header_widget)  # white above
             self.left_layout.insertWidget(2, self.black_header_widget)  # black below
         else:
-            self.left_layout.insertWidget(0, self.black_header_widget)   # black above
-            self.left_layout.insertWidget(2, self.white_header_widget)   # white below
+            self.left_layout.insertWidget(0, self.black_header_widget)  # black above
+            self.left_layout.insertWidget(2, self.white_header_widget)  # white below
 
     def _copy_fen(self):
         fen = self.board_widget.board.fen()
         from PyQt6.QtWidgets import QApplication
+
         QApplication.clipboard().setText(fen)
-        self.engine_status_label.setText("✓ FEN copied")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
+        self.engine_status_label.setText("✓ FEN kopiert")
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY)
+        )
         QTimer.singleShot(2000, self._reset_status)
 
     def _copy_pgn(self):
         from datetime import date
 
         import chess.pgn
+
         game = chess.pgn.Game()
         game.headers["Event"] = "Chess Analyzer Pro"
         game.headers["Site"] = "Opening Explorer"
@@ -862,14 +924,19 @@ class ExplorerView(QWidget):
         exporter = chess.pgn.StringExporter(headers=True, comments=False, variations=False)
         pgn_text = game.accept(exporter)
         from PyQt6.QtWidgets import QApplication
+
         QApplication.clipboard().setText(pgn_text)
-        self.engine_status_label.setText("✓ PGN copied")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
+        self.engine_status_label.setText("✓ PGN kopiert")
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY)
+        )
         QTimer.singleShot(2000, self._reset_status)
 
     def _reset_status(self):
-        self.engine_status_label.setText("⬤ Ready")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
+        self.engine_status_label.setText("⬤ Bereit")
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY)
+        )
 
     def on_move_list_clicked(self, index):
         # Prevent out-of-bounds
@@ -877,8 +944,8 @@ class ExplorerView(QWidget):
             return
 
         current_idx = self.move_list_widget.current_index
-        is_step_forward = (index == current_idx + 1)
-        is_step_back = (index == current_idx - 1)
+        is_step_forward = index == current_idx + 1
+        is_step_back = index == current_idx - 1
 
         # Optimize: step forward/back by 1 move instead of full replay
         if is_step_forward and current_idx >= -1 and index < len(self.move_history):
@@ -916,7 +983,7 @@ class ExplorerView(QWidget):
 
         if is_step_forward:
             # Only set pending if the move isn't already classified
-            if not self.move_list_widget.moves[index].get('classification'):
+            if not self.move_list_widget.moves[index].get("classification"):
                 self.pending_classification_index = index
                 self.pending_before_eval = dict(self.last_eval) if self.last_eval else None
             else:
@@ -928,22 +995,28 @@ class ExplorerView(QWidget):
             self.pending_before_eval = None
 
     def _on_engine_thinking_started(self):
-        self.engine_status_label.setText("⬤ Analyzing...")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_BUSY))
+        self.engine_status_label.setText("⬤ Analysiere …")
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_ENGINE_BUSY)
+        )
         # Discard stale analysis data from previous position so old info_ready
         # signals don't mix with new position data
         self.live_data = {}
 
     def _on_engine_thinking_stopped(self):
-        self.engine_status_label.setText("⬤ Ready")
-        self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY))
+        self.engine_status_label.setText("⬤ Bereit")
+        self.engine_status_label.setStyleSheet(
+            Styles.get_engine_status_style(Styles.COLOR_ENGINE_READY)
+        )
 
     def on_classify_toggled(self, checked):
         self.classify_enabled = checked
         if not checked:
             # Clear pending classifications and backlog
             if self.pending_classification_index >= 0:
-                self.move_list_widget.set_pending_classification(self.pending_classification_index, False)
+                self.move_list_widget.set_pending_classification(
+                    self.pending_classification_index, False
+                )
             self.pending_classification_index = -1
             self.pending_before_eval = None
             self._classify_queue = []
@@ -1007,15 +1080,21 @@ class ExplorerView(QWidget):
                 # Cache eval for next move (store in White's perspective, centipawns)
                 if depth >= 10:
                     self.last_eval = {
-                        'cp': best_cp,
-                        'mate': best_mate,
-                        'best_move': best_line["pv_uci"][0] if "pv_uci" in best_line and len(best_line["pv_uci"]) > 0 else None
+                        "cp": best_cp,
+                        "mate": best_mate,
+                        "best_move": best_line["pv_uci"][0]
+                        if "pv_uci" in best_line and len(best_line["pv_uci"]) > 0
+                        else None,
                     }
 
                 # Backlog classification: step forward when before-eval is ready
-                if (self._classify_queue and self.pending_classification_index < 0
-                        and self._classify_before_eval is None and depth >= 10
-                        and self.last_eval is not None):
+                if (
+                    self._classify_queue
+                    and self.pending_classification_index < 0
+                    and self._classify_before_eval is None
+                    and depth >= 10
+                    and self.last_eval is not None
+                ):
                     idx = self._classify_queue.pop(0)
                     before_eval = dict(self.last_eval)
                     self._classify_before_eval = before_eval  # mark as captured
@@ -1069,9 +1148,9 @@ class ExplorerView(QWidget):
         ctx = ClassificationContext(
             san=san,
             uci=move_obj.uci(),
-            best_move=before_eval.get('best_move'),
-            eval_before_cp=before_eval.get('cp'),
-            eval_before_mate=before_eval.get('mate'),
+            best_move=before_eval.get("best_move"),
+            eval_before_cp=before_eval.get("cp"),
+            eval_before_mate=before_eval.get("mate"),
             eval_after_cp=after_cp,
             eval_after_mate=after_mate,
         )
@@ -1083,7 +1162,9 @@ class ExplorerView(QWidget):
         classify_move(ctx, wpl, side_str)
 
         if ctx.classification:
-            self.move_list_widget.update_classification(self.pending_classification_index, ctx.classification)
+            self.move_list_widget.update_classification(
+                self.pending_classification_index, ctx.classification
+            )
             self.board_widget.last_move_classification = ctx.classification
             self.board_widget.draw_interactive_overlays()
 
@@ -1091,12 +1172,12 @@ class ExplorerView(QWidget):
 
     def closeEvent(self, event):
         self.live_worker.stop()
-        if hasattr(self, 'opening_db') and self.opening_db:
+        if hasattr(self, "opening_db") and self.opening_db:
             try:
                 self.opening_db.close()
             except Exception:
                 pass
-        if hasattr(self, 'polyglot_manager') and self.polyglot_manager:
+        if hasattr(self, "polyglot_manager") and self.polyglot_manager:
             try:
                 self.polyglot_manager.close()
             except Exception:
@@ -1105,55 +1186,73 @@ class ExplorerView(QWidget):
 
     def refresh_styles(self):
         """Re-applies styles to explorer view components."""
-        if hasattr(self, 'header_bar'):
-            self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND))
-        if hasattr(self, 'title_lbl'):
-            self.title_lbl.setStyleSheet(Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        if hasattr(self, 'opening_badge'):
-            self.opening_badge.setStyleSheet(Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY) + "; padding: 0px 0px 0px 12px; " + Styles.get_transparent_label_style())
-        if hasattr(self, 'btn_flip'):
+        if hasattr(self, "header_bar"):
+            self.header_bar.setStyleSheet(
+                Styles.get_header_bar_ext_style(bg_color=Styles.COLOR_BACKGROUND)
+            )
+        if hasattr(self, "title_lbl"):
+            self.title_lbl.setStyleSheet(
+                Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
+        if hasattr(self, "opening_badge"):
+            self.opening_badge.setStyleSheet(
+                Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_SECONDARY)
+                + "; padding: 0px 0px 0px 12px; "
+                + Styles.get_transparent_label_style()
+            )
+        if hasattr(self, "btn_flip"):
             self.btn_flip.setStyleSheet(Styles.get_action_button_style())
-        if hasattr(self, 'btn_copy_fen'):
+        if hasattr(self, "btn_copy_fen"):
             self.btn_copy_fen.setStyleSheet(Styles.get_action_button_style())
-        if hasattr(self, 'btn_copy_pgn'):
+        if hasattr(self, "btn_copy_pgn"):
             self.btn_copy_pgn.setStyleSheet(Styles.get_action_button_style())
-        if hasattr(self, 'splitter'):
+        if hasattr(self, "splitter"):
             self.splitter.setStyleSheet(Styles.get_splitter_style())
-        if hasattr(self, 'left_panel'):
+        if hasattr(self, "left_panel"):
             self.left_panel.setStyleSheet(Styles.get_background_style())
-        if hasattr(self, 'lbl_black'):
+        if hasattr(self, "lbl_black"):
             self.lbl_black.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        if hasattr(self, 'lbl_white'):
+        if hasattr(self, "lbl_white"):
             self.lbl_white.setStyleSheet(Styles.get_label_style(size=16, bold=True))
-        if hasattr(self, 'right_panel'):
+        if hasattr(self, "right_panel"):
             self.right_panel.setStyleSheet(Styles.get_background_style())
-        if hasattr(self, 'book_toggle'):
+        if hasattr(self, "book_toggle"):
             self.book_toggle.setStyleSheet(Styles.get_book_toggle_style())
-        if hasattr(self, 'book_scroll'):
+        if hasattr(self, "book_scroll"):
             self.book_scroll.setStyleSheet(Styles.get_scroll_area_style())
-        if hasattr(self, 'book_container'):
+        if hasattr(self, "book_container"):
             self.book_container.setStyleSheet(Styles.get_surface_style())
-        if hasattr(self, 'lichess_attribution'):
-            self.lichess_attribution.setStyleSheet(Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED) + "; padding: 4px 14px; " + Styles.get_transparent_label_style())
-            self.lichess_attribution.setText(f'powered by <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>')
-        if hasattr(self, 'move_list_label'):
+        if hasattr(self, "lichess_attribution"):
+            self.lichess_attribution.setStyleSheet(
+                Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
+                + "; padding: 4px 14px; "
+                + Styles.get_transparent_label_style()
+            )
+            self.lichess_attribution.setText(
+                f'Daten von <a href="https://lichess.org" style="color: {Styles.COLOR_ACCENT}; text-decoration: none;">lichess.org</a>'
+            )
+        if hasattr(self, "move_list_label"):
             self.move_list_label.setStyleSheet(Styles.get_label_style(size=14, bold=True))
-        if hasattr(self, 'move_input'):
+        if hasattr(self, "move_input"):
             self.move_input.setStyleSheet(Styles.get_line_edit_style())
-        if hasattr(self, 'engine_status_label'):
-            self.engine_status_label.setStyleSheet(Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED))
-        if hasattr(self, 'lines_widget'):
+        if hasattr(self, "engine_status_label"):
+            self.engine_status_label.setStyleSheet(
+                Styles.get_engine_status_style(Styles.COLOR_TEXT_MUTED)
+            )
+        if hasattr(self, "lines_widget"):
             self.lines_widget.refresh_styles()
-        if hasattr(self, 'captured_white'):
+        if hasattr(self, "captured_white"):
             self.captured_white.refresh_styles()
-        if hasattr(self, 'captured_black'):
+        if hasattr(self, "captured_black"):
             self.captured_black.refresh_styles()
         for child in self.findChildren(QWidget):
             child.style().unpolish(child)
             child.style().polish(child)
 
     def on_lichess_explorer_finished(self, data):
-        if hasattr(self, '_book_row_widgets'):
+        if hasattr(self, "_book_row_widgets"):
             for w in self._book_row_widgets:
                 self.book_layout.removeWidget(w)
                 w.deleteLater()
@@ -1200,7 +1299,7 @@ class ExplorerView(QWidget):
 
         self._current_book_count = len(self._book_row_widgets)
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  ({self._current_book_count})")
+        self.book_toggle.setText(f"{arrow}  Buchzüge  ({self._current_book_count})")
 
         self.lichess_attribution.setVisible(True)
         if self._current_book_count > 0:
@@ -1217,14 +1316,14 @@ class ExplorerView(QWidget):
 
     def on_lichess_explorer_error(self, err):
         logger.warning(f"Lichess explorer fetch failed: {err}")
-        if hasattr(self, '_book_row_widgets'):
+        if hasattr(self, "_book_row_widgets"):
             for w in self._book_row_widgets:
                 self.book_layout.removeWidget(w)
                 w.deleteLater()
         self._book_row_widgets = []
         self._current_book_count = 0
         arrow = "▼" if self.book_toggle.isChecked() else "▶"
-        self.book_toggle.setText(f"{arrow}  Book Moves  (failed)")
+        self.book_toggle.setText(f"{arrow}  Buchzüge  (fehlgeschlagen)")
         self.book_toggle.show()
         self.book_scroll.hide()
         self.lichess_attribution.setVisible(False)

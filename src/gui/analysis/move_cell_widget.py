@@ -1,10 +1,12 @@
 """
 Custom widget representing a compact move cell that packs the classification icon, SAN, and think-time.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from ...utils.translations import tr_classification
 from ..styles import Styles
 
 
@@ -33,18 +35,16 @@ class MoveCellWidget(QWidget):
         top_row.addWidget(self._icon_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
         self._san_label = QLabel(self)
-        self._san_label.setAlignment(
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
-        )
+        self._san_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
         self._san_label.setStyleSheet(Styles.get_transparent_label_style())
         top_row.addWidget(self._san_label, 1, Qt.AlignmentFlag.AlignVCenter)
 
         self._time_label = QLabel(self)
-        self._time_label.setAlignment(
-            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight
-        )
+        self._time_label.setAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignRight)
         self._time_label.setStyleSheet(
-            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
         top_row.addWidget(self._time_label, 0, Qt.AlignmentFlag.AlignVCenter)
 
@@ -68,8 +68,14 @@ class MoveCellWidget(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     # ----- public API -------------------------------------------------
-    def set_move(self, move, move_index: int, icon: QIcon = None,
-                 san_color: str = "", max_seconds: float = 30.0) -> None:
+    def set_move(
+        self,
+        move,
+        move_index: int,
+        icon: QIcon = None,
+        san_color: str = "",
+        max_seconds: float = 30.0,
+    ) -> None:
         self._move_index = move_index
         self._san_text = move.san
         self._san_label.setText(move.san)
@@ -81,9 +87,15 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
-        font_weight = "bold" if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
+        font_weight = (
+            "bold"
+            if move.classification in ("Brilliant", "Blunder", "Mistake", "Miss", "Great")
+            else "500"
+        )
         self._san_label.setStyleSheet(
-            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=13, color=color, weight=font_weight)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         if icon is not None and not icon.isNull():
@@ -119,14 +131,14 @@ class MoveCellWidget(QWidget):
             self._bar.setStyleSheet(Styles.get_think_time_bar_style(colour, track, ratio))
             self._bar.show()
             self.setToolTip(
-                f"{move.classification + ': ' if move.classification else ''}"
-                f"{move.san}  —  Think time: {time_str}"
+                f"{tr_classification(move.classification) + ': ' if move.classification else ''}"
+                f"{move.san}  —  Bedenkzeit: {time_str}"
             )
         else:
             self._time_label.setText("")
             self._bar.hide()
             self.setToolTip(
-                f"{move.classification + ': ' if move.classification else ''}"
+                f"{tr_classification(move.classification) + ': ' if move.classification else ''}"
                 f"{move.san}"
             )
 
@@ -136,13 +148,21 @@ class MoveCellWidget(QWidget):
         else:
             color = Styles.COLOR_TEXT_PRIMARY
 
-        font_weight = "bold" if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great") else "500"
+        font_weight = (
+            "bold"
+            if self._classification_name in ("Brilliant", "Blunder", "Mistake", "Miss", "Great")
+            else "500"
+        )
         self._san_label.setStyleSheet(
-            Styles.get_label_style(size=13, color=color, weight=font_weight) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=13, color=color, weight=font_weight)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         self._time_label.setStyleSheet(
-            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED) + " " + Styles.get_transparent_label_style()
+            Styles.get_label_style(size=10, color=Styles.COLOR_TEXT_MUTED)
+            + " "
+            + Styles.get_transparent_label_style()
         )
 
         if self._last_time_spent is not None and self._last_time_spent > 0:

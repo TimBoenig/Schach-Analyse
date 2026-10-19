@@ -75,7 +75,7 @@ def create_donut_figure(
         ax.text(
             0,
             0,
-            "No Data",
+            "Keine Daten",
             ha="center",
             va="center",
             fontsize=12,
@@ -148,7 +148,7 @@ def create_accuracy_trend_figure(
         ax.text(
             0.5,
             0.5,
-            "No Accuracy Data",
+            "Keine Genauigkeitsdaten",
             ha="center",
             va="center",
             fontsize=11,
@@ -275,18 +275,18 @@ def create_accuracy_trend_figure(
     # X-Ticks
     if n <= 1:
         ax.set_xticks([0])
-        ax.set_xticklabels(["G1"], fontsize=8, color=text_c)
+        ax.set_xticklabels(["P1"], fontsize=8, color=text_c)
     elif n <= 6:
         ax.set_xticks(x)
-        ax.set_xticklabels([f"G{i + 1}" for i in x], fontsize=8, color=text_c)
+        ax.set_xticklabels([f"P{i + 1}" for i in x], fontsize=8, color=text_c)
     elif n <= 12:
         step = 2
         ax.set_xticks(x[::step])
-        ax.set_xticklabels([f"G{i + 1}" for i in x[::step]], fontsize=8, color=text_c)
+        ax.set_xticklabels([f"P{i + 1}" for i in x[::step]], fontsize=8, color=text_c)
     else:
         ticks = [0, n // 2, n - 1]
         ax.set_xticks(ticks)
-        ax.set_xticklabels(["G1", f"G{n // 2 + 1}", f"G{n}"], fontsize=8, color=text_c)
+        ax.set_xticklabels(["P1", f"P{n // 2 + 1}", f"P{n}"], fontsize=8, color=text_c)
 
     ax.tick_params(colors=text_c, which="both", length=0, labelsize=8)
 

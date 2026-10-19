@@ -1,6 +1,7 @@
 """
 Interactive 5-star rating widget for reviews and feedback.
 """
+
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
@@ -9,17 +10,18 @@ from src.gui.styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
 
 STAR_LABELS = {
-    0: "Select a rating",
-    1: "Needs Improvement",
-    2: "Fair",
-    3: "Good",
-    4: "Very Good!",
-    5: "Loved it! 🎉"
+    0: "Wähle eine Bewertung",
+    1: "Ausbaufähig",
+    2: "Okay",
+    3: "Gut",
+    4: "Sehr gut!",
+    5: "Großartig! 🎉",
 }
 
 STAR_COLOR_ACTIVE = "#FFB800"
@@ -80,7 +82,7 @@ class StarRatingWidget(QWidget):
 
         # Descriptive text label
         if self._show_label:
-            self._desc_label = QLabel(STAR_LABELS.get(self._rating, "Select a rating"))
+            self._desc_label = QLabel(STAR_LABELS.get(self._rating, "Wähle eine Bewertung"))
             self._desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self._desc_label.setStyleSheet(f"""
                 font-size: 13px;
@@ -111,7 +113,7 @@ class StarRatingWidget(QWidget):
         active_stars = self._hover_rating if self._hover_rating > 0 else self._rating
 
         for i, btn in enumerate(self._star_buttons, 1):
-            is_lit = (i <= active_stars)
+            is_lit = i <= active_stars
             color = STAR_COLOR_ACTIVE if is_lit else STAR_COLOR_INACTIVE
 
             if HAS_QTAWESOME:

@@ -44,12 +44,12 @@ ADVANTAGE_KEYS: tuple[str, ...] = (
     "comeback_draws",
 )
 
-# (advantage_key, move_key, fallback_san, fallback_classification)
+# (advantage_key, move_key, fallback_display_label, fallback_classification_key)
 ADVANTAGE_DRILLS: tuple[tuple[str, str, str, str], ...] = (
-    ("thrown_losses", "lead_collapse_move", "Lost Lead", "Lost Lead"),
-    ("squandered_draws", "lead_collapse_move", "Drawn Lead", "Drawn Lead"),
-    ("comeback_wins", "comeback_turn_move", "Comeback", "Comeback Win"),
-    ("comeback_draws", "comeback_turn_move", "Comeback", "Comeback Draw"),
+    ("thrown_losses", "lead_collapse_move", "Vorteil verspielt", "Lost Lead"),
+    ("squandered_draws", "lead_collapse_move", "Vorteil nur remis", "Drawn Lead"),
+    ("comeback_wins", "comeback_turn_move", "Aufholjagd", "Comeback Win"),
+    ("comeback_draws", "comeback_turn_move", "Aufholjagd", "Comeback Draw"),
 )
 
 DRAW_MODE_TO_BUCKET: dict[str, str] = {

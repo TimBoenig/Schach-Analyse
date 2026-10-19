@@ -1,6 +1,7 @@
 """
 Chess.com API Panel for the Load Game dialog.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QVBoxLayout, QWidget
 
@@ -8,6 +9,7 @@ from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 from src.utils.logger import logger
+from src.utils.translations import tr_speed
 
 from ....utils.config import ConfigManager
 from .api_worker import ApiWorker, register_worker, remove_worker
@@ -59,7 +61,8 @@ class ChessComPanel(QWidget):
     Right-panel page for 'Chess.com' source.
     Fetches games by username or game URL asynchronously.
     """
-    pgn_ready     = pyqtSignal(str, object)
+
+    pgn_ready = pyqtSignal(str, object)
     pending_cleared = pyqtSignal()
     navigate_to_settings = pyqtSignal()
 
@@ -80,7 +83,7 @@ class ChessComPanel(QWidget):
         input_layout.setContentsMargins(0, 0, 0, 0)
         input_layout.setSpacing(8)
 
-        lbl = QLabel("Enter Username or Game URL:")
+        lbl = QLabel("Benutzername oder Partie-URL eingeben:")
         lbl.setStyleSheet(Styles.get_form_label_style())
         input_layout.addWidget(lbl)
 
@@ -89,7 +92,7 @@ class ChessComPanel(QWidget):
         input_row.setSpacing(8)
 
         self._input_edit = QLineEdit()
-        self._input_edit.setPlaceholderText("e.g. Hikaru  or  https://www.chess.com/game/...")
+        self._input_edit.setPlaceholderText("z. B. Hikaru  oder  https://www.chess.com/game/...")
 
         saved_username = ConfigManager().get("chesscom_username", "")
         if saved_username:
@@ -99,7 +102,7 @@ class ChessComPanel(QWidget):
         self._input_edit.returnPressed.connect(self._fetch)
         input_row.addWidget(self._input_edit, stretch=1)
 
-        self._fetch_btn = create_button("Fetch", style="secondary", on_click=self._fetch)
+        self._fetch_btn = create_button("Abrufen", style="secondary", on_click=self._fetch)
         self._fetch_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._fetch_btn.setFixedWidth(80)
         self._fetch_btn.setFixedHeight(36)
@@ -125,7 +128,7 @@ class ChessComPanel(QWidget):
 
     def update_help_label(self):
         limit = ConfigManager().get("api_games_limit", 20)
-        self._help_lbl.setText(f"Fetches the last {limit} games for a username.")
+        self._help_lbl.setText(f"Ruft die letzten {limit} Partien eines Benutzers ab.")
 
     # ── Fetching ─────────────────────────────────────────────────────────────
     def _fetch(self):
@@ -166,16 +169,18 @@ class ChessComPanel(QWidget):
 
     def _on_fetch_error(self, err_msg: str):
         self._reset_input_ui()
-        Toast.show_message(self.window(), f"Chess.com fetch failed: {err_msg}", "error")
+        Toast.show_message(self.window(), f"Abruf von Chess.com fehlgeschlagen: {err_msg}", "error")
 
     def _on_fetch_finished(self, parsed_games):
         self._reset_input_ui()
 
         if not parsed_games:
             username = self._input_edit.text().strip()
-            Toast.show_message(self.window(),
-                               f"No games found for '{username}'. Check the username in Settings.",
-                               "warning")
+            Toast.show_message(
+                self.window(),
+                f"Keine Partien für '{username}' gefunden. Prüfe den Benutzernamen in den Einstellungen.",
+                "warning",
+            )
             return
 
         self._parsed_games = parsed_games
@@ -191,26 +196,30 @@ class ChessComPanel(QWidget):
             result = md.result or "?"
             date = md.date or md.headers.get("Date", "?")
             time_ctrl = md.headers.get("TimeControl", "")
-            tc_label = classify_time_control(time_ctrl)
+            tc_label = tr_speed(classify_time_control(time_ctrl))
             move_count = (len(game_obj.moves) + 1) // 2
 
-            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
+            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} Züge"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
             rows.append((line1, line2))
 
         n = len(self._parsed_games)
         if n == 0:
-            Toast.show_message(self.window(), "Failed to parse fetched games.", "error")
+            Toast.show_message(
+                self.window(), "Die abgerufenen Partien konnten nicht gelesen werden.", "error"
+            )
             return
 
         self._input_widget.setVisible(False)
-        header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
+        header_text = (
+            "1 Partie bereit zum Laden:" if n == 1 else f"Wähle eine Partie ({n} gefunden):"
+        )
         self._game_list.populate(rows, header_text)
         self._game_list.setVisible(True)
 
     def _reset_input_ui(self):
         self._fetch_btn.setEnabled(True)
-        self._fetch_btn.setText("Fetch")
+        self._fetch_btn.setText("Abrufen")
         self._input_edit.setEnabled(True)
 
     def _on_game_chosen(self, index: int):

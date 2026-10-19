@@ -62,7 +62,7 @@ class AICoachCard(MetricCard):
         header_act_layout.setSpacing(8)
 
         # Provider / Model status badge
-        self.provider_badge = QLabel("AI Coach")
+        self.provider_badge = QLabel("KI-Coach")
         self.provider_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -78,7 +78,7 @@ class AICoachCard(MetricCard):
         self.btn_refresh_insights = QPushButton()
         self.btn_refresh_insights.setFixedSize(28, 28)
         self.btn_refresh_insights.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_refresh_insights.setToolTip("Generate / Refresh AI Coaching")
+        self.btn_refresh_insights.setToolTip("KI-Coaching erstellen / aktualisieren")
         self.btn_refresh_insights.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -104,7 +104,7 @@ class AICoachCard(MetricCard):
         header_act_layout.addWidget(self.btn_refresh_insights)
 
         super().__init__(
-            "AI Coach Insights",
+            "KI-Coach-Analyse",
             parent=parent,
             action_widget=self.header_action_widget,
             min_height=380,
@@ -164,7 +164,7 @@ class AICoachCard(MetricCard):
                 short_model = model.split("/")[-1].replace(":latest", "")
                 self.provider_badge.setText(short_model)
                 return
-        self.provider_badge.setText("AI Coach")
+        self.provider_badge.setText("KI-Coach")
 
     def _stop_skeleton_anim(self):
         """Safely stops and cleans up the pulsing skeleton animation."""
@@ -188,7 +188,7 @@ class AICoachCard(MetricCard):
         vbox.setSpacing(10)
         vbox.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("Performance Diagnosis")
+        title = QLabel("Leistungsdiagnose")
         title.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; font-weight: 700; background: transparent;"
         )
@@ -196,9 +196,9 @@ class AICoachCard(MetricCard):
         vbox.addWidget(title)
 
         desc = QLabel(
-            f"Synthesizes {total} analyzed games across tactical blindspots, conversion, and clock discipline."
+            f"Wertet {total} analysierte Partien zu taktischen Schwächen, Verwertung und Zeiteinteilung aus."
             if total > 0
-            else "Analyze your games to receive tailored coaching insights and practice recommendations."
+            else "Analysiere deine Partien, um persönliche Coaching-Tipps und Trainingsempfehlungen zu erhalten."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(
@@ -211,7 +211,7 @@ class AICoachCard(MetricCard):
         vbox.addSpacing(10)
 
         btn_analyze = create_button(
-            "Generate Coach Insights",
+            "Coach-Analyse erstellen",
             style="primary",
             on_click=self._generate_insights,
             icon_name="fa5s.robot",
@@ -321,7 +321,7 @@ class AICoachCard(MetricCard):
         )
         header_row.addWidget(dot)
 
-        lbl_title = QLabel("AI Coach is analyzing performance patterns...")
+        lbl_title = QLabel("Der KI-Coach analysiert deine Leistungsmuster …")
         lbl_title.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600; background: transparent;"
         )
@@ -329,9 +329,7 @@ class AICoachCard(MetricCard):
         header_row.addStretch()
         s_vbox.addLayout(header_row)
 
-        lbl_sub = QLabel(
-            "Synthesizing tactical motifs, advantage conversion, and clock discipline..."
-        )
+        lbl_sub = QLabel("Werte Taktikmotive, Vorteilsverwertung und Zeiteinteilung aus …")
         lbl_sub.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent; padding-left: 16px;"
         )
@@ -443,7 +441,7 @@ class AICoachCard(MetricCard):
         vbox = QVBoxLayout(err_frame)
         vbox.setSpacing(10)
 
-        lbl_title = QLabel("AI Coaching Unavailable")
+        lbl_title = QLabel("KI-Coaching nicht verfügbar")
         lbl_title.setStyleSheet(
             f"color: {Styles.COLOR_BLUNDER}; font-size: 14px; font-weight: 700; background: transparent;"
         )
@@ -460,20 +458,20 @@ class AICoachCard(MetricCard):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
-        if "not configured" in err_msg.lower():
-            btn_cfg = QPushButton("Configure LLM in Settings")
+        if "not configured" in err_msg.lower() or "nicht konfiguriert" in err_msg.lower():
+            btn_cfg = QPushButton("LLM in den Einstellungen einrichten")
             btn_cfg.setStyleSheet(Styles.get_button_style())
             btn_cfg.clicked.connect(self._open_settings)
             btn_row.addWidget(btn_cfg)
         else:
             show_error_dialog(
                 self,
-                "AI Coach Insights Failed",
-                "Could not generate AI insights. See details below.",
+                "KI-Coach-Analyse fehlgeschlagen",
+                "Die KI-Analyse konnte nicht erstellt werden. Details siehe unten.",
                 err_msg,
             )
 
-        btn_retry = QPushButton("Retry Analysis")
+        btn_retry = QPushButton("Erneut versuchen")
         btn_retry.setStyleSheet(Styles.get_control_button_style())
         btn_retry.clicked.connect(self._generate_insights)
         btn_row.addWidget(btn_retry)
@@ -515,9 +513,9 @@ class AICoachCard(MetricCard):
             return
 
         section_meta = {
-            "strengths": ("STRENGTHS & SUPERPOWERS", Styles.COLOR_RESULT_WIN),
-            "leaks": ("CRITICAL LEAKS & BLINDSPOTS", Styles.COLOR_BLUNDER),
-            "prescription": ("TRAINING PRESCRIPTION", Styles.COLOR_ACCENT),
+            "strengths": ("STÄRKEN & SUPERKRÄFTE", Styles.COLOR_RESULT_WIN),
+            "leaks": ("KRITISCHE SCHWÄCHEN & BLINDE FLECKEN", Styles.COLOR_BLUNDER),
+            "prescription": ("TRAININGSPLAN", Styles.COLOR_ACCENT),
         }
 
         first_section = True
@@ -525,7 +523,7 @@ class AICoachCard(MetricCard):
             if not items:
                 continue
             title_text, color_accent = section_meta.get(
-                sec_key, ("COACHING OBSERVATIONS", Styles.COLOR_TEXT_PRIMARY)
+                sec_key, ("COACHING-BEOBACHTUNGEN", Styles.COLOR_TEXT_PRIMARY)
             )
 
             # Divider between sections
@@ -591,7 +589,7 @@ class AICoachCard(MetricCard):
 
         # Footer attribution (clean, modest)
         total = self.stats.get("total", 0)
-        footer_lbl = QLabel(f"Generated by AI Coach • Based on {total} analyzed games")
+        footer_lbl = QLabel(f"Erstellt vom KI-Coach • Basierend auf {total} analysierten Partien")
         footer_lbl.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 10px; font-style: italic; background: transparent; padding-top: 10px;"
         )
@@ -618,13 +616,26 @@ class AICoachCard(MetricCard):
                 continue
 
             lower = line_s.lower()
-            if "strength" in lower or "superpower" in lower:
+            # German headings are only matched on markdown heading lines, since
+            # words like "Stärke" or "Training" are common in German body text.
+            is_heading = line_s.startswith("#")
+            if "strength" in lower or "superpower" in lower or (is_heading and "stärke" in lower):
                 current_section = "strengths"
                 continue
-            elif "leak" in lower or "blindspot" in lower or "weakness" in lower:
+            elif (
+                "leak" in lower
+                or "blindspot" in lower
+                or "weakness" in lower
+                or (is_heading and ("schwäche" in lower or "blinde" in lower))
+            ):
                 current_section = "leaks"
                 continue
-            elif "prescription" in lower or "training" in lower or "recommendation" in lower:
+            elif (
+                "prescription" in lower
+                or "training" in lower
+                or "recommendation" in lower
+                or (is_heading and ("empfehlung" in lower or "trainingsplan" in lower))
+            ):
                 current_section = "prescription"
                 continue
 

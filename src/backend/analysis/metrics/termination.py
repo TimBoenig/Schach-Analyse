@@ -11,16 +11,18 @@ from typing import Any
 
 from .constants import DRAW_MODE_TO_BUCKET
 
-# Regex patterns anchored with word boundaries to avoid false substrings
-_STALEMATE_PAT = re.compile(r"\bstalemate\b", re.IGNORECASE)
-_REPETITION_PAT = re.compile(r"\b(?:threefold|repetition)\b", re.IGNORECASE)
-_INSUFFICIENT_PAT = re.compile(r"\binsufficient\b", re.IGNORECASE)
-_TIME_PAT = re.compile(r"\b(?:time|timeout|clock|flag|flagged)\b", re.IGNORECASE)
-_FIFTY_MOVES_PAT = re.compile(r"\b(?:50[- ]move|fifty[- ]moves?|\b50\b)", re.IGNORECASE)
+# Regex patterns anchored with word boundaries to avoid false substrings.
+# German alternatives cover termination descriptions produced by TerminationDetector,
+# which are stored as the game's termination text.
+_STALEMATE_PAT = re.compile(r"\b(?:stalemate|patt)\b", re.IGNORECASE)
+_REPETITION_PAT = re.compile(r"\b(?:threefold|repetition|\w*wiederholung)\b", re.IGNORECASE)
+_INSUFFICIENT_PAT = re.compile(r"\b(?:insufficient|ungenügend\w*)\b", re.IGNORECASE)
+_TIME_PAT = re.compile(r"\b(?:time|timeout|clock|flag|flagged|zeit\w*)\b", re.IGNORECASE)
+_FIFTY_MOVES_PAT = re.compile(r"\b(?:50[- ]move|50-züge|fifty[- ]moves?|\b50\b)", re.IGNORECASE)
 
-_CHECKMATE_PAT = re.compile(r"\b(?:checkmate|mate)\b", re.IGNORECASE)
-_ABANDON_PAT = re.compile(r"\b(?:abandon|abandoned|abandonment)\b", re.IGNORECASE)
-_RESIGN_PAT = re.compile(r"\b(?:resign|resigned|resignation)\b", re.IGNORECASE)
+_CHECKMATE_PAT = re.compile(r"\b(?:checkmate|mate|schachmatt|matt)\b", re.IGNORECASE)
+_ABANDON_PAT = re.compile(r"\b(?:abandon|abandoned|abandonment|abgebrochen)\b", re.IGNORECASE)
+_RESIGN_PAT = re.compile(r"\b(?:resign|resigned|resignation|aufgabe)\b", re.IGNORECASE)
 
 
 def classify_termination(

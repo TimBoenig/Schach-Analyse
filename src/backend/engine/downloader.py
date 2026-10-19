@@ -32,44 +32,79 @@ _USER_AGENT = "ChessAnalyzerPro/StockfishDownloader (+https://github.com/imutkar
 # Canonical asset name per platform, used for display/tests only. Selection
 # never depends on these strings — see select_assets().
 PLATFORM_ASSETS: dict[tuple[str, str], str] = {
-    ("darwin", "arm64"):  "stockfish-macos-universal.tar.gz",
+    ("darwin", "arm64"): "stockfish-macos-universal.tar.gz",
     ("darwin", "x86_64"): "stockfish-macos-universal.tar.gz",
-    ("win32",  "x86_64"): "stockfish-windows-x86-64-universal.zip",
-    ("win32",  "arm64"):  "stockfish-windows-arm64-universal.zip",
-    ("linux",  "x86_64"): "stockfish-linux-x86-64-universal.tar.gz",
-    ("linux",  "arm64"):  "stockfish-linux-arm64-universal.tar.gz",
-    ("linux",  "riscv64"): "stockfish-linux-riscv64-universal.tar.gz",
+    ("win32", "x86_64"): "stockfish-windows-x86-64-universal.zip",
+    ("win32", "arm64"): "stockfish-windows-arm64-universal.zip",
+    ("linux", "x86_64"): "stockfish-linux-x86-64-universal.tar.gz",
+    ("linux", "arm64"): "stockfish-linux-arm64-universal.tar.gz",
+    ("linux", "riscv64"): "stockfish-linux-riscv64-universal.tar.gz",
 }
 
 _ARCH_ALIASES = {
-    "x86_64": "x86_64", "x86-64": "x86_64", "amd64": "x86_64", "x64": "x86_64",
-    "arm64": "arm64", "aarch64": "arm64", "armv8": "arm64", "armv9": "arm64",
+    "x86_64": "x86_64",
+    "x86-64": "x86_64",
+    "amd64": "x86_64",
+    "x64": "x86_64",
+    "arm64": "arm64",
+    "aarch64": "arm64",
+    "armv8": "arm64",
+    "armv9": "arm64",
     "arm64e": "arm64",
     "riscv64": "riscv64",
-    "armv7": "armv7", "armv7l": "armv7", "armhf": "armv7", "armel": "armv7",
-    "i386": "x86_32", "i686": "x86_32", "x86": "x86_32", "x86_32": "x86_32",
+    "armv7": "armv7",
+    "armv7l": "armv7",
+    "armhf": "armv7",
+    "armel": "armv7",
+    "i386": "x86_32",
+    "i686": "x86_32",
+    "x86": "x86_32",
+    "x86_32": "x86_32",
     "x86-32": "x86_32",
     # Recognised but unsupported architectures. Mapped to a distinct value so
     # they are skipped cleanly instead of being mistaken for "unknown/generic".
-    "ppc64le": "ppc64le", "ppc64": "ppc64le",
+    "ppc64le": "ppc64le",
+    "ppc64": "ppc64le",
     "s390x": "s390x",
-    "loongarch64": "loongarch64", "loongarch": "loongarch64",
+    "loongarch64": "loongarch64",
+    "loongarch": "loongarch64",
 }
 
 _OS_ALIASES = {
-    "linux": "linux", "ubuntu": "linux", "debian": "linux",
-    "fedora": "linux", "centos": "linux", "rhel": "linux", "rocky": "linux",
-    "alpine": "linux", "opensuse": "linux", "suse": "linux",
-    "macos": "darwin", "osx": "darwin", "darwin": "darwin",
-    "apple": "darwin", "mac": "darwin",
-    "windows": "win32", "win": "win32", "win32": "win32", "win64": "win32",
+    "linux": "linux",
+    "ubuntu": "linux",
+    "debian": "linux",
+    "fedora": "linux",
+    "centos": "linux",
+    "rhel": "linux",
+    "rocky": "linux",
+    "alpine": "linux",
+    "opensuse": "linux",
+    "suse": "linux",
+    "macos": "darwin",
+    "osx": "darwin",
+    "darwin": "darwin",
+    "apple": "darwin",
+    "mac": "darwin",
+    "windows": "win32",
+    "win": "win32",
+    "win32": "win32",
+    "win64": "win32",
 }
 
 # Preferred archive containers, best first. Used only as a tie-breaker.
 _CONTAINER_RANK = {
-    ".tar.gz": 3, ".tgz": 3, ".zip": 3,
-    ".tar.xz": 2, ".tar.bz2": 2, ".tbz2": 2, ".txz": 2,
-    ".tar.zst": 2, ".tzst": 2, ".tar.lz4": 2, ".tar.lz": 2,
+    ".tar.gz": 3,
+    ".tgz": 3,
+    ".zip": 3,
+    ".tar.xz": 2,
+    ".tar.bz2": 2,
+    ".tbz2": 2,
+    ".txz": 2,
+    ".tar.zst": 2,
+    ".tzst": 2,
+    ".tar.lz4": 2,
+    ".tar.lz": 2,
     ".tar": 1,
 }
 
@@ -84,6 +119,7 @@ class ReleaseAsset:
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
+
 
 def _normalize_arch(machine: str | None) -> str | None:
     """Map a raw ``platform.machine()`` value to a canonical arch token."""
@@ -102,12 +138,13 @@ def get_current_platform() -> tuple[str, str]:
     system_map = {"darwin": "darwin", "win32": "win32", "linux": "linux"}
     system = system_map.get(sys.platform)
     if system is None:
-        raise RuntimeError(f"Unsupported platform: {sys.platform}")
+        raise RuntimeError(f"Nicht unterstützte Plattform: {sys.platform}")
 
     if system == "win32":
         arch = _normalize_arch(os.environ.get("PROCESSOR_ARCHITECTURE", "")) or "x86_64"
     else:
         import platform
+
         arch = _normalize_arch(platform.machine())
         if arch is None:
             arch = "arm64" if system == "darwin" else "x86_64"
@@ -124,8 +161,8 @@ def get_expected_asset_name() -> str:
     asset_name = PLATFORM_ASSETS.get(platform_key)
     if asset_name is None:
         raise RuntimeError(
-            f"No Stockfish asset defined for platform {platform_key}. "
-            f"Supported: {list(PLATFORM_ASSETS.keys())}"
+            f"Kein Stockfish-Download für Plattform {platform_key} hinterlegt. "
+            f"Unterstützt: {list(PLATFORM_ASSETS.keys())}"
         )
     return asset_name
 
@@ -134,6 +171,7 @@ def get_expected_asset_name() -> str:
 # Release fetching
 # ---------------------------------------------------------------------------
 
+
 def _fetch_assets(api_url: str) -> list[ReleaseAsset]:
     headers = {"User-Agent": _USER_AGENT, "Accept": "application/vnd.github+json"}
     resp = requests.get(api_url, headers=headers, timeout=15)
@@ -141,11 +179,13 @@ def _fetch_assets(api_url: str) -> list[ReleaseAsset]:
     data = resp.json()
     assets = []
     for asset in data.get("assets", []):
-        assets.append(ReleaseAsset(
-            name=asset["name"],
-            url=asset["browser_download_url"],
-            size=asset.get("size", 0),
-        ))
+        assets.append(
+            ReleaseAsset(
+                name=asset["name"],
+                url=asset["browser_download_url"],
+                size=asset.get("size", 0),
+            )
+        )
     return assets
 
 
@@ -162,6 +202,7 @@ def get_releases_for_tag(tag: str) -> list[ReleaseAsset]:
 # ---------------------------------------------------------------------------
 # Asset selection (token based, rename-proof)
 # ---------------------------------------------------------------------------
+
 
 def _tokenize(name: str) -> list[str]:
     return [t for t in re.split(r"[-_.]+", name.lower()) if t]
@@ -304,6 +345,7 @@ def get_download_candidates(releases: list[ReleaseAsset] | None = None) -> list[
 # Download + extraction
 # ---------------------------------------------------------------------------
 
+
 def download_and_extract(
     url: str,
     dest_dir: str,
@@ -335,7 +377,7 @@ def download_and_extract(
             errors.append(f"{candidate}: {e}")
 
     raise RuntimeError(
-        "Failed to download Stockfish. Attempts:\n  " + "\n  ".join(errors)
+        "Stockfish konnte nicht heruntergeladen werden. Versuche:\n  " + "\n  ".join(errors)
     )
 
 
@@ -371,7 +413,7 @@ def _download_one(
 
         if validate and not probe_engine_binary(binary):
             raise RuntimeError(
-                f"Extracted binary at {binary} failed the UCI handshake"
+                f"Entpacktes Programm unter {binary} hat den UCI-Handshake nicht bestanden"
             )
 
         final_path = os.path.join(dest_dir, _binary_filename())
@@ -398,7 +440,7 @@ def _extract_archive(archive_path: str, dest_dir: str) -> None:
                 # Python < 3.12 has no extraction filter.
                 tf.extractall(dest_dir)
         return
-    raise RuntimeError(f"Unrecognised archive format: {archive_path}")
+    raise RuntimeError(f"Unbekanntes Archivformat: {archive_path}")
 
 
 def _binary_filename() -> str:
@@ -433,7 +475,7 @@ def _find_binary(search_dir: str) -> str:
 
     if not candidates:
         raise FileNotFoundError(
-            f"Could not find a Stockfish binary in extracted contents under {search_dir}"
+            f"Keine Stockfish-Programmdatei im entpackten Inhalt unter {search_dir} gefunden"
         )
     candidates.sort(key=lambda item: item[0], reverse=True)
     return candidates[0][1]
@@ -504,9 +546,7 @@ def try_package_manager_install() -> str | None:
             continue
         try:
             logger.info("Attempting Stockfish install via %s", name)
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=180, env=env
-            )
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=180, env=env)
             if result.returncode != 0:
                 logger.warning("%s install failed: %s", name, result.stderr)
                 continue

@@ -9,6 +9,7 @@ from src.constants import PROVIDERS
 # Test helpers
 # ---------------------------------------------------------------------------
 
+
 class _FakeProfile:
     """Mimics the dict-like profile object that ConfigManager.get_active_profile
     returns. The service code only ever calls .get() on it, so this is the
@@ -46,6 +47,7 @@ def fake_config(monkeypatch):
 # Core service: configuration → client lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestGroqService:
     """Tests for the openai.OpenAI-based GroqService.
 
@@ -64,30 +66,36 @@ class TestGroqService:
 
     def test_placeholder_key_does_not_create_client(self, fake_config):
         """A 'gsk_…' README placeholder must not be turned into a client."""
-        fake_config(_FakeProfile(
-            provider="groq",
-            api_key="<YOUR_GROQ_KEY_HERE>",
-            model="llama-3.3-70b-versatile",
-        ))
+        fake_config(
+            _FakeProfile(
+                provider="groq",
+                api_key="<YOUR_GROQ_KEY_HERE>",
+                model="llama-3.3-70b-versatile",
+            )
+        )
         service = GroqService()
         assert service.client is None
 
     def test_placeholder_xxx_does_not_create_client(self, fake_config):
-        fake_config(_FakeProfile(
-            provider="groq",
-            api_key="XXXXXXXX",
-            model="llama-3.3-70b-versatile",
-        ))
+        fake_config(
+            _FakeProfile(
+                provider="groq",
+                api_key="XXXXXXXX",
+                model="llama-3.3-70b-versatile",
+            )
+        )
         service = GroqService()
         assert service.client is None
 
     def test_valid_groq_profile_creates_client(self, fake_config, monkeypatch):
         """A real-looking key produces an OpenAI client with the right args."""
-        fake_config(_FakeProfile(
-            provider="groq",
-            api_key="gsk_real_key",
-            model="llama-3.3-70b-versatile",
-        ))
+        fake_config(
+            _FakeProfile(
+                provider="groq",
+                api_key="gsk_real_key",
+                model="llama-3.3-70b-versatile",
+            )
+        )
         captured = {}
 
         class _FakeOpenAI:
@@ -116,12 +124,14 @@ class TestGroqService:
 
     def test_unknown_provider_falls_back_to_custom(self, fake_config, monkeypatch):
         """An unknown provider name is preserved case-insensitively as 'custom'."""
-        fake_config(_FakeProfile(
-            provider="MyLocalLLM",
-            api_key="abc",
-            model="custom-model",
-            base_url="http://example.com/v1/",
-        ))
+        fake_config(
+            _FakeProfile(
+                provider="MyLocalLLM",
+                api_key="abc",
+                model="custom-model",
+                base_url="http://example.com/v1/",
+            )
+        )
         captured = {}
 
         class _FakeOpenAI:
@@ -151,11 +161,13 @@ class TestGroqService:
 
     def test_openai_profile_creates_client(self, fake_config, monkeypatch):
         """A valid OpenAI profile produces an OpenAI client with the right preset url."""
-        fake_config(_FakeProfile(
-            provider="openai",
-            api_key="sk-proj-key123",
-            model="gpt-4o-mini",
-        ))
+        fake_config(
+            _FakeProfile(
+                provider="openai",
+                api_key="sk-proj-key123",
+                model="gpt-4o-mini",
+            )
+        )
         captured = {}
 
         class _FakeOpenAI:
@@ -224,7 +236,7 @@ class TestGroqService:
 
         class _FakeCompletion:
             def __init__(self):
-                self.choices = [_FakeChoice("Game Comment: ok\n\nSummary:\nshort summary")]
+                self.choices = [_FakeChoice("Spielkommentar: ok\n\nZusammenfassung:\nkurz")]
 
         class _FakeChatCompletions:
             def create(self, **kwargs):
@@ -255,7 +267,7 @@ class TestGroqService:
 
         class _FakeCompletion:
             def __init__(self):
-                self.choices = [_FakeChoice("Game Comment: Sharp\n\nSummary:\nfun game")]
+                self.choices = [_FakeChoice("Spielkommentar: Sharp\n\nZusammenfassung:\nfun game")]
 
         class _FakeChatCompletions:
             def create(self, **kwargs):
@@ -273,11 +285,19 @@ class TestGroqService:
         assert "Sharp" in out
         assert sent["model"] == "m"
         assert "1. e4 e5" in sent["messages"][-1]["content"]
+        # Answers are always requested in German (du-Form) with German section labels,
+        # independent of the OS locale.
+        assert sent["messages"][0]["role"] == "system"
+        assert "Deutsch" in sent["messages"][0]["content"]
+        assert "du-Form" in sent["messages"][0]["content"]
+        assert "Spielkommentar:" in sent["messages"][-1]["content"]
+        assert "Zusammenfassung:" in sent["messages"][-1]["content"]
 
 
 # ---------------------------------------------------------------------------
 # _is_placeholder_key — secret template detection
 # ---------------------------------------------------------------------------
+
 
 class TestIsPlaceholderKey:
     """Unit tests for the placeholder secret detection.
@@ -286,24 +306,30 @@ class TestIsPlaceholderKey:
     ones it already handled, so the detection logic is regression-safe.
     """
 
-    @pytest.mark.parametrize("value", [
-        "   ",                   # whitespace only
-        "${GROQ_API_KEY}",       # docker / shell substitution
-        "${input:openai_key}",   # 1Password CLI
-        "${{ secrets.GROQ_API_KEY }}",  # GitHub Actions
-        "<YOUR_KEY_HERE>",       # README placeholder
-        "<your-api-key>",        # README placeholder, lower case
-        "<YOUR_GROQ_KEY_HERE>",  # README placeholder, specific
-        "XXXXXXXX",              # redaction artifact
-        "xxxx",                  # short redaction artifact
-    ])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "   ",  # whitespace only
+            "${GROQ_API_KEY}",  # docker / shell substitution
+            "${input:openai_key}",  # 1Password CLI
+            "${{ secrets.GROQ_API_KEY }}",  # GitHub Actions
+            "<YOUR_KEY_HERE>",  # README placeholder
+            "<your-api-key>",  # README placeholder, lower case
+            "<YOUR_GROQ_KEY_HERE>",  # README placeholder, specific
+            "XXXXXXXX",  # redaction artifact
+            "xxxx",  # short redaction artifact
+        ],
+    )
     def test_placeholder_patterns_are_detected(self, value):
         assert GroqService._is_placeholder_key(value) is True
 
-    @pytest.mark.parametrize("value", [
-        "gsk_real-looking-key-1234",
-        "sk-abc123def456",
-        "AIzaSyA-real-google-key",
-    ])
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "gsk_real-looking-key-1234",
+            "sk-abc123def456",
+            "AIzaSyA-real-google-key",
+        ],
+    )
     def test_real_keys_are_not_flagged(self, value):
         assert GroqService._is_placeholder_key(value) is False

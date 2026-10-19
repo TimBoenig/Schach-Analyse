@@ -2,6 +2,7 @@
 In-app rating & review prompt dialog for Chess Analyzer Pro.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
@@ -24,6 +25,7 @@ from src.utils.config import ConfigManager
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -38,7 +40,7 @@ class ReviewPromptDialog(QDialog):
 
     def __init__(self, parent=None, games_count: int = 3):
         super().__init__(parent)
-        self.setWindowTitle("Rate Chess Analyzer Pro")
+        self.setWindowTitle("Chess Analyzer Pro bewerten")
         self.setModal(True)
         self.resize(490, 470)
         self.setMinimumSize(450, 440)
@@ -91,7 +93,7 @@ class ReviewPromptDialog(QDialog):
         header_layout.setSpacing(6)
         header_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        title = QLabel("Enjoying Chess Analyzer Pro?")
+        title = QLabel("Gefällt dir Chess Analyzer Pro?")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title.setStyleSheet(f"""
             font-size: 20px;
@@ -100,8 +102,12 @@ class ReviewPromptDialog(QDialog):
         """)
         header_layout.addWidget(title)
 
-        games_text = f"You've analyzed {self.games_count} games!" if self.games_count > 0 else "We'd love to hear your thoughts!"
-        subtitle = QLabel(f"{games_text} Help us improve your chess training.")
+        games_text = (
+            f"Du hast {self.games_count} Partien analysiert!"
+            if self.games_count > 0
+            else "Wir freuen uns auf deine Meinung!"
+        )
+        subtitle = QLabel(f"{games_text} Hilf uns, dein Schachtraining zu verbessern.")
         subtitle.setAlignment(Qt.AlignmentFlag.AlignCenter)
         subtitle.setStyleSheet(f"""
             font-size: 13px;
@@ -121,8 +127,10 @@ class ReviewPromptDialog(QDialog):
         # Name label & input
         name_group = QVBoxLayout()
         name_group.setSpacing(5)
-        name_lbl = QLabel("Your Name:")
-        name_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        name_lbl = QLabel("Dein Name:")
+        name_lbl.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         name_group.addWidget(name_lbl)
 
         default_user = (
@@ -131,7 +139,7 @@ class ReviewPromptDialog(QDialog):
             or ""
         )
         self.name_input = QLineEdit(default_user)
-        self.name_input.setPlaceholderText("e.g. Grandmaster99")
+        self.name_input.setPlaceholderText("z. B. Grandmaster99")
         self.name_input.setStyleSheet(Styles.get_input_style())
         name_group.addWidget(self.name_input)
         form_layout.addLayout(name_group)
@@ -139,13 +147,15 @@ class ReviewPromptDialog(QDialog):
         # Comment label & textarea
         comment_group = QVBoxLayout()
         comment_group.setSpacing(5)
-        comment_lbl = QLabel("Your Review:")
-        comment_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        comment_lbl = QLabel("Deine Bewertung:")
+        comment_lbl.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         comment_group.addWidget(comment_lbl)
 
         self.comment_input = QTextEdit()
         self.comment_input.setFixedHeight(75)
-        self.comment_input.setPlaceholderText("What do you like best? Any suggestions?")
+        self.comment_input.setPlaceholderText("Was gefällt dir am besten? Hast du Vorschläge?")
         self.comment_input.setStyleSheet(Styles.get_input_style())
         comment_group.addWidget(self.comment_input)
         form_layout.addLayout(comment_group)
@@ -165,7 +175,7 @@ class ReviewPromptDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(12)
 
-        self.btn_skip = QPushButton("No, Thanks")
+        self.btn_skip = QPushButton("Nein, danke")
         self.btn_skip.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_skip.setStyleSheet(f"""
             QPushButton {{
@@ -186,13 +196,13 @@ class ReviewPromptDialog(QDialog):
 
         btn_layout.addStretch()
 
-        self.btn_remind = QPushButton("Remind Later")
+        self.btn_remind = QPushButton("Später erinnern")
         self.btn_remind.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_remind.setStyleSheet(Styles.get_control_button_style())
         self.btn_remind.clicked.connect(self._on_remind_later)
         btn_layout.addWidget(self.btn_remind)
 
-        self.btn_submit = QPushButton("  Submit Review")
+        self.btn_submit = QPushButton("  Bewertung senden")
         self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         if HAS_QTAWESOME:
             self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
@@ -213,7 +223,7 @@ class ReviewPromptDialog(QDialog):
         icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
-        thanks_title = QLabel("Thank You for Your Review!")
+        thanks_title = QLabel("Danke für deine Bewertung!")
         thanks_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         thanks_title.setStyleSheet(f"""
             font-size: 20px;
@@ -223,7 +233,7 @@ class ReviewPromptDialog(QDialog):
         layout.addWidget(thanks_title)
 
         thanks_desc = QLabel(
-            "Your feedback helps make Chess Analyzer Pro better for the entire chess community."
+            "Dein Feedback hilft, Chess Analyzer Pro für die ganze Schach-Community besser zu machen."
         )
         thanks_desc.setWordWrap(True)
         thanks_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -236,7 +246,7 @@ class ReviewPromptDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_close = QPushButton("Keep Analyzing")
+        btn_close = QPushButton("Weiter analysieren")
         btn_close.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         btn_close.setStyleSheet(Styles.get_button_style())
         btn_close.clicked.connect(self.accept)
@@ -245,13 +255,15 @@ class ReviewPromptDialog(QDialog):
     def _on_submit_review(self):
         rating = self.star_widget.get_rating()
         if rating < 1:
-            self.status_lbl.setText("Please select a star rating (1 to 5).")
-            self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
+            self.status_lbl.setText("Bitte wähle eine Sternebewertung (1 bis 5).")
+            self.status_lbl.setStyleSheet(
+                "font-size: 12px; color: #EF4444; background: transparent;"
+            )
             self.status_lbl.show()
             return
 
         self.btn_submit.setEnabled(False)
-        self.btn_submit.setText("  Submitting...")
+        self.btn_submit.setText("  Wird gesendet...")
         self.status_lbl.hide()
 
         username = self.name_input.text().strip()
@@ -268,14 +280,16 @@ class ReviewPromptDialog(QDialog):
 
     def _on_submission_finished(self, success: bool, message: str, data: dict):
         self.btn_submit.setEnabled(True)
-        self.btn_submit.setText("  Submit Review")
+        self.btn_submit.setText("  Bewertung senden")
 
         if success:
             self.config_manager.set("review_submitted", True)
             self.stacked_widget.setCurrentIndex(1)
         else:
             self.status_lbl.setText(message)
-            self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
+            self.status_lbl.setStyleSheet(
+                "font-size: 12px; color: #EF4444; background: transparent;"
+            )
             self.status_lbl.show()
 
     def _on_remind_later(self):

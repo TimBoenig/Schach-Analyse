@@ -9,11 +9,12 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidg
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
+from src.utils.translations import tr_classification
 
 
 class MoveQualityCard(MetricCard):
     def __init__(self, parent=None):
-        super().__init__("Move Quality Distribution", parent=parent, max_height=310)
+        super().__init__("Verteilung der Zugqualität", parent=parent, max_height=310)
         self.content_widget = None
 
     def set_stats(self, stats):
@@ -101,7 +102,7 @@ class MoveQualityCard(MetricCard):
             ax.text(
                 0,
                 0,
-                "No moves",
+                "Keine Züge",
                 ha="center",
                 va="center",
                 fontsize=12,
@@ -165,7 +166,7 @@ class MoveQualityCard(MetricCard):
                 )
                 row.addWidget(dot)
 
-            lbl_name = QLabel(k)
+            lbl_name = QLabel(tr_classification(k))
             lbl_name.setStyleSheet(
                 f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; border: none; background: transparent;"
             )

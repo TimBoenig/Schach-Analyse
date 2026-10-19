@@ -4,6 +4,7 @@ Explorer Move List Widget - A lightweight move list for the Opening Explorer.
 NOTE: This shares ~70% code with move_list_panel.py. Future refactoring should
 extract a shared base class for both implementations.
 """
+
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor
 from PyQt6.QtWidgets import (
@@ -26,6 +27,7 @@ class ExplorerMoveListWidget(QWidget):
     Displays the sequence of moves played in the Explorer.
     Emits `move_selected(index)` when a past move is clicked to navigate back.
     """
+
     move_selected = pyqtSignal(int)
     nav_first = pyqtSignal()
     nav_prev = pyqtSignal()
@@ -45,7 +47,7 @@ class ExplorerMoveListWidget(QWidget):
         # Move List Table
         self.table = QTableWidget()
         self.table.setColumnCount(3)
-        self.table.setHorizontalHeaderLabels(["#", "White", "Black"])
+        self.table.setHorizontalHeaderLabels(["#", "Weiß", "Schwarz"])
         self.table.horizontalHeader().setHighlightSections(False)
         self.table.horizontalHeader().setMinimumHeight(30)
 
@@ -101,9 +103,9 @@ class ExplorerMoveListWidget(QWidget):
         """Append a new move to the list."""
         # If we are not at the end, truncate the list before adding
         if self.current_index < len(self.moves) - 1:
-            self.moves = self.moves[:self.current_index + 1]
+            self.moves = self.moves[: self.current_index + 1]
 
-        self.moves.append({'san': san, 'classification': classification})
+        self.moves.append({"san": san, "classification": classification})
         self.current_index = len(self.moves) - 1
         self.refresh()
 
@@ -117,13 +119,13 @@ class ExplorerMoveListWidget(QWidget):
     def update_classification(self, index: int, classification: str):
         """Update the classification for a specific move."""
         if 0 <= index < len(self.moves):
-            self.moves[index]['classification'] = classification
+            self.moves[index]["classification"] = classification
             self.refresh()
 
     def set_pending_classification(self, index: int, pending: bool = True):
         """Show/hide a pending classification indicator for a move."""
         if 0 <= index < len(self.moves):
-            self.moves[index]['classification'] = "Pending" if pending else None
+            self.moves[index]["classification"] = "Pending" if pending else None
             self.refresh()
 
     def refresh(self):
@@ -145,12 +147,12 @@ class ExplorerMoveListWidget(QWidget):
                 self.table.setItem(row, 0, num_item)
 
             # Move Item
-            item = QTableWidgetItem(move_data['san'])
+            item = QTableWidgetItem(move_data["san"])
             item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             item.setData(Qt.ItemDataRole.UserRole, i)
 
             # Icon and Color based on classification
-            classification = move_data.get('classification')
+            classification = move_data.get("classification")
             if classification:
                 if classification == "Pending":
                     item.setForeground(QBrush(QColor(Styles.COLOR_TEXT_MUTED)))

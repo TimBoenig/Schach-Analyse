@@ -1,11 +1,13 @@
 """
 PGN File panel for the Load Game dialog.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFileDialog, QVBoxLayout, QWidget
 
 from src.gui.components.toast import Toast
 from src.gui.utils.gui_utils import create_button
+from src.utils.translations import tr_speed
 
 from .drop_zone import DropZone
 from .helpers import classify_time_control
@@ -18,12 +20,13 @@ class PgnFilePanel(QWidget):
     Handles drag & drop and browse. For multi-game files shows an inline
     game picker; for single-game files sets the game ready immediately.
     """
-    pgn_ready     = pyqtSignal(str, object)   # (pgn_text, None)
+
+    pgn_ready = pyqtSignal(str, object)  # (pgn_text, None)
     pending_cleared = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._parsed_games: list = []          # GameAnalysis objects
+        self._parsed_games: list = []  # GameAnalysis objects
         self._setup_ui()
 
     def _setup_ui(self):
@@ -38,8 +41,9 @@ class PgnFilePanel(QWidget):
         root.addWidget(self._drop_zone)
 
         # ── Browse button ────────────────────────────────────────────────────
-        browse_btn = create_button("Browse for .pgn file…", style="secondary",
-                                   on_click=self._browse)
+        browse_btn = create_button(
+            ".pgn-Datei auswählen…", style="secondary", on_click=self._browse
+        )
         browse_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         browse_btn.setFixedHeight(36)
         root.addWidget(browse_btn)
@@ -54,23 +58,28 @@ class PgnFilePanel(QWidget):
     # ── File loading ────────────────────────────────────────────────────────
     def _browse(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Open PGN File", "", "PGN Files (*.pgn);;All Files (*)"
+            self, "PGN-Datei öffnen", "", "PGN-Dateien (*.pgn);;Alle Dateien (*)"
         )
         if path:
             self._load_file(path)
 
     def _load_file(self, path: str):
         from src.backend.storage.pgn_parser import PGNParser
+
         try:
             games = PGNParser.parse_pgn_file(path)
         except Exception:
-            Toast.show_message(self.window(),
-                               "Could not read this PGN. It may be empty or corrupted.",
-                               "error")
+            Toast.show_message(
+                self.window(),
+                "Diese PGN konnte nicht gelesen werden. Sie ist evtl. leer oder beschädigt.",
+                "error",
+            )
             return
 
         if not games:
-            Toast.show_message(self.window(), "No valid games found in this file.", "warning")
+            Toast.show_message(
+                self.window(), "Keine gültigen Partien in dieser Datei gefunden.", "warning"
+            )
             return
 
         self._parsed_games = games
@@ -88,14 +97,16 @@ class PgnFilePanel(QWidget):
             result = md.result or "?"
             date = md.date or md.headers.get("Date", "?")
             time_ctrl = md.headers.get("TimeControl", "")
-            tc_label = classify_time_control(time_ctrl)
+            tc_label = tr_speed(classify_time_control(time_ctrl))
             move_count = (len(g.moves) + 1) // 2
 
-            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} moves"
+            line1 = f"{date}  ·  {tc_label}  ·  {result}  ·  {move_count} Züge"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
             rows.append((line1, line2))
 
-        header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
+        header_text = (
+            "1 Partie bereit zum Laden:" if n == 1 else f"Wähle eine Partie ({n} gefunden):"
+        )
         self._game_list.populate(rows, header_text)
         self._game_list.setVisible(True)
 

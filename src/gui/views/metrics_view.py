@@ -35,6 +35,36 @@ from src.gui.views.metrics import (
     TacticalThemesCard,
     TimeManagementCard,
 )
+from src.utils.translations import tr_filter, tr_motif, tr_piece
+
+# Filter values stay English: they are passed verbatim to the backend
+# (StatsWorker -> filter_games / calculate_stats). Only the labels are German.
+COLOR_FILTERS = ["All Colors", "White", "Black"]
+FORMAT_FILTERS = ["All Formats", "Rapid", "Blitz", "Bullet", "Classical", "Freestyle (Chess960)"]
+SOURCE_FILTERS = ["All Sources", "Chess.com", "Lichess", "File"]
+PERIOD_FILTERS = [
+    "All Time",
+    "Last 24 Hours",
+    "Last 7 Days",
+    "Last 30 Days",
+    "Last 90 Days",
+    "This Year",
+]
+
+
+def _create_filter_combo(values: list[str], on_change):
+    """Combo box showing German labels while keeping the English value as item data."""
+    combo = create_combobox(items=[])
+    for value in values:
+        combo.addItem(tr_filter(value), value)
+    combo.currentIndexChanged.connect(on_change)
+    return combo
+
+
+def _select_filter_value(combo, value: str) -> None:
+    idx = combo.findData(value)
+    if idx >= 0:
+        combo.setCurrentIndex(idx)
 
 
 class MetricsWidget(QWidget):
@@ -92,7 +122,7 @@ class MetricsWidget(QWidget):
         header_layout.setContentsMargins(24, 12, 24, 12)
 
         # Title
-        self.title_lbl = QLabel("Performance Dashboard")
+        self.title_lbl = QLabel("Leistungsübersicht")
         self.title_lbl.setStyleSheet(
             Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
             + " "
@@ -103,7 +133,7 @@ class MetricsWidget(QWidget):
         header_layout.addStretch()
 
         self.btn_refresh = create_button(
-            "Refresh",
+            "Aktualisieren",
             style="secondary",
             on_click=lambda: self.refresh(force=True),
             icon_name="fa5s.sync-alt",
@@ -125,14 +155,11 @@ class MetricsWidget(QWidget):
         lbl_style = f"{Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)} border: none; background: transparent;"
 
         # 1. Color Filter
-        self.lbl_color = QLabel("Color:")
+        self.lbl_color = QLabel("Farbe:")
         self.lbl_color.setStyleSheet(lbl_style)
         filter_layout.addWidget(self.lbl_color)
 
-        self.combo_color = create_combobox(
-            items=["All Colors", "White", "Black"],
-            on_change=self.on_filter_changed,
-        )
+        self.combo_color = _create_filter_combo(COLOR_FILTERS, self.on_filter_changed)
         self.combo_color.setFixedWidth(110)
         filter_layout.addWidget(self.combo_color)
 
@@ -143,60 +170,44 @@ class MetricsWidget(QWidget):
         self.lbl_format.setStyleSheet(lbl_style)
         filter_layout.addWidget(self.lbl_format)
 
-        self.combo_format = create_combobox(
-            items=["All Formats", "Rapid", "Blitz", "Bullet", "Classical", "Freestyle (Chess960)"],
-            on_change=self.on_filter_changed,
-        )
+        self.combo_format = _create_filter_combo(FORMAT_FILTERS, self.on_filter_changed)
         self.combo_format.setFixedWidth(155)
         filter_layout.addWidget(self.combo_format)
 
         filter_layout.addSpacing(10)
 
         # 3. Source Filter
-        self.lbl_source = QLabel("Source:")
+        self.lbl_source = QLabel("Quelle:")
         self.lbl_source.setStyleSheet(lbl_style)
         filter_layout.addWidget(self.lbl_source)
 
-        self.combo_source = create_combobox(
-            items=["All Sources", "Chess.com", "Lichess", "File"],
-            on_change=self.on_filter_changed,
-        )
+        self.combo_source = _create_filter_combo(SOURCE_FILTERS, self.on_filter_changed)
         self.combo_source.setFixedWidth(110)
         filter_layout.addWidget(self.combo_source)
 
         filter_layout.addSpacing(10)
 
         # 4. Period Filter
-        self.lbl_period = QLabel("Period:")
+        self.lbl_period = QLabel("Zeitraum:")
         self.lbl_period.setStyleSheet(lbl_style)
         filter_layout.addWidget(self.lbl_period)
 
-        self.combo_period = create_combobox(
-            items=[
-                "All Time",
-                "Last 24 Hours",
-                "Last 7 Days",
-                "Last 30 Days",
-                "Last 90 Days",
-                "This Year",
-            ],
-            on_change=self.on_filter_changed,
-        )
-        self.combo_period.setFixedWidth(135)
+        self.combo_period = _create_filter_combo(PERIOD_FILTERS, self.on_filter_changed)
+        self.combo_period.setFixedWidth(155)
         filter_layout.addWidget(self.combo_period)
 
         filter_layout.addSpacing(10)
 
         # Reset button
         self.btn_reset_filters = create_button(
-            "Reset", style="secondary", on_click=self.reset_filters, icon_name="fa5s.undo"
+            "Zurücksetzen", style="secondary", on_click=self.reset_filters, icon_name="fa5s.undo"
         )
         filter_layout.addWidget(self.btn_reset_filters)
 
         filter_layout.addStretch()
 
         # Games count badge
-        self.lbl_games_badge = QLabel("0 Games")
+        self.lbl_games_badge = QLabel("0 Partien")
         self.lbl_games_badge.setStyleSheet(
             f"background-color: {Styles.COLOR_SURFACE_LIGHT}; color: {Styles.COLOR_ACCENT}; "
             f"border: 1px solid {Styles.COLOR_BORDER}; border-radius: 12px; "
@@ -345,10 +356,10 @@ class MetricsWidget(QWidget):
         if not self.games_data or not self.usernames:
             return
 
-        color = self.combo_color.currentText()
-        fmt = self.combo_format.currentText()
-        source = self.combo_source.currentText()
-        period = self.combo_period.currentText()
+        color = self.combo_color.currentData() or "All Colors"
+        fmt = self.combo_format.currentData() or "All Formats"
+        source = self.combo_source.currentData() or "All Sources"
+        period = self.combo_period.currentData() or "All Time"
         filter_key = (color, fmt, source, period)
 
         # Serve from in-memory cache if data has not changed
@@ -368,7 +379,7 @@ class MetricsWidget(QWidget):
         spinner.setStyleSheet(Styles.get_progress_bar_style())
         l_layout.addWidget(spinner)
 
-        lbl = QLabel("Filtering Statistics...")
+        lbl = QLabel("Statistiken werden gefiltert …")
         lbl.setStyleSheet(
             Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY) + "; margin-top: 10px;"
         )
@@ -420,10 +431,10 @@ class MetricsWidget(QWidget):
         self.combo_source.blockSignals(True)
         self.combo_period.blockSignals(True)
 
-        self.combo_color.setCurrentText("All Colors")
-        self.combo_format.setCurrentText("All Formats")
-        self.combo_source.setCurrentText("All Sources")
-        self.combo_period.setCurrentText("All Time")
+        _select_filter_value(self.combo_color, "All Colors")
+        _select_filter_value(self.combo_format, "All Formats")
+        _select_filter_value(self.combo_source, "All Sources")
+        _select_filter_value(self.combo_period, "All Time")
 
         self.combo_color.blockSignals(False)
         self.combo_format.blockSignals(False)
@@ -437,7 +448,7 @@ class MetricsWidget(QWidget):
         self.current_stats = stats
         total = stats.get("total", 0)
         if hasattr(self, "lbl_games_badge") and self.lbl_games_badge:
-            self.lbl_games_badge.setText(f"{total} Games")
+            self.lbl_games_badge.setText(f"{total} Partien")
 
         if hasattr(self, "stacked_widget") and self.stacked_widget:
             self.stacked_widget.setCurrentIndex(0)
@@ -446,9 +457,10 @@ class MetricsWidget(QWidget):
         clear_layout(self.content_layout)
         if total == 0:
             self._show_message_view(
-                "No Matching Games",
-                "No analyzed games match your selected filters.\nTry resetting or widening your filter criteria.",
-                "Reset Filters",
+                "Keine passenden Partien",
+                "Keine analysierte Partie passt zu deinen Filtern.\n"
+                "Setze die Filter zurück oder erweitere sie.",
+                "Filter zurücksetzen",
                 self.reset_filters,
             )
         else:
@@ -456,16 +468,18 @@ class MetricsWidget(QWidget):
 
     def show_setup_required(self):
         self._show_message_view(
-            "Setup Required",
-            "Please configure your Chess.com or Lichess.org username in Settings to view your stats.",
-            "Go to Settings",
+            "Einrichtung erforderlich",
+            "Hinterlege deinen Chess.com- oder Lichess.org-Benutzernamen in den Einstellungen,\n"
+            "um deine Statistiken zu sehen.",
+            "Zu den Einstellungen",
             self.go_to_settings,
         )
 
     def show_no_data(self):
         self._show_message_view(
-            "No Games Found",
-            f"No analyzed games found for users: {', '.join(self.usernames)}.\nAnalyze some games to see your stats!",
+            "Keine Partien gefunden",
+            f"Keine analysierten Partien für: {', '.join(self.usernames)}.\n"
+            "Analysiere ein paar Partien, um deine Statistiken zu sehen!",
             None,
             None,
         )
@@ -527,33 +541,33 @@ class MetricsWidget(QWidget):
 
         context_parts = []
         if fmt_val != "All Formats":
-            context_parts.append(fmt_val)
+            context_parts.append(tr_filter(fmt_val))
         if color_val != "All Colors":
-            context_parts.append(f"as {color_val}")
+            context_parts.append(f"als {tr_filter(color_val)}")
         if period_val != "All Time":
-            context_parts.append(period_val)
+            context_parts.append(tr_filter(period_val))
 
-        total_sub = " • ".join(context_parts) if context_parts else "All analyzed games"
+        total_sub = " • ".join(context_parts) if context_parts else "Alle analysierten Partien"
 
         # Win rate subtitle with exact record counts
         wins = stats.get("wins", 0)
         draws = stats.get("draws", 0)
         losses = stats.get("losses", 0)
-        win_sub = f"{wins}W • {draws}D • {losses}L"
+        win_sub = f"{wins}S • {draws}R • {losses}N"
 
-        self.stats_layout.addWidget(StatCard("Total Games", str(stats["total"]), total_sub))
+        self.stats_layout.addWidget(StatCard("Partien gesamt", str(stats["total"]), total_sub))
         self.stats_layout.addWidget(
             StatCard(
-                "Win Rate",
+                "Siegquote",
                 f"{stats['win_rate']:.1f}%",
                 win_sub,
             )
         )
         self.stats_layout.addWidget(
             StatCard(
-                "Avg Accuracy",
+                "Ø Genauigkeit",
                 f"{stats['avg_accuracy']:.1f}%",
-                "Weighted harmonic mean",
+                "Gewichtetes harmonisches Mittel",
             )
         )
 
@@ -563,21 +577,21 @@ class MetricsWidget(QWidget):
         )
         bpg = (total_blunders / total_games) if total_games > 0 else 0.0
         blunders_card = StatCard(
-            "Blunders / Game", f"{bpg:.1f}", "Average tactical errors", clickable=True
+            "Patzer / Partie", f"{bpg:.1f}", "Ø taktische Fehler", clickable=True
         )
-        blunders_card.setToolTip("Click to inspect all blunder positions")
+        blunders_card.setToolTip("Klicken, um alle Patzer-Stellungen anzusehen")
         blunders_card.clicked.connect(lambda: self._trigger_drill_down("blunders"))
         self.stats_layout.addWidget(blunders_card)
 
         clean_cnt = stats.get("clean_games", 0)
         clean_pct = stats.get("clean_games_pct", 0.0)
         clean_card = StatCard(
-            "Clean Games",
+            "Fehlerfreie Partien",
             f"{clean_pct:.0f}%",
-            f"{clean_cnt} zero-blunder matches",
+            f"{clean_cnt} Partien ohne Patzer",
             clickable=True,
         )
-        clean_card.setToolTip("Click to inspect all clean games without blunders")
+        clean_card.setToolTip("Klicken, um alle Partien ohne Patzer anzusehen")
         clean_card.clicked.connect(lambda: self._trigger_drill_down("clean_games"))
         self.stats_layout.addWidget(clean_card)
 
@@ -687,9 +701,9 @@ class MetricsWidget(QWidget):
 
         title = custom_title or self._get_drill_down_title(category, subcategory)
         if category in ("clean_games", "openings"):
-            subtitle = custom_subtitle or f"Showing {len(items)} matching games"
+            subtitle = custom_subtitle or f"{len(items)} passende Partien"
         else:
-            subtitle = custom_subtitle or f"Showing {len(items)} matching game positions"
+            subtitle = custom_subtitle or f"{len(items)} passende Stellungen"
 
         self.header_bar.setVisible(False)
         self.filter_bar.setVisible(False)
@@ -708,36 +722,36 @@ class MetricsWidget(QWidget):
 
     def _get_drill_down_title(self, category: str, subcategory: str | None) -> str:
         if category == "clean_games":
-            return "Clean Games (Zero Blunders)"
+            return "Fehlerfreie Partien (ohne Patzer)"
         if category == "openings":
-            return f"{subcategory} Games" if subcategory else "Opening Repertoire Games"
+            return f"Partien: {subcategory}" if subcategory else "Partien im Eröffnungsrepertoire"
         if category == "blunders":
-            return "Blunders & Tactical Oversights"
+            return "Patzer & taktische Versäumnisse"
         if category == "hung_pieces":
             sub_name = (
-                f" • {subcategory.capitalize()}s" if subcategory and subcategory != "all" else ""
-            )
-            return f"Dropped Pieces{sub_name}"
-        if category == "opp_captured":
-            sub_name = (
-                f" • {subcategory.capitalize()}s" if subcategory and subcategory != "all" else ""
-            )
-            return f"Opponent Mistakes Punished{sub_name}"
-        if category == "tactical_themes":
-            sub_name = (
-                f" • {subcategory.replace('_', ' ').title()}"
+                f" • {tr_piece(subcategory, plural=True)}"
                 if subcategory and subcategory != "all"
                 else ""
             )
-            return f"Tactical Patterns{sub_name}"
+            return f"Eingestellte Figuren{sub_name}"
+        if category == "opp_captured":
+            sub_name = (
+                f" • {tr_piece(subcategory, plural=True)}"
+                if subcategory and subcategory != "all"
+                else ""
+            )
+            return f"Bestrafte Gegnerfehler{sub_name}"
+        if category == "tactical_themes":
+            sub_name = f" • {tr_motif(subcategory)}" if subcategory and subcategory != "all" else ""
+            return f"Taktische Muster{sub_name}"
         if category == "advantage":
             adv_map = {
-                "thrown_losses": "Thrown Losses (Lost Leads)",
-                "squandered_draws": "Squandered Draws (Drawn Leads)",
-                "comeback_wins": "Miracle Comeback Wins",
-                "comeback_draws": "Resilient Comeback Draws",
+                "thrown_losses": "Verschenkte Siege (Vorteil verspielt)",
+                "squandered_draws": "Verschenkte Remis (Vorteil nur remis)",
+                "comeback_wins": "Siege nach Rückstand",
+                "comeback_draws": "Remis nach Rückstand",
             }
-            return adv_map.get(subcategory or "", "Advantage Turning Points")
+            return adv_map.get(subcategory or "", "Wendepunkte im Vorteil")
         return f"{category.replace('_', ' ').title()}"
 
     def _sync_insights_cache(self):

@@ -11,12 +11,13 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
+from src.utils.translations import tr_speed
 
 
 class GameSelectionDialog(QDialog):
     def __init__(self, games_data, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Select Game")
+        self.setWindowTitle("Partie auswählen")
         self.resize(550, 450)
         self.games_data = games_data
         self.selected_game_data = None
@@ -35,7 +36,9 @@ class GameSelectionDialog(QDialog):
         layout.setSpacing(16)
 
         # Header
-        lbl_header = QLabel(f"Found {len(self.games_data)} recent games. Select one to load:")
+        lbl_header = QLabel(
+            f"{len(self.games_data)} aktuelle Partien gefunden. Wähle eine zum Laden aus:"
+        )
         lbl_header.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 15px;
@@ -77,10 +80,12 @@ class GameSelectionDialog(QDialog):
         btn_layout.setSpacing(12)
         btn_layout.addStretch()
 
-        self.btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
+        self.btn_cancel = create_button("Abbrechen", style="secondary", on_click=self.reject)
         btn_layout.addWidget(self.btn_cancel)
 
-        self.btn_load = create_button("Load Game", style="primary", on_click=self.accept_selection)
+        self.btn_load = create_button(
+            "Partie laden", style="primary", on_click=self.accept_selection
+        )
         btn_layout.addWidget(self.btn_load)
 
         layout.addLayout(btn_layout)
@@ -104,28 +109,30 @@ class GameSelectionDialog(QDialog):
                 result_str = "1-0"
             elif b_res == "win":
                 result_str = "0-1"
-            elif any(x in w_res for x in ["agreed", "repetition", "stalemate", "insufficient"]) or \
-                 any(x in b_res for x in ["agreed", "repetition", "stalemate", "insufficient"]):
+            elif any(
+                x in w_res for x in ["agreed", "repetition", "stalemate", "insufficient"]
+            ) or any(x in b_res for x in ["agreed", "repetition", "stalemate", "insufficient"]):
                 result_str = "1/2-1/2"
 
             # Time class
-            time_class = game.get("time_class", "").capitalize()
+            time_class = tr_speed(game.get("time_class", "").capitalize())
 
             # Date
             end_time = game.get("end_time", 0)
-            date_str = datetime.datetime.fromtimestamp(end_time).strftime('%Y-%m-%d %H:%M')
+            date_str = datetime.datetime.fromtimestamp(end_time).strftime("%Y-%m-%d %H:%M")
 
             # Move count (estimate from PGN if available)
             move_count = ""
             pgn = game.get("pgn", "")
             if pgn:
                 import re
+
                 # Match: whitespace + 1-3 digits + dot + space + letter (actual move like "1. e4")
-                moves = re.findall(r'(?:^|\s)(\d{1,3})\.\s+[A-Za-z]', pgn, re.MULTILINE)
+                moves = re.findall(r"(?:^|\s)(\d{1,3})\.\s+[A-Za-z]", pgn, re.MULTILINE)
                 if moves:
                     move_nums = [int(m) for m in moves if int(m) <= 500]
                     if move_nums:
-                        move_count = f" • {max(move_nums)} moves"
+                        move_count = f" • {max(move_nums)} Züge"
 
             # Build display text
             line1 = f"{date_str}  •  {time_class}  •  {result_str}{move_count}"

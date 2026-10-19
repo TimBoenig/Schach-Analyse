@@ -44,7 +44,12 @@ class SplashScreen(QSplashScreen):
         # Logo
         if os.path.exists(logo_path):
             logo_label = QLabel()
-            pixmap = QPixmap(logo_path).scaled(100, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            pixmap = QPixmap(logo_path).scaled(
+                100,
+                100,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
             logo_label.setPixmap(pixmap)
             logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             logo_label.setStyleSheet("background: transparent; border: none;")
@@ -54,15 +59,19 @@ class SplashScreen(QSplashScreen):
         title_label = QLabel(app_name)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setFont(QFont("", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; {Styles.get_transparent_label_style()}")
+        title_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; {Styles.get_transparent_label_style()}"
+        )
         layout.addWidget(title_label)
 
         layout.addStretch()
 
         # Loading Status
-        self.status_label = QLabel("Initializing...")
+        self.status_label = QLabel("Wird initialisiert...")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; {Styles.get_transparent_label_style()}")
+        self.status_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 12px; {Styles.get_transparent_label_style()}"
+        )
         layout.addWidget(self.status_label)
 
         # Progress Bar
@@ -91,4 +100,3 @@ class SplashScreen(QSplashScreen):
         if message:
             self.status_label.setText(message)
         QApplication.processEvents()
-

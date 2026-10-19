@@ -8,6 +8,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from src.utils.translations import tr_motif, tr_speed
+
 
 def _header_section(stats: dict[str, Any]) -> list[str]:
     total = stats.get("total", 0)
@@ -20,11 +22,11 @@ def _header_section(stats: dict[str, Any]) -> list[str]:
     clean_games = stats.get("clean_games", 0)
 
     return [
-        f"=== STUDENT CHESS PERFORMANCE DOSSIER (Sample: {total} games) ===",
-        f"Overall Win Rate: {win_rate:.1f}% ({wins}W / {draws}D / {losses}L)",
+        f"=== LEISTUNGSDOSSIER DES SCHÜLERS (Stichprobe: {total} Partien) ===",
+        f"Gesamt-Siegquote: {win_rate:.1f}% ({wins}S / {draws}R / {losses}N)",
         (
-            f"Average Accuracy: {avg_accuracy:.1f}% | "
-            f"Clean Games: {clean_games_pct:.1f}% ({clean_games} games without blunders)"
+            f"Durchschnittliche Genauigkeit: {avg_accuracy:.1f}% | "
+            f"Fehlerfreie Partien: {clean_games_pct:.1f}% ({clean_games} Partien ohne Patzer)"
         ),
     ]
 
@@ -34,13 +36,13 @@ def _phase_section(stats: dict[str, Any]) -> list[str]:
     accs = phases.get("accuracies", {})
     blunds = phases.get("blunders", {})
     return [
-        "\nPhase Accuracies & Blunder Distribution:",
-        f"- Opening: {accs.get('opening', 0.0):.1f}% accuracy | {blunds.get('opening', 0)} blunders",
+        "\nGenauigkeit nach Phase & Patzerverteilung:",
+        f"- Eröffnung: {accs.get('opening', 0.0):.1f}% Genauigkeit | {blunds.get('opening', 0)} Patzer",
         (
-            f"- Middlegame: {accs.get('middlegame', 0.0):.1f}% accuracy | "
-            f"{blunds.get('middlegame', 0)} blunders"
+            f"- Mittelspiel: {accs.get('middlegame', 0.0):.1f}% Genauigkeit | "
+            f"{blunds.get('middlegame', 0)} Patzer"
         ),
-        f"- Endgame: {accs.get('endgame', 0.0):.1f}% accuracy | {blunds.get('endgame', 0)} blunders",
+        f"- Endspiel: {accs.get('endgame', 0.0):.1f}% Genauigkeit | {blunds.get('endgame', 0)} Patzer",
     ]
 
 
@@ -48,27 +50,27 @@ def _advantage_section(stats: dict[str, Any]) -> list[str]:
     adv = stats.get("advantage_stats", {})
     hwa = adv.get("had_winning_advantage", 0)
     hlp = adv.get("had_losing_position", 0)
-    lines = ["\nAdvantage Conversion & Fighting Spirit:"]
+    lines = ["\nVorteilsverwertung & Kampfgeist:"]
 
     if hwa > 0:
         lines.append(
-            f"- Decisive Lead (+3.0+ pawns) Conversion: {adv.get('conversion_rate', 0.0):.1f}% "
-            f"({adv.get('converted_advantage', 0)} wins out of {hwa} games ahead)"
+            f"- Verwertung entscheidender Vorteile (+3,0+ Bauern): {adv.get('conversion_rate', 0.0):.1f}% "
+            f"({adv.get('converted_advantage', 0)} Siege aus {hwa} Partien mit Vorteil)"
         )
         lines.append(
-            f"- Squandered Leads: {adv.get('thrown_losses', 0)} losses, "
-            f"{adv.get('squandered_draws', 0)} draws from winning positions"
+            f"- Verspielte Vorteile: {adv.get('thrown_losses', 0)} Niederlagen, "
+            f"{adv.get('squandered_draws', 0)} Remis aus Gewinnstellungen"
         )
     else:
-        lines.append("- Decisive Leads (+3.0+): None achieved in this sample.")
+        lines.append("- Entscheidende Vorteile (+3,0+): In dieser Stichprobe keine erreicht.")
 
     if hlp > 0:
         lines.append(
-            f"- Deficit (-3.0- pawns) Comeback Rate: {adv.get('comeback_rate', 0.0):.1f}% "
-            f"({adv.get('comeback_wins', 0)} wins, {adv.get('comeback_draws', 0)} draws out of {hlp} games behind)"
+            f"- Aufholquote bei Rückstand (-3,0- Bauern): {adv.get('comeback_rate', 0.0):.1f}% "
+            f"({adv.get('comeback_wins', 0)} Siege, {adv.get('comeback_draws', 0)} Remis aus {hlp} Partien mit Rückstand)"
         )
     else:
-        lines.append("- Decisive Deficits (-3.0-): None conceded in this sample.")
+        lines.append("- Entscheidende Rückstände (-3,0-): In dieser Stichprobe keine zugelassen.")
 
     return lines
 
@@ -78,25 +80,25 @@ def _tactics_section(stats: dict[str, Any]) -> list[str]:
     by_p = hanging.get("by_piece", {})
     tactics = stats.get("tactical_themes", {})
     top_motifs = sorted(tactics.items(), key=lambda x: x[1], reverse=True)
-    motifs_str = ", ".join(f"{k}: {v}" for k, v in top_motifs if v > 0)
+    motifs_str = ", ".join(f"{tr_motif(k)}: {v}" for k, v in top_motifs if v > 0)
     brills = len(stats.get("brilliancies", []))
 
     return [
-        "\nTactical Profile & Board Awareness:",
+        "\nTaktikprofil & Brettübersicht:",
         (
-            f"- Undefended Pieces Dropped: {hanging.get('total_hung', 0)} "
-            f"(P: {by_p.get('pawn', 0)}, "
-            f"N: {by_p.get('knight', 0)}, "
-            f"B: {by_p.get('bishop', 0)}, "
-            f"R: {by_p.get('rook', 0)}, "
-            f"Q: {by_p.get('queen', 0)})"
+            f"- Eingestellte ungedeckte Figuren: {hanging.get('total_hung', 0)} "
+            f"(B: {by_p.get('pawn', 0)}, "
+            f"S: {by_p.get('knight', 0)}, "
+            f"L: {by_p.get('bishop', 0)}, "
+            f"T: {by_p.get('rook', 0)}, "
+            f"D: {by_p.get('queen', 0)})"
         ),
         (
-            f"- Opponent Hanging Pieces Punished: {hanging.get('opponent_hanging_captured', 0)} captured "
-            f"vs {hanging.get('opponent_hanging_missed', 0)} missed opportunities"
+            f"- Hängende gegnerische Figuren bestraft: {hanging.get('opponent_hanging_captured', 0)} geschlagen "
+            f"vs. {hanging.get('opponent_hanging_missed', 0)} verpasste Gelegenheiten"
         ),
-        f"- Tactical Motifs Executed: {motifs_str if motifs_str else 'None detected'}",
-        f"- Brilliant Moves (!!): {brills}",
+        f"- Ausgeführte Taktikmotive: {motifs_str if motifs_str else 'Keine erkannt'}",
+        f"- Brillante Züge (!!): {brills}",
     ]
 
 
@@ -108,42 +110,41 @@ def _clock_section(stats: dict[str, Any]) -> list[str]:
     tt = time_s.get("time_trouble", {})
     formats = time_s.get("formats", {})
     lines = [
-        "\nTime Management & Clock Discipline:",
-        f"- Overall Average Move Time: {time_s.get('overall_avg_time', 0.0):.1f}s",
+        "\nZeitmanagement & Uhrdisziplin:",
+        f"- Durchschnittliche Zugzeit gesamt: {time_s.get('overall_avg_time', 0.0):.1f}s",
     ]
 
     pp = time_s.get("phase_pace", {})
     lines.append(
-        f"- Pace by Phase: Opening {pp.get('opening', {}).get('avg_time', 0.0):.1f}s | "
-        f"Middlegame {pp.get('middlegame', {}).get('avg_time', 0.0):.1f}s | "
-        f"Endgame {pp.get('endgame', {}).get('avg_time', 0.0):.1f}s"
+        f"- Tempo nach Phase: Eröffnung {pp.get('opening', {}).get('avg_time', 0.0):.1f}s | "
+        f"Mittelspiel {pp.get('middlegame', {}).get('avg_time', 0.0):.1f}s | "
+        f"Endspiel {pp.get('endgame', {}).get('avg_time', 0.0):.1f}s"
     )
 
     for fmt_name in ("Rapid", "Classical"):
         if fmt_name in formats:
             amt = formats[fmt_name].get("avg_move_time", 0.0)
             if 0 < amt < 8.0:
+                fmt_label = tr_speed(fmt_name)
                 lines.append(
-                    f"- CRITICAL ALERT [RUSHING IN {fmt_name.upper()}]: Student averages only {amt:.1f}s per move in {fmt_name}. "
-                    f"They are playing far too fast for a longer game, blitzing out moves impulsively and finishing with substantial unused time on their clock while blundering."
+                    f"- KRITISCHE WARNUNG [ZU SCHNELL – {fmt_label.upper()}]: Der Schüler braucht bei Bedenkzeit {fmt_label} im Schnitt nur {amt:.1f}s pro Zug. "
+                    f"Er spielt für eine lange Partie viel zu schnell, blitzt Züge impulsiv heraus und beendet Partien mit viel ungenutzter Bedenkzeit, während er patzt."
                 )
 
     qp = time_s.get("quality_pace", {})
     blunder_pace = qp.get("blunder", {}).get("avg_time", 0.0)
     if 0 < blunder_pace < 6.0:
         lines.append(
-            f"- Hasty Blunders: Blunders were committed in an average of {blunder_pace:.1f}s (impulsive moves without calculating)."
+            f"- Hastige Patzer: Patzer wurden im Schnitt nach {blunder_pace:.1f}s gespielt (impulsive Züge ohne Berechnung)."
         )
 
     panic_mult = tt.get("panic_multiplier", 1.0)
     if math.isinf(panic_mult):
-        lines.append(
-            "- Panic Multiplier in Time Trouble: Extreme (all blunders committed in time trouble)"
-        )
+        lines.append("- Panikfaktor in Zeitnot: Extrem (alle Patzer in Zeitnot begangen)")
     else:
-        lines.append(f"- Panic Multiplier in Time Trouble: {panic_mult:.1f}x higher blunder rate")
+        lines.append(f"- Panikfaktor in Zeitnot: {panic_mult:.1f}x höhere Patzerquote")
 
-    lines.append(f"- Losses on Time: {tt.get('total_time_losses', 0)}")
+    lines.append(f"- Niederlagen durch Zeitüberschreitung: {tt.get('total_time_losses', 0)}")
     return lines
 
 
@@ -152,12 +153,12 @@ def _openings_section(stats: dict[str, Any]) -> list[str]:
     if not detailed_ops:
         return []
 
-    lines = ["\nOpening Repertoire Highlights:"]
+    lines = ["\nHighlights des Eröffnungsrepertoires:"]
     sorted_ops = sorted(detailed_ops.values(), key=lambda x: x["total"], reverse=True)
     for op in sorted_ops[:5]:
         lines.append(
-            f"- {op['name']} (ECO {op.get('eco', 'N/A')}): "
-            f"{op['total']} games, {op['win_rate']:.1f}% win rate, {op.get('avg_acc', 0.0):.1f}% accuracy"
+            f"- {op['name']} (ECO {op.get('eco', 'k. A.')}): "
+            f"{op['total']} Partien, {op['win_rate']:.1f}% Siegquote, {op.get('avg_acc', 0.0):.1f}% Genauigkeit"
         )
     return lines
 
@@ -169,7 +170,7 @@ def build_coach_dossier(stats: dict[str, Any]) -> str:
     """
     total = stats.get("total", 0)
     if total == 0:
-        return "No analyzed games available for coaching evaluation."
+        return "Keine analysierten Partien für die Coaching-Auswertung vorhanden."
 
     lines: list[str] = []
     lines.extend(_header_section(stats))

@@ -1,6 +1,7 @@
 """
 API Configuration Settings group component.
 """
+
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -20,6 +21,7 @@ from .helpers import create_icon_button
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -31,6 +33,13 @@ from src.gui.utils.gui_utils import show_error_dialog
 from .modern_widgets import PasswordFieldWrapper
 
 
+def _provider_label(label: str) -> str:
+    """German display label for a provider preset label from src/constants.py."""
+    return label.replace("(Local)", "(lokal)").replace(
+        "Custom (OpenAI-compatible)", "Eigener (OpenAI-kompatibel)"
+    )
+
+
 def test_llm_sync(profile: dict) -> tuple:
     """Run a one-shot chat completion against the given profile.
     Returns (success: bool, short_message: str, full_details: str).
@@ -40,17 +49,15 @@ def test_llm_sync(profile: dict) -> tuple:
     except ImportError:
         return (
             False,
-            "✗ openai SDK missing",
-            "The 'openai' package is not installed. Run "
-            "'pip install openai' in your environment.",
+            "✗ openai-SDK fehlt",
+            "Das Paket 'openai' ist nicht installiert. Führe "
+            "'pip install openai' in deiner Umgebung aus.",
         )
 
     p = profile or {}
     provider = GroqService._normalise_provider(p.get("provider", "groq"))
     preset = PROVIDERS.get(provider, PROVIDERS["custom"])
-    base_url = GroqService._normalise_base_url(
-        p.get("base_url") or preset.get("base_url", "")
-    )
+    base_url = GroqService._normalise_base_url(p.get("base_url") or preset.get("base_url", ""))
     api_key = (p.get("api_key") or "not-needed").strip()
     model = (p.get("model") or preset.get("default_model", "")).strip()
 
@@ -58,40 +65,40 @@ def test_llm_sync(profile: dict) -> tuple:
     if requires_key and not p.get("api_key"):
         return (
             False,
-            "✗ API key required",
-            "Enter a real API key in the field above.",
+            "✗ API-Schlüssel erforderlich",
+            "Gib oben einen gültigen API-Schlüssel ein.",
         )
     if not base_url:
         return (
             False,
-            "✗ No base URL set",
-            "Set a base URL (preset or custom).",
+            "✗ Keine Basis-URL gesetzt",
+            "Lege eine Basis-URL fest (Vorlage oder eigene).",
         )
     if not model:
-        return (False, "✗ No model set", "Set a model name.")
+        return (False, "✗ Kein Modell gesetzt", "Lege einen Modellnamen fest.")
 
     try:
         client = OpenAI(api_key=api_key, base_url=base_url)
         client.chat.completions.create(
             model=model,
-            messages=[{"role": "user",
-                       "content": "Reply with exactly: OK"}],
+            messages=[{"role": "user", "content": "Reply with exactly: OK"}],
             max_tokens=10,
         )
-        return (True, "✓ Connected", "")
+        return (True, "✓ Verbunden", "")
     except Exception as exc:
         exc_type = type(exc).__name__
         full = f"{exc_type}: {exc}"
         try:
             from openai import AuthenticationError, PermissionDeniedError
+
             if isinstance(exc, (AuthenticationError, PermissionDeniedError)):
                 return (
                     False,
-                    "✗ Authentication failed",
-                    "The API key was rejected by the provider.\n\n"
+                    "✗ Authentifizierung fehlgeschlagen",
+                    "Der API-Schlüssel wurde vom Anbieter abgelehnt.\n\n"
                     f"Details: {full}\n\n"
-                    "Check the key in the API Configuration above "
-                    "and the provider's dashboard.",
+                    "Prüfe den Schlüssel oben in der API-Konfiguration "
+                    "und im Dashboard des Anbieters.",
                 )
         except ImportError:
             pass
@@ -100,7 +107,7 @@ def test_llm_sync(profile: dict) -> tuple:
 
 class ApiSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
-        super().__init__("API Configuration", parent)
+        super().__init__("API-Konfiguration", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
 
@@ -121,7 +128,7 @@ class ApiSettings(QGroupBox):
 
         # --- Profile selector row ---
         prof_row = QHBoxLayout()
-        self._lbl_prof = QLabel("LLM Profile:")
+        self._lbl_prof = QLabel("LLM-Profil:")
         self._lbl_prof.setStyleSheet(lbl_style)
         self._lbl_prof.setFixedWidth(88)
         prof_row.addWidget(self._lbl_prof)
@@ -137,7 +144,7 @@ class ApiSettings(QGroupBox):
         else:
             self.llm_add_btn.setText("+")
         self.llm_add_btn.setStyleSheet(sq_btn_style)
-        self.llm_add_btn.setToolTip("New profile")
+        self.llm_add_btn.setToolTip("Neues Profil")
         self.llm_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_add_btn.clicked.connect(self._new_llm_profile)
         prof_row.addWidget(self.llm_add_btn)
@@ -148,7 +155,7 @@ class ApiSettings(QGroupBox):
         else:
             self.llm_del_btn.setText("−")
         self.llm_del_btn.setStyleSheet(sq_btn_style)
-        self.llm_del_btn.setToolTip("Delete profile")
+        self.llm_del_btn.setToolTip("Profil löschen")
         self.llm_del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.llm_del_btn.clicked.connect(self._delete_llm_profile)
         prof_row.addWidget(self.llm_del_btn)
@@ -173,27 +180,27 @@ class ApiSettings(QGroupBox):
         self.llm_profile_name.setStyleSheet(Styles.get_input_style())
         pf.addRow(self._lbl_pname, self.llm_profile_name)
 
-        self._lbl_prov = QLabel("Provider:")
+        self._lbl_prov = QLabel("Anbieter:")
         self._lbl_prov.setStyleSheet(lbl_style)
         self.llm_provider_combo = QComboBox()
         for pkey, pmeta in self._llm_providers.items():
-            self.llm_provider_combo.addItem(pmeta["label"], userData=pkey)
+            self.llm_provider_combo.addItem(_provider_label(pmeta["label"]), userData=pkey)
         self.llm_provider_combo.setStyleSheet(_combo_style)
         self.llm_provider_combo.currentIndexChanged.connect(self._on_provider_changed)
         pf.addRow(self._lbl_prov, self.llm_provider_combo)
 
-        self.lbl_llm_key = QLabel("API Key:")
+        self.lbl_llm_key = QLabel("API-Schlüssel:")
         self.lbl_llm_key.setStyleSheet(lbl_style)
         self.llm_key_input = PasswordFieldWrapper(self)
         pf.addRow(self.lbl_llm_key, self.llm_key_input)
 
-        self._lbl_model = QLabel("Model:")
+        self._lbl_model = QLabel("Modell:")
         self._lbl_model.setStyleSheet(lbl_style)
         self.llm_model_input = QLineEdit()
         self.llm_model_input.setStyleSheet(Styles.get_input_style())
         pf.addRow(self._lbl_model, self.llm_model_input)
 
-        self.lbl_llm_url = QLabel("Base URL:")
+        self.lbl_llm_url = QLabel("Basis-URL:")
         self.lbl_llm_url.setStyleSheet(lbl_style)
         self.llm_url_input = QLineEdit()
         self.llm_url_input.setPlaceholderText("http://localhost:1234/v1")
@@ -204,20 +211,20 @@ class ApiSettings(QGroupBox):
 
         # --- Save / Activate / Test buttons ---
         act_row = QHBoxLayout()
-        self.llm_test_btn = create_icon_button("Test LLM", "fa5s.plug", self._test_llm_profile, self)
+        self.llm_test_btn = create_icon_button(
+            "LLM testen", "fa5s.plug", self._test_llm_profile, self
+        )
         act_row.addWidget(self.llm_test_btn)
         act_row.addStretch()
         api_layout.addLayout(act_row)
 
         status_row = QHBoxLayout()
         self.llm_active_label = QLabel()
-        self.llm_active_label.setStyleSheet(
-            Styles.get_secondary_label_style(size=11))
+        self.llm_active_label.setStyleSheet(Styles.get_secondary_label_style(size=11))
         status_row.addWidget(self.llm_active_label)
         status_row.addStretch()
         self.llm_test_result = QLabel()
-        self.llm_test_result.setStyleSheet(
-            Styles.get_secondary_label_style(size=11))
+        self.llm_test_result.setStyleSheet(Styles.get_secondary_label_style(size=11))
         status_row.addWidget(self.llm_test_result)
         api_layout.addLayout(status_row)
 
@@ -231,7 +238,7 @@ class ApiSettings(QGroupBox):
         lf.setSpacing(10)
         lf.setContentsMargins(0, 0, 0, 0)
         lf.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
-        self._lbl_lichess = QLabel("Lichess API Token:")
+        self._lbl_lichess = QLabel("Lichess-API-Token:")
         self._lbl_lichess.setStyleSheet(lbl_style)
         self.lichess_token_input = PasswordFieldWrapper(self)
         self.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
@@ -248,7 +255,7 @@ class ApiSettings(QGroupBox):
         active_name = self.config_manager.get("llm_active_profile", "")
         select_idx = 0
         for i, p in enumerate(profiles):
-            name = p.get("name", f"Profile {i+1}")
+            name = p.get("name", f"Profile {i + 1}")
             self.llm_profile_combo.addItem(name)
             if name == active_name:
                 select_idx = i
@@ -301,16 +308,14 @@ class ApiSettings(QGroupBox):
         self.lbl_llm_url.setVisible(True)
         self.llm_url_input.setVisible(True)
         current_url = self.llm_url_input.text().strip()
-        known_preset_urls = {
-            meta.get("base_url", "") for meta in self._llm_providers.values()
-        }
+        known_preset_urls = {meta.get("base_url", "") for meta in self._llm_providers.values()}
         if not current_url or current_url in known_preset_urls:
             self.llm_url_input.setText(preset.get("base_url", ""))
 
     def _update_active_label(self) -> None:
         active = self.config_manager.get("llm_active_profile", "")
         if active:
-            self.llm_active_label.setText(f"Active: \"{active}\"")
+            self.llm_active_label.setText(f"Aktiv: „{active}“")
         else:
             self.llm_active_label.setText("")
 
@@ -323,28 +328,37 @@ class ApiSettings(QGroupBox):
             base_url = preset.get("base_url", "")
         base_url = GroqService._normalise_base_url(base_url)
         return {
-            "name":     self.llm_profile_name.text().strip(),
+            "name": self.llm_profile_name.text().strip(),
             "provider": provider,
-            "api_key":  self.llm_key_input.text().strip(),
-            "model":    self.llm_model_input.text().strip() or preset.get("default_model", ""),
+            "api_key": self.llm_key_input.text().strip(),
+            "model": self.llm_model_input.text().strip() or preset.get("default_model", ""),
             "base_url": base_url,
         }
 
     def _new_llm_profile(self) -> None:
         from PyQt6.QtWidgets import QInputDialog
-        name, ok = QInputDialog.getText(self, "New LLM Profile", "Profile name:")
+
+        name, ok = QInputDialog.getText(self, "Neues LLM-Profil", "Profilname:")
         if not ok or not name.strip():
             return
         name = name.strip()
         profiles = self.config_manager.get_profiles()
         if any(p["name"] == name for p in profiles):
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, f'A profile named "{name}" already exists.', "warning")
+
+            MainWindow.toast_from_widget(
+                self, f"Ein Profil namens „{name}“ existiert bereits.", "warning"
+            )
             return
-        profiles.append({
-            "name": name, "provider": "groq", "api_key": "",
-            "model": "llama-3.3-70b-versatile", "base_url": "",
-        })
+        profiles.append(
+            {
+                "name": name,
+                "provider": "groq",
+                "api_key": "",
+                "model": "llama-3.3-70b-versatile",
+                "base_url": "",
+            }
+        )
         self.config_manager.config["llm_profiles"] = profiles
         self._reload_profile_combo()
         self.llm_profile_combo.setCurrentIndex(len(profiles) - 1)
@@ -353,16 +367,20 @@ class ApiSettings(QGroupBox):
         profiles = self.config_manager.get_profiles()
         if len(profiles) <= 1:
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "You must keep at least one profile.", "warning")
+
+            MainWindow.toast_from_widget(
+                self, "Mindestens ein Profil muss erhalten bleiben.", "warning"
+            )
             return
         idx = self.llm_profile_combo.currentIndex()
         if not (0 <= idx < len(profiles)):
             return
         name = profiles[idx].get("name", "")
         from src.gui.utils.gui_utils import confirm_dialog
-        if not confirm_dialog(self, "Delete Profile",
-                              f'Delete profile "{name}"?',
-                              confirm_label="Delete"):
+
+        if not confirm_dialog(
+            self, "Profil löschen", f"Profil „{name}“ löschen?", confirm_label="Löschen"
+        ):
             return
         profiles.pop(idx)
         active = self.config_manager.get("llm_active_profile", "")
@@ -393,8 +411,9 @@ class ApiSettings(QGroupBox):
 
         self.llm_test_btn.setEnabled(False)
         self.llm_test_result.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;")
-        self.llm_test_result.setText("Testing…")
+            f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 11px; background: transparent;"
+        )
+        self.llm_test_result.setText("Teste …")
 
         worker = _TestWorker(profile, parent=self)
         self._test_worker = worker
@@ -404,20 +423,22 @@ class ApiSettings(QGroupBox):
                 return
             color = Styles.COLOR_GOOD if success else Styles.COLOR_BLUNDER
             self.llm_test_result.setStyleSheet(
-                f"color: {color}; font-size: 11px; font-weight: bold; background: transparent;")
+                f"color: {color}; font-size: 11px; font-weight: bold; background: transparent;"
+            )
             self.llm_test_result.setText(msg)
             self.llm_test_btn.setEnabled(True)
             if not success and details:
                 try:
                     show_error_dialog(
                         self,
-                        "LLM Connection Test Failed",
-                        "The test request failed. The full error is shown below — "
-                        "you can copy it with Ctrl+C.",
+                        "LLM-Verbindungstest fehlgeschlagen",
+                        "Die Testanfrage ist fehlgeschlagen. Der vollständige Fehler steht unten – "
+                        "du kannst ihn mit Strg+C kopieren.",
                         details,
                     )
                 except Exception as exc:
                     from ....utils.logger import logger
+
                     logger.error(f"Failed to show error dialog: {exc}")
                     logger.error(f"Original error: {details}")
 
@@ -456,35 +477,35 @@ class ApiSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'llm_profile_combo'):
+        if hasattr(self, "llm_profile_combo"):
             self.llm_profile_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'llm_provider_combo'):
+        if hasattr(self, "llm_provider_combo"):
             self.llm_provider_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'llm_add_btn'):
+        if hasattr(self, "llm_add_btn"):
             self.llm_add_btn.setStyleSheet(Styles.get_settings_square_icon_style())
-        if hasattr(self, 'llm_del_btn'):
+        if hasattr(self, "llm_del_btn"):
             self.llm_del_btn.setStyleSheet(Styles.get_settings_square_icon_style())
-        if hasattr(self, 'llm_test_btn'):
+        if hasattr(self, "llm_test_btn"):
             self.llm_test_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'llm_profile_name'):
+        if hasattr(self, "llm_profile_name"):
             self.llm_profile_name.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, 'llm_model_input'):
+        if hasattr(self, "llm_model_input"):
             self.llm_model_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, 'llm_url_input'):
+        if hasattr(self, "llm_url_input"):
             self.llm_url_input.setStyleSheet(Styles.get_input_style())
         for widget in [self.llm_key_input, self.lichess_token_input]:
-            if hasattr(widget, 'refresh_styles'):
+            if hasattr(widget, "refresh_styles"):
                 widget.refresh_styles()
-        self._refresh_label('_lbl_prof')
-        self._refresh_label('_lbl_pname')
-        self._refresh_label('_lbl_prov')
-        self._refresh_label('lbl_llm_key')
-        self._refresh_label('_lbl_model')
-        self._refresh_label('lbl_llm_url')
-        self._refresh_label('_lbl_lichess')
-        self._refresh_secondary_label('llm_active_label')
-        self._refresh_secondary_label('llm_test_result')
-        if hasattr(self, '_div'):
+        self._refresh_label("_lbl_prof")
+        self._refresh_label("_lbl_pname")
+        self._refresh_label("_lbl_prov")
+        self._refresh_label("lbl_llm_key")
+        self._refresh_label("_lbl_model")
+        self._refresh_label("lbl_llm_url")
+        self._refresh_label("_lbl_lichess")
+        self._refresh_secondary_label("llm_active_label")
+        self._refresh_secondary_label("llm_test_result")
+        if hasattr(self, "_div"):
             self._div.setStyleSheet(Styles.get_divider_style())
-        if hasattr(self, '_api_div2'):
+        if hasattr(self, "_api_div2"):
             self._api_div2.setStyleSheet(Styles.get_divider_style())

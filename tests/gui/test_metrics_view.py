@@ -41,15 +41,19 @@ def test_metrics_view_filter_toolbar(qapp, qtbot):
     assert widget.combo_color.count() == 3
     assert widget.combo_format.count() == 6
 
-    # Change comboboxes
-    widget.combo_color.setCurrentText("White")
+    # Visible labels are German while the English filter value stays as item data
+    widget.combo_color.setCurrentText("Weiß")
     widget.combo_format.setCurrentText("Blitz")
-    assert widget.combo_color.currentText() == "White"
+    assert widget.combo_color.currentText() == "Weiß"
+    assert widget.combo_color.currentData() == "White"
+    assert widget.combo_format.currentData() == "Blitz"
 
     # Reset
     widget.reset_filters()
-    assert widget.combo_color.currentText() == "All Colors"
-    assert widget.combo_format.currentText() == "All Formats"
+    assert widget.combo_color.currentText() == "Alle Farben"
+    assert widget.combo_color.currentData() == "All Colors"
+    assert widget.combo_format.currentText() == "Alle Formate"
+    assert widget.combo_period.currentData() == "All Time"
 
     widget.stop_worker()
 
@@ -195,13 +199,13 @@ def test_openings_list_card_widget(qapp, qtbot):
 
     # Test dynamic title based on color filter
     card.set_stats({**stats, "filter_applied": {"color": "White"}})
-    assert card.lbl_title.text() == "White Repertoire"
+    assert card.lbl_title.text() == "Repertoire mit Weiß"
 
     card.set_stats({**stats, "filter_applied": {"color": "Black"}})
-    assert card.lbl_title.text() == "Black Defenses"
+    assert card.lbl_title.text() == "Verteidigungen mit Schwarz"
 
     card.set_stats({**stats, "filter_applied": {"color": "All Colors"}})
-    assert card.lbl_title.text() == "Opening Repertoire"
+    assert card.lbl_title.text() == "Eröffnungsrepertoire"
 
     # Test pagination with > 4 openings
     many_openings = {
@@ -221,19 +225,19 @@ def test_openings_list_card_widget(qapp, qtbot):
     }
     card.set_stats(many_openings)
     assert hasattr(card, "lbl_page_info")
-    assert card.lbl_page_info.text() == "Page 1 of 2"
+    assert card.lbl_page_info.text() == "Seite 1 von 2"
     assert card.btn_next_page.isEnabled()
     assert not card.btn_prev_page.isEnabled()
 
     card.btn_next_page.click()
     assert card.current_page == 1
-    assert card.lbl_page_info.text() == "Page 2 of 2"
+    assert card.lbl_page_info.text() == "Seite 2 von 2"
     assert not card.btn_next_page.isEnabled()
     assert card.btn_prev_page.isEnabled()
 
     card.btn_prev_page.click()
     assert card.current_page == 0
-    assert card.lbl_page_info.text() == "Page 1 of 2"
+    assert card.lbl_page_info.text() == "Seite 1 von 2"
 
     # Refresh styles
     card.refresh_styles()
@@ -421,7 +425,7 @@ def test_brilliancy_hall_card_widget(qapp, qtbot):
 
     # 1. Empty state
     card.set_stats({})
-    assert card.action_badge.text() == "0 Brilliancies"
+    assert card.action_badge.text() == "0 Glanzzüge"
     assert card.content_widget is not None
 
     # 2. Mixed classifications: strictly 'Brilliant' should be included
@@ -467,7 +471,7 @@ def test_brilliancy_hall_card_widget(qapp, qtbot):
         ],
     }
     card.set_stats(stats)
-    assert card.action_badge.text() == "2 Brilliancies"
+    assert card.action_badge.text() == "2 Glanzzüge"
     assert card.content_widget is not None
 
     # 3. Test click-to-load signal emission
@@ -490,7 +494,7 @@ def test_brilliancy_hall_card_widget(qapp, qtbot):
         ]
     }
     card.set_stats(stats_single)
-    assert card.action_badge.text() == "1 Brilliancy"
+    assert card.action_badge.text() == "1 Glanzzug"
 
     # 5. Pagination test with > 4 brilliancies
     many_brilliants = {
@@ -508,19 +512,19 @@ def test_brilliancy_hall_card_widget(qapp, qtbot):
     }
     card.set_stats(many_brilliants)
     assert hasattr(card, "lbl_page")
-    assert card.lbl_page.text() == "Page 1 of 2"
+    assert card.lbl_page.text() == "Seite 1 von 2"
     assert card.btn_next.isEnabled()
     assert not card.btn_prev.isEnabled()
 
     card.btn_next.click()
     assert card.current_page == 1
-    assert card.lbl_page.text() == "Page 2 of 2"
+    assert card.lbl_page.text() == "Seite 2 von 2"
     assert not card.btn_next.isEnabled()
     assert card.btn_prev.isEnabled()
 
     card.btn_prev.click()
     assert card.current_page == 0
-    assert card.lbl_page.text() == "Page 1 of 2"
+    assert card.lbl_page.text() == "Seite 1 von 2"
 
     # 6. Refresh styles
     card.refresh_styles()
@@ -577,7 +581,7 @@ def test_advantage_conversion_card_widget(qapp, qtbot):
 
     # 1. Empty stats
     card.set_stats({})
-    assert card.action_badge.text() == "Conversion Analytics"
+    assert card.action_badge.text() == "Verwertungsanalyse"
     assert card.content_widget is not None
 
     # 2. Populated advantage metrics
@@ -598,7 +602,7 @@ def test_advantage_conversion_card_widget(qapp, qtbot):
         },
     }
     card.set_stats(stats)
-    assert "75% Conversion • 1 Thrown" in card.action_badge.text()
+    assert "75% Verwertung • 1 verschenkt" in card.action_badge.text()
 
     adv_pillar = card.findChild(QFrame, "adv_pillar")
     assert adv_pillar is not None
@@ -611,7 +615,7 @@ def test_advantage_conversion_card_widget(qapp, qtbot):
 
     # 3. Refresh styles
     card.refresh_styles()
-    assert card.action_badge.text().startswith("75% Conversion")
+    assert card.action_badge.text().startswith("75% Verwertung")
 
 
 def test_ai_coach_card_widget(qapp, qtbot):
@@ -656,7 +660,7 @@ def test_ai_coach_card_widget(qapp, qtbot):
     # 2. Error handling test
     card._handle_insight_error("Error: LLM not configured. Go to Settings.")
     buttons = card.findChildren(QPushButton)
-    assert any("Configure LLM" in b.text() for b in buttons)
+    assert any("LLM in den Einstellungen" in b.text() for b in buttons)
 
     # 3. Refresh styles
     card.refresh_styles()

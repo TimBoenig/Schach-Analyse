@@ -1,6 +1,7 @@
 """
 Inline game list component for the Load Game dialog.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget
 
@@ -15,6 +16,7 @@ class InlineGameList(QWidget):
     Emits cleared() when the Clear button is clicked.
     Also supports pre-selecting the first item.
     """
+
     game_chosen = pyqtSignal(int)
     cleared = pyqtSignal()
 
@@ -36,7 +38,7 @@ class InlineGameList(QWidget):
         h_layout.addWidget(self._header)
         h_layout.addStretch()
 
-        self.btn_clear = QPushButton("✕ Clear")
+        self.btn_clear = QPushButton("✕ Leeren")
         self.btn_clear.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_clear.setStyleSheet(f"""
@@ -95,7 +97,7 @@ class InlineGameList(QWidget):
         self._pagination_layout.setContentsMargins(2, 4, 2, 4)
         self._pagination_layout.setSpacing(10)
 
-        self.btn_prev = QPushButton("◀ Previous")
+        self.btn_prev = QPushButton("◀ Zurück")
         self.btn_prev.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_prev.setStyleSheet(self._button_style())
@@ -105,12 +107,14 @@ class InlineGameList(QWidget):
         self._pagination_layout.addStretch()
 
         self.lbl_page = QLabel("")
-        self.lbl_page.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        self.lbl_page.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
         self._pagination_layout.addWidget(self.lbl_page)
 
         self._pagination_layout.addStretch()
 
-        self.btn_next = QPushButton("Next ▶")
+        self.btn_next = QPushButton("Weiter ▶")
         self.btn_next.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_next.setStyleSheet(self._button_style())
@@ -169,11 +173,13 @@ class InlineGameList(QWidget):
 
         # Update Header
         if total_pages > 1:
-            header_text = f"{self._header_template} - Page {self._current_page + 1} of {total_pages}"
+            header_text = (
+                f"{self._header_template} – Seite {self._current_page + 1} von {total_pages}"
+            )
             self._pagination_widget.setVisible(True)
             self.btn_prev.setEnabled(self._current_page > 0)
             self.btn_next.setEnabled(self._current_page < total_pages - 1)
-            self.lbl_page.setText(f"Page {self._current_page + 1} of {total_pages}")
+            self.lbl_page.setText(f"Seite {self._current_page + 1} von {total_pages}")
         else:
             header_text = self._header_template
             self._pagination_widget.setVisible(False)

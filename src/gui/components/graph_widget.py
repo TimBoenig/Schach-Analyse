@@ -73,10 +73,26 @@ class GraphWidget(QWidget):
         self.ax.plot(move_nums, evals, color=accent, linewidth=1.5, zorder=1)
 
         if len(evals) > 1:
-            self.ax.fill_between(move_nums, evals, 0, where=[e >= 0 for e in evals],
-                                 facecolor=accent, alpha=0.15, interpolate=True, zorder=0)
-            self.ax.fill_between(move_nums, evals, 0, where=[e < 0 for e in evals],
-                                 facecolor=accent, alpha=0.30, interpolate=True, zorder=0)
+            self.ax.fill_between(
+                move_nums,
+                evals,
+                0,
+                where=[e >= 0 for e in evals],
+                facecolor=accent,
+                alpha=0.15,
+                interpolate=True,
+                zorder=0,
+            )
+            self.ax.fill_between(
+                move_nums,
+                evals,
+                0,
+                where=[e < 0 for e in evals],
+                facecolor=accent,
+                alpha=0.30,
+                interpolate=True,
+                zorder=0,
+            )
 
         special_moves = ["Brilliant", "Great", "Miss", "Mistake", "Blunder"]
         scatter_x = []
@@ -92,10 +108,19 @@ class GraphWidget(QWidget):
                     scatter_colors.append(color)
 
         if scatter_x:
-            self.ax.scatter(scatter_x, scatter_y, c=scatter_colors, s=40, zorder=3,
-                            edgecolors='white', linewidths=1)
+            self.ax.scatter(
+                scatter_x,
+                scatter_y,
+                c=scatter_colors,
+                s=40,
+                zorder=3,
+                edgecolors="white",
+                linewidths=1,
+            )
 
-        zero_line = self.ax.axhline(0, color=Styles.COLOR_BORDER, linestyle='--', linewidth=1, zorder=0)
+        zero_line = self.ax.axhline(
+            0, color=Styles.COLOR_BORDER, linestyle="--", linewidth=1, zorder=0
+        )
         zero_line._is_zero_line = True
 
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
@@ -140,6 +165,7 @@ class GraphWidget(QWidget):
         self.ax.set_yticks(ticks)
 
         from matplotlib.ticker import FuncFormatter
+
         def format_tick(val, pos):
             if val == 0:
                 return "0"
@@ -147,21 +173,26 @@ class GraphWidget(QWidget):
                 return f"{int(val):+d}"
             else:
                 return f"{val:+.1f}"
+
         self.ax.yaxis.set_major_formatter(FuncFormatter(format_tick))
 
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['bottom'].set_color(Styles.COLOR_BORDER)
-        self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
-        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
-        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
+        self.ax.spines["top"].set_visible(False)
+        self.ax.spines["right"].set_visible(False)
+        self.ax.spines["bottom"].set_color(Styles.COLOR_BORDER)
+        self.ax.spines["left"].set_color(Styles.COLOR_BORDER)
+        self.ax.tick_params(axis="x", colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
+        self.ax.tick_params(axis="y", colors=Styles.COLOR_TEXT_SECONDARY, labelsize=9)
 
-        self.ax.grid(True, color='#444', linestyle=':', alpha=0.3)
+        self.ax.grid(True, color="#444", linestyle=":", alpha=0.3)
 
-        self.ax.set_title("Evaluation", color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight='600', pad=8)
+        self.ax.set_title(
+            "Bewertung", color=Styles.COLOR_TEXT_PRIMARY, fontsize=11, fontweight="600", pad=8
+        )
 
-        MOVE_PIN_COLOR = "#00E5FF" # Vibrant Electric Cyan
-        self.current_move_line = self.ax.axvline(x=-1, color=MOVE_PIN_COLOR, linewidth=2.0, linestyle='--', alpha=0.95, zorder=5)
+        MOVE_PIN_COLOR = "#00E5FF"  # Vibrant Electric Cyan
+        self.current_move_line = self.ax.axvline(
+            x=-1, color=MOVE_PIN_COLOR, linewidth=2.0, linestyle="--", alpha=0.95, zorder=5
+        )
         self.current_move_line.set_visible(False)
 
         self.canvas.draw()
@@ -169,18 +200,28 @@ class GraphWidget(QWidget):
         self.moves_data = move_nums
         self.evals_data = evals
 
-        self.annot = self.ax.annotate("", xy=(0, 0), xytext=(10, 10), textcoords="offset points",
-                            bbox=dict(boxstyle="round,pad=0.4", fc=Styles.COLOR_SURFACE_LIGHT, ec=Styles.COLOR_BORDER, alpha=0.95),
-                            color=Styles.COLOR_TEXT_PRIMARY,
-                            fontsize=11,
-                            arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY))
+        self.annot = self.ax.annotate(
+            "",
+            xy=(0, 0),
+            xytext=(10, 10),
+            textcoords="offset points",
+            bbox=dict(
+                boxstyle="round,pad=0.4",
+                fc=Styles.COLOR_SURFACE_LIGHT,
+                ec=Styles.COLOR_BORDER,
+                alpha=0.95,
+            ),
+            color=Styles.COLOR_TEXT_PRIMARY,
+            fontsize=11,
+            arrowprops=dict(arrowstyle="->", color=Styles.COLOR_TEXT_SECONDARY),
+        )
         self.annot.set_visible(False)
 
         self.canvas.mpl_connect("motion_notify_event", self.on_hover)
         self.canvas.mpl_connect("button_press_event", self.on_click)
 
     def set_current_move(self, move_index):
-        if not hasattr(self, 'current_move_line') or self.current_move_line is None:
+        if not hasattr(self, "current_move_line") or self.current_move_line is None:
             return
         if move_index < 0:
             self.current_move_line.set_visible(False)
@@ -192,17 +233,17 @@ class GraphWidget(QWidget):
     def on_hover(self, event):
         if event.inaxes == self.ax:
             x = event.xdata
-            if x is not None and hasattr(self, 'moves_data'):
+            if x is not None and hasattr(self, "moves_data"):
                 idx = min(range(len(self.moves_data)), key=lambda i: abs(self.moves_data[i] - x))
                 move_num = self.moves_data[idx]
                 val = self.evals_data[idx]
                 self.annot.xy = (move_num, val)
                 eval_display = f"{val:+.2f}" if val != 0 else "0.00"
-                self.annot.set_text(f"Move {move_num}\n{eval_display}")
+                self.annot.set_text(f"Zug {move_num}\n{eval_display}")
                 self.annot.set_visible(True)
                 self.canvas.draw_idle()
         else:
-            if hasattr(self, 'annot') and self.annot.get_visible():
+            if hasattr(self, "annot") and self.annot.get_visible():
                 self.annot.set_visible(False)
                 self.canvas.draw_idle()
 
@@ -210,7 +251,7 @@ class GraphWidget(QWidget):
         if event.inaxes != self.ax:
             return
         x = event.xdata
-        if x is None or not hasattr(self, 'moves_data'):
+        if x is None or not hasattr(self, "moves_data"):
             return
         idx = min(range(len(self.moves_data)), key=lambda i: abs(self.moves_data[i] - x))
         move_index = idx - 1
@@ -219,19 +260,19 @@ class GraphWidget(QWidget):
     def refresh_styles(self):
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['bottom'].set_color(Styles.COLOR_BORDER)
-        self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
-        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
-        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.spines["top"].set_visible(False)
+        self.ax.spines["right"].set_visible(False)
+        self.ax.spines["bottom"].set_color(Styles.COLOR_BORDER)
+        self.ax.spines["left"].set_color(Styles.COLOR_BORDER)
+        self.ax.tick_params(axis="x", colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.tick_params(axis="y", colors=Styles.COLOR_TEXT_SECONDARY)
         self.ax.title.set_color(Styles.COLOR_TEXT_PRIMARY)
         for line in self.ax.lines:
-            if getattr(line, '_is_zero_line', False):
+            if getattr(line, "_is_zero_line", False):
                 line.set_color(Styles.COLOR_BORDER)
-        if hasattr(self, 'current_move_line') and self.current_move_line is not None:
+        if hasattr(self, "current_move_line") and self.current_move_line is not None:
             self.current_move_line.set_color("#00E5FF")
-        if hasattr(self, 'annot') and self.annot is not None:
+        if hasattr(self, "annot") and self.annot is not None:
             self.annot.get_bbox_patch().set_facecolor(Styles.COLOR_SURFACE_LIGHT)
             self.annot.get_bbox_patch().set_edgecolor(Styles.COLOR_BORDER)
             self.annot.set_color(Styles.COLOR_TEXT_PRIMARY)
@@ -241,11 +282,11 @@ class GraphWidget(QWidget):
         self.ax.clear()
         self.ax.set_facecolor(Styles.COLOR_SURFACE)
         self.figure.patch.set_facecolor(Styles.COLOR_SURFACE)
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['bottom'].set_color(Styles.COLOR_BORDER)
-        self.ax.spines['left'].set_color(Styles.COLOR_BORDER)
-        self.ax.tick_params(axis='x', colors=Styles.COLOR_TEXT_SECONDARY)
-        self.ax.tick_params(axis='y', colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.spines["top"].set_visible(False)
+        self.ax.spines["right"].set_visible(False)
+        self.ax.spines["bottom"].set_color(Styles.COLOR_BORDER)
+        self.ax.spines["left"].set_color(Styles.COLOR_BORDER)
+        self.ax.tick_params(axis="x", colors=Styles.COLOR_TEXT_SECONDARY)
+        self.ax.tick_params(axis="y", colors=Styles.COLOR_TEXT_SECONDARY)
         self.current_move_line = None
         self.canvas.draw()

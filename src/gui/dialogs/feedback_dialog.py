@@ -2,6 +2,7 @@
 Unified Feedback, Bug Report, and Feature Suggestion Dialog.
 Clean, modern design matching Chess Analyzer Pro standards.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QCursor
 from PyQt6.QtWidgets import (
@@ -30,6 +31,7 @@ from src.utils.config import ConfigManager
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -96,7 +98,9 @@ class FeedbackDialog(QDialog):
 
         icon_lbl = QLabel()
         if HAS_QTAWESOME:
-            icon_lbl.setPixmap(qta.icon("fa5s.comment-dots", color=Styles.COLOR_ACCENT).pixmap(22, 22))
+            icon_lbl.setPixmap(
+                qta.icon("fa5s.comment-dots", color=Styles.COLOR_ACCENT).pixmap(22, 22)
+            )
         else:
             icon_lbl.setText("💬")
             icon_lbl.setStyleSheet(f"font-size: 18px; color: {Styles.COLOR_ACCENT};")
@@ -137,9 +141,11 @@ class FeedbackDialog(QDialog):
         self.tab_group = QButtonGroup(self)
         self.tab_group.setExclusive(True)
 
-        self.btn_tab_bug = self._create_tab_button("Report a Bug", "fa5s.bug", "bug")
-        self.btn_tab_feature = self._create_tab_button("Feature Request", "fa5s.lightbulb", "feature")
-        self.btn_tab_review = self._create_tab_button("Write Review", "fa5s.star", "review")
+        self.btn_tab_bug = self._create_tab_button("Fehler melden", "fa5s.bug", "bug")
+        self.btn_tab_feature = self._create_tab_button(
+            "Funktionswunsch", "fa5s.lightbulb", "feature"
+        )
+        self.btn_tab_review = self._create_tab_button("Bewertung schreiben", "fa5s.star", "review")
 
         tab_layout.addWidget(self.btn_tab_bug)
         tab_layout.addWidget(self.btn_tab_feature)
@@ -184,7 +190,7 @@ class FeedbackDialog(QDialog):
         btn_layout.setContentsMargins(0, 4, 0, 0)
         btn_layout.setSpacing(12)
 
-        self.btn_cancel = QPushButton("Cancel")
+        self.btn_cancel = QPushButton("Abbrechen")
         self.btn_cancel.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_cancel.setStyleSheet(Styles.get_control_button_style())
         self.btn_cancel.clicked.connect(self.reject)
@@ -192,7 +198,7 @@ class FeedbackDialog(QDialog):
 
         btn_layout.addStretch()
 
-        self.btn_submit = QPushButton("Submit")
+        self.btn_submit = QPushButton("Senden")
         self.btn_submit.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_submit.setStyleSheet(Styles.get_button_style())
         self.btn_submit.clicked.connect(self._on_submit)
@@ -223,7 +229,7 @@ class FeedbackDialog(QDialog):
         ]
 
         for btn, tid in tabs:
-            is_active = (tid == tab_id)
+            is_active = tid == tab_id
             btn.setChecked(is_active)
             icon_name = btn.property("icon_name")
 
@@ -260,17 +266,17 @@ class FeedbackDialog(QDialog):
 
         if tab_id == "bug":
             self.stacked_widget.setCurrentIndex(0)
-            self.btn_submit.setText("  Submit Bug Report")
+            self.btn_submit.setText("  Fehlerbericht senden")
             if HAS_QTAWESOME:
                 self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
         elif tab_id == "feature":
             self.stacked_widget.setCurrentIndex(1)
-            self.btn_submit.setText("  Submit Feature Request")
+            self.btn_submit.setText("  Wunsch senden")
             if HAS_QTAWESOME:
                 self.btn_submit.setIcon(qta.icon("fa5s.paper-plane", color="#FFFFFF"))
         elif tab_id == "review":
             self.stacked_widget.setCurrentIndex(2)
-            self.btn_submit.setText("  Submit Review")
+            self.btn_submit.setText("  Bewertung senden")
             if HAS_QTAWESOME:
                 self.btn_submit.setIcon(qta.icon("fa5s.star", color="#FFFFFF"))
 
@@ -282,23 +288,29 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(10)
 
         # Title
-        lbl_title = QLabel("Bug Summary:")
-        lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_title = QLabel("Kurzbeschreibung:")
+        lbl_title.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_title)
 
         self.bug_title_input = QLineEdit(self._initial_title)
-        self.bug_title_input.setPlaceholderText("e.g. Engine stopped responding on move 42")
+        self.bug_title_input.setPlaceholderText("z. B. Engine reagiert ab Zug 42 nicht mehr")
         self.bug_title_input.setStyleSheet(Styles.get_input_style())
         layout.addWidget(self.bug_title_input)
 
         # Description
-        lbl_desc = QLabel("What happened?")
-        lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_desc = QLabel("Was ist passiert?")
+        lbl_desc.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_desc)
 
         self.bug_desc_input = QTextEdit()
         self.bug_desc_input.setFixedHeight(85)
-        self.bug_desc_input.setPlaceholderText("Please describe what you were doing when the issue occurred...")
+        self.bug_desc_input.setPlaceholderText(
+            "Beschreibe bitte, was du gemacht hast, als das Problem auftrat..."
+        )
         if self._initial_message:
             self.bug_desc_input.setPlainText(self._initial_message)
         self.bug_desc_input.setStyleSheet(Styles.get_input_style())
@@ -310,23 +322,29 @@ class FeedbackDialog(QDialog):
 
         v1 = QVBoxLayout()
         v1.setSpacing(4)
-        lbl_email = QLabel("Your Email:")
-        lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_email = QLabel("Deine E-Mail:")
+        lbl_email.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
         v1.addWidget(lbl_email)
         self.bug_email_input = QLineEdit()
-        self.bug_email_input.setPlaceholderText("To get notified when resolved")
+        self.bug_email_input.setPlaceholderText("Für eine Benachrichtigung, sobald es behoben ist")
         self.bug_email_input.setStyleSheet(Styles.get_input_style())
         v1.addWidget(self.bug_email_input)
         meta_layout.addLayout(v1)
 
         v2 = QVBoxLayout()
         v2.setSpacing(4)
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_name = QLabel("Dein Name:")
+        lbl_name.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
         v2.addWidget(lbl_name)
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get(
+            "lichess_username", ""
+        )
         self.bug_name_input = QLineEdit(default_user)
-        self.bug_name_input.setPlaceholderText("Player handle or name")
+        self.bug_name_input.setPlaceholderText("Spielername oder Name")
         self.bug_name_input.setStyleSheet(Styles.get_input_style())
         v2.addWidget(self.bug_name_input)
         meta_layout.addLayout(v2)
@@ -335,7 +353,7 @@ class FeedbackDialog(QDialog):
 
         # Diagnostic logs row
         log_header_layout = QHBoxLayout()
-        self.cb_include_logs = QCheckBox("Attach diagnostic log excerpt (recommended)")
+        self.cb_include_logs = QCheckBox("Auszug aus dem Diagnoseprotokoll anhängen (empfohlen)")
         self.cb_include_logs.setChecked(True)
         self.cb_include_logs.setStyleSheet(f"""
             QCheckBox {{
@@ -354,7 +372,7 @@ class FeedbackDialog(QDialog):
 
         log_header_layout.addStretch()
 
-        self.btn_toggle_log = QPushButton("Preview Log")
+        self.btn_toggle_log = QPushButton("Protokoll anzeigen")
         self.btn_toggle_log.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         self.btn_toggle_log.setStyleSheet(f"""
             QPushButton {{
@@ -376,7 +394,9 @@ class FeedbackDialog(QDialog):
         self.log_preview_box = QTextEdit()
         self.log_preview_box.setFixedHeight(75)
         self.log_preview_box.setReadOnly(True)
-        self.log_preview_box.setPlainText(self._initial_logs or "(No recent log entries)")
+        self.log_preview_box.setPlainText(
+            self._initial_logs or "(Keine aktuellen Protokolleinträge)"
+        )
         self.log_preview_box.setStyleSheet(f"""
             QTextEdit {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -396,10 +416,10 @@ class FeedbackDialog(QDialog):
     def _toggle_log_preview(self):
         if self.log_preview_box.isVisible():
             self.log_preview_box.hide()
-            self.btn_toggle_log.setText("Preview Log")
+            self.btn_toggle_log.setText("Protokoll anzeigen")
         else:
             self.log_preview_box.show()
-            self.btn_toggle_log.setText("Hide Log")
+            self.btn_toggle_log.setText("Protokoll ausblenden")
 
     def _setup_feature_page(self, page: QWidget):
         layout = QVBoxLayout(page)
@@ -407,23 +427,29 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(12)
 
         # Feature Title
-        lbl_title = QLabel("Feature Title:")
-        lbl_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_title = QLabel("Titel des Wunsches:")
+        lbl_title.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_title)
 
         self.feat_title_input = QLineEdit()
-        self.feat_title_input.setPlaceholderText("e.g. Opening book explorer support for ECO codes")
+        self.feat_title_input.setPlaceholderText("z. B. ECO-Codes im Eröffnungsbuch-Explorer")
         self.feat_title_input.setStyleSheet(Styles.get_input_style())
         layout.addWidget(self.feat_title_input)
 
         # Description
-        lbl_desc = QLabel("Describe your idea:")
-        lbl_desc.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_desc = QLabel("Beschreibe deine Idee:")
+        lbl_desc.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_desc)
 
         self.feat_desc_input = QTextEdit()
         self.feat_desc_input.setFixedHeight(110)
-        self.feat_desc_input.setPlaceholderText("Explain how this feature would work and why it would be helpful...")
+        self.feat_desc_input.setPlaceholderText(
+            "Erkläre, wie die Funktion arbeiten soll und warum sie hilfreich wäre..."
+        )
         self.feat_desc_input.setStyleSheet(Styles.get_input_style())
         layout.addWidget(self.feat_desc_input)
 
@@ -433,23 +459,29 @@ class FeedbackDialog(QDialog):
 
         v1 = QVBoxLayout()
         v1.setSpacing(4)
-        lbl_email = QLabel("Your Email:")
-        lbl_email.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_email = QLabel("Deine E-Mail:")
+        lbl_email.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
         v1.addWidget(lbl_email)
         self.feat_email_input = QLineEdit()
-        self.feat_email_input.setPlaceholderText("Email address")
+        self.feat_email_input.setPlaceholderText("E-Mail-Adresse")
         self.feat_email_input.setStyleSheet(Styles.get_input_style())
         v1.addWidget(self.feat_email_input)
         meta_layout.addLayout(v1)
 
         v2 = QVBoxLayout()
         v2.setSpacing(4)
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};")
+        lbl_name = QLabel("Dein Name:")
+        lbl_name.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {Styles.COLOR_TEXT_SECONDARY};"
+        )
         v2.addWidget(lbl_name)
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get(
+            "lichess_username", ""
+        )
         self.feat_name_input = QLineEdit(default_user)
-        self.feat_name_input.setPlaceholderText("Player handle or name")
+        self.feat_name_input.setPlaceholderText("Spielername oder Name")
         self.feat_name_input.setStyleSheet(Styles.get_input_style())
         v2.addWidget(self.feat_name_input)
         meta_layout.addLayout(v2)
@@ -463,28 +495,38 @@ class FeedbackDialog(QDialog):
         layout.setSpacing(14)
 
         # Star Rating
-        self.review_star_widget = StarRatingWidget(self, initial_rating=5, star_size=32, show_label=True)
+        self.review_star_widget = StarRatingWidget(
+            self, initial_rating=5, star_size=32, show_label=True
+        )
         layout.addWidget(self.review_star_widget)
 
         # Name
-        lbl_name = QLabel("Your Name:")
-        lbl_name.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_name = QLabel("Dein Name:")
+        lbl_name.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_name)
 
-        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get("lichess_username", "")
+        default_user = self.config_manager.get("chesscom_username", "") or self.config_manager.get(
+            "lichess_username", ""
+        )
         self.review_name_input = QLineEdit(default_user)
-        self.review_name_input.setPlaceholderText("e.g. Grandmaster99")
+        self.review_name_input.setPlaceholderText("z. B. Grandmaster99")
         self.review_name_input.setStyleSheet(Styles.get_input_style())
         layout.addWidget(self.review_name_input)
 
         # Comment
-        lbl_comment = QLabel("Your Review:")
-        lbl_comment.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};")
+        lbl_comment = QLabel("Deine Bewertung:")
+        lbl_comment.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {Styles.COLOR_TEXT_PRIMARY};"
+        )
         layout.addWidget(lbl_comment)
 
         self.review_comment_input = QTextEdit()
         self.review_comment_input.setFixedHeight(90)
-        self.review_comment_input.setPlaceholderText("Share your experience with Chess Analyzer Pro...")
+        self.review_comment_input.setPlaceholderText(
+            "Erzähl uns von deinen Erfahrungen mit Chess Analyzer Pro..."
+        )
         self.review_comment_input.setStyleSheet(Styles.get_input_style())
         layout.addWidget(self.review_comment_input)
 
@@ -501,7 +543,7 @@ class FeedbackDialog(QDialog):
         icon_lbl.setStyleSheet("font-size: 48px; background: transparent;")
         layout.addWidget(icon_lbl)
 
-        self.success_title = QLabel("Submission Received!")
+        self.success_title = QLabel("Erfolgreich gesendet!")
         self.success_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.success_title.setStyleSheet(f"""
             font-size: 20px;
@@ -511,9 +553,7 @@ class FeedbackDialog(QDialog):
         """)
         layout.addWidget(self.success_title)
 
-        self.success_desc = QLabel(
-            "Thank you for helping us improve Chess Analyzer Pro!"
-        )
+        self.success_desc = QLabel("Danke, dass du hilfst, Chess Analyzer Pro zu verbessern!")
         self.success_desc.setWordWrap(True)
         self.success_desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.success_desc.setStyleSheet(f"""
@@ -525,7 +565,7 @@ class FeedbackDialog(QDialog):
 
         layout.addSpacing(16)
 
-        btn_done = QPushButton("Done")
+        btn_done = QPushButton("Fertig")
         btn_done.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         btn_done.setStyleSheet(Styles.get_button_style())
         btn_done.clicked.connect(self.accept)
@@ -541,10 +581,10 @@ class FeedbackDialog(QDialog):
             name = self.bug_name_input.text().strip()
 
             if not title:
-                self._show_error("Please enter a bug summary/title.")
+                self._show_error("Bitte gib eine Kurzbeschreibung ein.")
                 return
             if not message:
-                self._show_error("Please enter a description of the issue.")
+                self._show_error("Bitte beschreibe das Problem.")
                 return
 
             logs = self._initial_logs if self.cb_include_logs.isChecked() else ""
@@ -558,7 +598,9 @@ class FeedbackDialog(QDialog):
                 email=email,
                 logs=logs,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Bug report submitted!"))
+            self._worker.finished.connect(
+                lambda s, m, d: self._on_submission_finished(s, m, d, "Fehlerbericht gesendet!")
+            )
             self._worker.start()
 
         elif self._current_tab == "feature":
@@ -568,10 +610,10 @@ class FeedbackDialog(QDialog):
             name = self.feat_name_input.text().strip()
 
             if not title:
-                self._show_error("Please enter a feature title.")
+                self._show_error("Bitte gib einen Titel für deinen Wunsch ein.")
                 return
             if not message:
-                self._show_error("Please describe your feature idea.")
+                self._show_error("Bitte beschreibe deine Idee.")
                 return
 
             self._set_submitting(True)
@@ -582,13 +624,15 @@ class FeedbackDialog(QDialog):
                 name=name,
                 email=email,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Feature request submitted!"))
+            self._worker.finished.connect(
+                lambda s, m, d: self._on_submission_finished(s, m, d, "Funktionswunsch gesendet!")
+            )
             self._worker.start()
 
         elif self._current_tab == "review":
             rating = self.review_star_widget.get_rating()
             if rating < 1:
-                self._show_error("Please select a star rating (1 to 5).")
+                self._show_error("Bitte wähle eine Sternebewertung (1 bis 5).")
                 return
 
             name = self.review_name_input.text().strip()
@@ -601,19 +645,23 @@ class FeedbackDialog(QDialog):
                 comment=comment,
                 username=name,
             )
-            self._worker.finished.connect(lambda s, m, d: self._on_submission_finished(s, m, d, "Review submitted!"))
+            self._worker.finished.connect(
+                lambda s, m, d: self._on_submission_finished(s, m, d, "Bewertung gesendet!")
+            )
             self._worker.start()
 
     def _set_submitting(self, submitting: bool):
         self.btn_submit.setEnabled(not submitting)
-        self.btn_submit.setText("  Submitting..." if submitting else "Submit")
+        self.btn_submit.setText("  Wird gesendet..." if submitting else "Senden")
 
     def _show_error(self, message: str):
         self.status_lbl.setText(message)
         self.status_lbl.setStyleSheet("font-size: 12px; color: #EF4444; background: transparent;")
         self.status_lbl.show()
 
-    def _on_submission_finished(self, success: bool, message: str, data: dict, custom_success_title: str):
+    def _on_submission_finished(
+        self, success: bool, message: str, data: dict, custom_success_title: str
+    ):
         self._set_submitting(False)
 
         if success:
