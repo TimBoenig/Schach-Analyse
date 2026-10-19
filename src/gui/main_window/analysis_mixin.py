@@ -257,6 +257,8 @@ class AnalysisMixin:
             self.history_view.load_history()
 
     def on_history_changed(self, *_):
+        if hasattr(self, "profile_view"):
+            self.profile_view.mark_dirty()
         if hasattr(self, "metrics_view"):
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
@@ -267,6 +269,8 @@ class AnalysisMixin:
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
         self._set_status("Analyse abgeschlossen", "success")
+        if hasattr(self, "profile_view"):
+            self.profile_view.mark_dirty()
         self.show_toast("Analyse abgeschlossen!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game

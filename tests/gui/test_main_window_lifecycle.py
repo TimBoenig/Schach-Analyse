@@ -10,7 +10,7 @@ def test_mainwindow_lifecycle_and_page_switch(qapp, qtbot, monkeypatch):
     """Test that MainWindow initializes with proper defaults and switches pages correctly."""
     window = MainWindow()
     qtbot.addWidget(window)
-    assert window.windowTitle() == "Chess Analyzer Pro"
+    assert window.windowTitle() == "Chess Analyzer Pro – Schach-Analyse"
     window.show()
     assert window.stack.currentIndex() == 0
 

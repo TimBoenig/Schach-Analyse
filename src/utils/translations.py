@@ -35,6 +35,13 @@ PHASE_LABELS: dict[str, str] = {
     "endgame": "Endspiel",
 }
 
+# Dative form for sentences like "Fehler im Mittelspiel" / "in der Eröffnung".
+PHASE_IN_LABELS: dict[str, str] = {
+    "opening": "in der Eröffnung",
+    "middlegame": "im Mittelspiel",
+    "endgame": "im Endspiel",
+}
+
 COLOR_LABELS: dict[str, str] = {
     "white": "Weiß",
     "black": "Schwarz",
@@ -142,6 +149,10 @@ def tr_classification(key: str | None) -> str:
 
 def tr_phase(key: str | None) -> str:
     return _lookup(PHASE_LABELS, key)
+
+
+def tr_phase_in(key: str | None) -> str:
+    return _lookup(PHASE_IN_LABELS, key)
 
 
 def tr_color(key: str | None) -> str:

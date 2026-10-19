@@ -24,6 +24,8 @@ class TourMixin:
             self.history_view.load_history()
         if index == 3 and hasattr(self, "metrics_view") and self.metrics_view.needs_refresh:
             self.metrics_view.refresh()
+        if index == 5 and hasattr(self, "profile_view") and self.profile_view.needs_refresh:
+            self.profile_view.refresh()
         # If a tour is active, close it silently (don't mark seen — user didn't finish it).
         if hasattr(self, "tour_overlay") and self.tour_overlay.isVisible():
             self.tour_overlay.close_silently()
@@ -99,8 +101,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.board_widget,
-                            title="Interactive Chessboard",
-                            text="Welcome to Chess Analyzer Pro! Drag & drop any .pgn file directly onto the board, or press Ctrl+V to paste game text from your clipboard.",
+                            title="Interaktives Schachbrett",
+                            text="Willkommen bei Chess Analyzer Pro! Zieh eine .pgn-Datei direkt aufs Brett oder füge eine Partie mit Strg+V aus der Zwischenablage ein.",
                             position="right",
                             page_index=0,
                         )
@@ -109,8 +111,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.btn_hero_load,
-                            title="Load Game",
-                            text="Click 'Load Game' to open local PGN files, paste raw moves, or import matches directly from Chess.com and Lichess.",
+                            title="Partie laden",
+                            text="Über „Partie laden“ öffnest du PGN-Dateien, fügst Züge als Text ein oder importierst Partien direkt von Chess.com und Lichess.",
                             position="below",
                             page_index=0,
                         )
@@ -120,7 +122,7 @@ class TourMixin:
                         TourStep(
                             target=self.sidebar,
                             title="Navigation",
-                            text="Use the sidebar to explore openings, browse your game history archive, inspect performance analytics, and adjust engine settings.",
+                            text="In der Seitenleiste erreichst du den Eröffnungs-Explorer, deinen Partienverlauf, dein Spielerprofil, die Statistiken und die Einstellungen.",
                             position="right",
                             page_index=0,
                         )
@@ -131,8 +133,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.btn_load,
-                            title="Load Game",
-                            text="Open new games from local files, clipboard text, or online accounts at any time.",
+                            title="Partie laden",
+                            text="Lade jederzeit neue Partien aus Dateien, aus der Zwischenablage oder von deinen Online-Konten.",
                             position="below",
                             page_index=0,
                         )
@@ -141,8 +143,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.btn_analyze,
-                            title="Engine Analysis",
-                            text="Click 'Analyze Game' to run Stockfish. If you pause, 'Resume Analysis' continues right where it stopped. You can also re-analyze completed games.",
+                            title="Engine-Analyse",
+                            text="„Partie analysieren“ startet Stockfish. Nach einer Pause macht „Analyse fortsetzen“ genau dort weiter. Fertige Partien kannst du erneut analysieren.",
                             position="below",
                             page_index=0,
                         )
@@ -151,8 +153,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.board_widget,
-                            title="Analysis Board",
-                            text="Displays moves with a dynamic evaluation bar, best-move arrows, threat indicators, and real-time material balance.",
+                            title="Analysebrett",
+                            text="Zeigt die Züge mit Bewertungsbalken, Pfeilen für den besten Zug, Drohungen und der aktuellen Materialbilanz.",
                             position="right",
                             page_index=0,
                         )
@@ -161,8 +163,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.move_list_panel,
-                            title="Move List & Badges",
-                            text="Colour-coded move list with classification badges (Brilliant, Great, Best, Inaccuracy, Mistake, Blunder) and multi-PV candidate lines.",
+                            title="Zugliste & Bewertungen",
+                            text="Farbige Zugliste mit Bewertungs-Symbolen (Brillant, Großartig, Bester Zug, Ungenauigkeit, Fehler, Patzer) und Engine-Varianten.",
                             position="left",
                             page_index=0,
                         )
@@ -171,8 +173,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.analysis_panel,
-                            title="Analysis Dashboard",
-                            text="Interactive evaluation chart (click any move to jump to it), circular accuracy gauges, and AI Coach match reviews.",
+                            title="Analyse-Übersicht",
+                            text="Bewertungsverlauf (Klick auf einen Zug springt dorthin), Genauigkeitsanzeigen und Partiebesprechungen durch den KI-Coach.",
                             position="left",
                             page_index=0,
                         )
@@ -181,8 +183,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.controls,
-                            title="Playback Controls",
-                            text="Step through moves with arrow keys, jump to start/end, flip board perspective, or auto-play through the game.",
+                            title="Wiedergabe-Steuerung",
+                            text="Geh mit den Pfeiltasten durch die Züge, spring zum Anfang oder Ende, dreh das Brett oder spiel die Partie automatisch ab.",
                             position="above",
                             page_index=0,
                         )
@@ -191,8 +193,8 @@ class TourMixin:
                     steps.append(
                         TourStep(
                             target=self.btn_explore,
-                            title="Opening Explorer",
-                            text="'Explore from here' opens the Opening Explorer at the current position to research master continuations and book statistics.",
+                            title="Eröffnungs-Explorer",
+                            text="„Im Explorer öffnen“ zeigt die aktuelle Stellung im Eröffnungs-Explorer mit Meisterfortsetzungen und Buchstatistiken.",
                             position="below",
                             page_index=0,
                         )
@@ -203,8 +205,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.header_bar,
-                        title="Opening Recognition",
-                        text="Displays the current opening ECO code and opening name, updating dynamically with every played move.",
+                        title="Eröffnungserkennung",
+                        text="Zeigt ECO-Code und Namen der aktuellen Eröffnung und aktualisiert sich mit jedem Zug.",
                         position="below",
                         page_index=1,
                     )
@@ -213,8 +215,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.board_widget,
-                        title="Sandbox Board",
-                        text="Interactive sandbox board: Play moves freely, test alternate lines, or study continuations with live Stockfish evaluation.",
+                        title="Übungsbrett",
+                        text="Freies Übungsbrett: Spiel Züge, teste Alternativen oder studiere Fortsetzungen mit Live-Bewertung durch Stockfish.",
                         position="right",
                         page_index=1,
                     )
@@ -223,8 +225,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.chk_classify,
-                        title="Move Evaluation",
-                        text="Toggle 'Classify Moves' to receive real-time Brilliant, Great, and Blunder badges on every move you test.",
+                        title="Zugbewertung",
+                        text="Mit „Züge bewerten“ bekommt jeder getestete Zug sofort eine Bewertung wie Brillant, Großartig oder Patzer.",
                         position="below",
                         page_index=1,
                     )
@@ -233,8 +235,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.book_toggle,
-                        title="Opening Book",
-                        text="Book Moves queries the Lichess Masters & Public database with interactive Win/Draw/Loss ratio bars and move statistics.",
+                        title="Eröffnungsbuch",
+                        text="Buchzüge fragt die Lichess-Datenbanken (Meister & Online) ab – mit Sieg/Remis/Niederlage-Balken und Zugstatistiken.",
                         position="left",
                         page_index=1,
                     )
@@ -243,8 +245,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.move_input,
-                        title="Move Input",
-                        text="Type SAN moves directly (e.g. 'e4', 'Nf3', 'O-O') to quickly jump to any variation or opening branch.",
+                        title="Zugeingabe",
+                        text="Gib Züge in SAN-Notation ein (z. B. „e4“, „Nf3“, „O-O“), um schnell zu jeder Variante zu springen.",
                         position="left",
                         page_index=1,
                     )
@@ -253,8 +255,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ev.btn_flip,
-                        title="Board Tools",
-                        text="Use Flip Board, Copy FEN, and Copy PGN to easily export, analyze, or share any board position.",
+                        title="Brett-Werkzeuge",
+                        text="Mit Brett drehen, FEN kopieren und PGN kopieren kannst du jede Stellung exportieren, analysieren oder teilen.",
                         position="below",
                         page_index=1,
                     )
@@ -265,8 +267,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.search_input,
-                        title="Instant Search",
-                        text="Search your game history archive by player username, opening ECO code, event title, or date in real time.",
+                        title="Sofortsuche",
+                        text="Durchsuche deinen Partienverlauf nach Spielername, Eröffnung, ECO-Code, Turnier oder Datum.",
                         position="below",
                         page_index=2,
                     )
@@ -275,8 +277,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.result_filter,
-                        title="Outcome Filter",
-                        text="Filter games by result: Wins, Losses, or Draws.",
+                        title="Ergebnisfilter",
+                        text="Filtere Partien nach Ergebnis: Siege, Niederlagen oder Remis.",
                         position="below",
                         page_index=2,
                     )
@@ -285,8 +287,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.type_filter,
-                        title="Format & Speed Filter",
-                        text="Filter games by time control speed: Rapid, Blitz, Bullet, Classical, or multi-day Daily correspondence.",
+                        title="Bedenkzeit-Filter",
+                        text="Filtere Partien nach Bedenkzeit: Schnellschach, Blitz, Bullet, Klassisch oder Fernschach.",
                         position="below",
                         page_index=2,
                     )
@@ -295,8 +297,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.source_filter,
-                        title="Platform Source",
-                        text="Filter matches by origin platform: Chess.com, Lichess, or local imported files.",
+                        title="Quelle",
+                        text="Filtere Partien nach Herkunft: Chess.com, Lichess oder importierte Dateien.",
                         position="below",
                         page_index=2,
                     )
@@ -305,8 +307,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.btn_import,
-                        title="Bulk Import",
-                        text="'Import' bulk-loads game archives from CSV or PGN files into your local offline database off the UI thread.",
+                        title="Massenimport",
+                        text="„Importieren“ lädt ganze Partiearchive aus CSV-Dateien im Hintergrund in deine lokale Datenbank.",
                         position="left",
                         page_index=2,
                     )
@@ -315,8 +317,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.btn_export,
-                        title="Export Games",
-                        text="'Export' saves your analyzed games to standard PGN files compatible with ChessBase and Lichess Studies.",
+                        title="Partien exportieren",
+                        text="„Exportieren“ sichert deinen gesamten Verlauf samt Analysen als CSV-Datei – ideal als Backup.",
                         position="left",
                         page_index=2,
                     )
@@ -325,8 +327,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.btn_clear,
-                        title="Clear History",
-                        text="'Clear' safely cleans up or resets your saved history database. Always export a backup first if you want to keep the data.",
+                        title="Verlauf leeren",
+                        text="„Leeren“ löscht deinen gespeicherten Verlauf. Exportiere vorher ein Backup, wenn du die Daten behalten willst.",
                         position="left",
                         page_index=2,
                     )
@@ -335,8 +337,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=hv.game_list,
-                        title="Game Archive",
-                        text="Saved game archive cards: Displays accuracy ratings, termination badges, live 'Analyzing...' progress, and quick action buttons to Analyze or Resume.",
+                        title="Partiearchiv",
+                        text="Deine gespeicherten Partien mit Genauigkeit, Partieende, Live-Fortschritt („Wird analysiert …“) und Schnellaktionen zum Analysieren oder Fortsetzen.",
                         position="above",
                         page_index=2,
                     )
@@ -347,8 +349,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.btn_refresh,
-                        title="Refresh Stats",
-                        text="Stats calculate automatically when you open this page. Click Refresh to recalculate with newly analyzed games.",
+                        title="Statistiken aktualisieren",
+                        text="Die Statistiken werden beim Öffnen der Seite berechnet. „Aktualisieren“ bezieht neu analysierte Partien ein.",
                         position="left",
                         page_index=3,
                     )
@@ -357,8 +359,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.filter_bar,
-                        title="Filter Dashboard",
-                        text="Filter your analytics across Colors (White/Black), Formats (Rapid, Blitz, Bullet, Chess960), Sources, and Time Periods.",
+                        title="Filter",
+                        text="Filtere deine Auswertung nach Farbe (Weiß/Schwarz), Format (Schnellschach, Blitz, Bullet, Chess960), Quelle und Zeitraum.",
                         position="below",
                         page_index=3,
                     )
@@ -367,8 +369,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.stats_container,
-                        title="Performance Overview",
-                        text="Key performance summary cards: Total Games, Win Rate, and Average Accuracy. Notice 'Blunders / Game' and 'Clean Games' cards are interactive — click them to drill down into specific positions!",
+                        title="Leistungsübersicht",
+                        text="Die wichtigsten Kennzahlen: Partien, Siegquote und durchschnittliche Genauigkeit. „Patzer / Partie“ und „Fehlerfreie Partien“ sind klickbar und führen zu den konkreten Stellungen!",
                         position="below",
                         page_index=3,
                     )
@@ -377,8 +379,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.accuracy_card,
-                        title="Accuracy Trend",
-                        text="Accuracy Trend charts your average move accuracy trajectory over time. Watch the trend line climb as your play improves.",
+                        title="Genauigkeitsverlauf",
+                        text="Zeigt, wie sich deine durchschnittliche Genauigkeit über die Zeit entwickelt. Wird dein Spiel besser, steigt die Linie.",
                         position="above",
                         page_index=3,
                     )
@@ -387,8 +389,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.phase_card,
-                        title="Phase Performance",
-                        text="Phase Performance evaluates your tactical precision and accuracy separately across Opening, Middlegame, and Endgame.",
+                        title="Leistung nach Partiephase",
+                        text="Bewertet deine Genauigkeit getrennt nach Eröffnung, Mittelspiel und Endspiel.",
                         position="above",
                         page_index=3,
                     )
@@ -397,8 +399,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.ending_card,
-                        title="Ending Distribution",
-                        text="Ending Distribution breaks down how your games finish (Checkmate, Resignation, Timeout, Stalemate, or Draw).",
+                        title="Partieenden",
+                        text="Zeigt, wie deine Partien enden: Schachmatt, Aufgabe, Zeitüberschreitung, Patt oder Remis.",
                         position="above",
                         page_index=3,
                     )
@@ -407,8 +409,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.quality_card,
-                        title="Move Quality Breakdown",
-                        text="Move Quality Breakdown: Donut chart showing your proportion of Brilliant, Great, Best, Inaccurate, Mistake, and Blunder moves.",
+                        title="Zugqualität",
+                        text="Ringdiagramm mit deinem Anteil an brillanten, großartigen und besten Zügen sowie Ungenauigkeiten, Fehlern und Patzern.",
                         position="above",
                         page_index=3,
                     )
@@ -417,8 +419,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.hanging_card,
-                        title="Hanging Pieces Drill-Down",
-                        text="Missed Tactics & Hanging Pieces: Click this card to open a full interactive drill-down with board review of all tactical errors.",
+                        title="Eingestellte Figuren",
+                        text="Verpasste Taktik & hängende Figuren: Klick auf die Karte, um alle taktischen Fehler am Brett durchzugehen.",
                         position="above",
                         page_index=3,
                     )
@@ -427,8 +429,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.tactics_card,
-                        title="Tactical Themes Drill-Down",
-                        text="Tactical Themes: Identifies pins, forks, skewers, and discovered attacks. Click any theme to drill down into exact board positions.",
+                        title="Taktische Motive",
+                        text="Erkennt Fesselungen, Gabeln, Spieße und Abzugsangriffe. Klick auf ein Motiv, um die genauen Stellungen zu sehen.",
                         position="above",
                         page_index=3,
                     )
@@ -437,8 +439,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.advantage_card,
-                        title="Advantage Conversion",
-                        text="Advantage Conversion: Tracks your conversion rate in winning positions vs squandered leads. Click to inspect squandered positions.",
+                        title="Vorteilsverwertung",
+                        text="Wie oft verwertest du Gewinnstellungen, wie oft verspielst du den Vorteil? Klick, um verspielte Stellungen anzusehen.",
                         position="above",
                         page_index=3,
                     )
@@ -447,8 +449,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.openings_card,
-                        title="Top Openings",
-                        text="Top Openings: Ranks your most-played repertoires and win rates. Click any opening to inspect all games played in that line.",
+                        title="Top-Eröffnungen",
+                        text="Deine meistgespielten Eröffnungen mit Siegquote. Klick auf eine Eröffnung, um alle Partien damit zu sehen.",
                         position="above",
                         page_index=3,
                     )
@@ -457,8 +459,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.brilliancy_card,
-                        title="Brilliancy Hall of Fame",
-                        text="Brilliancy Hall: Highlights your highest-rated brilliant moves and sacrifices. Click any card to jump directly to that position on the board!",
+                        title="Ruhmeshalle der Glanzzüge",
+                        text="Deine besten brillanten Züge und Opfer. Klick auf eine Karte, um direkt zu dieser Stellung zu springen!",
                         position="above",
                         page_index=3,
                     )
@@ -467,8 +469,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv.ai_coach_card,
-                        title="AI Coach Insights",
-                        text="AI Coach Insights: Personalized tactical diagnosis, recurring mistake patterns, and tailored training priorities powered by your configured LLM.",
+                        title="KI-Coach",
+                        text="Persönliche Diagnose, wiederkehrende Fehlermuster und Trainingsschwerpunkte – erstellt von deinem eingerichteten Sprachmodell.",
                         position="above",
                         page_index=3,
                     )
@@ -477,8 +479,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mv,
-                        title="Performance Dashboard",
-                        text="Your personal performance dashboard with accuracy trends, interactive drill-downs, tactical cards, and AI Coach insights. Configure your usernames in Settings or analyze games to populate stats.",
+                        title="Statistik-Übersicht",
+                        text="Deine persönliche Statistik mit Genauigkeitsverlauf, klickbaren Detailansichten, Taktik-Karten und KI-Coach. Trag deine Benutzernamen in den Einstellungen ein oder analysiere Partien, um sie zu füllen.",
                         position="below",
                         page_index=3,
                     )
@@ -499,8 +501,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=mode_btn,
-                        title="Settings Mode",
-                        text="Settings Mode: Toggle between 'Basic' for essential configuration and 'Advanced' for fine-grained engine memory, threads, multi-PV, and cache tuning.",
+                        title="Einstellungsmodus",
+                        text="Wechsle zwischen Grundeinstellungen und erweiterten Einstellungen für Engine-Speicher, Threads, Multi-PV und Cache.",
                         position="below",
                         page_index=4,
                     )
@@ -509,8 +511,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=eng,
-                        title="Stockfish Engine",
-                        text="Chess Engine: Configure your Stockfish executable path (or click Download to fetch it automatically), analysis depth, and thread allocations.",
+                        title="Stockfish-Engine",
+                        text="Lege den Pfad zu Stockfish fest (oder lade die Engine automatisch herunter) und stelle Analysetiefe und Threads ein.",
                         position="below",
                         page_index=4,
                     )
@@ -519,8 +521,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=app,
-                        title="Appearance & Themes",
-                        text="Appearance: Switch between Dark & Light themes, choose custom board themes, import custom piece SVGs, pick live accent colors, and toggle sound effects.",
+                        title="Darstellung",
+                        text="Wechsle zwischen dunklem und hellem Design, wähle Brett- und Figurenstil, eine Akzentfarbe und schalte Soundeffekte ein oder aus.",
                         position="below",
                         page_index=4,
                     )
@@ -529,8 +531,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=api,
-                        title="AI Coach LLM Integration",
-                        text="API Configuration: Manage LLM profiles (Groq, OpenAI, LM Studio, MiniMax) for AI Coach game reviews and configure Lichess personal access tokens.",
+                        title="KI-Coach & Sprachmodell",
+                        text="Verwalte Sprachmodell-Profile (Groq, OpenAI, LM Studio, MiniMax) für den KI-Coach und deinen persönlichen Lichess-Zugangstoken.",
                         position="above",
                         page_index=4,
                     )
@@ -539,8 +541,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=ply,
-                        title="Player Accounts",
-                        text="Player Accounts: Set your Chess.com and Lichess handles for automated performance stats and one-click game imports.",
+                        title="Spielerkonten",
+                        text="Trag deine Benutzernamen für Chess.com und Lichess ein – für automatische Statistiken und Partie-Import mit einem Klick.",
                         position="above",
                         page_index=4,
                     )
@@ -549,8 +551,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=bok,
-                        title="Opening Book",
-                        text="Opening Book: Configure an optional Polyglot (.bin) opening book for instant master-level opening repertoire moves.",
+                        title="Eröffnungsbuch",
+                        text="Binde optional ein Polyglot-Eröffnungsbuch (.bin) ein, um sofort Buchzüge auf Meisterniveau zu erhalten.",
                         position="above",
                         page_index=4,
                     )
@@ -559,8 +561,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=dat,
-                        title="Data & Storage",
-                        text="Data & Storage: View database file sizes, clear cached engine evaluations, or safely manage local application data.",
+                        title="Daten & Speicher",
+                        text="Zeigt die Größe der Datenbanken, leert zwischengespeicherte Engine-Bewertungen und verwaltet lokale App-Daten.",
                         position="above",
                         page_index=4,
                     )
@@ -570,7 +572,7 @@ class TourMixin:
                     TourStep(
                         target=lnk,
                         title="Updates & Support",
-                        text="Links & Feedback: Check for updates, rate the app, submit feature ideas, or report bugs with diagnostic logs.",
+                        text="Nach Updates suchen, die App bewerten, Ideen einreichen oder Fehler mit Diagnose-Logs melden.",
                         position="above",
                         page_index=4,
                     )
@@ -579,8 +581,8 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=save_btn,
-                        title="Save Settings",
-                        text="Click 'Save Settings' to apply and persist all your configuration changes.",
+                        title="Einstellungen speichern",
+                        text="„Einstellungen speichern“ übernimmt und sichert alle Änderungen.",
                         position="left",
                         page_index=4,
                     )
@@ -589,11 +591,69 @@ class TourMixin:
                 steps.append(
                     TourStep(
                         target=sv,
-                        title="Settings",
-                        text="Configure Stockfish engine path, analysis depth, AI provider, board theme, and piece style here.",
+                        title="Einstellungen",
+                        text="Hier stellst du Stockfish-Pfad, Analysetiefe, KI-Anbieter, Brettdesign und Figurenstil ein.",
                         position="below",
                         page_index=4,
                     )
                 )
+
+        elif page_index == 5:  # ── Mein Profil ──────────────────────────────
+            pv = getattr(self, "profile_view", None)
+            if pv is not None:
+                btn_import = getattr(pv, "btn_import", None)
+                btn_batch = getattr(pv, "btn_batch", None)
+                speed_combo = getattr(pv, "speed_combo", None)
+                scroll = getattr(pv, "scroll", None)
+                if btn_import and btn_import.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=btn_import,
+                            title="Partien importieren",
+                            text="Lade deine Partien per Chess.com-Benutzername oder aus PGN-Dateien. Sie landen direkt in deinem Verlauf.",
+                            position="below",
+                            page_index=5,
+                        )
+                    )
+                if btn_batch and btn_batch.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=btn_batch,
+                            title="Alle analysieren",
+                            text="Analysiert alle noch offenen Partien nacheinander mit Stockfish im Hintergrund. Du kannst jederzeit abbrechen und später weitermachen.",
+                            position="below",
+                            page_index=5,
+                        )
+                    )
+                if speed_combo and speed_combo.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=speed_combo,
+                            title="Analyse-Tempo",
+                            text="Wähle, wie viel Engine-Zeit jeder Zug bekommt: schneller für viele Partien, gründlicher für genauere Ergebnisse.",
+                            position="below",
+                            page_index=5,
+                        )
+                    )
+                if scroll and scroll.isVisible():
+                    steps.append(
+                        TourStep(
+                            target=scroll,
+                            title="Dein Spielerprofil",
+                            text="Hier siehst du dein Fähigkeiten-Radar, Stärken und Schwächen, deinen Spielstil und wiederkehrende Muster mit anklickbaren Beispielpartien. Der Trainingsplan zeigt, woran du arbeiten solltest – mit „Eigene Fehler trainieren“ übst du Stellungen aus deinen eigenen Partien.",
+                            position="above",
+                            page_index=5,
+                        )
+                    )
+                if not steps:
+                    steps.append(
+                        TourStep(
+                            target=pv,
+                            title="Mein Profil",
+                            text="Importiere und analysiere deine Partien, um ein Spielerprofil mit Stärken, Schwächen und Trainingsplan zu erhalten.",
+                            position="below",
+                            page_index=5,
+                        )
+                    )
 
         return steps

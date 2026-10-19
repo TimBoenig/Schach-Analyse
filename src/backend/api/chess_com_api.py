@@ -58,6 +58,26 @@ class ChessComAPI(BaseChessAPI):
             return []
 
     @staticmethod
+    def get_archive_urls(username: str) -> list[str]:
+        """Returns the monthly archive URLs for a user, oldest first."""
+        clean_user = username.strip().lower()
+        if not clean_user:
+            return []
+        url = f"{ChessComAPI.BASE_URL}/player/{clean_user}/games/archives"
+        response = BaseChessAPI._make_request(url, ChessComAPI.HEADERS)
+        data = BaseChessAPI._safe_json(response) if response else None
+        archives = (data or {}).get("archives", [])
+        return [a for a in archives if isinstance(a, str)]
+
+    @staticmethod
+    def get_archive_games(archive_url: str) -> list[dict]:
+        """Returns all games of one monthly archive (each dict carries a 'pgn')."""
+        response = BaseChessAPI._make_request(archive_url, ChessComAPI.HEADERS)
+        data = BaseChessAPI._safe_json(response) if response else None
+        games = (data or {}).get("games", [])
+        return [g for g in games if isinstance(g, dict) and g.get("pgn")]
+
+    @staticmethod
     def get_user_games_by_date(username: str, date) -> list[dict]:
         """
         Fetches games of a user for a specific date from Chess.com archives.

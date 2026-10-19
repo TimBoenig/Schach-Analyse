@@ -120,14 +120,16 @@ def test_history_view_load_history_fast_path(tmp_path, qtbot, qapp):
 
 
 @pytest.mark.parametrize(
-    "status,expected_badge,expected_action",
+    "status,expected_badge,expected_tooltip,expected_action",
     [
-        ("completed", "Analyzed", "reanalyze"),
-        ("paused", "Paused", "resume"),
-        ("not_started", "Unanalyzed", "analyze"),
+        ("completed", "Analysiert", "erneut analysieren", "reanalyze"),
+        ("paused", "Pausiert", "fortsetzen", "resume"),
+        ("not_started", "Nicht analysiert", "Partie analysieren", "analyze"),
     ],
 )
-def test_game_list_item_action_and_badge(qtbot, status, expected_badge, expected_action):
+def test_game_list_item_action_and_badge(
+    qtbot, status, expected_badge, expected_tooltip, expected_action
+):
     """Test GameListItemWidget displays appropriate badge and emits action_requested for all statuses."""
     meta = GameMetadata(
         white="Magnus", black="Hikaru", result="1-0", date="2024.01.01", event="Speed", headers={}
@@ -167,9 +169,7 @@ def test_game_list_item_action_and_badge(qtbot, status, expected_badge, expected
 
         # Verify action button tooltip and signal emission
         action_buttons = [
-            btn
-            for btn in widget.findChildren(QPushButton)
-            if expected_action.capitalize() in btn.toolTip()
+            btn for btn in widget.findChildren(QPushButton) if expected_tooltip in btn.toolTip()
         ]
         assert len(action_buttons) == 1
         with qtbot.waitSignal(widget.action_requested, timeout=1000) as blocker:
@@ -210,7 +210,9 @@ def test_history_view_game_action_propagation(tmp_path, qtbot):
     view.load_history()
 
     card = view.game_list.list_widget.itemWidget(view.game_list.list_widget.item(0))
-    resume_btn = next(btn for btn in card.findChildren(QPushButton) if "Resume" in btn.toolTip())
+    resume_btn = next(
+        btn for btn in card.findChildren(QPushButton) if "fortsetzen" in btn.toolTip()
+    )
 
     with qtbot.waitSignal(view.game_action_requested, timeout=1000) as blocker:
         resume_btn.click()
@@ -221,7 +223,7 @@ def test_history_view_game_action_propagation(tmp_path, qtbot):
 
 
 def test_history_view_analyzing_status_and_action(tmp_path, qtbot):
-    """Test that a game currently being analyzed shows 'Analyzing...' badge and emits view_analysis."""
+    """Test that a game currently being analyzed shows the 'Wird analysiert …' badge and emits view_analysis."""
     db_path = str(tmp_path / "test_analyzing.db")
     manager = GameHistoryManager(db_path)
     meta = GameMetadata(
@@ -246,10 +248,10 @@ def test_history_view_analyzing_status_and_action(tmp_path, qtbot):
 
     card = view.game_list.list_widget.itemWidget(view.game_list.list_widget.item(0))
     badges = [lbl.text() for lbl in card.findChildren(QLabel)]
-    assert "Analyzing..." in badges
+    assert "Wird analysiert …" in badges
 
     view_btn = next(
-        btn for btn in card.findChildren(QPushButton) if "View ongoing analysis" in btn.toolTip()
+        btn for btn in card.findChildren(QPushButton) if "Laufende Analyse ansehen" in btn.toolTip()
     )
     assert view_btn is not None
 
