@@ -5,11 +5,13 @@ import { enqueue, cancelCurrent, getEngine, subscribeQueue, type QueueState } fr
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
-import { buildGameReview } from "../domain/profile";
+import { buildGameReview, gameCoachMessages } from "../domain/profile";
+import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
 import { Board, type Arrow } from "./Board";
+import { AiAnswer } from "./AiCoach";
 import { BarList, StackBar } from "./charts";
 import { IconBack, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
 import {
@@ -23,6 +25,7 @@ import {
   resultText,
   shortOpening,
 } from "./labels";
+import { isTyping } from "./keys";
 import { navigate } from "./router";
 
 type Side = "white" | "black";
@@ -329,14 +332,33 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     setIdx((i) => clamp(i + d));
   };
 
+  // Ply indices of the player's own serious errors, for "jump to next mistake".
+  const errorPlies = useMemo(() => {
+    if (!game) return [];
+    const side = userColor === "black" ? "b" : "w";
+    return game.moves
+      .map((m, i) => (SERIOUS_ERROR_CLASSES.has(m.classification) && m.fen_before.split(" ")[1] === side ? i : -1))
+      .filter((i) => i >= 0);
+  }, [game, userColor]);
+  const jumpError = (d: 1 | -1) => {
+    const target = d === 1 ? errorPlies.find((p) => p + 1 > idx) : [...errorPlies].reverse().find((p) => p + 1 < idx);
+    if (target !== undefined) goTo(target + 1);
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "ArrowLeft") step(-1);
-      if (e.key === "ArrowRight") step(1);
-      if (e.key === "Home") goTo(0);
-      if (e.key === "End") goTo(n);
-      if (e.key === "Escape") setExplore(null);
+      else if (e.key === "ArrowRight") step(1);
+      else if (e.key === "Home") goTo(0);
+      else if (e.key === "End") goTo(n);
+      else if (e.key === "Escape") setExplore(null);
+      else if (e.key === "f") setFlipped((f) => !f);
+      else if (e.key === "n") jumpError(1);
+      else if (e.key === "N") jumpError(-1);
+      else if (e.key === "b" && review) setTab((t) => (t === "report" ? "moves" : "report"));
+      else return;
+      e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -532,9 +554,14 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             <button class="btn" onClick={() => goTo(n)} aria-label="Zum Ende">
               <IconLast />
             </button>
-            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label="Brett drehen">
+            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label="Brett drehen" title="Brett drehen (F)">
               <IconFlip />
             </button>
+            {errorPlies.length > 0 && !explore && (
+              <button class="btn next-error" onClick={() => jumpError(1)} title="Nächster eigener Fehler (N)">
+                Nächster Fehler
+              </button>
+            )}
           </div>
         </div>
 
@@ -691,6 +718,29 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     {t}
                   </div>
                 ))}
+              </div>
+              <div class="card">
+                <AiAnswer
+                  cacheKey={`game:${game.game_id}`}
+                  title="Partie erklärt"
+                  start="Partie vom KI-Coach erklären lassen"
+                  messages={() => {
+                    const me = userColor ?? "white";
+                    const opp = me === "white" ? "black" : "white";
+                    const elo = (c: Side) => Number(game.metadata[c === "white" ? "white_elo" : "black_elo"]) || null;
+                    return gameCoachMessages(review, {
+                      white: game.metadata.white,
+                      black: game.metadata.black,
+                      result: game.metadata.result,
+                      opening: game.metadata.opening ?? "",
+                      userColor: me,
+                      userAccuracy: acc(me) ?? null,
+                      opponentAccuracy: acc(opp) ?? null,
+                      userRating: elo(me),
+                      opponentRating: elo(opp),
+                    });
+                  }}
+                />
               </div>
               {review.key_moments.length > 0 && (
                 <div class="card">

@@ -1,17 +1,12 @@
-import { useEffect, useState } from "preact/hooks";
+import { useState } from "preact/hooks";
 
-import { buildProfileInWorker } from "../app/profileClient";
-import { trFilter, trSpeed } from "../domain/i18n";
+import { trSpeed } from "../domain/i18n";
 import type { GameRef, Insight, PlayerProfile, RatingContext } from "../domain/profile";
-import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { qualitySegments } from "./labels";
 import { navigate } from "./router";
-
-const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
-const DATES = ["All Time", "Last 30 Days", "Last 90 Days", "This Year"];
-const COLORS = ["All Colors", "White", "Black"];
+import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
 const RADAR_LABELS: Record<string, string> = {
@@ -54,18 +49,6 @@ function Examples({ refs }: { refs: GameRef[] }) {
         </button>
       ))}
     </div>
-  );
-}
-
-function Select({ value, options, onChange, label }: { value: string; options: string[]; onChange: (v: string) => void; label: string }) {
-  return (
-    <select value={value} onChange={(e) => onChange(e.currentTarget.value)} aria-label={label}>
-      {options.map((o) => (
-        <option key={o} value={o}>
-          {trFilter(o)}
-        </option>
-      ))}
-    </select>
   );
 }
 
@@ -192,55 +175,13 @@ function Hero({ profile }: { profile: PlayerProfile }) {
 }
 
 export function ProfileView() {
-  const [profile, setProfile] = useState<PlayerProfile | null>(null);
-  const [usernames, setUsernames] = useState<string[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [format, setFormat] = useState("All Formats");
-  const [date, setDate] = useState("All Time");
-  const [color, setColor] = useState("All Colors");
-  const [version, setVersion] = useState(0);
+  const { profile, usernames, loading, error, filters, setFilters } = useProfile();
   const [ratingSpeed, setRatingSpeed] = useState<string | null>(null);
-
-  useEffect(() => onDataChanged(() => setVersion((v) => v + 1)), []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setLoading(true);
-      const names = await getSetting<string[]>("usernames", []);
-      if (!alive) return;
-      setUsernames(names);
-      if (!names.length) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const games = await listGames();
-        const p = await buildProfileInWorker({ games, usernames: names, format, date, color });
-        if (alive) {
-          setProfile(p);
-          setError("");
-        }
-      } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [format, date, color, version]);
 
   const header = (
     <>
       <div class="page-title">Mein Profil</div>
-      <div class="filters">
-        <Select value={format} options={FORMATS} onChange={setFormat} label="Bedenkzeit" />
-        <Select value={date} options={DATES} onChange={setDate} label="Zeitraum" />
-        <Select value={color} options={COLORS} onChange={setColor} label="Farbe" />
-      </div>
+      <FilterBar filters={filters} onChange={setFilters} />
     </>
   );
 
@@ -284,7 +225,7 @@ export function ProfileView() {
         <div class="empty">
           <p>
             Keine Partien für {usernames?.join(", ")} gefunden
-            {format !== "All Formats" || date !== "All Time" || color !== "All Colors" ? " (mit diesen Filtern)" : ""}.
+            {filtersActive(filters) ? " (mit diesen Filtern)" : ""}.
           </p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
             Partien importieren

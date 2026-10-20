@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 
+import { AI_PROVIDERS, type AiConfig, aiReady, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
 import { STRENGTHS, type AnalysisStrength } from "../app/analysisService";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, putGames, setSetting } from "../storage/db";
@@ -58,6 +59,107 @@ function AppearanceCard() {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function AiCard() {
+  const saved = loadAiConfig();
+  const [provider, setProvider] = useState(saved?.provider ?? "groq");
+  const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? AI_PROVIDERS.groq.baseUrl);
+  const [model, setModel] = useState(saved?.model ?? AI_PROVIDERS.groq.model);
+  const [apiKey, setApiKey] = useState(saved?.apiKey ?? "");
+  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const p = AI_PROVIDERS[provider] ?? AI_PROVIDERS.custom;
+  const cfg: AiConfig = { provider, baseUrl: baseUrl.trim(), model: model.trim(), apiKey: apiKey.trim() };
+
+  const pick = (k: string) => {
+    setProvider(k);
+    setBaseUrl(AI_PROVIDERS[k].baseUrl);
+    setModel(AI_PROVIDERS[k].model);
+    setStatus(null);
+  };
+  const test = async () => {
+    setTesting(true);
+    setStatus(null);
+    try {
+      const out = await streamChat(cfg, [{ role: "user", content: "Antworte nur mit: Bereit." }], () => undefined);
+      setStatus({ ok: true, text: `Verbindung steht${out.trim() ? ` („${out.trim().slice(0, 40)}“)` : ""}.` });
+      saveAiConfig(cfg);
+    } catch (e) {
+      setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div class="card">
+      <h3>
+        KI-Coach <span class="pill">optional</span>
+      </h3>
+      <p class="muted small" style={{ marginTop: 0 }}>
+        Erklärt Partien und beantwortet Fragen zu deinem Profil. Du nutzt dafür deinen eigenen Zugang bei einem Anbieter.
+        Der Schlüssel bleibt nur auf diesem Gerät und wird nicht synchronisiert. An den Anbieter gehen nur die
+        Analysewerte, keine Kontodaten.
+      </p>
+      <label class="field">
+        <span>Anbieter</span>
+        <select value={provider} onChange={(e) => pick(e.currentTarget.value)}>
+          {Object.entries(AI_PROVIDERS).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {(provider === "custom" || provider === "lmstudio") && (
+        <label class="field">
+          <span>Server-Adresse</span>
+          <input value={baseUrl} onInput={(e) => setBaseUrl(e.currentTarget.value)} placeholder="https://…/v1" />
+        </label>
+      )}
+      <label class="field">
+        <span>Modell</span>
+        <input value={model} onInput={(e) => setModel(e.currentTarget.value)} placeholder={p.model || "model-name"} />
+      </label>
+      <label class="field">
+        <span>API-Schlüssel</span>
+        <input
+          type="password"
+          autoComplete="off"
+          value={apiKey}
+          onInput={(e) => setApiKey(e.currentTarget.value)}
+          placeholder={p.keyHint}
+        />
+      </label>
+      {p.helpUrl && (
+        <p class="small faint" style={{ margin: "0 0 10px" }}>
+          Schlüssel erstellen:{" "}
+          <a href={p.helpUrl} target="_blank" rel="noreferrer">
+            {p.helpUrl.replace(/^https?:\/\//, "")}
+          </a>
+        </p>
+      )}
+      <div class="row">
+        <button class="btn primary" disabled={testing || !aiReady(cfg)} onClick={() => void test()}>
+          {testing ? "Teste …" : "Testen und speichern"}
+        </button>
+        {saved && (
+          <button
+            class="btn ghost"
+            onClick={() => {
+              saveAiConfig(null);
+              setApiKey("");
+              setStatus({ ok: true, text: "KI-Coach ausgeschaltet, Schlüssel gelöscht." });
+            }}
+          >
+            Ausschalten
+          </button>
+        )}
+      </div>
+      {status && <p class={`small ${status.ok ? "ok" : "error"}`}>{status.text}</p>}
     </div>
   );
 }
@@ -296,6 +398,7 @@ export function SettingsView() {
         </div>
         <div>
           <AppearanceCard />
+          <AiCard />
           <AccountCard />
           <BackupCard />
           <div class="card">

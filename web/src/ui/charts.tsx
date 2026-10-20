@@ -479,3 +479,113 @@ export function AreaChart({
     </div>
   );
 }
+
+// ---------- vertical columns ----------
+
+export interface Column {
+  label: string;
+  value: number | null;
+  valueText?: string;
+  sub?: string;
+  /** Thin evidence: drawn faint and marked in the tooltip. */
+  faint?: boolean;
+}
+
+export function ColumnChart({
+  columns,
+  max,
+  height = 170,
+  reference,
+  format = (v: number) => String(Math.round(v)),
+}: {
+  columns: Column[];
+  max?: number;
+  height?: number;
+  reference?: { value: number; label: string } | null;
+  format?: (v: number) => string;
+}) {
+  const [hover, setHover] = useState<number | null>(null);
+  const vals = columns.map((c) => c.value ?? 0).concat(reference ? [reference.value] : []);
+  const top = max ?? Math.max(1, ...vals) * 1.15;
+  const h = (v: number) => `${Math.max(0, Math.min(100, (v / top) * 100))}%`;
+  return (
+    <div class="columns-wrap">
+      <div class="columns" style={{ height: `${height}px` }} onPointerLeave={() => setHover(null)}>
+        {reference && <div class="columns-ref" style={{ bottom: h(reference.value) }} />}
+        {columns.map((c, i) => (
+          <div
+            key={c.label}
+            class={`column${hover === i ? " on" : ""}`}
+            onPointerEnter={() => setHover(i)}
+            onPointerDown={() => setHover(i)}
+          >
+            <span class="column-value tnum">{c.value === null ? "–" : (c.valueText ?? format(c.value))}</span>
+            <div class="column-bar" style={{ height: c.value === null ? "0" : h(c.value), opacity: c.faint ? 0.4 : 1 }} />
+          </div>
+        ))}
+      </div>
+      <div class="column-labels">
+        {columns.map((c, i) => (
+          <div key={c.label} class={hover === i ? "on" : ""}>
+            <span>{c.label}</span>
+            {c.sub && <span class="faint">{c.sub}</span>}
+          </div>
+        ))}
+      </div>
+      {reference && (
+        <Legend
+          items={[
+            { label: "Du", color: "var(--accent)" },
+            { label: reference.label, color: "var(--text-3)", dashed: true },
+          ]}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- board heatmap ----------
+
+const FILES = "abcdefgh";
+
+/** 8×8 heatmap, one hue light → dark; `values[0]` is a1, `values[63]` h8. */
+export function SquareHeatmap({ values, flipped = false, unit = "Fehler" }: { values: number[]; flipped?: boolean; unit?: string }) {
+  const [hover, setHover] = useState<number | null>(null);
+  const max = Math.max(1, ...values);
+  const cells = [];
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const rank = flipped ? row : 7 - row;
+      const file = flipped ? 7 - col : col;
+      const i = rank * 8 + file;
+      const v = values[i] ?? 0;
+      const dark = (rank + file) % 2 === 0;
+      cells.push(
+        <div
+          key={i}
+          class={`heat-cell${dark ? " dark" : ""}${hover === i ? " on" : ""}`}
+          onPointerEnter={() => setHover(i)}
+          onPointerDown={() => setHover(i)}
+        >
+          {v > 0 && <div class="heat" style={{ opacity: 0.18 + 0.82 * (v / max) }} />}
+          {v > 0 && v / max >= 0.5 && <span class="heat-n tnum">{v}</span>}
+          {col === 0 && <span class="heat-rank">{rank + 1}</span>}
+          {row === 7 && <span class="heat-file">{FILES[file]}</span>}
+        </div>,
+      );
+    }
+  }
+  const h = hover !== null ? hover : null;
+  return (
+    <div class="heatmap-wrap" onPointerLeave={() => setHover(null)}>
+      <div class="heatmap" role="img" aria-label="Felder, auf denen deine Fehler landen">
+        {cells}
+      </div>
+      <div class="heat-scale">
+        <span>{h !== null ? `${FILES[h % 8]}${Math.floor(h / 8) + 1}: ${values[h] ?? 0} ${unit}` : "Wenige"}</span>
+        <div class="heat-ramp" aria-hidden="true" />
+        <span>{h !== null ? "" : `Viele (${max})`}</span>
+      </div>
+    </div>
+  );
+}

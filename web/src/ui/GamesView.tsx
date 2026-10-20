@@ -10,6 +10,7 @@ import { Donut, Gauge, Legend } from "./charts";
 import type { Segment } from "./charts";
 import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
+import { isTyping } from "./keys";
 import { navigate } from "./router";
 
 type Source = "chesscom" | "lichess" | "pgn";
@@ -317,11 +318,23 @@ function GameRow({
   );
 }
 
-export function GamesView() {
+export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [games, setGames] = useState<StoredGame[] | null>(null);
   const [usernames, setUsernames] = useState<string[]>([]);
   const [queue, setQueue] = useState<QueueState | null>(null);
-  const [showImport, setShowImport] = useState(false);
+  const [showImport, setShowImport] = useState(openImport);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setShowImport((v) => v || openImport), [openImport]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.metaKey || e.ctrlKey || isTyping(e)) return;
+      e.preventDefault();
+      searchRef.current?.focus();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const [filter, setFilter] = useState<Filter>("all");
   const [speed, setSpeed] = useState("all");
   const [search, setSearch] = useState("");
@@ -463,8 +476,9 @@ export function GamesView() {
             </select>
           )}
           <input
+            ref={searchRef}
             type="search"
-            placeholder="Spieler oder Eröffnung suchen"
+            placeholder="Spieler oder Eröffnung suchen  ( / )"
             value={search}
             onInput={(e) => setSearch(e.currentTarget.value)}
             style={{ flex: "1 1 200px", width: "auto" }}
@@ -506,7 +520,10 @@ export function GamesView() {
 
       {showImport && (
         <ImportDialog
-          onClose={() => setShowImport(false)}
+          onClose={() => {
+            setShowImport(false);
+            if (openImport) navigate({ view: "games" }, true);
+          }}
           onImported={(ids) => ids.length && setJustImported((prev) => [...new Set([...ids, ...prev])])}
         />
       )}

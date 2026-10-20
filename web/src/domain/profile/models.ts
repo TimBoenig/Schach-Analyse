@@ -1,6 +1,8 @@
 // Result structures for the player profile and per-game review
 // (port of src/backend/analysis/profile/models.py). All user-visible text is German.
 
+import type { DeepInsights } from "./insights";
+
 /** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */
 export interface GameRef {
   game_id: string;
@@ -108,6 +110,8 @@ export interface PlayerProfile {
   puzzles: Puzzle[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
+  /** Error map, timing, tilt and session effects (null until a game is analyzed). */
+  deep: DeepInsights | null;
 }
 
 export interface RatingContext {

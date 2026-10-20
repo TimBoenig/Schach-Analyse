@@ -166,6 +166,8 @@ export class GameFeatures {
   reached_endgame = false;
   end_clock_fraction: number | null = null; // clock left at the end / clock at start
   wp_volatility = 0;
+  /** True when the PGN carries a real start time (needed for time-of-day and session analysis). */
+  time_known = false;
 
   constructor(
     public rec: GameRecord,
@@ -226,6 +228,7 @@ export function extractFeatures(
     chess960,
   );
 
+  feats.time_known = /\[(UTCTime|StartTime)\s+"\d/.test(game.pgn || "");
   const moves = parseMoves(game.moves_json);
   feats.plies = moves.length;
   if (!moves.length) return feats;
