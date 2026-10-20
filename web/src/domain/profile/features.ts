@@ -168,6 +168,8 @@ export class GameFeatures {
   wp_volatility = 0;
   /** True when the PGN carries a real start time (needed for time-of-day and session analysis). */
   time_known = false;
+  /** SAN of the first two plies from the standard start position (empty for set-up positions). */
+  first_sans: string[] = [];
 
   constructor(
     public rec: GameRecord,
@@ -232,6 +234,7 @@ export function extractFeatures(
   const moves = parseMoves(game.moves_json);
   feats.plies = moves.length;
   if (!moves.length) return feats;
+  if (!game.starting_fen && !chess960) feats.first_sans = moves.slice(0, 2).map((m) => m.san || "");
 
   const trouble = troubleThreshold(record.speed);
   let startClock: number | null = null;

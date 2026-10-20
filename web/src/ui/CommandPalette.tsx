@@ -22,8 +22,9 @@ export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
   { view: "analysis", label: "Analyse", key: "2" },
   { view: "profile", label: "Profil", key: "3" },
   { view: "insights", label: "Einblicke", key: "4" },
-  { view: "training", label: "Training", key: "5" },
-  { view: "settings", label: "Einstellungen", key: "6" },
+  { view: "openings", label: "Eröffnungen", key: "5" },
+  { view: "training", label: "Training", key: "6" },
+  { view: "settings", label: "Einstellungen", key: "7" },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -175,7 +176,7 @@ const SHORTCUTS: [string, [string, string][]][] = [
     "Überall",
     [
       [`${MOD} K`, "Befehle und Suche"],
-      ["1 – 6", "Seite wechseln"],
+      ["1 – 7", "Seite wechseln"],
       ["?", "Diese Übersicht"],
     ],
   ],

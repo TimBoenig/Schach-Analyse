@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 export type Route =
   | { view: "games"; import?: boolean }
   | { view: "insights" }
+  | { view: "openings" }
   | { view: "analysis"; gameId?: string; ply?: number }
   | { view: "profile" }
   | { view: "training" }
@@ -17,6 +18,8 @@ export function parseHash(hash: string): Route {
       return { view: "profile" };
     case "einblicke":
       return { view: "insights" };
+    case "eroeffnungen":
+      return { view: "openings" };
     case "import":
       return { view: "games", import: true };
     case "training":
@@ -36,6 +39,8 @@ export function toHash(r: Route): string {
       return "#/profil";
     case "insights":
       return "#/einblicke";
+    case "openings":
+      return "#/eroeffnungen";
     case "training":
       return "#/training";
     case "settings":

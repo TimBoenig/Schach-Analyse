@@ -59,6 +59,21 @@ describe("IndexedDB storage", () => {
     expect(tomb.moves_json).toEqual([]);
   });
 
+  it("sorts by date played, not by import order", async () => {
+    const played = (id: string, ts: number, date?: string, time?: string) => {
+      const head = date ? `[Date "${date}"]\n${time ? `[UTCDate "${date}"]\n[UTCTime "${time}"]\n` : ""}` : "";
+      return { ...toStoredGame(parsePgnText(head + PGN)[0], ts), id };
+    };
+    // Archives arrive oldest first, so the import timestamps run the wrong way.
+    await putGames([
+      played("old", 300, "2026.03.01"),
+      played("evening", 200, "2026.05.02", "20:15:00"),
+      played("morning", 100, "2026.05.02", "08:10:00"),
+      played("undated", 400),
+    ]);
+    expect((await listGames()).map((g) => g.id)).toEqual(["evening", "morning", "old", "undated"]);
+  });
+
   it("persists settings with a fallback", async () => {
     expect(await getSetting("usernames", ["x"])).toEqual(["x"]);
     await setSetting("usernames", ["Me"]);

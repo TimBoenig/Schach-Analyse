@@ -5,8 +5,9 @@ import { syncAvailable, syncNow, supabase } from "../storage/sync";
 import { AnalysisView } from "./AnalysisView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
-import { IconBoard, IconGames, IconInsights, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { IconBoard, IconGames, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
 import { InsightsView } from "./InsightsView";
+import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
 import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
@@ -18,6 +19,7 @@ const NAV: { view: Route["view"]; label: string; short?: string; icon: () => pre
   { view: "analysis", label: "Analyse", icon: IconBoard },
   { view: "profile", label: "Profil", icon: IconProfile },
   { view: "insights", label: "Einblicke", icon: IconInsights },
+  { view: "openings", label: "Eröffnungen", short: "Eröffnung", icon: IconOpenings },
   { view: "training", label: "Training", icon: IconTraining },
   { view: "settings", label: "Einstellungen", short: "Optionen", icon: IconSettings },
 ];
@@ -133,6 +135,7 @@ export function App() {
         {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
         {route.view === "profile" && <ProfileView />}
         {route.view === "insights" && <InsightsView />}
+        {route.view === "openings" && <OpeningsView />}
         {route.view === "training" && <TrainingView />}
         {route.view === "settings" && <SettingsView />}
       </main>

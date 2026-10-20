@@ -2,6 +2,7 @@
 // (port of src/backend/analysis/profile/models.py). All user-visible text is German.
 
 import type { DeepInsights } from "./insights";
+import type { OpeningInsights } from "./openings";
 
 /** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */
 export interface GameRef {
@@ -112,6 +113,8 @@ export interface PlayerProfile {
   rating: RatingContext | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */
   deep: DeepInsights | null;
+  /** Repertoire and opening quality (null only for an empty profile). */
+  openings: OpeningInsights | null;
 }
 
 export interface RatingContext {

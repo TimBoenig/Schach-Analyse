@@ -335,7 +335,7 @@ export function BarList({
 
 // ---------- stacked distribution bar ----------
 
-export function StackBar({ segments, height = 14 }: { segments: Segment[]; height?: number }) {
+export function StackBar({ segments, height = 14, legend = true }: { segments: Segment[]; height?: number; legend?: boolean }) {
   const total = segments.reduce((s, x) => s + x.value, 0) || 1;
   const [hover, setHover] = useState<number | null>(null);
   return (
@@ -353,16 +353,18 @@ export function StackBar({ segments, height = 14 }: { segments: Segment[]; heigh
           ) : null,
         )}
       </div>
-      <div class="stack-legend">
-        {segments.map((s, i) => (
-          <div key={s.label} class={`stack-legend-row${hover === i ? " on" : ""}`}>
-            <span class="legend-key" style={{ background: s.color }} />
-            <span class="lbl">{s.label}</span>
-            <span class="tnum cnt">{s.value}</span>
-            <span class="tnum faint pct">{Math.round((s.value / total) * 100)} %</span>
-          </div>
-        ))}
-      </div>
+      {legend && (
+        <div class="stack-legend">
+          {segments.map((s, i) => (
+            <div key={s.label} class={`stack-legend-row${hover === i ? " on" : ""}`}>
+              <span class="legend-key" style={{ background: s.color }} />
+              <span class="lbl">{s.label}</span>
+              <span class="tnum cnt">{s.value}</span>
+              <span class="tnum faint pct">{Math.round((s.value / total) * 100)} %</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
