@@ -9,6 +9,7 @@ import { GameRecord, type RawGame } from "../metrics/models";
 import { extractFeatures, type GameFeatures, sanForUci } from "./features";
 import type { Insight, OpeningLine, PlayerProfile, Puzzle, SkillScore } from "./models";
 import { avg, fmt, pyRound } from "./num";
+import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { detectPatterns } from "./patterns";
 import { computeSkills } from "./skills";
 import { buildStyle } from "./style";
@@ -103,11 +104,13 @@ export function buildPlayerProfile(
     breakdowns: breakdowns(feats),
     training_plan: [],
     puzzles: [],
+    rating: ratingContext(feats),
   };
+  profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
   if (!analyzed.length) return profile;
 
-  profile.skills = computeSkills(stats, feats);
-  [profile.strengths, profile.weaknesses] = strengthsWeaknesses(profile.skills);
+  profile.skills = withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null);
+  [profile.strengths, profile.weaknesses] = strengthsWeaknesses(profile.skills, profile.rating?.rating ?? null);
   const [best, worst] = openings(feats);
   profile.openings_best = best;
   profile.openings_worst = worst;
@@ -165,34 +168,46 @@ function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]):
   };
 }
 
-function strengthsWeaknesses(skills: SkillScore[]): [Insight[], Insight[]] {
+function strengthsWeaknesses(skills: SkillScore[], rating: number | null): [Insight[], Insight[]] {
   const reliable = skills.filter((s) => s.reliable);
   if (!reliable.length) return [[], []];
   const mean = avg(reliable.map((s) => s.score));
   const ranked = [...reliable].sort((a, b) => b.score - a.score);
-  let strengths = ranked.filter((s) => s.score >= 65 || s.score >= mean + 8).slice(0, 3);
-  let weaknesses = [...ranked]
-    .reverse()
-    .filter((s) => s.score < 45 || s.score <= mean - 8)
-    .slice(0, 3);
+  // With a rating, "strong" means clearly above what is typical at that rating;
+  // without one, the player's own average is the yardstick.
+  const ref = (s: SkillScore) => (s.typical !== null && s.typical !== undefined ? s.typical : mean);
+  const delta = (s: SkillScore) => s.score - ref(s);
+  const byDelta = [...reliable].sort((a, b) => delta(b) - delta(a));
+  let strengths =
+    rating !== null
+      ? byDelta.filter((s) => delta(s) >= 8 || s.score >= 75).slice(0, 3)
+      : ranked.filter((s) => s.score >= 65 || s.score >= mean + 8).slice(0, 3);
+  let weaknesses =
+    rating !== null
+      ? [...byDelta].reverse().filter((s) => delta(s) <= -8 || s.score < 30).slice(0, 3)
+      : [...ranked].reverse().filter((s) => s.score < 45 || s.score <= mean - 8).slice(0, 3);
   // Always name at least one of each, relative to the player's own level.
-  if (!strengths.length && ranked.length >= 3) strengths = ranked.slice(0, 1);
-  if (!weaknesses.length && ranked.length >= 3) weaknesses = ranked.slice(-1);
+  if (!strengths.length && byDelta.length >= 3) strengths = byDelta.slice(0, 1);
+  if (!weaknesses.length && byDelta.length >= 3) weaknesses = byDelta.slice(-1);
   weaknesses = weaknesses.filter((w) => !strengths.includes(w));
+  const vs = (s: SkillScore) =>
+    rating !== null && s.typical !== null && s.typical !== undefined
+      ? ` · ${fmt(s.score, 0)} Punkte, typisch für ${rating}: ${fmt(s.typical, 0)}`
+      : "";
   return [
     strengths.map((s) => ({
       key: s.key,
       title: s.name,
-      text: `${STRENGTH_TEXT[s.key] ?? ""} (${s.detail})`,
+      text: `${STRENGTH_TEXT[s.key] ?? ""} (${s.detail}${vs(s)})`,
       category: "Fähigkeit",
-      strength: s.score - mean,
+      strength: delta(s),
     })),
     weaknesses.map((s) => ({
       key: s.key,
       title: s.name,
-      text: `${WEAKNESS_TEXT[s.key] ?? ""} (${s.detail})`,
+      text: `${WEAKNESS_TEXT[s.key] ?? ""} (${s.detail}${vs(s)})`,
       category: "Fähigkeit",
-      strength: mean - s.score,
+      strength: -delta(s),
     })),
   ];
 }
@@ -378,6 +393,7 @@ function breakdowns(feats: GameFeatures[]): Dict {
       losses: finished.filter((f) => f.rec.is_loss).length,
       score_pct: scoreOf(fs),
       avg_accuracy: avg(fs.filter((f) => f.analyzed).map((f) => f.rec.game_acc)),
+      expected_pct: expectedPct(finished),
     };
   };
 
@@ -410,6 +426,13 @@ function breakdowns(feats: GameFeatures[]): Dict {
   }
   const byOpponent = [...buckets.entries()].filter(([, v]) => v.length).map(([k, v]) => row(k, v));
   return { color: byColor, speed: bySpeed, opponent: byOpponent };
+}
+
+/** Elo-expected score in percent for games with both ratings, null if none. */
+function expectedPct(fs: GameFeatures[]): number | null {
+  const rated = fs.filter((f) => f.user_rating && f.opp_rating);
+  if (!rated.length) return null;
+  return pyRound((rated.reduce((s, f) => s + expectedScore(f.user_rating, f.opp_rating), 0) / rated.length) * 100, 1);
 }
 
 function puzzles(analyzed: GameFeatures[]): Puzzle[] {

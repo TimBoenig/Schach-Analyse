@@ -6,6 +6,8 @@ import { getUserColor } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
 import { toStoredGame } from "../storage/rows";
+import { Donut, Gauge, Legend } from "./charts";
+import type { Segment } from "./charts";
 import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { navigate } from "./router";
@@ -213,40 +215,40 @@ function summarize(games: StoredGame[], usernames: string[]): Summary {
 }
 
 function SummaryStrip({ s }: { s: Summary }) {
-  const decided = Math.max(1, s.wins + s.draws + s.losses);
+  const decided = s.wins + s.draws + s.losses;
+  const wdl: Segment[] = [
+    { label: "Siege", value: s.wins, color: "var(--win)" },
+    { label: "Remis", value: s.draws, color: "var(--draw)" },
+    { label: "Niederlagen", value: s.losses, color: "var(--loss)" },
+  ];
   return (
-    <div class="summary-strip">
-      <div class="stat-tile">
-        <div class="label">Deine Partien</div>
-        <div class="value">{s.games}</div>
-        <div class="sub">{s.analyzed} analysiert</div>
+    <section class="card hero summary-hero">
+      <div class="hero-cell">
+        <div class="kpi-label">Deine Partien</div>
+        <div class="kpi-big tnum">{s.games}</div>
+        <div class="small muted">{s.analyzed} analysiert</div>
       </div>
-      <div class="stat-tile">
-        <div class="label">Bilanz</div>
-        <div class="value tnum">
-          <span style={{ color: "var(--win)" }}>{s.wins}</span>
-          <span class="faint"> / </span>
-          {s.draws}
-          <span class="faint"> / </span>
-          <span style={{ color: "var(--loss)" }}>{s.losses}</span>
-        </div>
-        <div class="wdl" aria-hidden="true">
-          <div class="w" style={{ width: `${(s.wins / decided) * 100}%` }} />
-          <div class="d" style={{ width: `${(s.draws / decided) * 100}%` }} />
-          <div class="l" style={{ width: `${(s.losses / decided) * 100}%` }} />
+      <div class="hero-cell with-chart">
+        <Donut
+          segments={wdl}
+          center={decided ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}
+          sub="Punkte"
+          size={96}
+          thickness={11}
+        />
+        <div class="hero-side">
+          <div class="kpi-label">Bilanz</div>
+          <Legend items={wdl.map((x) => ({ label: x.label, color: x.color, value: String(x.value) }))} />
         </div>
       </div>
-      <div class="stat-tile">
-        <div class="label">Punkte-Quote</div>
-        <div class="value">{s.games ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}</div>
-        <div class="sub">Sieg = 1, Remis = ½</div>
+      <div class="hero-cell with-chart">
+        <Gauge value={s.accuracy} size={96} thickness={10} label="Genauigkeit" />
+        <div class="hero-side">
+          <div class="kpi-label">Ø Genauigkeit</div>
+          <div class="small muted">über deine analysierten Partien</div>
+        </div>
       </div>
-      <div class="stat-tile">
-        <div class="label">Ø Genauigkeit</div>
-        <div class={`value ${accClass(s.accuracy)}`}>{s.accuracy !== null ? s.accuracy.toFixed(1) : "–"}</div>
-        <div class="sub">über analysierte Partien</div>
-      </div>
-    </div>
+    </section>
   );
 }
 

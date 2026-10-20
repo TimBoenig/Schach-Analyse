@@ -62,6 +62,18 @@ function skill(
   };
 }
 
+// The scoring formulas are shared with the rating benchmarks, so "typical for
+// your rating" is measured with exactly the same yardstick as the player.
+export const phaseScore = (acc: number, seriousPer100: number) =>
+  pyRound(0.75 * scale(acc, 55, 95) + 0.25 * scale(seriousPer100, 8, 0), 1);
+export const tacticsScore = (punishRate: number, takeRate: number, missesPerGame: number) =>
+  pyRound(0.5 * scale(punishRate, 0.35, 0.9) + 0.3 * scale(takeRate, 0.5, 0.95) + 0.2 * scale(missesPerGame, 1.5, 0.1), 1);
+export const safetyScore = (blunderPer100: number, hungPerGame: number) =>
+  pyRound(0.6 * scale(blunderPer100, 5.0, 0.3) + 0.4 * scale(hungPerGame, 1.5, 0.1), 1);
+export const conversionScore = (convPct: number) => scale(convPct, 20, 90);
+export const defenseScore = (comebackPct: number) => scale(comebackPct, 5, 50);
+export const consistencyScore = (spread: number) => scale(spread, 18, 5);
+
 function phaseSkill(key: string, stats: Dict, feats: GameFeatures[]): SkillScore {
   const acc: number = stats.phase_stats?.accuracies?.[key] ?? 0;
   let moves = 0;
@@ -74,7 +86,7 @@ function phaseSkill(key: string, stats: Dict, feats: GameFeatures[]): SkillScore
     }
   }
   const per100 = moves ? (serious / moves) * 100 : 0;
-  const score = pyRound(0.75 * scale(acc, 55, 95) + 0.25 * scale(per100, 8, 0), 1);
+  const score = phaseScore(acc, per100);
   const detail = moves
     ? `${fmt(acc, 1)} % Genauigkeit, ${fmt(per100, 1)} Fehler/Patzer pro 100 Züge`
     : "Noch keine analysierten Züge in dieser Phase";
@@ -101,12 +113,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     (s, f) => s + f.moves.filter((m) => m.classification === "Miss").length,
     0,
   );
-  const tacticScore = pyRound(
-    0.5 * scale(punishRate, 0.35, 0.9) +
-      0.3 * scale(takeRate, 0.5, 0.95) +
-      0.2 * scale(n ? misses / n : 0, 1.5, 0.1),
-    1,
-  );
+  const tacticScore = tacticsScore(punishRate, takeRate, n ? misses / n : 0);
   skills.push(
     skill(
       "tactics",
@@ -126,7 +133,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
   );
   const blunderRate = userMoves ? (blunders / userMoves) * 100 : 0;
   const hungPerGame = n ? (hanging.total_hung ?? 0) / n : 0;
-  const safety = pyRound(0.6 * scale(blunderRate, 5.0, 0.3) + 0.4 * scale(hungPerGame, 1.5, 0.1), 1);
+  const safety = safetyScore(blunderRate, hungPerGame);
   skills.push(
     skill(
       "safety",
@@ -144,7 +151,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
   skills.push(
     skill(
       "conversion",
-      scale(conv, 20, 90),
+      conversionScore(conv),
       `${fmt(conv, 0)} % der klar gewonnenen Stellungen (+3) auch gewonnen ` +
         `(${adv.converted_advantage ?? 0}/${hadWin})`,
       hadWin,
@@ -157,7 +164,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
   skills.push(
     skill(
       "defense",
-      scale(comeback, 5, 50),
+      defenseScore(comeback),
       `${fmt(comeback, 0)} % der klar verlorenen Stellungen (-3) noch gehalten oder gedreht ` +
         `(${adv.comeback_drawn_or_won ?? 0}/${hadLose})`,
       hadLose,
@@ -172,7 +179,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
   skills.push(
     skill(
       "consistency",
-      scale(spread, 18, 5),
+      consistencyScore(spread),
       `Genauigkeit schwankt um ±${fmt(spread, 1)} Prozentpunkte von Partie zu Partie`,
       accs.length,
       accs.length >= MIN_GAMES,

@@ -17,6 +17,8 @@ export interface SkillScore {
   detail: string;
   sample: number;
   reliable: boolean;
+  /** Score a typical player of the user's rating reaches (null without rating). */
+  typical?: number | null;
 }
 
 export interface Insight {
@@ -104,6 +106,25 @@ export interface PlayerProfile {
   breakdowns: Record<string, any>;
   training_plan: TrainingItem[];
   puzzles: Puzzle[];
+  /** Rating context: current rating, performance and rating-based expectations. */
+  rating: RatingContext | null;
+}
+
+export interface RatingContext {
+  /** Most recent rating in the time control the player plays most. */
+  rating: number;
+  speed: string;
+  /** Games with both ratings known (basis for performance / expectation). */
+  rated_games: number;
+  avg_opponent: number | null;
+  /** Classic performance rating: average opponent + 400 · (W − L) / N. */
+  performance: number | null;
+  /** Points scored vs. points the Elo formula expected. */
+  score: number;
+  expected_score: number | null;
+  /** Typical accuracy for this rating (estimate) vs. the player's. */
+  typical_accuracy: number;
+  typical_phase_accuracy: Record<string, number>;
 }
 
 export interface KeyMoment {

@@ -4,6 +4,7 @@
 //   playing style, recurring patterns, a training plan and personal puzzles.
 // - buildGameReview: German post-game review for a single analyzed game.
 
+export { benchmark, currentRating, expectedScore, ratingContext, typicalSkillScores } from "./benchmarks";
 export { buildPlayerProfile } from "./builder";
 export { extractFeatures, GameFeatures, MoveEvent, sanForUci } from "./features";
 export { buildGameReview, schoolGrade } from "./game_review";
@@ -17,6 +18,7 @@ export type {
   PhaseReview,
   PlayerProfile,
   Puzzle,
+  RatingContext,
   SkillScore,
   StyleAxis,
   StyleProfile,

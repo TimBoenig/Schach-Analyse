@@ -10,8 +10,19 @@ import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
 import { Board, type Arrow } from "./Board";
+import { BarList, StackBar } from "./charts";
 import { IconBack, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
-import { CLASSIFICATION_ORDER, accClass, badgeFor, classLabel, formatDate, formatEval, resultText, shortOpening } from "./labels";
+import {
+  CLASSIFICATION_ORDER,
+  accClass,
+  badgeFor,
+  classLabel,
+  formatDate,
+  formatEval,
+  qualitySegments,
+  resultText,
+  shortOpening,
+} from "./labels";
 import { navigate } from "./router";
 
 type Side = "white" | "black";
@@ -651,18 +662,25 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <strong>{review.headline}</strong>
                 </p>
                 {review.phases.length > 0 && (
-                  <table class="table" style={{ marginBottom: "10px" }}>
-                    <tbody>
-                      {review.phases.map((p) => (
-                        <tr key={p.phase}>
-                          <td>{p.name}</td>
-                          <td class="num">{p.accuracy !== null ? `${p.accuracy.toFixed(0)} %` : "–"}</td>
-                          <td class="num">{p.grade}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <>
+                    <h4>Genauigkeit nach Phase</h4>
+                    <BarList
+                      rows={review.phases.map((p) => ({
+                        label: p.name,
+                        value: p.accuracy,
+                        valueText: p.accuracy !== null ? `${p.accuracy.toFixed(0)} % · ${p.grade}` : "–",
+                        note: `${p.moves} Züge${p.errors ? ` · ${p.errors} Fehler` : ""}`,
+                      }))}
+                    />
+                  </>
                 )}
+                {userColor && game.summary[userColor] && (
+                  <>
+                    <h4>Deine Zugqualität</h4>
+                    <StackBar segments={qualitySegments(game.summary[userColor] as Record<string, number>)} />
+                  </>
+                )}
+                <h4>Fazit</h4>
                 {review.positives.map((t) => (
                   <div class="insight pos small" key={t}>
                     {t}
