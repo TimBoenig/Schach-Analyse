@@ -1,36 +1,53 @@
 import { useEffect, useState } from "preact/hooks";
 
 import { buildProfileInWorker } from "../app/profileClient";
-import { trFilter } from "../domain/i18n";
-import type { GameRef, PlayerProfile } from "../domain/profile";
+import { trFilter, trSpeed } from "../domain/i18n";
+import type { GameRef, Insight, PlayerProfile, RatingContext } from "../domain/profile";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
-import { LineChart } from "./LineChart";
+import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
+import type { BarRow, Segment } from "./charts";
+import { qualitySegments } from "./labels";
 import { navigate } from "./router";
 
 const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
 const DATES = ["All Time", "Last 30 Days", "Last 90 Days", "This Year"];
 const COLORS = ["All Colors", "White", "Black"];
 
-function scoreColor(score: number): string {
-  if (score >= 70) return "var(--good)";
-  if (score >= 50) return "var(--inacc)";
-  if (score >= 35) return "var(--mistake)";
-  return "var(--blunder)";
-}
+/** Short axis names for the radar; the full names stay in the detail list. */
+const RADAR_LABELS: Record<string, string> = {
+  opening: "Eröffnung",
+  middlegame: "Mittelspiel",
+  endgame: "Endspiel",
+  tactics: "Taktik",
+  safety: "Sicherheit",
+  conversion: "Verwertung",
+  defense: "Verteidigung",
+  time: "Zeit",
+  consistency: "Konstanz",
+};
+
+const PHASES: [string, string][] = [
+  ["opening", "Eröffnung"],
+  ["middlegame", "Mittelspiel"],
+  ["endgame", "Endspiel"],
+];
 
 function pct(v: number | null | undefined, digits = 0): string {
   return v === null || v === undefined || Number.isNaN(v) ? "–" : `${v.toFixed(digits)} %`;
 }
 
+function signed(v: number, digits = 1): string {
+  return `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(digits)}`;
+}
+
 function Examples({ refs }: { refs: GameRef[] }) {
   if (!refs.length) return null;
   return (
-    <div class="row" style={{ marginTop: "6px" }}>
+    <div class="examples">
       {refs.slice(0, 3).map((r) => (
         <button
           key={`${r.game_id}-${r.ply_index}`}
           class="pill accent"
-          style={{ border: 0 }}
           onClick={() => navigate({ view: "analysis", gameId: r.game_id, ply: r.ply_index + 1 })}
         >
           {r.label || "Beispiel ansehen"}
@@ -52,6 +69,128 @@ function Select({ value, options, onChange, label }: { value: string; options: s
   );
 }
 
+function Card({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 12; children: preact.ComponentChildren }) {
+  return (
+    <section class={`card tile span-${span}`}>
+      <div class="tile-head">
+        <h3>{title}</h3>
+        {sub && <span class="tile-sub">{sub}</span>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function InsightList({ items, tone, empty }: { items: Insight[]; tone: "pos" | "neg"; empty: string }) {
+  if (!items.length) return <p class="muted small">{empty}</p>;
+  return (
+    <div class="insights">
+      {items.map((s) => (
+        <div class={`insight ${tone}`} key={s.key}>
+          <div class="t">{s.title}</div>
+          <div class="small">{s.text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Hero({ profile }: { profile: PlayerProfile }) {
+  const o = profile.overview;
+  const rc: RatingContext | null = profile.rating;
+  const speedName = rc ? trSpeed(rc.speed) : "";
+  const others = Object.entries((o.ratings ?? {}) as Record<string, number>).filter(([k]) => k !== speedName);
+  const wdl: Segment[] = [
+    { label: "Siege", value: o.wins, color: "var(--win)" },
+    { label: "Remis", value: o.draws, color: "var(--draw)" },
+    { label: "Niederlagen", value: o.losses, color: "var(--loss)" },
+  ];
+  const diff = rc && rc.expected_score !== null ? rc.score - rc.expected_score : null;
+  const accDelta = rc && profile.analyzed_games ? o.avg_accuracy - rc.typical_accuracy : null;
+  return (
+    <section class="card hero span-12">
+      <div class="hero-cell">
+        <div class="kpi-label">{rc ? `Wertung · ${speedName}` : "Wertung"}</div>
+        <div class="kpi-big tnum">{rc ? rc.rating : "–"}</div>
+        {rc ? (
+          <div class="kpi-rows">
+            <div>
+              <span>Performance</span>
+              <strong class="tnum">{rc.performance ?? "–"}</strong>
+            </div>
+            <div>
+              <span>Ø Gegner</span>
+              <strong class="tnum">{rc.avg_opponent ?? "–"}</strong>
+            </div>
+            {others.map(([k, v]) => (
+              <div key={k}>
+                <span>{k}</span>
+                <strong class="tnum">{v}</strong>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="small muted">Die Partien enthalten keine Wertungszahlen.</div>
+        )}
+      </div>
+
+      <div class="hero-cell with-chart">
+        <Donut segments={wdl} center={pct(o.score_pct)} sub="Punkte" size={108} thickness={12} />
+        <div class="hero-side">
+          <div class="kpi-label">Bilanz</div>
+          <Legend items={wdl.map((s) => ({ label: s.label, color: s.color, value: String(s.value) }))} />
+          <div class="small faint">{o.games} Partien</div>
+        </div>
+      </div>
+
+      <div class="hero-cell">
+        <div class="kpi-label">Punkte gegen Erwartung</div>
+        {rc && rc.expected_score !== null && diff !== null ? (
+          <>
+            <div class="kpi-big tnum">
+              {rc.score.toFixed(1)}
+              <span class="kpi-unit"> / {rc.expected_score.toFixed(1)}</span>
+            </div>
+            <div class="expect-bar" aria-hidden="true">
+              <div class="fill" style={{ width: `${Math.min(100, (rc.score / Math.max(rc.rated_games, 1)) * 100)}%` }} />
+              <div class="bar-ref" style={{ left: `${Math.min(100, (rc.expected_score / Math.max(rc.rated_games, 1)) * 100)}%` }} />
+            </div>
+            <div class="small muted">
+              <span class={`pill ${diff >= 0.5 ? "win" : diff <= -0.5 ? "loss" : "draw"}`}>{signed(diff)}</span>{" "}
+              {diff >= 0.5 ? "mehr als" : diff <= -0.5 ? "weniger als" : "genau wie"} nach Wertung erwartet
+            </div>
+          </>
+        ) : (
+          <div class="small muted">Ohne Wertungen beider Spieler lässt sich keine Erwartung berechnen.</div>
+        )}
+      </div>
+
+      <div class="hero-cell with-chart">
+        <Gauge
+          value={profile.analyzed_games ? o.avg_accuracy : null}
+          reference={rc?.typical_accuracy}
+          label="Genauigkeit"
+          size={108}
+          format={(v) => v.toFixed(1)}
+        />
+        <div class="hero-side">
+          <div class="kpi-label">Genauigkeit</div>
+          {rc && accDelta !== null ? (
+            <div class="small muted">
+              <span class={`pill ${accDelta >= 2 ? "win" : accDelta <= -2 ? "loss" : "draw"}`}>{signed(accDelta)}</span> zum
+              Richtwert {rc.typical_accuracy.toFixed(0)} für {rc.rating}
+            </div>
+          ) : null}
+          <div class="small faint">{profile.analyzed_games} Partien analysiert</div>
+          {o.form_delta !== null && o.form_delta !== undefined && (
+            <div class="small muted">Form zuletzt: {signed(o.form_delta)}</div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ProfileView() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [usernames, setUsernames] = useState<string[] | null>(null);
@@ -61,6 +200,7 @@ export function ProfileView() {
   const [date, setDate] = useState("All Time");
   const [color, setColor] = useState("All Colors");
   const [version, setVersion] = useState(0);
+  const [ratingSpeed, setRatingSpeed] = useState<string | null>(null);
 
   useEffect(() => onDataChanged(() => setVersion((v) => v + 1)), []);
 
@@ -121,10 +261,10 @@ export function ProfileView() {
     return (
       <div>
         {header}
-        <div class="stat-tiles">
-          {[0, 1, 2, 3].map((k) => (
-            <div key={k} class="skeleton" style={{ height: "86px" }} />
-          ))}
+        <div class="dash">
+          <div class="skeleton span-12" style={{ height: "170px" }} />
+          <div class="skeleton span-6" style={{ height: "340px" }} />
+          <div class="skeleton span-6" style={{ height: "340px" }} />
         </div>
       </div>
     );
@@ -142,7 +282,10 @@ export function ProfileView() {
       <div>
         {header}
         <div class="empty">
-          <p>Keine Partien für {usernames?.join(", ")} gefunden{format !== "All Formats" || date !== "All Time" || color !== "All Colors" ? " (mit diesen Filtern)" : ""}.</p>
+          <p>
+            Keine Partien für {usernames?.join(", ")} gefunden
+            {format !== "All Formats" || date !== "All Time" || color !== "All Colors" ? " (mit diesen Filtern)" : ""}.
+          </p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
             Partien importieren
           </button>
@@ -152,258 +295,260 @@ export function ProfileView() {
   }
 
   const o = profile.overview;
-  const monthly = (profile.trends.monthly ?? []) as { month: string; avg_accuracy: number | null; score_pct: number; games: number }[];
+  const rc = profile.rating;
+  const typicalLabel = rc ? `Typisch für ${rc.rating}` : undefined;
+
+  const radarSkills = profile.skills.filter((s) => s.sample > 0);
+  const radar = radarSkills.map((s) => ({
+    key: s.key,
+    label: RADAR_LABELS[s.key] ?? s.name,
+    value: s.score,
+    typical: s.typical,
+    faint: !s.reliable,
+  }));
+  const skillRows: BarRow[] = profile.skills.map((s) => ({
+    label: s.name,
+    value: s.sample > 0 ? s.score : null,
+    reference: s.typical,
+    valueText: s.grade,
+    faint: !s.reliable,
+  }));
+
+  const phaseAcc = (o.phase_accuracy ?? {}) as Record<string, number>;
+  const phaseRows: BarRow[] = PHASES.map(([k, name]) => ({
+    label: name,
+    value: phaseAcc[k] ?? null,
+    reference: rc?.typical_phase_accuracy[k] ?? null,
+    valueText: pct(phaseAcc[k] ?? null, 1),
+  }));
+
+  const quality = qualitySegments(o.quality_counts ?? {});
+
+  type BRow = { label: string; games: number; score_pct: number; avg_accuracy: number; expected_pct: number | null };
+  const scoreRows = (rows: BRow[] | undefined): BarRow[] =>
+    (rows ?? []).map((r) => ({
+      label: r.label,
+      value: r.score_pct,
+      reference: r.expected_pct,
+      valueText: pct(r.score_pct),
+      note: [
+        `${r.games} ${r.games === 1 ? "Partie" : "Partien"}`,
+        r.expected_pct !== null ? `erwartet ${r.expected_pct.toFixed(0)} %` : "",
+        r.avg_accuracy ? `Genauigkeit ${r.avg_accuracy.toFixed(0)} %` : "",
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    }));
+
+  const monthly = (profile.trends.monthly ?? []) as { month: string; avg_accuracy: number | null; games: number }[];
   const accPoints = monthly
     .filter((m) => m.avg_accuracy !== null)
-    .map((m) => ({ label: `${m.month.slice(5, 7)}/${m.month.slice(2, 4)}`, value: m.avg_accuracy as number }));
+    .map((m) => ({
+      label: `${m.month.slice(5, 7)}/${m.month.slice(2, 4)}`,
+      value: m.avg_accuracy as number,
+      detail: `${m.month.slice(5, 7)}/${m.month.slice(0, 4)} · ${m.games} ${m.games === 1 ? "Partie" : "Partien"}`,
+    }));
   const ratingSeries = (profile.trends.ratings ?? {}) as Record<string, [number, number][]>;
+  const speeds = Object.keys(ratingSeries).sort((a, b) => ratingSeries[b].length - ratingSeries[a].length);
+  const shownSpeed = ratingSpeed && ratingSeries[ratingSpeed] ? ratingSpeed : speeds[0];
+  const ratingPoints = (ratingSeries[shownSpeed] ?? []).map(([ts, r]) => {
+    const d = new Date(ts * 1000);
+    return {
+      label: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
+      value: r,
+      detail: d.toLocaleDateString("de-DE"),
+    };
+  });
+
+  const openingRows = (lines: PlayerProfile["openings_best"]): BarRow[] =>
+    lines.map((l) => ({
+      label: `${l.name} (${l.color})`,
+      value: l.score_pct,
+      valueText: pct(l.score_pct),
+      note: `${l.games} ${l.games === 1 ? "Partie" : "Partien"}${l.avg_accuracy ? ` · Genauigkeit ${l.avg_accuracy.toFixed(0)} %` : ""}`,
+    }));
 
   return (
-    <div style={{ opacity: loading ? 0.6 : 1 }}>
+    <div class="profile" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
 
-      <div class="stat-tiles" style={{ marginBottom: "14px" }}>
-        <div class="stat-tile">
-          <div class="label">Partien</div>
-          <div class="value">{o.games}</div>
-          <div class="sub">
-            {o.wins} S · {o.draws} R · {o.losses} N
-          </div>
-        </div>
-        <div class="stat-tile">
-          <div class="label">Punkte-Quote</div>
-          <div class="value">{pct(o.score_pct)}</div>
-          <div class="sub">Siegquote {pct(o.win_rate)}</div>
-        </div>
-        <div class="stat-tile">
-          <div class="label">Ø Genauigkeit</div>
-          <div class="value">{pct(o.avg_accuracy, 1)}</div>
-          <div class="sub">
-            {o.form_delta !== null && o.form_delta !== undefined
-              ? `Form: ${o.form_delta >= 0 ? "+" : ""}${o.form_delta.toFixed(1)} Pkt.`
-              : `${profile.analyzed_games} analysiert`}
-          </div>
-        </div>
-        <div class="stat-tile">
-          <div class="label">Fehlerfreie Partien</div>
-          <div class="value">{pct(o.clean_games_pct)}</div>
-          <div class="sub">
-            {o.brilliant_moves ?? 0} brillante · {o.great_moves ?? 0} großartige Züge
-          </div>
-        </div>
-        {Object.entries((o.ratings ?? {}) as Record<string, number>).map(([k, v]) => (
-          <div class="stat-tile" key={k}>
-            <div class="label">Wertung {k}</div>
-            <div class="value">{v}</div>
-          </div>
-        ))}
-      </div>
+      <div class="dash">
+        <Hero profile={profile} />
 
-      {profile.is_empty ? (
-        <div class="card notice">
-          Noch keine deiner Partien ist analysiert. Analysiere ein paar Partien, dann erscheinen hier Fähigkeiten,
-          Stärken, Schwächen und dein Trainingsplan.
-        </div>
-      ) : (
-        <div class="masonry">
-          <div class="card">
-            <h3>Fähigkeiten</h3>
-            {profile.skills.map((s) => (
-              <div class="skill" key={s.key}>
-                <div class="head">
-                  <span>{s.name}</span>
-                  <span class="score" style={{ color: scoreColor(s.score) }}>
-                    {s.grade}
-                  </span>
-                </div>
-                <div class="bar">
-                  <div style={{ width: `${Math.max(2, s.score)}%`, background: scoreColor(s.score), opacity: s.reliable ? 1 : 0.45 }} />
-                </div>
-              </div>
-            ))}
-            <p class="muted small" style={{ marginBottom: 0 }}>
-              Schulnoten aus deinen analysierten Partien. Blasse Balken beruhen auf wenigen Daten.
-            </p>
+        {profile.is_empty ? (
+          <div class="card notice span-12">
+            Noch keine deiner Partien ist analysiert. Analysiere ein paar Partien, dann erscheinen hier Fähigkeiten,
+            Stärken, Schwächen und dein Trainingsplan.
           </div>
+        ) : (
+          <>
+            <Card title="Fähigkeiten-Netz" sub={rc ? "Richtwerte geschätzt" : undefined} span={6}>
+              <RadarChart axes={radar} typicalLabel={typicalLabel} />
+            </Card>
 
-          <div class="card">
-            <h3>Stärken</h3>
-            {profile.strengths.length ? (
-              profile.strengths.map((s) => (
-                <div class="insight pos" key={s.key}>
-                  <div class="t">{s.title}</div>
-                  <div class="small">{s.text}</div>
-                </div>
-              ))
-            ) : (
-              <p class="muted small">Noch keine klaren Stärken erkennbar.</p>
-            )}
-            <h3 style={{ marginTop: "16px" }}>Schwächen</h3>
-            {profile.weaknesses.length ? (
-              profile.weaknesses.map((s) => (
-                <div class="insight neg" key={s.key}>
-                  <div class="t">{s.title}</div>
-                  <div class="small">{s.text}</div>
-                </div>
-              ))
-            ) : (
-              <p class="muted small">Keine auffälligen Schwächen.</p>
-            )}
-          </div>
+            <Card title="Fähigkeiten im Detail" sub="0–100 Punkte" span={6}>
+              <BarList rows={skillRows} referenceLabel={typicalLabel} />
+              <p class="faint small tile-foot">Blasse Balken beruhen auf wenigen Daten.</p>
+            </Card>
 
-          {profile.style && (
-            <div class="card">
-              <h3>Spielstil: {profile.style.label}</h3>
-              <p class="small" style={{ marginTop: 0 }}>
-                {profile.style.description}
-              </p>
-              {profile.style.axes.map((a) => (
-                <div class="style-axis" key={a.key}>
-                  <div class="labels">
-                    <span>{a.low_label}</span>
-                    <strong style={{ color: "var(--text)" }}>{a.name}</strong>
-                    <span>{a.high_label}</span>
-                  </div>
-                  <div class="track">
-                    <div class="dot" style={{ left: `${a.value}%` }} />
-                  </div>
-                </div>
-              ))}
-              {profile.style.facts.map((f) => (
-                <div class="small muted" key={f}>
-                  • {f}
-                </div>
-              ))}
-            </div>
-          )}
+            <Card title="Genauigkeit nach Phase" span={4}>
+              <BarList rows={phaseRows} referenceLabel={typicalLabel} />
+            </Card>
 
-          <div class="card">
-            <h3>Wiederkehrende Muster</h3>
-            {profile.patterns.length ? (
-              profile.patterns.map((p) => (
-                <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
-                  <div class="t">{p.title}</div>
-                  <div class="small">{p.text}</div>
-                  <Examples refs={p.examples} />
-                </div>
-              ))
-            ) : (
-              <p class="muted small">Noch keine Muster gefunden.</p>
-            )}
-          </div>
+            <Card title="Zugqualität" sub="alle deine Züge" span={4}>
+              <StackBar segments={quality} />
+            </Card>
 
-          <div class="card">
-            <h3>Genauigkeit im Verlauf</h3>
-            <LineChart points={accPoints} format={(v) => `${v.toFixed(0)} %`} domain={[0, 100]} />
-          </div>
-
-          {Object.entries(ratingSeries).map(([speed, pts]) => (
-            <div class="card" key={speed}>
-              <h3>Wertung {speed}</h3>
-              <LineChart
-                points={pts.map(([ts, r]) => ({
-                  label: new Date(ts * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-                  value: r,
-                }))}
-                format={(v) => v.toFixed(0)}
-              />
-            </div>
-          ))}
-
-          {(profile.openings_best.length > 0 || profile.openings_worst.length > 0) && (
-            <div class="card">
-              <h3>Eröffnungen</h3>
-              {(
-                [
-                  ["Am erfolgreichsten", profile.openings_best],
-                  ["Hier verlierst du Punkte", profile.openings_worst],
-                ] as const
-              ).map(([title, lines]) =>
-                lines.length ? (
-                  <div key={title} style={{ marginBottom: "10px" }}>
-                    <div class="muted small" style={{ marginBottom: "4px" }}>
-                      {title}
-                    </div>
-                    <table class="table">
-                      <tbody>
-                        {lines.map((l) => (
-                          <tr key={l.name + l.color}>
-                            <td>
-                              {l.name} <span class="muted small">({l.color})</span>
-                            </td>
-                            <td class="num">{l.games}</td>
-                            <td class="num">{pct(l.score_pct)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null,
+            <Card title="Nach Gegnerstärke" sub="Punkte gegen Erwartung" span={4}>
+              {profile.breakdowns.opponent?.length ? (
+                <BarList rows={scoreRows(profile.breakdowns.opponent)} referenceLabel="Erwartet nach Elo" />
+              ) : (
+                <p class="muted small">Keine Wertungszahlen in den Partien.</p>
               )}
-            </div>
-          )}
+            </Card>
 
-          <div class="card">
-            <h3>Aufschlüsselung</h3>
-            {(
-              [
-                ["Nach Farbe", profile.breakdowns.color],
-                ["Nach Bedenkzeit", profile.breakdowns.speed],
-                ["Nach Gegnerstärke", profile.breakdowns.opponent],
-              ] as const
-            ).map(([title, rows]) =>
-              rows && rows.length ? (
-                <table class="table" key={title} style={{ marginBottom: "10px" }}>
-                  <thead>
-                    <tr>
-                      <th>{title}</th>
-                      <th class="num">Partien</th>
-                      <th class="num">Punkte</th>
-                      <th class="num">Genauigkeit</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(rows as { label: string; games: number; score_pct: number; avg_accuracy: number }[]).map((r) => (
-                      <tr key={r.label}>
-                        <td>{r.label}</td>
-                        <td class="num">{r.games}</td>
-                        <td class="num">{pct(r.score_pct)}</td>
-                        <td class="num">{r.avg_accuracy ? pct(r.avg_accuracy, 1) : "–"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : null,
-            )}
-          </div>
+            <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
+              <AreaChart
+                points={accPoints}
+                format={(v) => `${v.toFixed(0)}`}
+                domain={[0, 100]}
+                reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
+              />
+            </Card>
 
-          {profile.training_plan.length > 0 && (
-            <div class="card">
-              <h3>Dein Trainingsplan</h3>
-              {profile.training_plan.map((t) => (
-                <div class="insight mid" key={t.title}>
-                  <div class="t">
-                    {t.priority}. {t.title}
+            <Card title="Wertungsverlauf" sub={shownSpeed} span={6}>
+              {speeds.length > 1 && (
+                <div class="segmented small-seg">
+                  {speeds.map((sp) => (
+                    <button key={sp} class={sp === shownSpeed ? "active" : ""} onClick={() => setRatingSpeed(sp)}>
+                      {sp}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
+            </Card>
+
+            <Card title="Stärken" span={6}>
+              <InsightList items={profile.strengths} tone="pos" empty="Noch keine klaren Stärken erkennbar." />
+            </Card>
+
+            <Card title="Schwächen" span={6}>
+              <InsightList items={profile.weaknesses} tone="neg" empty="Keine auffälligen Schwächen." />
+            </Card>
+
+            {profile.style && (
+              <Card title={`Spielstil: ${profile.style.label}`} span={6}>
+                <p class="small" style={{ marginTop: 0 }}>
+                  {profile.style.description}
+                </p>
+                {profile.style.axes.map((a) => (
+                  <div class="style-axis" key={a.key}>
+                    <div class="labels">
+                      <span>{a.low_label}</span>
+                      <strong>{a.name}</strong>
+                      <span>{a.high_label}</span>
+                    </div>
+                    <div class="track">
+                      <div class="dot" style={{ left: `${a.value}%` }} />
+                    </div>
                   </div>
-                  <div class="small muted">{t.reason}</div>
-                  <ul style={{ margin: "4px 0 0", paddingLeft: "18px" }}>
-                    {t.steps.map((s) => (
-                      <li class="small training-step" key={s}>
-                        {s}
-                      </li>
+                ))}
+                {profile.style.facts.length > 0 && (
+                  <ul class="facts">
+                    {profile.style.facts.map((f) => (
+                      <li key={f}>{f}</li>
                     ))}
                   </ul>
-                  <Examples refs={t.examples} />
+                )}
+              </Card>
+            )}
+
+            <Card title="Wiederkehrende Muster" span={profile.style ? 6 : 12}>
+              {profile.patterns.length ? (
+                <div class="insights">
+                  {profile.patterns.map((p) => (
+                    <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
+                      <div class="t">{p.title}</div>
+                      <div class="small">{p.text}</div>
+                      <Examples refs={p.examples} />
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {profile.puzzles.length > 0 && (
-                <button class="btn primary" onClick={() => navigate({ view: "training" })}>
-                  {profile.puzzles.length} Aufgaben aus deinen Partien lösen
-                </button>
+              ) : (
+                <p class="muted small">Noch keine Muster gefunden.</p>
               )}
-            </div>
-          )}
-        </div>
+            </Card>
+
+            <Card title="Nach Farbe und Bedenkzeit" sub="Punkte-Quote" span={6}>
+              <h4>Farbe</h4>
+              <BarList rows={scoreRows(profile.breakdowns.color)} />
+              {(profile.breakdowns.speed?.length ?? 0) > 0 && (
+                <>
+                  <h4>Bedenkzeit</h4>
+                  <BarList rows={scoreRows(profile.breakdowns.speed)} referenceLabel="Erwartet nach Elo" />
+                </>
+              )}
+            </Card>
+
+            <Card title="Eröffnungen" sub="Punkte-Quote · Partien" span={6}>
+              {profile.openings_best.length || profile.openings_worst.length ? (
+                <>
+                  {profile.openings_best.length > 0 && (
+                    <>
+                      <h4>Am erfolgreichsten</h4>
+                      <BarList rows={openingRows(profile.openings_best)} />
+                    </>
+                  )}
+                  {profile.openings_worst.length > 0 && (
+                    <>
+                      <h4>Hier verlierst du Punkte</h4>
+                      <BarList rows={openingRows(profile.openings_worst)} />
+                    </>
+                  )}
+                </>
+              ) : (
+                <p class="muted small">Noch zu wenige Partien pro Eröffnung.</p>
+              )}
+            </Card>
+
+            {profile.training_plan.length > 0 && (
+              <section class="card tile span-12">
+                <div class="tile-head">
+                  <h3>Dein Trainingsplan</h3>
+                  {profile.puzzles.length > 0 && (
+                    <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
+                      {profile.puzzles.length} Aufgaben lösen
+                    </button>
+                  )}
+                </div>
+                <div class="plan">
+                  {profile.training_plan.map((t) => (
+                    <div class="plan-item" key={t.title}>
+                      <div class="plan-num">{t.priority}</div>
+                      <div class="t">{t.title}</div>
+                      <div class="small muted">{t.reason}</div>
+                      <ul>
+                        {t.steps.map((s) => (
+                          <li class="small" key={s}>
+                            {s}
+                          </li>
+                        ))}
+                      </ul>
+                      <Examples refs={t.examples} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
+      {rc && !profile.is_empty && (
+        <p class="faint small" style={{ marginTop: "14px" }}>
+          „Typisch für {rc.rating}“ sind geschätzte Richtwerte für Online-Partien in dieser Wertungsklasse. Die Erwartung
+          nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.
+        </p>
       )}
     </div>
   );

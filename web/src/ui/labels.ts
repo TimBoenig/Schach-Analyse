@@ -109,3 +109,21 @@ export function outcomeFor(result: string, color: "white" | "black" | null): Out
   if (result === "1/2-1/2") return "draw";
   return (result === "1-0") === (color === "white") ? "win" : "loss";
 }
+
+// Move quality folded into five steps, best to worst, in the classification colours.
+const QUALITY_GROUPS: { label: string; keys: Classification[]; color: string }[] = [
+  { label: "Brillant & bester Zug", keys: ["Brilliant", "Great", "Best"], color: "var(--best)" },
+  { label: "Exzellent, gut & Buch", keys: ["Excellent", "Good", "Book"], color: "var(--good)" },
+  { label: "Ungenauigkeiten", keys: ["Inaccuracy"], color: "var(--inacc)" },
+  { label: "Fehler & Verpasstes", keys: ["Mistake", "Miss"], color: "var(--mistake)" },
+  { label: "Patzer", keys: ["Blunder"], color: "var(--blunder)" },
+];
+
+/** Classification counts grouped for the quality distribution bar. */
+export function qualitySegments(counts: Partial<Record<string, number>>): { label: string; value: number; color: string }[] {
+  return QUALITY_GROUPS.map((g) => ({
+    label: g.label,
+    value: g.keys.reduce((s, k) => s + Number(counts[k] ?? 0), 0),
+    color: g.color,
+  }));
+}
