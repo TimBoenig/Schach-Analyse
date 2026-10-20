@@ -26,11 +26,15 @@ class ThemeMixin:
             )
             if hasattr(self, "move_list_panel"):
                 self.move_list_panel.update_engine_path(new_path)
-            self.show_toast("Engine path updated. Future analyses will use the new engine.", "info")
+            self.show_toast(
+                "Engine-Pfad aktualisiert. Künftige Analysen nutzen die neue Engine.", "info"
+            )
         except Exception as e:
             logger.error(f"Failed to update engine: {e}")
             QMessageBox.warning(
-                self, "Warning", f"Engine path updated, but failed to initialize: {e}"
+                self,
+                "Warnung",
+                f"Engine-Pfad aktualisiert, aber Initialisierung fehlgeschlagen: {e}",
             )
         finally:
             self._refresh_engine_status()
@@ -217,12 +221,12 @@ class ThemeMixin:
                 f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
             )
         if hasattr(self, "_engine_pill"):
-            state = self._engine_pill.text()
-            if "Offline" in state:
+            state = getattr(self, "_engine_state", "ready")
+            if state == "offline":
                 self._engine_pill.setStyleSheet(
                     f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
                 )
-            elif "Calculating" in state:
+            elif state == "calculating":
                 self._engine_pill.setStyleSheet(
                     f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
                 )

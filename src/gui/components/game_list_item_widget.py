@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayou
 from ...utils.config import ConfigManager
 from ...utils.logger import logger
 from ...utils.path_utils import get_resource_path
+from ...utils.translations import tr_speed
 from ..styles import Styles
 from ..theme.palette import BOARD_THEMES
 
@@ -78,7 +79,9 @@ class GameListItemWidget(QWidget):
             game.metadata.time_control
         )
         formatted_tc = self._format_time_control(game.metadata.time_control)
-        tc_display = f"{speed_cat} {formatted_tc}".strip() if formatted_tc else speed_cat
+        tc_display = (
+            f"{tr_speed(speed_cat)} {formatted_tc}".strip() if formatted_tc else tr_speed(speed_cat)
+        )
         tc_icon = self._get_time_control_icon(game.metadata.time_control)
         tc_widget = self._create_meta_item(tc_icon, tc_display)
         tc_widget.setFixedWidth(130)
@@ -184,7 +187,7 @@ class GameListItemWidget(QWidget):
 
         move_count = self._get_move_count(game)
         if move_count:
-            moves_lbl = QLabel(f"{move_count}m")
+            moves_lbl = QLabel(f"{move_count} Z.")
             moves_lbl.setStyleSheet(
                 Styles.get_label_style(size=11, color=Styles.COLOR_TEXT_MUTED)
                 + " "
@@ -246,7 +249,7 @@ class GameListItemWidget(QWidget):
             if crown_label:
                 header_layout.addWidget(crown_label)
 
-        vs_label = QLabel("vs")
+        vs_label = QLabel("gegen")
         vs_label.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED)
             + "; margin: 0 4px; "
@@ -328,9 +331,9 @@ class GameListItemWidget(QWidget):
         )
         formatted_tc = self._format_time_control(game.metadata.time_control)
         speed_display = (
-            f"{speed_cat} {formatted_tc}".strip()
+            f"{tr_speed(speed_cat)} {formatted_tc}".strip()
             if formatted_tc and formatted_tc not in ("-", "?")
-            else speed_cat
+            else tr_speed(speed_cat)
         )
         tc_icon = self._get_time_control_icon(game.metadata.time_control)
         tc_widget = self._create_meta_item(tc_icon, speed_display)
@@ -349,7 +352,7 @@ class GameListItemWidget(QWidget):
         # Move count
         move_count = self._get_move_count(game)
         if move_count:
-            moves_widget = self._create_meta_item("fa5s.chess-pawn", f"{move_count} moves")
+            moves_widget = self._create_meta_item("fa5s.chess-pawn", f"{move_count} Züge")
             meta_layout.addWidget(moves_widget)
 
         # Human-Readable Termination Description
@@ -410,13 +413,13 @@ class GameListItemWidget(QWidget):
 
         if getattr(self, "_is_analyzing", False):
             action_btn.setStyleSheet(Styles.get_card_action_icon_button_style("paused"))
-            status_lbl = QLabel("Analyzing...")
+            status_lbl = QLabel("Wird analysiert …")
             status_lbl.setStyleSheet(
                 Styles.get_result_badge_style(
                     Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
                 )
             )
-            action_btn.setToolTip("View ongoing analysis")
+            action_btn.setToolTip("Laufende Analyse ansehen")
             if HAS_QTAWESOME:
                 action_btn.setIcon(qta.icon("fa5s.arrow-right", color=Styles.COLOR_ENGINE_BUSY))
             else:
@@ -429,13 +432,13 @@ class GameListItemWidget(QWidget):
         action_btn.setStyleSheet(Styles.get_card_action_icon_button_style(status))
 
         if status == "completed":
-            status_lbl = QLabel("Analyzed")
+            status_lbl = QLabel("Analysiert")
             status_lbl.setStyleSheet(
                 Styles.get_result_badge_style(
                     Styles.COLOR_ENGINE_READY, badge_font_size, badge_padding, 4
                 )
             )
-            action_btn.setToolTip("Reanalyze game")
+            action_btn.setToolTip("Partie erneut analysieren")
             if HAS_QTAWESOME:
                 action_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))
             else:
@@ -446,26 +449,26 @@ class GameListItemWidget(QWidget):
             total = getattr(self._game, "total_moves_count", 0) or len(
                 getattr(self._game, "moves", [])
             )
-            status_lbl = QLabel(f"Paused ({analyzed}/{total})")
+            status_lbl = QLabel(f"Pausiert ({analyzed}/{total})")
             status_lbl.setStyleSheet(
                 Styles.get_result_badge_style(
                     Styles.COLOR_ENGINE_BUSY, badge_font_size, badge_padding, 4
                 )
             )
-            action_btn.setToolTip(f"Resume analysis ({analyzed}/{total})")
+            action_btn.setToolTip(f"Analyse fortsetzen ({analyzed}/{total})")
             if HAS_QTAWESOME:
                 action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_ENGINE_BUSY))
             else:
                 action_btn.setText("▶")
             action_btn.clicked.connect(lambda: self.action_requested.emit(self._game, "resume"))
         else:
-            status_lbl = QLabel("Unanalyzed")
+            status_lbl = QLabel("Nicht analysiert")
             status_lbl.setStyleSheet(
                 Styles.get_result_badge_style(
                     Styles.COLOR_TEXT_MUTED, badge_font_size, badge_padding, 4
                 )
             )
-            action_btn.setToolTip("Analyze game")
+            action_btn.setToolTip("Partie analysieren")
             if HAS_QTAWESOME:
                 action_btn.setIcon(qta.icon("fa5s.play", color=Styles.COLOR_TEXT_SECONDARY))
             else:
@@ -477,7 +480,7 @@ class GameListItemWidget(QWidget):
     def _create_delete_button(self, btn_size: int = 22):
         del_btn = QPushButton()
         del_btn.setFixedSize(btn_size, btn_size)
-        del_btn.setToolTip("Delete game")
+        del_btn.setToolTip("Partie löschen")
         if HAS_QTAWESOME:
             del_btn.setIcon(qta.icon("fa5s.trash-alt", color=Styles.COLOR_TEXT_MUTED))
         else:
@@ -795,7 +798,7 @@ class GameListItemWidget(QWidget):
 
         menu = QMenu(self)
         menu.setStyleSheet(Styles.get_menu_style())
-        act_delete = menu.addAction("🗑  Delete from history")
+        act_delete = menu.addAction("🗑  Aus dem Verlauf löschen")
         chosen = menu.exec(event.globalPos())
         if chosen is act_delete:
             game_id = getattr(self._game, "game_id", None)

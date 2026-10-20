@@ -15,6 +15,7 @@ from src.gui.metrics.charts import create_donut_figure, fig_to_canvas
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import resolve_asset
 from src.gui.views.metrics.base_card import MetricCard
+from src.utils.translations import tr_termination
 
 
 class EndingDistributionCard(MetricCard):
@@ -25,7 +26,7 @@ class EndingDistributionCard(MetricCard):
 
         self.segmented_control = self._build_segmented_control()
         super().__init__(
-            "Ending Distribution",
+            "Partieenden",
             parent=parent,
             max_height=310,
             action_widget=self.segmented_control,
@@ -45,10 +46,10 @@ class EndingDistributionCard(MetricCard):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
-        self.btn_all = QPushButton("All")
-        self.btn_won = QPushButton("Won")
-        self.btn_lost = QPushButton("Lost")
-        self.btn_drawn = QPushButton("Drawn")
+        self.btn_all = QPushButton("Alle")
+        self.btn_won = QPushButton("Gewonnen")
+        self.btn_lost = QPushButton("Verloren")
+        self.btn_drawn = QPushButton("Remis")
 
         for btn, mode in [
             (self.btn_all, "all"),
@@ -117,11 +118,11 @@ class EndingDistributionCard(MetricCard):
         if self.current_mode == "won":
             counts = self.stats.get("win_term_counts", {})
             keys = ["Checkmate", "Resignation", "Time", "Abandon"]
-            center_suffix = "Won"
+            center_suffix = "Siege"
         elif self.current_mode == "lost":
             counts = self.stats.get("loss_term_counts", {})
             keys = ["Checkmate", "Resignation", "Time", "Abandon"]
-            center_suffix = "Lost"
+            center_suffix = "Niederl."
         elif self.current_mode == "drawn":
             counts = self.stats.get("draw_term_counts", {})
             keys = [
@@ -132,7 +133,7 @@ class EndingDistributionCard(MetricCard):
                 "Insufficient Material",
                 "50-Move Rule",
             ]
-            center_suffix = "Drawn"
+            center_suffix = "Remis"
         else:
             counts = self.stats.get("term_counts", {})
             keys = ["Checkmate", "Resignation", "Time", "Draw", "Abandon"]
@@ -207,11 +208,12 @@ class EndingDistributionCard(MetricCard):
         legend_layout.setSpacing(6)
 
         if total_endings == 0:
-            mode_label = (
-                f"No {self.current_mode} games recorded"
-                if self.current_mode != "all"
-                else "No games recorded"
-            )
+            mode_labels = {
+                "won": "Keine gewonnenen Partien erfasst",
+                "lost": "Keine verlorenen Partien erfasst",
+                "drawn": "Keine Remispartien erfasst",
+            }
+            mode_label = mode_labels.get(self.current_mode, "Keine Partien erfasst")
             empty_lbl = QLabel(mode_label)
             empty_lbl.setStyleSheet(
                 f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-style: italic; border: none; background: transparent;"
@@ -262,7 +264,7 @@ class EndingDistributionCard(MetricCard):
                     )
                     row.addWidget(dot)
 
-                lbl_name = QLabel(k)
+                lbl_name = QLabel(tr_termination(k))
                 lbl_name.setStyleSheet(
                     f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500; border: none; background: transparent;"
                 )
@@ -287,7 +289,7 @@ class EndingDistributionCard(MetricCard):
             time_loss_pct = self.stats.get("time_loss_pct", 0.0)
             losses = self.stats.get("losses", 0)
             if time_loss_pct >= 25.0 and losses >= 3:
-                alert_lbl = QLabel(f"Clock Alert: {time_loss_pct:.0f}% of losses on time")
+                alert_lbl = QLabel(f"Zeitalarm: {time_loss_pct:.0f}% der Niederlagen auf Zeit")
                 alert_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 alert_lbl.setStyleSheet("""
                     background-color: rgba(230, 126, 34, 0.15);

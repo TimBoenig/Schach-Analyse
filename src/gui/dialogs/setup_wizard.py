@@ -42,6 +42,7 @@ class StockfishDownloadWorker(QThread):
 
     def run(self):
         import shutil
+
         # 1. On macOS, try installing Stockfish via Homebrew first
         if sys.platform == "darwin":
             brew_path = shutil.which("brew")
@@ -54,16 +55,24 @@ class StockfishDownloadWorker(QThread):
 
             if brew_path:
                 self.progress.emit(20)
-                logger.info("StockfishDownloadWorker: attempting Homebrew installation via %s", brew_path)
+                logger.info(
+                    "StockfishDownloadWorker: attempting Homebrew installation via %s", brew_path
+                )
                 try:
                     import subprocess
+
                     result = subprocess.run(
                         [brew_path, "install", "stockfish"],
-                        capture_output=True, text=True, timeout=120
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
                     )
                     if result.returncode == 0:
                         # Check if stockfish binary exists in standard brew paths
-                        for candidate in ["/opt/homebrew/bin/stockfish", "/usr/local/bin/stockfish"]:
+                        for candidate in [
+                            "/opt/homebrew/bin/stockfish",
+                            "/usr/local/bin/stockfish",
+                        ]:
                             if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                                 self.progress.emit(100)
                                 self.finished.emit(candidate)
@@ -74,7 +83,9 @@ class StockfishDownloadWorker(QThread):
                             self.progress.emit(100)
                             self.finished.emit(which_sf)
                             return
-                    logger.warning("StockfishDownloadWorker: Homebrew installation failed: %s", result.stderr)
+                    logger.warning(
+                        "StockfishDownloadWorker: Homebrew installation failed: %s", result.stderr
+                    )
                 except Exception as e:
                     logger.warning("StockfishDownloadWorker: Homebrew installation crashed: %s", e)
                 # If Homebrew failed or did not resolve the binary, fall back to Github releases.
@@ -85,7 +96,7 @@ class StockfishDownloadWorker(QThread):
             candidates = get_download_candidates()
             if not candidates:
                 raise RuntimeError(
-                    "No compatible Stockfish download was found for this platform"
+                    "Für diese Plattform wurde kein passender Stockfish-Download gefunden"
                 )
 
             def progress_callback(downloaded, total):
@@ -98,7 +109,9 @@ class StockfishDownloadWorker(QThread):
                 progress_callback=progress_callback,
                 fallback_urls=candidates[1:],
             )
-            logger.info(f"StockfishDownloadWorker: successfully downloaded Stockfish to {binary_path}")
+            logger.info(
+                f"StockfishDownloadWorker: successfully downloaded Stockfish to {binary_path}"
+            )
             self.finished.emit(binary_path)
             return
         except Exception as e:
@@ -108,7 +121,9 @@ class StockfishDownloadWorker(QThread):
         # 3. Distro package manager fallback (Linux and friends)
         pm_path = try_package_manager_install()
         if pm_path:
-            logger.info(f"StockfishDownloadWorker: package manager installed Stockfish to {pm_path}")
+            logger.info(
+                f"StockfishDownloadWorker: package manager installed Stockfish to {pm_path}"
+            )
             self.finished.emit(pm_path)
             return
 
@@ -126,7 +141,7 @@ class SetupWizard(QDialog):
         self.settings = {}
         self.current_page = 0
 
-        self.setWindowTitle("Chess Analyzer Pro - Setup")
+        self.setWindowTitle("Chess Analyzer Pro – Einrichtung")
         self.setFixedSize(self.WIZARD_WIDTH, self.WIZARD_HEIGHT)
         self.setStyleSheet(self._build_stylesheet())
 
@@ -183,7 +198,7 @@ class SetupWizard(QDialog):
         self.setStyleSheet(self._build_stylesheet())
         self.nav_bar.refresh_accent()
         self.nav_bar.update(self.current_page)
-        if hasattr(self, 'done_btn'):
+        if hasattr(self, "done_btn"):
             self.done_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Styles.COLOR_ACCENT};
@@ -196,21 +211,21 @@ class SetupWizard(QDialog):
                 }}
                 QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
             """)
-        if hasattr(self, 'ready_label'):
+        if hasattr(self, "ready_label"):
             self.ready_label.setStyleSheet(
                 f"font-size: 15px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
             )
-        if hasattr(self, 'wizard_theme_combo'):
+        if hasattr(self, "wizard_theme_combo"):
             self.wizard_theme_combo.setStyleSheet(Styles.get_combobox_style())
-        if hasattr(self, 'llm_test_btn'):
+        if hasattr(self, "llm_test_btn"):
             self.llm_test_btn.setStyleSheet(Styles.get_control_button_style())
-        if hasattr(self, 'sf_download_btn'):
+        if hasattr(self, "sf_download_btn"):
             self.sf_download_btn.setStyleSheet(Styles.get_button_style())
-        if hasattr(self, 'provider_label'):
+        if hasattr(self, "provider_label"):
             self.provider_label.setStyleSheet(
                 f"font-size: 14px; font-weight: bold; color: {Styles.COLOR_ACCENT}; background: transparent;"
             )
-        if hasattr(self, 'wizard_accent_btn') and self.wizard_accent_color != "#FF9500":
+        if hasattr(self, "wizard_accent_btn") and self.wizard_accent_color != "#FF9500":
             c = self.wizard_accent_color
             self.wizard_accent_btn.setStyleSheet(f"""
                 QPushButton {{
@@ -225,7 +240,7 @@ class SetupWizard(QDialog):
                     background-color: {c}CC;
                 }}
             """)
-        if hasattr(self, 'get_started_btn'):
+        if hasattr(self, "get_started_btn"):
             self.get_started_btn.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {Styles.COLOR_ACCENT};
@@ -238,21 +253,24 @@ class SetupWizard(QDialog):
                 }}
                 QPushButton:hover {{ background-color: {Styles.COLOR_ACCENT_HOVER}; }}
             """)
-        if hasattr(self, 'sf_progress'):
+        if hasattr(self, "sf_progress"):
             self.sf_progress.setStyleSheet(Styles.get_progress_bar_style())
         self._update_done_icon()
 
     def _update_done_icon(self):
-        if not hasattr(self, 'done_icon_label'):
+        if not hasattr(self, "done_icon_label"):
             return
         try:
             import qtawesome as qta
+
             icon = qta.icon("fa5s.check-circle", color=Styles.COLOR_ACCENT)
             pixmap = icon.pixmap(80, 80)
             self.done_icon_label.setPixmap(pixmap)
         except Exception:
             self.done_icon_label.setText("✓")
-            self.done_icon_label.setStyleSheet(f"font-size: 72px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;")
+            self.done_icon_label.setStyleSheet(
+                f"font-size: 72px; color: {Styles.COLOR_ACCENT}; font-weight: bold; background: transparent;"
+            )
 
     def _show_page(self, index):
         self.current_page = index
@@ -266,9 +284,9 @@ class SetupWizard(QDialog):
             engine = self.settings.get("engine_path") or self.config_manager.get("engine_path")
             if engine and engine != "stockfish":
                 # Get just the filename/basename to keep it clean
-                parts.append(f"✓ Chess Engine: {os.path.basename(engine)}")
+                parts.append(f"✓ Schach-Engine: {os.path.basename(engine)}")
             else:
-                parts.append("⚠ Chess Engine: Not configured")
+                parts.append("⚠ Schach-Engine: Nicht eingerichtet")
 
             llm_key = self.settings.get("groq_api_key")
             if not llm_key:
@@ -276,21 +294,25 @@ class SetupWizard(QDialog):
                 if active_profile:
                     llm_key = active_profile.get("api_key")
             if llm_key:
-                parts.append("✓ AI Coach (Groq): Connected")
+                parts.append("✓ KI-Coach (Groq): Verbunden")
             else:
-                parts.append("✓ AI Coach: Skipped (configure later in Settings)")
+                parts.append("✓ KI-Coach: Übersprungen (später in den Einstellungen einrichten)")
 
-            cc = self.settings.get("chesscom_username") or self.config_manager.get("chesscom_username")
-            li = self.settings.get("lichess_username") or self.config_manager.get("lichess_username")
+            cc = self.settings.get("chesscom_username") or self.config_manager.get(
+                "chesscom_username"
+            )
+            li = self.settings.get("lichess_username") or self.config_manager.get(
+                "lichess_username"
+            )
             accounts = []
             if cc:
                 accounts.append("Chess.com")
             if li:
                 accounts.append("Lichess")
             if accounts:
-                parts.append(f"✓ Accounts: Linked ({', '.join(accounts)})")
+                parts.append(f"✓ Konten: Verknüpft ({', '.join(accounts)})")
             else:
-                parts.append("✓ Accounts: Skipped")
+                parts.append("✓ Konten: Übersprungen")
 
             self.summary_label.setText("\n".join(parts))
 
@@ -330,7 +352,7 @@ class SetupWizard(QDialog):
             self.settings["lichess_token"] = self.lichess_token_input.text().strip()
         elif idx == 3:
             if hasattr(self, "wizard_theme_combo"):
-                self.settings["board_theme"] = self.wizard_theme_combo.currentText()
+                self.settings["board_theme"] = self.wizard_theme_combo.currentData() or "Green"
                 self.settings["accent_color"] = self.wizard_accent_color
         elif idx == 5:
             key = self.llm_key_input.text().strip()
@@ -344,8 +366,8 @@ class SetupWizard(QDialog):
 
     def _run_gatekeeper(self):
         if getattr(sys, "frozen", False) and sys.platform == "darwin":
-            self.gatekeeper_label.setText("Checking Gatekeeper...")
-            self.gatekeeper_detail.setText("Ensuring the app runs smoothly on macOS.")
+            self.gatekeeper_label.setText("Gatekeeper wird geprüft...")
+            self.gatekeeper_detail.setText("Damit die App unter macOS reibungslos läuft.")
 
             app_bundle = os.path.dirname(sys.executable)
             while not app_bundle.endswith(".app") and app_bundle != "/":
@@ -354,25 +376,28 @@ class SetupWizard(QDialog):
             if app_bundle.endswith(".app"):
                 result = subprocess.run(
                     ["xattr", "-p", "com.apple.quarantine", app_bundle],
-                    capture_output=True, text=True, timeout=5,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
                 if result.returncode == 0 and result.stdout.strip():
                     subprocess.run(
                         ["xattr", "-dr", "com.apple.quarantine", app_bundle],
-                        stderr=subprocess.DEVNULL, timeout=5,
+                        stderr=subprocess.DEVNULL,
+                        timeout=5,
                     )
-                    self.gatekeeper_label.setText("Restrictions removed")
-                    self.gatekeeper_detail.setText("Gatekeeper has been configured.")
+                    self.gatekeeper_label.setText("Einschränkungen entfernt")
+                    self.gatekeeper_detail.setText("Gatekeeper wurde eingerichtet.")
                     logger.info("Gatekeeper: removed quarantine from .app bundle")
                 else:
-                    self.gatekeeper_label.setText("No restrictions found")
-                    self.gatekeeper_detail.setText("Your system is all set.")
+                    self.gatekeeper_label.setText("Keine Einschränkungen gefunden")
+                    self.gatekeeper_detail.setText("Dein System ist startklar.")
             else:
-                self.gatekeeper_label.setText("Skipped")
-                self.gatekeeper_detail.setText("Not running from a bundled .app.")
+                self.gatekeeper_label.setText("Übersprungen")
+                self.gatekeeper_detail.setText("Läuft nicht aus einer gebündelten .app.")
         else:
-            self.gatekeeper_label.setText("Skipped")
-            self.gatekeeper_detail.setText("Gatekeeper check not needed in this environment.")
+            self.gatekeeper_label.setText("Übersprungen")
+            self.gatekeeper_detail.setText("Gatekeeper-Prüfung ist in dieser Umgebung nicht nötig.")
 
         QTimer.singleShot(800, lambda: self._show_page(1))
 
@@ -384,17 +409,17 @@ class SetupWizard(QDialog):
 
         path = resolve_engine_path(self.config_manager)
         if path:
-            self.sf_status.setText("Stockfish ready")
+            self.sf_status.setText("Stockfish bereit")
             self.sf_status.setStyleSheet(
                 f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
             )
-            self.sf_detail.setText(f"Found at {path}")
+            self.sf_detail.setText(f"Gefunden unter {path}")
             self.sf_detail.setVisible(True)
             self.sf_download_btn.setVisible(False)
             self.sf_progress.setVisible(False)
             self.settings["engine_path"] = path
         else:
-            self.sf_status.setText("Stockfish not found")
+            self.sf_status.setText("Stockfish nicht gefunden")
             self.sf_status.setStyleSheet(
                 f"font-size: 14px; color: {Styles.COLOR_MISTAKE}; background: transparent;"
             )
@@ -407,7 +432,7 @@ class SetupWizard(QDialog):
         self.sf_download_btn.setVisible(False)
         self.sf_progress.setVisible(True)
         self.sf_progress.setValue(0)
-        self.sf_status.setText("Downloading Stockfish...")
+        self.sf_status.setText("Stockfish wird heruntergeladen...")
         self.sf_status.setStyleSheet("font-size: 14px; background: transparent;")
 
         dest_dir = get_engine_data_dir()
@@ -424,59 +449,60 @@ class SetupWizard(QDialog):
     def _on_download_finished(self, binary_path):
         self.sf_progress.setValue(100)
         invalidate_engine_cache()
-        self.sf_status.setText("Stockfish downloaded")
+        self.sf_status.setText("Stockfish heruntergeladen")
         self.sf_status.setStyleSheet(
             f"font-size: 14px; color: {Styles.COLOR_BEST}; font-weight: bold; background: transparent;"
         )
         self.settings["engine_path"] = binary_path
-        self.sf_detail.setText(f"Found at {binary_path}")
+        self.sf_detail.setText(f"Gefunden unter {binary_path}")
         self.sf_detail.setVisible(True)
         logger.info("SetupWizard: Stockfish downloaded to %s", binary_path)
 
     def _on_download_error(self, err_msg):
         logger.error("SetupWizard: Stockfish download failed: %s", err_msg)
-        self.sf_status.setText(f"Download failed: {err_msg}")
+        self.sf_status.setText(f"Download fehlgeschlagen: {err_msg}")
         self.sf_status.setStyleSheet(
             f"font-size: 14px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
         )
-        self.sf_download_btn.setText("Retry")
+        self.sf_download_btn.setText("Erneut versuchen")
         self.sf_download_btn.setVisible(True)
 
     def _test_llm(self):
         key = self.llm_key_input.text().strip()
         if not key:
-            self.llm_test_result.setText("Enter an API key first")
+            self.llm_test_result.setText("Gib zuerst einen API-Schlüssel ein")
             self.llm_test_result.setStyleSheet(
                 f"font-size: 13px; color: {Styles.COLOR_MISTAKE}; margin-top: 4px; background: transparent;"
             )
             return
 
         self.llm_test_btn.setEnabled(False)
-        self.llm_test_btn.setText("Testing...")
+        self.llm_test_btn.setText("Wird getestet...")
         self.llm_test_result.setText("")
         QApplication.processEvents()
 
         try:
             from openai import OpenAI
+
             client = OpenAI(api_key=key, base_url="https://api.groq.com/openai/v1")
             client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": "Reply with just the word: ok"}],
                 max_tokens=10,
             )
-            self.llm_test_result.setText("Connection successful")
+            self.llm_test_result.setText("Verbindung erfolgreich")
             self.llm_test_result.setStyleSheet(
                 f"font-size: 13px; color: {Styles.COLOR_BEST}; background: transparent;"
             )
             self.settings["groq_api_key"] = key
         except Exception as e:
-            self.llm_test_result.setText(f"Failed: {e}")
+            self.llm_test_result.setText(f"Fehlgeschlagen: {e}")
             self.llm_test_result.setStyleSheet(
                 f"font-size: 13px; color: {Styles.COLOR_BLUNDER}; background: transparent;"
             )
         finally:
             self.llm_test_btn.setEnabled(True)
-            self.llm_test_btn.setText("Test Connection")
+            self.llm_test_btn.setText("Verbindung testen")
 
     def _persist_settings(self):
         cfg = self.config_manager
@@ -497,12 +523,14 @@ class SetupWizard(QDialog):
             if groq_profile:
                 groq_profile["api_key"] = self.settings["groq_api_key"]
             else:
-                profiles.append({
-                    "provider": "groq",
-                    "api_key": self.settings["groq_api_key"],
-                    "model": "llama-3.3-70b-versatile",
-                    "base_url": "https://api.groq.com/openai/v1",
-                })
+                profiles.append(
+                    {
+                        "provider": "groq",
+                        "api_key": self.settings["groq_api_key"],
+                        "model": "llama-3.3-70b-versatile",
+                        "base_url": "https://api.groq.com/openai/v1",
+                    }
+                )
             cfg.set("llm_profiles", profiles)
         if "board_theme" in self.settings:
             cfg.set("board_theme", self.settings["board_theme"])

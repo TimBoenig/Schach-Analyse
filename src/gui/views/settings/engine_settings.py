@@ -1,6 +1,7 @@
 """
 Engine Settings group component.
 """
+
 import os
 import shutil
 import subprocess
@@ -33,7 +34,7 @@ from .modern_widgets import ModernHashComboBox, ModernSliderCounter
 
 class EngineSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
-        super().__init__("Chess Engine", parent)
+        super().__init__("Schach-Engine", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
 
@@ -66,11 +67,13 @@ class EngineSettings(QGroupBox):
         path_layout = QHBoxLayout()
         self.path_input = QLineEdit()
         self.path_input.setText(self.config_manager.get("engine_path", ""))
-        self.path_input.setPlaceholderText("Path to Stockfish executable...")
+        self.path_input.setPlaceholderText("Pfad zur Stockfish-Programmdatei …")
         self.path_input.setStyleSheet(Styles.get_input_style())
         path_layout.addWidget(self.path_input)
 
-        self.browse_btn = create_icon_button("Browse", "fa5s.folder-open", self.browse_engine, self)
+        self.browse_btn = create_icon_button(
+            "Durchsuchen", "fa5s.folder-open", self.browse_engine, self
+        )
         path_layout.addWidget(self.browse_btn)
 
         engine_layout.addLayout(path_layout)
@@ -83,8 +86,6 @@ class EngineSettings(QGroupBox):
         engine_layout.addWidget(self.validation_label)
 
         self.path_input.editingFinished.connect(self.validate_engine_path)
-
-
 
         form = QFormLayout()
         form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -122,32 +123,43 @@ class EngineSettings(QGroupBox):
         self.depth_combo = QComboBox()
         depth_values = [str(i) for i in range(10, 26)]
         self.depth_combo.addItems(depth_values)
-        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
+        self.depth_combo.setCurrentText(
+            str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH))
+        )
         self.depth_combo.setStyleSheet(combo_style)
         self.depth_combo.currentTextChanged.connect(self.change_analysis_depth)
         self._depth_lbl, depth_row = _wrap(
-            "Analysis Depth:", self.depth_combo, "(Higher = more accurate but slower)"
+            "Analysetiefe:", self.depth_combo, "(höher = genauer, aber langsamer)"
         )
         form.addRow(self._depth_lbl, depth_row)
 
         # --- Multi-PV (alt lines per move) ---
-        self.multi_pv_input = ModernSliderCounter(1, 5, step=1, value=self.config_manager.get("multi_pv", DEFAULT_MULTI_PV), parent=self)
+        self.multi_pv_input = ModernSliderCounter(
+            1, 5, step=1, value=self.config_manager.get("multi_pv", DEFAULT_MULTI_PV), parent=self
+        )
         self.multi_pv_input.editingFinished.connect(self._on_multi_pv_committed)
         self._multi_pv_lbl, multi_pv_row = _wrap(
-            "Multi-PV (alt lines):",
+            "Multi-PV (Varianten):",
             self.multi_pv_input,
-            "(1–5; 1 = best line only, recommended for laptops)",
+            "(1–5; 1 = nur beste Variante, empfohlen für Laptops)",
         )
         self._multi_pv_row = multi_pv_row
         form.addRow(self._multi_pv_lbl, multi_pv_row)
 
         # --- Live-Analysis time budget (seconds) ---
-        self.live_time_input = ModernSliderCounter(0.5, 10.0, step=0.1, value=self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME), is_float=True, parent=self)
+        self.live_time_input = ModernSliderCounter(
+            0.5,
+            10.0,
+            step=0.1,
+            value=self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME),
+            is_float=True,
+            parent=self,
+        )
         self.live_time_input.editingFinished.connect(self._on_live_time_committed)
         self._live_time_lbl, live_time_row = _wrap(
-            "Live Analysis Time (s):",
+            "Live-Analysezeit (s):",
             self.live_time_input,
-            "(0.5–10.0; per-position CPU budget for the live panel)",
+            "(0,5–10,0; CPU-Zeit pro Stellung im Live-Panel)",
         )
         self._live_time_row = live_time_row
         form.addRow(self._live_time_lbl, live_time_row)
@@ -157,12 +169,18 @@ class EngineSettings(QGroupBox):
         max_threads = cpu_count
         rec_threads = min(max_threads, 4)
 
-        self.threads_input = ModernSliderCounter(1, max_threads, step=1, value=self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS), parent=self)
+        self.threads_input = ModernSliderCounter(
+            1,
+            max_threads,
+            step=1,
+            value=self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS),
+            parent=self,
+        )
         self.threads_input.editingFinished.connect(self._on_threads_committed)
         self._threads_lbl, threads_row = _wrap(
-            "Engine Threads:",
+            "Engine-Threads:",
             self.threads_input,
-            f"(1–{max_threads} threads; recommended for this CPU: {rec_threads})",
+            f"(1–{max_threads} Threads; empfohlen für diese CPU: {rec_threads})",
         )
         self._threads_row = threads_row
         form.addRow(self._threads_lbl, threads_row)
@@ -173,9 +191,9 @@ class EngineSettings(QGroupBox):
         self.hash_input.setStyleSheet(combo_style)
         self.hash_input.editingFinished.connect(self._on_hash_committed)
         self._hash_lbl, hash_row = _wrap(
-            "Engine Hash (MB):",
+            "Engine-Hash (MB):",
             self.hash_input,
-            "(16–4096 MB; 128 MB is the default)",
+            "(16–4096 MB; Standard: 128 MB)",
         )
         self._hash_row = hash_row
         form.addRow(self._hash_lbl, hash_row)
@@ -186,8 +204,10 @@ class EngineSettings(QGroupBox):
     def validate_engine_path(self):
         path = self.path_input.text().strip()
         if not path:
-            self.validation_label.setText("⚠️ No path specified")
-            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_MISTAKE}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setText("⚠️ Kein Pfad angegeben")
+            self.validation_label.setStyleSheet(
+                f"color: {Styles.COLOR_MISTAKE}; font-size: 12px; font-weight: bold; background: transparent;"
+            )
             self.validation_label.setVisible(True)
             return
 
@@ -195,43 +215,57 @@ class EngineSettings(QGroupBox):
         is_file = os.path.exists(path) and os.path.isfile(path)
 
         if not (is_in_path or is_file):
-            self.validation_label.setText("❌ File does not exist or is not executable")
-            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setText("❌ Datei existiert nicht oder ist nicht ausführbar")
+            self.validation_label.setStyleSheet(
+                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
+            )
             self.validation_label.setVisible(True)
             return
 
         try:
             creationflags = 0
-            if os.name == 'nt':
-                creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+            if os.name == "nt":
+                creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             proc = subprocess.Popen(
                 [path],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                creationflags=creationflags
+                creationflags=creationflags,
             )
 
             stdout, _ = proc.communicate(input="uci\nquit\n", timeout=1.0)
 
             if "uciok" in stdout:
                 name = "Stockfish"
-                for line in stdout.split('\n'):
+                for line in stdout.split("\n"):
                     if line.startswith("id name "):
                         name = line[8:].strip()
                         break
-                self.validation_label.setText(f"✓ Valid UCI Engine: {name}")
-                self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BEST}; font-size: 12px; font-weight: bold; background: transparent;")
+                self.validation_label.setText(f"✓ Gültige UCI-Engine: {name}")
+                self.validation_label.setStyleSheet(
+                    f"color: {Styles.COLOR_BEST}; font-size: 12px; font-weight: bold; background: transparent;"
+                )
             else:
-                self.validation_label.setText("❌ Handshake failed (not a valid UCI engine)")
-                self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+                self.validation_label.setText(
+                    "❌ Handshake fehlgeschlagen (keine gültige UCI-Engine)"
+                )
+                self.validation_label.setStyleSheet(
+                    f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
+                )
         except subprocess.TimeoutExpired:
-            self.validation_label.setText("❌ Timeout: Engine failed to respond within 1s")
-            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setText(
+                "❌ Zeitüberschreitung: Engine antwortet nicht innerhalb von 1 s"
+            )
+            self.validation_label.setStyleSheet(
+                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
+            )
         except Exception as e:
-            self.validation_label.setText(f"❌ Failed to execute binary: {str(e)}")
-            self.validation_label.setStyleSheet(f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;")
+            self.validation_label.setText(f"❌ Programm konnte nicht ausgeführt werden: {str(e)}")
+            self.validation_label.setStyleSheet(
+                f"color: {Styles.COLOR_BLUNDER}; font-size: 12px; font-weight: bold; background: transparent;"
+            )
 
         self.validation_label.setVisible(True)
 
@@ -297,8 +331,10 @@ class EngineSettings(QGroupBox):
             self.live_time_input.setText(str(current))
 
     def browse_engine(self):
-        filter_str = "Executables (*.exe);;All Files (*)" if os.name == 'nt' else "All Files (*)"
-        path, _ = QFileDialog.getOpenFileName(self, "Select Stockfish Binary", "", filter_str)
+        filter_str = (
+            "Programme (*.exe);;Alle Dateien (*)" if os.name == "nt" else "Alle Dateien (*)"
+        )
+        path, _ = QFileDialog.getOpenFileName(self, "Stockfish-Programm wählen", "", filter_str)
         if path:
             self.path_input.setText(path)
             self.validate_engine_path()
@@ -311,7 +347,12 @@ class EngineSettings(QGroupBox):
             value = -1
         if value < 1:
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "Engine Threads must be a positive integer (1 or more).", "warning")
+
+            MainWindow.toast_from_widget(
+                self,
+                "Engine-Threads müssen eine positive ganze Zahl sein (mindestens 1).",
+                "warning",
+            )
             return None, False
         return value, True
 
@@ -323,16 +364,25 @@ class EngineSettings(QGroupBox):
             value = -1
         if value < 16 or value > 4096:
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "Engine Hash must be between 16 and 4096 MB.", "warning")
+
+            MainWindow.toast_from_widget(
+                self, "Engine-Hash muss zwischen 16 und 4096 MB liegen.", "warning"
+            )
             return None, False
         return value, True
 
     def reload_from_config(self):
         self.path_input.setText(self.config_manager.get("engine_path", ""))
-        self.depth_combo.setCurrentText(str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH)))
+        self.depth_combo.setCurrentText(
+            str(self.config_manager.get("analysis_depth", DEFAULT_ANALYSIS_DEPTH))
+        )
         self.multi_pv_input.setText(str(self.config_manager.get("multi_pv", DEFAULT_MULTI_PV)))
-        self.live_time_input.setText(str(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME)))
-        self.threads_input.setText(str(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS)))
+        self.live_time_input.setText(
+            str(self.config_manager.get("live_analysis_time", DEFAULT_LIVE_ANALYSIS_TIME))
+        )
+        self.threads_input.setText(
+            str(self.config_manager.get("engine_threads", DEFAULT_ENGINE_THREADS))
+        )
         self.hash_input.setText(str(self.config_manager.get("engine_hash", DEFAULT_ENGINE_HASH_MB)))
         self.validate_engine_path()
 
@@ -348,20 +398,26 @@ class EngineSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'depth_combo'):
+        if hasattr(self, "depth_combo"):
             self.depth_combo.setStyleSheet(self._combo_style())
-        if hasattr(self, 'hash_input'):
+        if hasattr(self, "hash_input"):
             self.hash_input.refresh_styles()
-        if hasattr(self, 'path_input'):
+        if hasattr(self, "path_input"):
             self.path_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, 'browse_btn'):
+        if hasattr(self, "browse_btn"):
             self.browse_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'validation_label'):
+        if hasattr(self, "validation_label"):
             self.validate_engine_path()
         for widget in [self.multi_pv_input, self.live_time_input, self.threads_input]:
-            if hasattr(widget, 'refresh_styles'):
+            if hasattr(widget, "refresh_styles"):
                 widget.refresh_styles()
-        for attr_name in ('_depth_lbl', '_multi_pv_lbl', '_live_time_lbl', '_threads_lbl', '_hash_lbl'):
+        for attr_name in (
+            "_depth_lbl",
+            "_multi_pv_lbl",
+            "_live_time_lbl",
+            "_threads_lbl",
+            "_hash_lbl",
+        ):
             lbl = getattr(self, attr_name, None)
             if lbl:
                 lbl.setStyleSheet(Styles.get_label_style(size=13))

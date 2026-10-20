@@ -33,7 +33,7 @@ class WizardNavBar(QWidget):
 
         layout.addStretch()
 
-        self.skip_btn = QPushButton("Skip")
+        self.skip_btn = QPushButton("Überspringen")
         self.skip_btn.setFlat(True)
         self.skip_btn.setStyleSheet(f"""
             QPushButton {{ color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; border: none; background: transparent; }}
@@ -41,7 +41,7 @@ class WizardNavBar(QWidget):
         """)
         layout.addWidget(self.skip_btn)
 
-        self.back_btn = QPushButton("Back")
+        self.back_btn = QPushButton("Zurück")
         self.back_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -55,7 +55,7 @@ class WizardNavBar(QWidget):
         """)
         layout.addWidget(self.back_btn)
 
-        self.next_btn = QPushButton("Next")
+        self.next_btn = QPushButton("Weiter")
         self.next_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT};
@@ -116,5 +116,5 @@ class WizardNavBar(QWidget):
 
         self.back_btn.setVisible(not is_first and not is_gatekeeper)
         self.skip_btn.setVisible(index == 5)
-        self.next_btn.setText("Finish" if is_last else "Next")
+        self.next_btn.setText("Fertig" if is_last else "Weiter")
         self.next_btn.setVisible(not is_gatekeeper and index != 1 and not is_last)

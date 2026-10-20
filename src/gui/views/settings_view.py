@@ -2,6 +2,7 @@
 Settings View
 Coordinates lay out of settings block sections and handles global settings saving.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QFrame, QHBoxLayout, QLabel, QScrollArea, QVBoxLayout, QWidget
 
@@ -22,6 +23,7 @@ from .settings import (
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -30,7 +32,7 @@ except ImportError:
 class SettingsView(QWidget):
     engine_path_changed = pyqtSignal(str)
     engine_settings_changed = pyqtSignal()  # emitted when Threads/Hash change
-    llm_config_changed = pyqtSignal()   # emitted after LLM settings are saved
+    llm_config_changed = pyqtSignal()  # emitted after LLM settings are saved
     usernames_changed = pyqtSignal()
 
     def __init__(self):
@@ -50,8 +52,12 @@ class SettingsView(QWidget):
         header_layout.setContentsMargins(40, 12, 40, 12)
 
         # Title
-        self.header_lbl = QLabel("Settings")
-        self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
+        self.header_lbl = QLabel("Einstellungen")
+        self.header_lbl.setStyleSheet(
+            Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+            + " "
+            + Styles.get_transparent_label_style()
+        )
         header_layout.addWidget(self.header_lbl)
 
         header_layout.addStretch()
@@ -148,13 +154,14 @@ class SettingsView(QWidget):
         self.player_settings.reload_from_config()
         self.api_settings._reload_profile_combo()
         self.api_settings.lichess_token_input.setText(self.config_manager.get("lichess_token", ""))
-        self.appearance_settings.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
+        self.appearance_settings.select_board_theme(self.config_manager.get("board_theme", "Green"))
         self.api_settings._update_active_label()
 
     def _create_save_button(self):
         from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import QPushButton
-        btn = QPushButton("  Save Settings")
+
+        btn = QPushButton("  Einstellungen speichern")
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.setStyleSheet(Styles.get_button_style())
 
@@ -172,6 +179,7 @@ class SettingsView(QWidget):
     def _create_mode_toggle(self):
         from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import QPushButton
+
         btn = QPushButton()
         btn.setCursor(Qt.CursorShape.PointingHandCursor)
         btn.clicked.connect(self._toggle_mode)
@@ -181,7 +189,7 @@ class SettingsView(QWidget):
 
     def _update_mode_toggle_text(self, btn=None):
         b = btn or self.mode_toggle_btn
-        b.setText("  Advanced Settings" if self._mode == "basic" else "  Basic Settings")
+        b.setText("  Erweiterte Einstellungen" if self._mode == "basic" else "  Grundeinstellungen")
         if HAS_QTAWESOME:
             icon_name = "fa5s.cog" if self._mode == "basic" else "fa5s.chevron-left"
             b.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
@@ -210,7 +218,10 @@ class SettingsView(QWidget):
         path = self.engine_settings.path_input.text().strip()
         if not path:
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, "Please enter a valid engine path.", "warning")
+
+            MainWindow.toast_from_widget(
+                self, "Bitte gib einen gültigen Engine-Pfad ein.", "warning"
+            )
             return
 
         threads, threads_ok = self.engine_settings._validated_threads()
@@ -234,7 +245,12 @@ class SettingsView(QWidget):
 
         # Check Lichess API Token presence
         import os
-        token = self.api_settings.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+
+        token = (
+            self.api_settings.lichess_token_input.text().strip()
+            or self.config_manager.get("lichess_token", "")
+            or os.getenv("LICHESS_TOKEN")
+        )
 
         clamped = False
         warning_msg = ""
@@ -242,12 +258,12 @@ class SettingsView(QWidget):
             if limit > 30:
                 limit = 30
                 clamped = True
-                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
+                warning_msg = "Partienlimit auf 30 begrenzt (Maximum mit Lichess-API-Token)."
         else:
             if limit > 20:
                 limit = 20
                 clamped = True
-                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
+                warning_msg = "Partienlimit auf 20 begrenzt. Hinterlege oben unter API-Konfiguration einen Lichess-API-Token, um es auf 30 zu erhöhen."
 
         self.player_settings.games_limit_input.setText(str(limit))
 
@@ -260,11 +276,17 @@ class SettingsView(QWidget):
             new_name = new_profile["name"]
             if not new_name:
                 from src.gui.main_window import MainWindow
-                MainWindow.toast_from_widget(self, "Profile name cannot be empty.", "warning")
+
+                MainWindow.toast_from_widget(
+                    self, "Der Profilname darf nicht leer sein.", "warning"
+                )
                 return
             if new_name != old_name and any(p["name"] == new_name for p in profiles):
                 from src.gui.main_window import MainWindow
-                MainWindow.toast_from_widget(self, f'A profile named "{new_name}" already exists.', "warning")
+
+                MainWindow.toast_from_widget(
+                    self, f"Ein Profil namens „{new_name}“ existiert bereits.", "warning"
+                )
                 return
             profiles[idx] = new_profile
             # Set selected profile as active
@@ -279,19 +301,27 @@ class SettingsView(QWidget):
         self.config_manager.config["engine_path"] = path
         self.config_manager.config["engine_threads"] = threads
         self.config_manager.config["engine_hash"] = hash_mb
-        self.config_manager.config["polyglot_book_path"] = self.book_settings.polyglot_path_input.text().strip()
+        self.config_manager.config["polyglot_book_path"] = (
+            self.book_settings.polyglot_path_input.text().strip()
+        )
 
         try:
-            self.config_manager.config["multi_pv"] = int(self.engine_settings.multi_pv_input.text().strip())
+            self.config_manager.config["multi_pv"] = int(
+                self.engine_settings.multi_pv_input.text().strip()
+            )
         except ValueError:
             self.config_manager.config["multi_pv"] = DEFAULT_MULTI_PV
 
         try:
-            self.config_manager.config["live_analysis_time"] = float(self.engine_settings.live_time_input.text().strip())
+            self.config_manager.config["live_analysis_time"] = float(
+                self.engine_settings.live_time_input.text().strip()
+            )
         except ValueError:
             self.config_manager.config["live_analysis_time"] = DEFAULT_LIVE_ANALYSIS_TIME
 
-        self.config_manager.config["lichess_token"] = self.api_settings.lichess_token_input.text().strip()
+        self.config_manager.config["lichess_token"] = (
+            self.api_settings.lichess_token_input.text().strip()
+        )
         self.config_manager.config["chesscom_username"] = chesscom
         self.config_manager.config["lichess_username"] = lichess
         self.config_manager.config["api_games_limit"] = limit
@@ -301,14 +331,19 @@ class SettingsView(QWidget):
 
         # Emit signals for UI and engine updates
         from ...utils.logger import logger
+
         if path_changed:
             logger.info(f"SettingsView: Engine path changed to {path}")
             self.engine_path_changed.emit(path)
         if threads_changed or hash_changed:
-            logger.info(f"SettingsView: Engine settings changed. Threads={threads} (changed: {threads_changed}), Hash={hash_mb} (changed: {hash_changed})")
+            logger.info(
+                f"SettingsView: Engine settings changed. Threads={threads} (changed: {threads_changed}), Hash={hash_mb} (changed: {hash_changed})"
+            )
             self.engine_settings_changed.emit()
         else:
-            logger.info("SettingsView: Engine settings (Threads, Hash) were NOT modified during this save.")
+            logger.info(
+                "SettingsView: Engine settings (Threads, Hash) were NOT modified during this save."
+            )
 
         self.llm_config_changed.emit()
         self.usernames_changed.emit()
@@ -318,10 +353,13 @@ class SettingsView(QWidget):
         self.api_settings._reload_profile_combo()
 
         from src.gui.main_window import MainWindow
+
         if clamped:
-            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
+            MainWindow.toast_from_widget(
+                self, f"Einstellungen gespeichert. Hinweis: {warning_msg}", "warning"
+            )
         else:
-            MainWindow.toast_from_widget(self, "All settings saved successfully.", "success")
+            MainWindow.toast_from_widget(self, "Alle Einstellungen wurden gespeichert.", "success")
 
     def save_usernames(self):
         chesscom = self.chesscom_input.text()
@@ -335,19 +373,24 @@ class SettingsView(QWidget):
             limit = 1
 
         import os
-        token = self.lichess_token_input.text().strip() or self.config_manager.get("lichess_token", "") or os.getenv("LICHESS_TOKEN")
+
+        token = (
+            self.lichess_token_input.text().strip()
+            or self.config_manager.get("lichess_token", "")
+            or os.getenv("LICHESS_TOKEN")
+        )
         clamped = False
         warning_msg = ""
         if token:
             if limit > 30:
                 limit = 30
                 clamped = True
-                warning_msg = "Games limit capped at 30 (the maximum allowed when a Lichess API token is configured)."
+                warning_msg = "Partienlimit auf 30 begrenzt (Maximum mit Lichess-API-Token)."
         else:
             if limit > 20:
                 limit = 20
                 clamped = True
-                warning_msg = "Games limit capped at 20. Configure a Lichess API Token in the API Configuration section above to increase this limit to 30."
+                warning_msg = "Partienlimit auf 20 begrenzt. Hinterlege oben unter API-Konfiguration einen Lichess-API-Token, um es auf 30 zu erhöhen."
 
         self.games_limit_input.setText(str(limit))
         self.config_manager.set("chesscom_username", chesscom)
@@ -356,36 +399,43 @@ class SettingsView(QWidget):
         self.usernames_changed.emit()
 
         from src.gui.main_window import MainWindow
+
         if clamped:
-            MainWindow.toast_from_widget(self, f"Settings saved. Note: {warning_msg}", "warning")
+            MainWindow.toast_from_widget(
+                self, f"Einstellungen gespeichert. Hinweis: {warning_msg}", "warning"
+            )
         else:
-            MainWindow.toast_from_widget(self, "Settings saved successfully.", "success")
+            MainWindow.toast_from_widget(self, "Einstellungen gespeichert.", "success")
 
     def refresh_styles(self):
         """Re-applies styles to settings view components."""
-        if hasattr(self, 'header_bar'):
+        if hasattr(self, "header_bar"):
             self.header_bar.setStyleSheet(Styles.get_header_bar_ext_style(Styles.COLOR_BACKGROUND))
-        if hasattr(self, 'header_lbl'):
-            self.header_lbl.setStyleSheet(Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True) + " " + Styles.get_transparent_label_style())
-        if hasattr(self, 'scroll_area'):
+        if hasattr(self, "header_lbl"):
+            self.header_lbl.setStyleSheet(
+                Styles.get_label_style(size=24, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
+                + " "
+                + Styles.get_transparent_label_style()
+            )
+        if hasattr(self, "scroll_area"):
             self.scroll_area.setStyleSheet(Styles.get_background_style() + " border: none;")
-        if hasattr(self, 'content_container'):
+        if hasattr(self, "content_container"):
             self.content_container.setStyleSheet(Styles.get_background_style())
-        if hasattr(self, 'save_settings_btn') and self.save_settings_btn:
+        if hasattr(self, "save_settings_btn") and self.save_settings_btn:
             self.save_settings_btn.setStyleSheet(Styles.get_button_style())
-        if hasattr(self, 'mode_toggle_btn') and self.mode_toggle_btn:
+        if hasattr(self, "mode_toggle_btn") and self.mode_toggle_btn:
             self.mode_toggle_btn.setStyleSheet(Styles.get_control_button_style())
             self._update_mode_toggle_text(self.mode_toggle_btn)
 
         cards = (
-            getattr(self, 'engine_settings', None),
-            getattr(self, 'book_settings', None),
-            getattr(self, 'api_settings', None),
-            getattr(self, 'player_settings', None),
-            getattr(self, 'appearance_settings', None),
-            getattr(self, 'data_settings', None),
-            getattr(self, 'links_settings', None),
+            getattr(self, "engine_settings", None),
+            getattr(self, "book_settings", None),
+            getattr(self, "api_settings", None),
+            getattr(self, "player_settings", None),
+            getattr(self, "appearance_settings", None),
+            getattr(self, "data_settings", None),
+            getattr(self, "links_settings", None),
         )
         for card in cards:
-            if card and hasattr(card, 'refresh_styles'):
+            if card and hasattr(card, "refresh_styles"):
                 card.refresh_styles()

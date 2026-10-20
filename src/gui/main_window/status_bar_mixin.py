@@ -41,23 +41,25 @@ class StatusBarMixin:
 
     def _set_engine_state(self, state: str, progress_msg: str = ""):
         """Update engine status text. state: 'offline' | 'ready' | 'calculating'."""
+        # Remember the state separately so styling never depends on the (translated) pill text.
+        self._engine_state = state
         if state == "calculating":
             self._spinner_idx = 0
             if not self._spinner_timer.isActive():
                 self._spinner_timer.start(120)
-            self._engine_pill.setText("⬤  Calculating")
+            self._engine_pill.setText("⬤  Berechnet")
             self._engine_pill.setStyleSheet(
                 f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_BUSY};"
             )
         else:
             self._spinner_timer.stop()
             if state == "ready":
-                self._engine_pill.setText("⬤  Engine Ready")
+                self._engine_pill.setText("⬤  Engine bereit")
                 self._engine_pill.setStyleSheet(
                     f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_ENGINE_READY};"
                 )
             else:  # offline
-                self._engine_pill.setText("⬤  Engine Offline")
+                self._engine_pill.setText("⬤  Engine offline")
                 self._engine_pill.setStyleSheet(
                     f"font-size: 12px; font-weight: 600; padding: 0 6px; color: {Styles.COLOR_BLUNDER};"
                 )
@@ -66,7 +68,7 @@ class StatusBarMixin:
         """Advance the braille spinner animation one frame."""
         frame = self._spinner_frames[self._spinner_idx % len(self._spinner_frames)]
         self._spinner_idx += 1
-        self._engine_pill.setText(f"{frame}  Calculating")
+        self._engine_pill.setText(f"{frame}  Berechnet")
 
     def _set_status(self, message: str, kind: str = "info"):
         """Update the status label with an icon prefix and matching colour."""

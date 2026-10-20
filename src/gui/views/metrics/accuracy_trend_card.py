@@ -26,7 +26,7 @@ class AccuracyTrendCard(MetricCard):
 
         self.segmented_control = self._build_segmented_control()
         super().__init__(
-            "Accuracy Trend",
+            "Genauigkeitsverlauf",
             parent=parent,
             max_height=310,
             action_widget=self.segmented_control,
@@ -46,9 +46,9 @@ class AccuracyTrendCard(MetricCard):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
-        self.btn_10 = QPushButton("10G")
-        self.btn_20 = QPushButton("20G")
-        self.btn_all = QPushButton("All")
+        self.btn_10 = QPushButton("10 P.")
+        self.btn_20 = QPushButton("20 P.")
+        self.btn_all = QPushButton("Alle")
 
         for btn, window in [
             (self.btn_10, "10"),
@@ -128,7 +128,7 @@ class AccuracyTrendCard(MetricCard):
         main_vbox.setSpacing(6)
 
         if not accuracies:
-            empty_lbl = QLabel("No accuracy data available for selected filters.")
+            empty_lbl = QLabel("Keine Genauigkeitsdaten für die gewählten Filter.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -188,9 +188,11 @@ class AccuracyTrendCard(MetricCard):
             layout.addWidget(val)
             return frame
 
-        stats_strip.addWidget(make_badge("Avg", f"{avg_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
-        stats_strip.addWidget(make_badge("Peak", f"{peak_acc:.1f}%", Styles.COLOR_BEST))
-        stats_strip.addWidget(make_badge("Low", f"{low_acc:.1f}%", Styles.COLOR_TEXT_SECONDARY))
+        stats_strip.addWidget(make_badge("Ø", f"{avg_acc:.1f}%", Styles.COLOR_TEXT_PRIMARY))
+        stats_strip.addWidget(make_badge("Bestwert", f"{peak_acc:.1f}%", Styles.COLOR_BEST))
+        stats_strip.addWidget(
+            make_badge("Tiefstwert", f"{low_acc:.1f}%", Styles.COLOR_TEXT_SECONDARY)
+        )
 
         # Momentum badge
         if momentum >= 0.5:
@@ -202,7 +204,7 @@ class AccuracyTrendCard(MetricCard):
             mom_color = Styles.COLOR_BLUNDER
             mom_icon_name = "fa5s.arrow-down"
         else:
-            mom_text = "Stable"
+            mom_text = "Stabil"
             mom_color = Styles.COLOR_TEXT_SECONDARY
             mom_icon_name = "fa5s.minus"
 

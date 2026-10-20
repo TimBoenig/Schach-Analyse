@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from ....utils.path_utils import get_resource_path
+from ....utils.translations import tr_board_theme
 from ...styles import Styles
 from ...theme import ThemeManager
 from ...theme.palette import BOARD_THEMES
@@ -25,7 +26,7 @@ class AppearanceSettings(QGroupBox):
     theme_refreshed = pyqtSignal()
 
     def __init__(self, config_manager, parent=None):
-        super().__init__("Appearance", parent)
+        super().__init__("Darstellung", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
         self.setup_ui()
@@ -89,10 +90,10 @@ class AppearanceSettings(QGroupBox):
         return group, buttons, container
 
     def _add_theme_mode_row(self, layout, label_style, radio_style):
-        lbl = QLabel("Theme Mode:")
+        lbl = QLabel("Design-Modus:")
         lbl.setStyleSheet(label_style)
         group, buttons, container = self._make_radio_group(
-            ["System", "Light", "Dark"], self, radio_style
+            ["System", "Hell", "Dunkel"], self, radio_style
         )
         self._theme_mode_group = group
         self._theme_mode_system, self._theme_mode_light, self._theme_mode_dark = buttons
@@ -105,24 +106,37 @@ class AppearanceSettings(QGroupBox):
         layout.addRow(lbl, container)
 
     def _on_theme_mode_clicked(self, btn):
-        mapping = {self._theme_mode_system: "system", self._theme_mode_light: "light", self._theme_mode_dark: "dark"}
+        mapping = {
+            self._theme_mode_system: "system",
+            self._theme_mode_light: "light",
+            self._theme_mode_dark: "dark",
+        }
         mode = mapping.get(btn, "system")
         self.config_manager.set("theme_mode", mode)
         ThemeManager.set_theme_mode(mode)
 
     def _add_board_theme_row(self, layout, label_style, combo_style):
-        lbl = QLabel("Board Theme:")
+        lbl = QLabel("Brett-Design:")
         lbl.setStyleSheet(label_style)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(list(BOARD_THEMES.keys()))
-        self.theme_combo.setCurrentText(self.config_manager.get("board_theme", "Green"))
+        # Theme keys stay English (persisted in config); only the label is German.
+        for theme_key in BOARD_THEMES:
+            self.theme_combo.addItem(tr_board_theme(theme_key), theme_key)
+        self.select_board_theme(self.config_manager.get("board_theme", "Green"))
         self.theme_combo.setStyleSheet(combo_style)
-        self.theme_combo.currentTextChanged.connect(self.change_board_theme)
+        self.theme_combo.currentIndexChanged.connect(
+            lambda _idx: self.change_board_theme(self.theme_combo.currentData() or "Green")
+        )
         layout.addRow(lbl, self.theme_combo)
+
+    def select_board_theme(self, theme_key):
+        idx = self.theme_combo.findData(theme_key)
+        self.theme_combo.setCurrentIndex(idx if idx >= 0 else 0)
 
     def _add_piece_style_row(self, layout, label_style, combo_style):
         from ...board.piece_themes import get_piece_theme_names
-        lbl = QLabel("Piece Style:")
+
+        lbl = QLabel("Figurenstil:")
         lbl.setStyleSheet(label_style)
         self.piece_combo = QComboBox()
         self.piece_combo.addItems(get_piece_theme_names())
@@ -135,22 +149,22 @@ class AppearanceSettings(QGroupBox):
         import_lbl = QLabel("")
         import_lbl.setStyleSheet(label_style)
         self.import_theme_btn = create_icon_button(
-            "Import Theme...", "fa5s.folder-open", self.import_theme, self
+            "Design importieren …", "fa5s.folder-open", self.import_theme, self
         )
         layout.addRow(import_lbl, self.import_theme_btn)
 
     def _add_sound_row(self, layout, label_style):
-        self._sound_lbl = QLabel("Sound Effects:")
+        self._sound_lbl = QLabel("Soundeffekte:")
         self._sound_lbl.setStyleSheet(label_style)
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
-        self.sound_checkbox = QCheckBox("Enable Sound Effects")
+        self.sound_checkbox = QCheckBox("Soundeffekte aktivieren")
         self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
         self.sound_checkbox.setChecked(self.config_manager.get("sound_enabled", True))
         self.sound_checkbox.stateChanged.connect(self.change_sound_setting)
         layout.addRow(self._sound_lbl, self.sound_checkbox)
 
     def _add_accent_row(self, layout, label_style, radio_style):
-        accent_lbl = QLabel("Accent Color:")
+        accent_lbl = QLabel("Akzentfarbe:")
         accent_lbl.setStyleSheet(label_style)
         container = QWidget()
         container.setStyleSheet(Styles.get_transparent_label_style())
@@ -159,12 +173,12 @@ class AppearanceSettings(QGroupBox):
         hbox.setSpacing(4)
         self._accent_group = QButtonGroup(container)
         self.accent_mode_system = QRadioButton("System")
-        self.accent_mode_custom = QRadioButton("Custom")
+        self.accent_mode_custom = QRadioButton("Eigene")
         for rb in (self.accent_mode_system, self.accent_mode_custom):
             rb.setStyleSheet(radio_style)
             self._accent_group.addButton(rb)
             hbox.addWidget(rb)
-        self.color_btn = QPushButton("Choose Color")
+        self.color_btn = QPushButton("Farbe wählen")
         self.color_btn.setStyleSheet(self._accent_btn_style())
         self.color_btn.clicked.connect(self.change_accent_color)
         hbox.addWidget(self.color_btn)
@@ -189,7 +203,9 @@ class AppearanceSettings(QGroupBox):
         self.color_btn.setVisible(self.accent_mode_custom.isChecked())
 
     def change_accent_color(self):
-        color = QColorDialog.getColor(initial=QColor(ThemeManager.accent()), parent=self, title="Select Accent Color")
+        color = QColorDialog.getColor(
+            initial=QColor(ThemeManager.accent()), parent=self, title="Akzentfarbe wählen"
+        )
         if color.isValid():
             self.config_manager.set("accent_color", color.name())
             self.config_manager.set("accent_mode", "custom")
@@ -219,21 +235,24 @@ class AppearanceSettings(QGroupBox):
             import_theme_from_folder,
             validate_theme_folder,
         )
+
         folder = QFileDialog.getExistingDirectory(
-            self, "Select Piece Theme Folder", "",
+            self,
+            "Ordner mit Figuren-Design wählen",
+            "",
             QFileDialog.Option.ShowDirsOnly,
         )
         if not folder:
             return
         is_valid, errors = validate_theme_folder(folder)
         if not is_valid:
-            MainWindow.toast_from_widget(self,
-                "Invalid theme: " + "; ".join(errors),
-                "error")
+            MainWindow.toast_from_widget(self, "Ungültiges Design: " + "; ".join(errors), "error")
             return
         theme_name = import_theme_from_folder(folder)
         if theme_name is None:
-            MainWindow.toast_from_widget(self, "Theme import failed. Check the logs.", "error")
+            MainWindow.toast_from_widget(
+                self, "Design-Import fehlgeschlagen. Details im Log.", "error"
+            )
             return
         self.piece_combo.blockSignals(True)
         self.piece_combo.clear()
@@ -241,7 +260,9 @@ class AppearanceSettings(QGroupBox):
         self.piece_combo.setCurrentText(theme_name)
         self.piece_combo.blockSignals(False)
         self.change_piece_theme(theme_name)
-        MainWindow.toast_from_widget(self, f"Piece theme '{theme_name}' imported and active.", "success")
+        MainWindow.toast_from_widget(
+            self, f"Figuren-Design „{theme_name}“ importiert und aktiviert.", "success"
+        )
 
     def set_advanced_visible(self, visible):
         pass
@@ -251,25 +272,25 @@ class AppearanceSettings(QGroupBox):
         combo_style = self._combo_style()
         radio_style = self._radio_style()
 
-        if hasattr(self, 'theme_combo'):
+        if hasattr(self, "theme_combo"):
             self.theme_combo.setStyleSheet(combo_style)
-        if hasattr(self, 'piece_combo'):
+        if hasattr(self, "piece_combo"):
             self.piece_combo.setStyleSheet(combo_style)
-        if hasattr(self, 'color_btn'):
+        if hasattr(self, "color_btn"):
             self.color_btn.setStyleSheet(self._accent_btn_style())
-        if hasattr(self, 'sound_checkbox'):
+        if hasattr(self, "sound_checkbox"):
             tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
             self.sound_checkbox.setStyleSheet(Styles.get_checkbox_style(tick_path))
-        if hasattr(self, '_sound_lbl'):
+        if hasattr(self, "_sound_lbl"):
             self._sound_lbl.setStyleSheet(self._label_style())
-        if hasattr(self, 'import_theme_btn'):
+        if hasattr(self, "import_theme_btn"):
             self.import_theme_btn.setStyleSheet(Styles.get_settings_default_button_style())
         for rb in (
-            getattr(self, '_theme_mode_system', None),
-            getattr(self, '_theme_mode_light', None),
-            getattr(self, '_theme_mode_dark', None),
-            getattr(self, 'accent_mode_system', None),
-            getattr(self, 'accent_mode_custom', None),
+            getattr(self, "_theme_mode_system", None),
+            getattr(self, "_theme_mode_light", None),
+            getattr(self, "_theme_mode_dark", None),
+            getattr(self, "accent_mode_system", None),
+            getattr(self, "accent_mode_custom", None),
         ):
             if rb:
                 rb.setStyleSheet(radio_style)

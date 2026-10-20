@@ -1,6 +1,7 @@
 """
 Helper utilities for the settings view modules.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QPushButton
 
@@ -8,9 +9,11 @@ from ...styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
+
 
 def create_icon_button(text, icon_name, callback, parent=None, danger=False, primary=False):
     """Create a styled button with qtawesome icon."""

@@ -42,7 +42,7 @@ class DrillDownView(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.title_text: str = "Drill-Down"
+        self.title_text: str = "Detailansicht"
         self.subtitle_text: str = ""
         self.items: list[dict[str, Any]] = []
         self.current_page: int = 0
@@ -70,7 +70,7 @@ class DrillDownView(QWidget):
         header_layout.setSpacing(14)
 
         # Back Button
-        self.btn_back = QPushButton(" Back to Dashboard")
+        self.btn_back = QPushButton(" Zurück zur Übersicht")
         self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
         if HAS_QTAWESOME:
             self.btn_back.setIcon(qta.icon("fa5s.arrow-left", color=Styles.COLOR_TEXT_PRIMARY))
@@ -126,7 +126,7 @@ class DrillDownView(QWidget):
         header_layout.addLayout(title_vbox, 1)
 
         # Occurrences Count Badge
-        self.badge_count = QLabel("0 Occurrences")
+        self.badge_count = QLabel("0 Treffer")
         self.badge_count.setStyleSheet(f"""
             QLabel {{
                 background-color: {Styles.COLOR_SURFACE};
@@ -170,18 +170,18 @@ class DrillDownView(QWidget):
         pag_layout.setContentsMargins(24, 10, 24, 10)
         pag_layout.setSpacing(10)
 
-        self.btn_prev = QPushButton("Previous")
+        self.btn_prev = QPushButton("Zurück")
         self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_prev.clicked.connect(self._prev_page)
 
-        self.lbl_page = QLabel("Page 1 of 1")
+        self.lbl_page = QLabel("Seite 1 von 1")
         self.lbl_page.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_SECONDARY)
             + " "
             + Styles.get_transparent_label_style()
         )
 
-        self.btn_next = QPushButton("Next")
+        self.btn_next = QPushButton("Weiter")
         self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_next.clicked.connect(self._next_page)
 
@@ -227,7 +227,7 @@ class DrillDownView(QWidget):
         self.lbl_subtitle.setText(self.subtitle_text)
 
         count = len(self.items)
-        occ_text = f"{count} Occurrence" if count == 1 else f"{count} Occurrences"
+        occ_text = f"{count} Treffer"
         self.badge_count.setText(occ_text)
 
         self._render_page()
@@ -262,7 +262,7 @@ class DrillDownView(QWidget):
         if total_pages > 1:
             self.pagination_bar.setVisible(True)
             self.lbl_page.setText(
-                f"Page {self.current_page + 1} of {total_pages} ({len(self.items)} total)"
+                f"Seite {self.current_page + 1} von {total_pages} ({len(self.items)} gesamt)"
             )
             self.btn_prev.setEnabled(self.current_page > 0)
             self.btn_next.setEnabled(self.current_page < total_pages - 1)
@@ -291,14 +291,14 @@ class DrillDownView(QWidget):
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(icon_lbl)
 
-        title_lbl = QLabel("No Occurrences Found")
+        title_lbl = QLabel("Keine Treffer gefunden")
         title_lbl.setStyleSheet(
             Styles.get_label_style(size=16, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
         )
         title_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(title_lbl)
 
-        sub_lbl = QLabel("No matching game positions recorded under the current filters.")
+        sub_lbl = QLabel("Für die aktuellen Filter wurden keine passenden Stellungen erfasst.")
         sub_lbl.setStyleSheet(Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_MUTED))
         sub_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(sub_lbl)

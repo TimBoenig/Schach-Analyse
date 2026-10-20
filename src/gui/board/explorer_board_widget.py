@@ -2,6 +2,7 @@
 Explorer Board Widget - Interactive chessboard for the Opening Explorer.
 Extends BoardWidget with click-to-move, best-move arrows, and book move overlays.
 """
+
 import math
 import xml.etree.ElementTree as ET
 
@@ -20,7 +21,7 @@ from src.utils.logger import logger
 class PromotionDialog(QDialog):
     def __init__(self, color, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Promote pawn to...")
+        self.setWindowTitle("Bauer umwandeln in …")
         self.setWindowFlags(Qt.WindowType.Popup | Qt.WindowType.FramelessWindowHint)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
         self.selected_piece = None
@@ -32,13 +33,14 @@ class PromotionDialog(QDialog):
         layout.setContentsMargins(12, 12, 12, 12)
 
         from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+
         pieces_svg = _load_theme_cached(get_current_theme_name())
 
         piece_map = {
-            chess.QUEEN:  'Q' if color == chess.WHITE else 'q',
-            chess.ROOK:   'R' if color == chess.WHITE else 'r',
-            chess.BISHOP: 'B' if color == chess.WHITE else 'b',
-            chess.KNIGHT: 'N' if color == chess.WHITE else 'n',
+            chess.QUEEN: "Q" if color == chess.WHITE else "q",
+            chess.ROOK: "R" if color == chess.WHITE else "r",
+            chess.BISHOP: "B" if color == chess.WHITE else "b",
+            chess.KNIGHT: "N" if color == chess.WHITE else "n",
         }
 
         for piece_type, symbol in piece_map.items():
@@ -46,8 +48,10 @@ class PromotionDialog(QDialog):
             btn.setFixedSize(52, 52)
             g_content = pieces_svg.get(symbol, "")
             if g_content:
-                svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
-                renderer = QSvgRenderer(QByteArray(svg_str.encode('utf-8')))
+                svg_str = (
+                    f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
+                )
+                renderer = QSvgRenderer(QByteArray(svg_str.encode("utf-8")))
                 pixmap = QPixmap(42, 42)
                 pixmap.fill(Qt.GlobalColor.transparent)
                 painter = QPainter(pixmap)
@@ -65,12 +69,18 @@ class PromotionDialog(QDialog):
 
     def _position_at_cursor(self):
         from PyQt6.QtGui import QCursor, QGuiApplication
+
         cursor_pos = QCursor.pos()
         screen = QGuiApplication.screenAt(cursor_pos)
         if screen:
             sg = screen.geometry()
-            x = max(sg.x(), min(cursor_pos.x() - self.width() // 2, sg.x() + sg.width() - self.width()))
-            y = max(sg.y(), min(cursor_pos.y() - self.height() // 2, sg.y() + sg.height() - self.height()))
+            x = max(
+                sg.x(), min(cursor_pos.x() - self.width() // 2, sg.x() + sg.width() - self.width())
+            )
+            y = max(
+                sg.y(),
+                min(cursor_pos.y() - self.height() // 2, sg.y() + sg.height() - self.height()),
+            )
             self.move(x, y)
         else:
             self.move(cursor_pos.x() - self.width() // 2, cursor_pos.y() - self.height() // 2)
@@ -116,14 +126,20 @@ class ExplorerBoardWidget(BoardWidget):
     # ------------------------------------------------------------------ events
     def eventFilter(self, obj, event):
         if obj is self.svg_widget:
-            if event.type() == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            if (
+                event.type() == QEvent.Type.MouseButtonPress
+                and event.button() == Qt.MouseButton.LeftButton
+            ):
                 self.handle_press(event.position().x(), event.position().y())
                 return True
             elif event.type() == QEvent.Type.MouseMove:
                 if self.is_dragging or (event.buttons() & Qt.MouseButton.LeftButton):
                     self.handle_move(event.position().x(), event.position().y())
                     return True
-            elif event.type() == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            elif (
+                event.type() == QEvent.Type.MouseButtonRelease
+                and event.button() == Qt.MouseButton.LeftButton
+            ):
                 self.handle_release(event.position().x(), event.position().y())
                 return True
         return super().eventFilter(obj, event)
@@ -138,7 +154,9 @@ class ExplorerBoardWidget(BoardWidget):
         # Start drag if it's our piece
         if piece and piece.color == self.board.turn:
             self.selected_square = sq
-            self.legal_destinations = [m.to_square for m in self.board.legal_moves if m.from_square == sq]
+            self.legal_destinations = [
+                m.to_square for m in self.board.legal_moves if m.from_square == sq
+            ]
             self.drag_start_sq = sq
             self.drag_start_pos = (x, y)
             self.is_dragging = False
@@ -159,14 +177,14 @@ class ExplorerBoardWidget(BoardWidget):
         if not self.is_dragging:
             dx = x - self.drag_start_pos[0]
             dy = y - self.drag_start_pos[1]
-            if dx*dx + dy*dy > 25: # 5px threshold
+            if dx * dx + dy * dy > 25:  # 5px threshold
                 self.is_dragging = True
                 self._start_drag_visuals()
 
         if self.is_dragging:
             sq_size = self.svg_widget.width() / 8
             self.drag_piece_label.resize(int(sq_size), int(sq_size))
-            self.drag_piece_label.move(int(x - sq_size/2), int(y - sq_size/2))
+            self.drag_piece_label.move(int(x - sq_size / 2), int(y - sq_size / 2))
 
     def handle_release(self, x, y):
         if self.is_dragging:
@@ -187,6 +205,7 @@ class ExplorerBoardWidget(BoardWidget):
 
     def _start_drag_visuals(self):
         from src.gui.board.piece_themes import _load_theme_cached, get_current_theme_name
+
         piece = self.board.piece_at(self.drag_start_sq)
         if not piece:
             return
@@ -196,7 +215,7 @@ class ExplorerBoardWidget(BoardWidget):
         svg_str = f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45">{g_content}</svg>'
 
         sq_size = self.svg_widget.width() / 8
-        renderer = QSvgRenderer(QByteArray(svg_str.encode('utf-8')))
+        renderer = QSvgRenderer(QByteArray(svg_str.encode("utf-8")))
         pixmap = QPixmap(int(sq_size), int(sq_size))
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
@@ -246,10 +265,7 @@ class ExplorerBoardWidget(BoardWidget):
     # ------------------------------------------------------------------ moves
     def attempt_move(self, from_sq, to_sq, promotion=None):
         piece = self.board.piece_at(from_sq)
-        is_promo = (
-            piece and piece.piece_type == chess.PAWN and
-            chess.square_rank(to_sq) in (0, 7)
-        )
+        is_promo = piece and piece.piece_type == chess.PAWN and chess.square_rank(to_sq) in (0, 7)
         if is_promo and promotion is None:
             dlg = PromotionDialog(piece.color, self)
             if dlg.exec() == QDialog.DialogCode.Accepted:
@@ -289,14 +305,17 @@ class ExplorerBoardWidget(BoardWidget):
                 dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 c = QColor(Styles.COLOR_ACCENT)
                 dot.setStyleSheet(
-                    Styles.get_label_style(size=24, color=f"rgba({c.red()},{c.green()},{c.blue()},0.5)")
-                    + " " + Styles.get_transparent_label_style()
+                    Styles.get_label_style(
+                        size=24, color=f"rgba({c.red()},{c.green()},{c.blue()},0.5)"
+                    )
+                    + " "
+                    + Styles.get_transparent_label_style()
                 )
                 r, c = self._sq_to_grid(sq)
                 self.overlay_layout.addWidget(dot, r, c)
 
         # Draw classification badge on the last move's destination square
-        if getattr(self, 'last_move_classification', None) and self.board.move_stack:
+        if getattr(self, "last_move_classification", None) and self.board.move_stack:
             last_move = self.board.peek()
             to_sq = last_move.to_square
 
@@ -306,13 +325,16 @@ class ExplorerBoardWidget(BoardWidget):
 
             # Fetch icon
             from src.utils.resources import ResourceManager
+
             icon = ResourceManager().get_icon(self.last_move_classification)
             if not icon.isNull():
                 badge.setPixmap(icon.pixmap(32, 32))
 
             r, c = self._sq_to_grid(to_sq)
             badge.setStyleSheet(Styles.get_transparent_label_style())
-            self.overlay_layout.addWidget(badge, r, c, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight)
+            self.overlay_layout.addWidget(
+                badge, r, c, alignment=Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignRight
+            )
 
     def _sq_to_grid(self, square):
         rank = chess.square_rank(square)
@@ -334,7 +356,7 @@ class ExplorerBoardWidget(BoardWidget):
         try:
             svg_str = svg_bytes.decode("utf-8") if isinstance(svg_bytes, bytes) else svg_bytes
             if svg_str.startswith("<?xml"):
-                svg_str = svg_str[svg_str.index("<svg"):]
+                svg_str = svg_str[svg_str.index("<svg") :]
 
             root = safe_fromstring(svg_str)
 
@@ -357,8 +379,9 @@ class ExplorerBoardWidget(BoardWidget):
                 to_sq = chess.parse_square(self.best_move_uci[2:4])
                 x1, y1 = sq_center(from_sq)
                 x2, y2 = sq_center(to_sq)
-                self._add_arrow(root, x1, y1, x2, y2,
-                                color=Styles.COLOR_ACCENT, opacity="0.4", width=14)
+                self._add_arrow(
+                    root, x1, y1, x2, y2, color=Styles.COLOR_ACCENT, opacity="0.4", width=14
+                )
             except Exception as e:
                 logger.warning(f"Failed to draw arrow: {e}")
 
@@ -392,26 +415,36 @@ class ExplorerBoardWidget(BoardWidget):
         py = ux * arrow_width
 
         points = (
-            f"{x2 - ux*width*0.5},{y2 - uy*width*0.5} "
+            f"{x2 - ux * width * 0.5},{y2 - uy * width * 0.5} "
             f"{ex + px},{ey + py} "
             f"{ex - px},{ey - py}"
         )
 
         # Shaft
-        ET.SubElement(svg_root, "line", {
-            "x1": str(sx), "y1": str(sy),
-            "x2": str(ex), "y2": str(ey),
-            "stroke": color,
-            "stroke-width": str(width),
-            "stroke-linecap": "butt",
-            "opacity": opacity,
-        })
+        ET.SubElement(
+            svg_root,
+            "line",
+            {
+                "x1": str(sx),
+                "y1": str(sy),
+                "x2": str(ex),
+                "y2": str(ey),
+                "stroke": color,
+                "stroke-width": str(width),
+                "stroke-linecap": "butt",
+                "opacity": opacity,
+            },
+        )
         # Head
-        ET.SubElement(svg_root, "polygon", {
-            "points": points,
-            "fill": color,
-            "opacity": opacity,
-        })
+        ET.SubElement(
+            svg_root,
+            "polygon",
+            {
+                "points": points,
+                "fill": color,
+                "opacity": opacity,
+            },
+        )
 
     # ------------------------------------------------------------------ public
     def load_fen(self, fen, chess960=False):

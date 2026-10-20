@@ -2,6 +2,7 @@
 Error dialog for when the LLM is not configured,
 offering Configure Now and Skip actions.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
@@ -11,7 +12,7 @@ from ..styles import Styles
 class LlmNotConfiguredDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("LLM Not Configured")
+        self.setWindowTitle("LLM nicht eingerichtet")
         self.setFixedSize(440, 220)
         self.setStyleSheet(f"""
             QDialog {{
@@ -26,7 +27,7 @@ class LlmNotConfiguredDialog(QDialog):
         layout.setContentsMargins(28, 28, 28, 20)
         layout.setSpacing(14)
 
-        title = QLabel("AI Features Require Configuration")
+        title = QLabel("KI-Funktionen müssen eingerichtet werden")
         title.setStyleSheet(
             f"font-size: 17px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; "
             f"background: transparent;"
@@ -35,13 +36,13 @@ class LlmNotConfiguredDialog(QDialog):
         layout.addWidget(title)
 
         desc = QLabel(
-            "AI-powered analysis (summaries, coach insights, and move explanations) "
-            "need an LLM provider API key. You can configure one in Settings."
+            "KI-gestützte Analysen (Zusammenfassungen, Coach-Tipps und Zugerklärungen) "
+            "brauchen einen API-Schlüssel eines LLM-Anbieters. Du kannst ihn in den "
+            "Einstellungen hinterlegen."
         )
         desc.setWordWrap(True)
         desc.setStyleSheet(
-            f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; "
-            f"background: transparent;"
+            f"font-size: 13px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
         )
         desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(desc)
@@ -51,7 +52,7 @@ class LlmNotConfiguredDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
 
-        self._skip_btn = QPushButton("Skip")
+        self._skip_btn = QPushButton("Überspringen")
         self._skip_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._skip_btn.setStyleSheet(f"""
             QPushButton {{
@@ -72,7 +73,7 @@ class LlmNotConfiguredDialog(QDialog):
 
         btn_layout.addSpacing(12)
 
-        self._configure_btn = QPushButton("  Configure Now")
+        self._configure_btn = QPushButton("  Jetzt einrichten")
         self._configure_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._configure_btn.setStyleSheet(f"""
             QPushButton {{

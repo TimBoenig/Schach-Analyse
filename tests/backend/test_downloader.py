@@ -57,7 +57,7 @@ class TestGetCurrentPlatform:
 
     def test_unsupported_platform_raises(self, mocker):
         mocker.patch.object(sys, "platform", "cygwin")
-        with pytest.raises(RuntimeError, match="Unsupported platform"):
+        with pytest.raises(RuntimeError, match="Nicht unterstützte Plattform"):
             get_current_platform()
 
 
@@ -191,9 +191,11 @@ class TestGetOfficialReleases:
         mock_resp = MagicMock()
         mock_resp.json.return_value = {
             "assets": [
-                {"name": "stockfish-macos-universal.tar.gz",
-                 "browser_download_url": "https://example.com/a.tar.gz",
-                 "size": 12345},
+                {
+                    "name": "stockfish-macos-universal.tar.gz",
+                    "browser_download_url": "https://example.com/a.tar.gz",
+                    "size": 12345,
+                },
             ]
         }
         mocker.patch("requests.get", return_value=mock_resp)
@@ -227,7 +229,10 @@ class TestGetDownloadUrl:
             return_value=("linux", "x86_64"),
         )
         releases = [_asset("stockfish-linux-x86-64-universal.tar.gz")]
-        assert get_download_url(releases) == "https://example.com/stockfish-linux-x86-64-universal.tar.gz"
+        assert (
+            get_download_url(releases)
+            == "https://example.com/stockfish-linux-x86-64-universal.tar.gz"
+        )
 
     def test_returns_none_when_not_found(self, mocker):
         mocker.patch(
@@ -317,9 +322,7 @@ class TestDownloadAndExtract:
         self._mock_download(mocker, archive_path)
 
         dest = str(tmp_path / "dest")
-        result = download_and_extract(
-            "https://example.com/test.tar.gz", dest, validate=False
-        )
+        result = download_and_extract("https://example.com/test.tar.gz", dest, validate=False)
 
         expected_name = "stockfish.exe" if sys.platform == "win32" else "stockfish"
         assert os.path.isfile(result)
@@ -331,9 +334,7 @@ class TestDownloadAndExtract:
         self._mock_download(mocker, archive_path)
 
         dest = str(tmp_path / "dest_tar")
-        result = download_and_extract(
-            "https://example.com/test.tar", dest, validate=False
-        )
+        result = download_and_extract("https://example.com/test.tar", dest, validate=False)
         assert os.path.isfile(result)
 
     def test_download_and_extract_mislabeled_archive(self, mocker, tmp_path):
@@ -342,9 +343,7 @@ class TestDownloadAndExtract:
         self._mock_download(mocker, archive_path)
 
         dest = str(tmp_path / "dest_mislabeled")
-        result = download_and_extract(
-            "https://example.com/stockfish.tar", dest, validate=False
-        )
+        result = download_and_extract("https://example.com/stockfish.tar", dest, validate=False)
         assert os.path.isfile(result)
 
     def test_download_and_extract_zip(self, mocker, tmp_path):
@@ -353,9 +352,7 @@ class TestDownloadAndExtract:
         mocker.patch.object(sys, "platform", "win32")
 
         dest = str(tmp_path / "dest_zip")
-        result = download_and_extract(
-            "https://example.com/test.zip", dest, validate=False
-        )
+        result = download_and_extract("https://example.com/test.zip", dest, validate=False)
 
         assert os.path.isfile(result)
         assert result.endswith("stockfish.exe")

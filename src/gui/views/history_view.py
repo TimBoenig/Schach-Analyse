@@ -16,6 +16,7 @@ from src.gui.components.game_list_widget import GameListWidget
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button, create_combobox
 from src.utils.logger import logger
+from src.utils.translations import tr_filter
 
 try:
     import qtawesome as qta
@@ -94,7 +95,7 @@ class HistoryView(QWidget):
         header_layout.setSpacing(8)
 
         # Title
-        self.header_lbl = QLabel("Game History")
+        self.header_lbl = QLabel("Partienverlauf")
         self.header_lbl.setStyleSheet(
             Styles.get_label_style(size=22, color=Styles.COLOR_TEXT_PRIMARY, bold=True)
             + " "
@@ -105,19 +106,26 @@ class HistoryView(QWidget):
         header_layout.addStretch()
 
         # Action Buttons in Top Header (Import, Export, Clear, Refresh)
-        self.btn_import = self._create_icon_button("Import", "fa5s.file-import", self.import_games)
+        self.btn_import = self._create_icon_button(
+            "Importieren", "fa5s.file-import", self.import_games
+        )
         header_layout.addWidget(self.btn_import)
 
-        self.btn_export = self._create_icon_button("Export", "fa5s.file-export", self.export_games)
+        self.btn_export = self._create_icon_button(
+            "Exportieren", "fa5s.file-export", self.export_games
+        )
         header_layout.addWidget(self.btn_export)
 
         self.btn_clear = self._create_icon_button(
-            "Clear", "fa5s.trash-alt", self.clear_history, danger=True
+            "Leeren", "fa5s.trash-alt", self.clear_history, danger=True
         )
         header_layout.addWidget(self.btn_clear)
 
         self.btn_refresh = create_button(
-            "Refresh", style="secondary", on_click=self.load_history, icon_name="fa5s.sync-alt"
+            "Aktualisieren",
+            style="secondary",
+            on_click=self.load_history,
+            icon_name="fa5s.sync-alt",
         )
         header_layout.addWidget(self.btn_refresh)
 
@@ -136,7 +144,7 @@ class HistoryView(QWidget):
 
         # Search Bar
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search player, opening, date...")
+        self.search_input.setPlaceholderText("Spieler, Eröffnung, Datum suchen …")
         self.search_input.setMinimumWidth(220)
         self.search_input.setStyleSheet(Styles.get_filter_input_style())
         self.search_input.textChanged.connect(self.apply_filters)
@@ -145,59 +153,66 @@ class HistoryView(QWidget):
         filter_layout.addSpacing(10)
 
         # Result Filter
-        self.result_label = QLabel("Result:")
+        self.result_label = QLabel("Ergebnis:")
         self.result_label.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
         )
         filter_layout.addWidget(self.result_label)
 
-        self.result_filter = create_combobox(
-            items=["All", "Wins", "Losses", "Draws"], on_change=self.apply_filters
+        self.result_filter = self._create_value_combo(
+            [("All", "Alle"), ("Wins", "Siege"), ("Losses", "Niederlagen"), ("Draws", "Remis")],
+            width=115,
         )
-        self.result_filter.setFixedWidth(100)
         filter_layout.addWidget(self.result_filter)
 
         # Type / Speed Category Filter
-        self.type_label = QLabel("Type:")
+        self.type_label = QLabel("Typ:")
         self.type_label.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
         )
         filter_layout.addWidget(self.type_label)
 
-        self.type_filter = create_combobox(
-            items=["All", "Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet"],
-            on_change=self.apply_filters,
+        self.type_filter = self._create_value_combo(
+            [("All", "Alle")]
+            + [
+                (v, tr_filter(v))
+                for v in ("Rapid", "Blitz", "Bullet", "Classical", "Daily", "UltraBullet")
+            ],
+            width=125,
         )
-        self.type_filter.setFixedWidth(110)
         filter_layout.addWidget(self.type_filter)
 
         # Source Filter
-        self.source_label = QLabel("Source:")
+        self.source_label = QLabel("Quelle:")
         self.source_label.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
         )
         filter_layout.addWidget(self.source_label)
 
-        self.source_filter = create_combobox(
-            items=["All", "Chess.com", "Lichess", "File"], on_change=self.apply_filters
+        self.source_filter = self._create_value_combo(
+            [("All", "Alle")] + [(v, tr_filter(v)) for v in ("Chess.com", "Lichess", "File")],
+            width=110,
         )
-        self.source_filter.setFixedWidth(110)
         filter_layout.addWidget(self.source_filter)
 
         filter_layout.addSpacing(10)
 
         # Sort Dropdown
-        self.sort_label = QLabel("Sort:")
+        self.sort_label = QLabel("Sortierung:")
         self.sort_label.setStyleSheet(
             Styles.get_label_style(size=12, color=Styles.COLOR_TEXT_PRIMARY, weight=600)
         )
         filter_layout.addWidget(self.sort_label)
 
-        self.sort_dropdown = create_combobox(
-            items=["Newest First", "Oldest First", "Most Moves", "Fewest Moves"],
-            on_change=self.apply_filters,
+        self.sort_dropdown = self._create_value_combo(
+            [
+                ("Newest First", "Neueste zuerst"),
+                ("Oldest First", "Älteste zuerst"),
+                ("Most Moves", "Meiste Züge"),
+                ("Fewest Moves", "Wenigste Züge"),
+            ],
+            width=140,
         )
-        self.sort_dropdown.setFixedWidth(135)
         filter_layout.addWidget(self.sort_dropdown)
 
         content_layout.addLayout(filter_layout)
@@ -227,6 +242,16 @@ class HistoryView(QWidget):
         btn.clicked.connect(callback)
         return btn
 
+    def _create_value_combo(self, options: list[tuple[str, str]], width: int):
+        """Combo whose display label is German but whose item data is the English
+        filter value compared in the filter/sort logic."""
+        combo = create_combobox(items=[])
+        for value, label in options:
+            combo.addItem(label, value)
+        combo.setFixedWidth(width)
+        combo.currentIndexChanged.connect(self.apply_filters)
+        return combo
+
     def set_analyzing_game_id(self, game_id: str | None):
         """Inform HistoryView of the game currently being analyzed."""
         self.analyzing_game_id = game_id
@@ -254,10 +279,11 @@ class HistoryView(QWidget):
     def apply_filters(self):
         """Apply search, filter, and sort settings to the game list."""
         search_query = self.search_input.text().strip().lower()
-        result_filter = self.result_filter.currentText()
-        type_filter = self.type_filter.currentText()
-        source_filter = self.source_filter.currentText()
-        sort_option = self.sort_dropdown.currentText()
+        # Item data holds the English filter value; the visible text is German.
+        result_filter = self.result_filter.currentData() or "All"
+        type_filter = self.type_filter.currentData() or "All"
+        source_filter = self.source_filter.currentData() or "All"
+        sort_option = self.sort_dropdown.currentData() or "Newest First"
 
         filtered_games = self.games.copy()
 
@@ -389,9 +415,10 @@ class HistoryView(QWidget):
 
         if confirm_dialog(
             self,
-            "Clear History",
-            "Are you sure you want to clear all game history? This cannot be undone.",
-            confirm_label="Clear All",
+            "Verlauf leeren",
+            "Möchtest du wirklich den gesamten Partienverlauf löschen? "
+            "Das kann nicht rückgängig gemacht werden.",
+            confirm_label="Alles löschen",
         ):
             self.history_manager.clear_history()
             logger.info("Cleared all game history via UI")
@@ -407,14 +434,14 @@ class HistoryView(QWidget):
             from src.gui.components.toast import Toast
 
             file_name, _ = QFileDialog.getSaveFileName(
-                self, "Export Games", "games.csv", "CSV Files (*.csv)"
+                self, "Partien exportieren", "partien.csv", "CSV-Dateien (*.csv)"
             )
             if not file_name:
                 return
 
             history_games = self.history_manager.get_all_games(limit=None)
             if not history_games:
-                Toast.show_message(self.window(), "No games to export.", "warning")
+                Toast.show_message(self.window(), "Keine Partien zum Exportieren.", "warning")
                 return
 
             with open(file_name, mode="w", newline="", encoding="utf-8") as csvfile:
@@ -429,13 +456,15 @@ class HistoryView(QWidget):
                     writer.writerow(row)
 
             logger.info(f"Exported {len(history_games)} games to {file_name}")
-            Toast.show_message(self.window(), f"Exported {len(history_games)} games.", "success")
+            Toast.show_message(
+                self.window(), f"{len(history_games)} Partien exportiert.", "success"
+            )
 
         except Exception as e:
             logger.error(f"Export failed: {e}")
             from src.gui.components.toast import Toast
 
-            Toast.show_message(self.window(), f"Export failed: {e}", "error")
+            Toast.show_message(self.window(), f"Export fehlgeschlagen: {e}", "error")
 
     def import_games(self):
         try:
@@ -444,12 +473,12 @@ class HistoryView(QWidget):
             from src.gui.components.toast import Toast
 
             file_name, _ = QFileDialog.getOpenFileName(
-                self, "Import Games", "", "CSV Files (*.csv)"
+                self, "Partien importieren", "", "CSV-Dateien (*.csv)"
             )
             if not file_name:
                 return
 
-            Toast.show_message(self.window(), "Importing games...", "info")
+            Toast.show_message(self.window(), "Partien werden importiert …", "info")
 
             self._import_worker = GameImportWorker(self.history_manager, file_name, parent=self)
 
@@ -462,14 +491,14 @@ class HistoryView(QWidget):
                     self.games_imported.emit(imported_count)
                 Toast.show_message(
                     self.window(),
-                    f"Imported: {imported_count}, Skipped: {skipped_count}",
+                    f"Importiert: {imported_count}, übersprungen: {skipped_count}",
                     "success",
                 )
                 self._import_worker = None
 
             def _on_import_error(err: str):
                 logger.error(f"Import failed: {err}")
-                Toast.show_message(self.window(), f"Import failed: {err}", "error")
+                Toast.show_message(self.window(), f"Import fehlgeschlagen: {err}", "error")
                 self._import_worker = None
 
             self._import_worker.finished.connect(_on_import_finished)
@@ -480,7 +509,7 @@ class HistoryView(QWidget):
             logger.error(f"Failed to start import: {e}")
             from src.gui.components.toast import Toast
 
-            Toast.show_message(self.window(), f"Failed to start import: {e}", "error")
+            Toast.show_message(self.window(), f"Import konnte nicht gestartet werden: {e}", "error")
 
     def refresh_styles(self):
         """Re-applies styles to game history view components."""

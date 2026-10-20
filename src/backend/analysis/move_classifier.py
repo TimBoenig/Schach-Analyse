@@ -196,7 +196,7 @@ def classify_move(
     # ============ PRIORITY 1: Delivering Checkmate ============
     if move.san and move.san.endswith("#"):
         move.classification = "Best"
-        move.explanation = "Delivered checkmate!"
+        move.explanation = "Schachmatt gesetzt!"
         return
 
     # ============ PRIORITY 2: Missed Forced Mate ============
@@ -220,14 +220,14 @@ def classify_move(
 
         if missed_mate:
             move.classification = "Miss"
-            move.explanation = "Missed a forced checkmate."
+            move.explanation = "Erzwungenes Matt verpasst."
             return
 
         if move.uci != move.best_move and player_wc_after >= 0.99:
             pass
         elif player_wc_after >= 0.99 and not is_sacrifice_candidate:
             move.classification = "Best"
-            move.explanation = "Winning position maintained."
+            move.explanation = "Gewinnstellung gehalten."
             return
 
     # ============ PRIORITY 2.5: Winning Position After (no mate context) ============
@@ -239,7 +239,7 @@ def classify_move(
         and not (player_had_mate and move.uci != move.best_move)
     ):
         move.classification = "Best"
-        move.explanation = "Winning position maintained."
+        move.explanation = "Gewinnstellung gehalten."
         return
 
     # ============ PRIORITY 3: Best Move Check ============
@@ -300,7 +300,7 @@ def classify_move(
             if not alternative_veto:
                 move.classification = "Brilliant"
                 move.explanation = (
-                    "Brilliant sacrifice! Sacrificed material to gain a decisive advantage."
+                    "Brillantes Opfer! Material geopfert für einen entscheidenden Vorteil."
                 )
                 logger.debug(
                     "Move %s (%s) classified as Brilliant (sacrifice verified, wpl=%.3f, wc_before=%.2f, wc_after=%.2f)",
@@ -353,7 +353,9 @@ def classify_move(
                 # If alternatives were significantly worse (rest are worse), this is the only move -> Great!
                 if diff >= 0.15:
                     move.classification = "Great"
-                    move.explanation = f"Only good move! Alternatives were {diff * 100:.0f}% worse."
+                    move.explanation = (
+                        f"Einziger guter Zug! Alternativen waren {diff * 100:.0f}% schlechter."
+                    )
                     logger.debug(
                         "Move %s (%s) classified as Great (only move, diff=%.2f)",
                         getattr(move, "san", getattr(move, "uci", "unknown")),
@@ -363,7 +365,7 @@ def classify_move(
                     return
 
         move.classification = "Best"
-        move.explanation = "Engine's top choice."
+        move.explanation = "Erste Wahl der Engine."
         return
 
     # Noise guard: If the player remains overwhelmingly winning after the move
@@ -386,7 +388,7 @@ def classify_move(
     )
     if is_missed_opportunity:
         move.classification = "Miss"
-        move.explanation = f"Missed opportunity (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
+        move.explanation = f"Chance verpasst (Gewinnchance von {player_wc_before * 100:.0f}% auf {player_wc_after * 100:.0f}% gefallen)."
         logger.debug(
             "Move %s (%s) classified as Miss (wc_before=%.2f -> wc_after=%.2f)",
             getattr(move, "san", getattr(move, "uci", "unknown")),
@@ -407,7 +409,7 @@ def classify_move(
 
     if is_blunder:
         move.classification = "Blunder"
-        move.explanation = f"Blunder! Lost {wpl * 100:.1f}% winning chances."
+        move.explanation = f"Patzer! {wpl * 100:.1f}% Gewinnchance verloren."
         logger.debug(
             "Move %s (%s) classified as Blunder (wpl=%.3f, wc_after=%.2f)",
             getattr(move, "san", getattr(move, "uci", "unknown")),
@@ -425,7 +427,7 @@ def classify_move(
         and not still_crushing_after
     ):
         move.classification = "Miss"
-        move.explanation = f"Missed win (dropped from {player_wc_before * 100:.0f}% to {player_wc_after * 100:.0f}%)."
+        move.explanation = f"Gewinn verpasst (Gewinnchance von {player_wc_before * 100:.0f}% auf {player_wc_after * 100:.0f}% gefallen)."
         logger.debug(
             "Move %s (%s) classified as Miss (wc_before=%.2f -> wc_after=%.2f)",
             getattr(move, "san", getattr(move, "uci", "unknown")),
@@ -443,13 +445,13 @@ def classify_move(
     # Excellent:  WPL < 0.02
     if wpl >= 0.10 and not still_crushing_after:
         move.classification = "Mistake"
-        move.explanation = f"Mistake (lost {wpl * 100:.1f}% winning chances)."
+        move.explanation = f"Fehler ({wpl * 100:.1f}% Gewinnchance verloren)."
     elif wpl >= 0.05 and not still_crushing_after:
         move.classification = "Inaccuracy"
-        move.explanation = f"Inaccuracy (lost {wpl * 100:.1f}% winning chances)."
+        move.explanation = f"Ungenauigkeit ({wpl * 100:.1f}% Gewinnchance verloren)."
     elif wpl >= 0.02:
         move.classification = "Good"
-        move.explanation = "Solid move."
+        move.explanation = "Solider Zug."
     else:
         move.classification = "Excellent"
-        move.explanation = "Excellent move."
+        move.explanation = "Exzellenter Zug."

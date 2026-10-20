@@ -18,6 +18,7 @@ from src.utils.path_utils import get_resource_path
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -29,8 +30,19 @@ QTAWESOME_ICONS = {
     "explorer.png": "fa5s.compass",
     "history.png": "fa5s.history",
     "stats.png": "fa5s.chart-bar",
+    "profile.png": "fa5s.user-graduate",
     "settings.png": "fa5s.cog",
 }
+
+# (label, icon, stack page index) in display order.
+NAV_SPECS: tuple[tuple[str, str, int], ...] = (
+    ("Analyse", "analyze.png", 0),
+    ("Explorer", "explorer.png", 1),
+    ("Verlauf", "history.png", 2),
+    ("Mein Profil", "profile.png", 5),
+    ("Statistiken", "stats.png", 3),
+    ("Einstellungen", "settings.png", 4),
+)
 
 COLLAPSED_WIDTH = 60
 EXPANDED_WIDTH = 200
@@ -51,23 +63,15 @@ class Sidebar(QFrame):
         self.layout.setContentsMargins(6, 20, 6, 20)
         self.layout.setSpacing(6)
 
-        nav_specs = [
-            ("Analyze", "analyze.png", 0),
-            ("Explorer", "explorer.png", 1),
-            ("History", "history.png", 2),
-            ("Stats", "stats.png", 3),
-            ("Settings", "settings.png", 4),
-        ]
-
         self._nav_buttons = []
-        for text, icon_name, idx in nav_specs:
+        for text, icon_name, idx in NAV_SPECS:
             btn = self._make_nav_button(text, icon_name, idx)
             self._nav_buttons.append(btn)
             self.layout.addWidget(btn)
 
         self.layout.addStretch()
 
-        self.btn_help = self._make_nav_button("Help (F1)", "help.png", -1)
+        self.btn_help = self._make_nav_button("Hilfe (F1)", "help.png", -1)
         self.btn_help.clicked.connect(self.show_help)
         self.layout.addWidget(self.btn_help)
 
@@ -77,7 +81,7 @@ class Sidebar(QFrame):
         self.btn_collapse.clicked.connect(self.toggle_collapse)
         self.layout.addWidget(self.btn_collapse)
 
-        self.btn_exit = self._make_nav_button("Exit", "exit.png", -1)
+        self.btn_exit = self._make_nav_button("Beenden", "exit.png", -1)
         self.btn_exit.clicked.connect(QApplication.instance().quit)
         self.layout.addWidget(self.btn_exit)
 
@@ -153,35 +157,29 @@ class Sidebar(QFrame):
             }}
         """)
 
-        nav_specs = [
-            ("Analyze", "analyze.png", 0),
-            ("Explorer", "explorer.png", 1),
-            ("History", "history.png", 2),
-            ("Stats", "stats.png", 3),
-            ("Settings", "settings.png", 4),
-        ]
-        for btn, (_text, icon_name, _idx) in zip(self._nav_buttons, nav_specs, strict=False):
+        for btn, (_text, icon_name, _idx) in zip(self._nav_buttons, NAV_SPECS, strict=False):
             self._apply_icon(btn, icon_name)
         self._apply_icon(self.btn_help, "help.png")
         self._apply_icon(self.btn_exit, "exit.png")
         self._update_collapse_icon()
 
     def _update_labels_and_icons(self):
-        nav_texts = ["Analyze", "Explorer", "History", "Stats", "Settings"]
-        for btn, txt in zip(self._nav_buttons, nav_texts, strict=False):
+        for btn, (txt, _icon, _idx) in zip(self._nav_buttons, NAV_SPECS, strict=False):
             btn.setText(f"  {txt}" if not self._collapsed else "")
-        self.btn_help.setText("  Help (F1)" if not self._collapsed else "")
-        self.btn_exit.setText("  Exit" if not self._collapsed else "")
+        self.btn_help.setText("  Hilfe (F1)" if not self._collapsed else "")
+        self.btn_exit.setText("  Beenden" if not self._collapsed else "")
         self._update_collapse_icon()
 
     def _update_collapse_icon(self):
         icon_char = "\u00ab" if not self._collapsed else "\u00bb"
         self.btn_collapse.setText(f"  {icon_char}" if not self._collapsed else icon_char)
         if HAS_QTAWESOME:
-            self.btn_collapse.setIcon(qta.icon(
-                "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right",
-                color=Styles.COLOR_TEXT_SECONDARY,
-            ))
+            self.btn_collapse.setIcon(
+                qta.icon(
+                    "fa5s.chevron-left" if not self._collapsed else "fa5s.chevron-right",
+                    color=Styles.COLOR_TEXT_SECONDARY,
+                )
+            )
             self.btn_collapse.setIconSize(QSize(16, 16))
 
     def handle_click(self, index):
@@ -194,16 +192,10 @@ class Sidebar(QFrame):
             self.page_changed.emit(index)
 
     def set_active(self, index):
-        nav_specs = [
-            ("Analyze", "analyze.png", 0),
-            ("Explorer", "explorer.png", 1),
-            ("History", "history.png", 2),
-            ("Stats", "stats.png", 3),
-            ("Settings", "settings.png", 4),
-        ]
-        for i, btn in enumerate(self._nav_buttons):
-            btn.setChecked(i == index)
-            self._apply_icon(btn, nav_specs[i][1])
+        # Button order differs from page index (Profil is page 5 but listed after Stats).
+        for btn, (_text, icon_name, idx) in zip(self._nav_buttons, NAV_SPECS, strict=True):
+            btn.setChecked(idx == index)
+            self._apply_icon(btn, icon_name)
 
     def toggle_collapse(self):
         if self._animating:
@@ -228,5 +220,6 @@ class Sidebar(QFrame):
 
     def show_help(self):
         from src.gui.dialogs import ShortcutHelpDialog
+
         dialog = ShortcutHelpDialog(self)
         dialog.exec()

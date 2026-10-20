@@ -13,7 +13,6 @@ The class is still named GroqService for backward compatibility with all
 existing import sites.
 """
 
-import locale
 import os
 import re
 
@@ -24,78 +23,27 @@ from src.utils.config import ConfigManager
 from src.utils.logger import logger
 
 # ---------------------------------------------------------------------------
-# Language detection
+# Response language
 # ---------------------------------------------------------------------------
-_LANG_NAMES: dict[str, str] = {
-    "en": "English",  # Default language
-    "de": "German",
-    "fr": "French",
-    "es": "Spanish",
-    "it": "Italian",
-    "pt": "Portuguese",
-    "nl": "Dutch",
-    "pl": "Polish",
-    "ru": "Russian",
-    "tr": "Turkish",
-    "ja": "Japanese",
-    "zh": "Chinese",
-    "ko": "Korean",
-    "ar": "Arabic",
-    "sv": "Swedish",
-    "da": "Danish",
-    "fi": "Finnish",
-    "nb": "Norwegian",
-    "cs": "Czech",
-    "sk": "Slovak",
-    "hu": "Hungarian",
-    "ro": "Romanian",
-}
+# The UI is German, so every LLM answer is requested in German and addressed
+# to the player informally ("du"), independent of the operating-system locale.
+_LANGUAGE_INSTRUCTION = (
+    "Antworte ausschließlich auf Deutsch. Sprich den Spieler direkt und informell "
+    "in der du-Form an. Verwende die deutsche Schachterminologie "
+    "(z. B. Patzer, Fehler, Ungenauigkeit, Gabel, Fesselung, Eröffnung, Endspiel)."
+)
 
-# Localised section labels for the AI summary. Keys are the language
-# codes that _LANG_NAMES also uses. The English keys are the defaults
-# and are required; missing languages fall back to English.
-_SECTION_LABELS: dict[str, dict[str, str]] = {
-    "en": {"game_comment": "Game Comment", "summary": "Summary"},
-    "de": {"game_comment": "Spielkommentar", "summary": "Zusammenfassung"},
-}
+# Section labels the summary prompt asks the model to emit verbatim.
+_SECTION_LABELS: dict[str, str] = {"game_comment": "Spielkommentar", "summary": "Zusammenfassung"}
 
-
-def _detect_ui_locale_code() -> str:
-    """Return the two-letter language code (e.g. 'de', 'en') of the UI locale.
-
-    Same resolution as _detect_ui_language but stops at the code; used to
-    look up _SECTION_LABELS.
-    """
-    try:
-        lang_env = os.environ.get("LANG") or os.environ.get("LANGUAGE") or ""
-        code = lang_env.split(".")[0].split("_")[0].lower()
-        if not code:
-            loc = locale.getdefaultlocale()
-            code = (loc[0] or "").split("_")[0].lower()
-        return code or "en"
-    except Exception:
-        return "en"
-
-
-def _detect_ui_language() -> str:
-    """
-    Return a human-readable language name that matches the current system UI
-    locale so LLM responses can be requested in the user's language.
-
-    Resolution order:
-      1. LANG / LANGUAGE environment variables  (most reliable on Linux)
-      2. Python locale.getdefaultlocale()
-      3. Falls back to 'English'
-    """
-    try:
-        lang_env = os.environ.get("LANG") or os.environ.get("LANGUAGE") or ""
-        code = lang_env.split(".")[0].split("_")[0].lower()
-        if not code:
-            loc = locale.getdefaultlocale()
-            code = (loc[0] or "").split("_")[0].lower()
-    except Exception:
-        code = ""
-    return _LANG_NAMES.get(code, "English")
+# User-visible fallback texts. The "Error" prefix and the "not configured"
+# phrase are matched by the GUI (is_error_message / LLM setup dialog), so they
+# must stay as-is until the GUI uses a language-neutral error signal.
+_NOT_CONFIGURED_MSG = (
+    "Error: LLM nicht konfiguriert (not configured). "
+    "Richte es unter Einstellungen → API-Konfiguration ein."
+)
+_NO_RESPONSE_MSG = "Keine Antwort erhalten."
 
 
 # ---------------------------------------------------------------------------
@@ -267,7 +215,7 @@ class GroqService:
         """
         if not self.client:
             logger.warning("Attempted LLM completion but client is not configured")
-            return "Error: LLM not configured. Go to Settings → API Configuration."
+            return _NOT_CONFIGURED_MSG
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -284,39 +232,27 @@ class GroqService:
             logger.info(
                 "Received LLM completion response (%d chars)", len(text.strip()) if text else 0
             )
-            return text.strip() if text else "No response generated."
+            return text.strip() if text else _NO_RESPONSE_MSG
         except Exception as exc:
             exc_type = type(exc).__name__
             logger.error("LLM completion failed [%s]: %s", exc_type, exc)
-            return f"Error [{exc_type}]: {exc}"
-
-    @staticmethod
-    def _lang_code() -> str:
-        """Two-letter language code (e.g. "de", "en") for the active UI locale."""
-        return _detect_ui_locale_code()
+            return f"Error [{exc_type}]: Anfrage an das LLM fehlgeschlagen – {exc}"
 
     @staticmethod
     def _lang_instruction() -> str:
-        """Return a language instruction for the system message.
+        """Return the language instruction for the system message.
 
         We send it as a separate system message (not as a suffix on the
         user prompt) because reasoning models tend to *echo* the
         instruction at the top of the answer when it appears inside the
         user message.
         """
-        lang = _detect_ui_language()
-        if lang == "English":
-            return ""  # LLMs default to English — no instruction needed
-        return f"Write your entire response in {lang}."
+        return _LANGUAGE_INSTRUCTION
 
     @staticmethod
     def _section_labels() -> dict[str, str]:
-        """Return the section-label translations for the active UI locale.
-
-        Falls back to English for any language we don't ship labels for.
-        """
-        code = GroqService._lang_code()
-        return _SECTION_LABELS.get(code, _SECTION_LABELS["en"])
+        """Return the (German) section labels the summary must use verbatim."""
+        return _SECTION_LABELS
 
     # ------------------------------------------------------------------
     # Public prompts
@@ -325,7 +261,7 @@ class GroqService:
     def generate_summary(self, pgn_text: str, analysis_summary: str, time_stats: str = "") -> str:
         """Generate a chess-expert narrative summary for a single game."""
         if not self.client:
-            return "Error: LLM not configured. Go to Settings → API Configuration."
+            return _NOT_CONFIGURED_MSG
 
         if len(pgn_text) > 10_000:
             pgn_text = pgn_text[:10_000] + "… (truncated)"
@@ -367,28 +303,29 @@ class GroqService:
     def generate_coach_insights(self, stats_text: str) -> str:
         """Generate structured coaching diagnostics from player performance dossier."""
         if not self.client:
-            return "Error: LLM not configured. Go to Settings → API Configuration."
+            return _NOT_CONFIGURED_MSG
 
         prompt = (
             "You are an insightful, direct, and constructive chess coach analyzing a student's performance dossier.\n\n"
             f"{stats_text}\n\n"
-            "Provide a rigorous, actionable coaching diagnostic divided into EXACTLY these 3 sections with markdown headers:\n\n"
-            "### Strengths & Superpowers\n"
-            "- **Title**: 1-2 concise sentences highlighting a specific proven strength (e.g. tactical vision, endgame technique, or opening preparation).\n"
-            "- **Title**: 1-2 concise sentences highlighting another proven strength.\n\n"
-            "### Critical Leaks & Blindspots\n"
-            "- **Title**: 1-2 concise sentences diagnosing the primary rating leak (e.g. hanging pieces, moving too fast in Rapid/Classical, squandered winning leads, or endgame collapses).\n"
-            "- **Title**: 1-2 concise sentences identifying another recurring mistake pattern.\n\n"
-            "### Personalized Training Prescription\n"
-            "- **Action**: Concrete practice routine addressing the primary leak (e.g. specific puzzle themes, clock pacing rules, or opening repertoire repairs).\n"
-            "- **Action**: Concrete practice routine addressing the secondary leak.\n\n"
+            "Provide a rigorous, actionable coaching diagnostic divided into EXACTLY these 3 sections with these German markdown headers, written verbatim:\n\n"
+            "### Stärken & Superkräfte\n"
+            "- **Titel**: 1-2 concise sentences highlighting a specific proven strength (e.g. tactical vision, endgame technique, or opening preparation).\n"
+            "- **Titel**: 1-2 concise sentences highlighting another proven strength.\n\n"
+            "### Kritische Schwächen & blinde Flecken\n"
+            "- **Titel**: 1-2 concise sentences diagnosing the primary rating leak (e.g. hanging pieces, moving too fast in Rapid/Classical, squandered winning leads, or endgame collapses).\n"
+            "- **Titel**: 1-2 concise sentences identifying another recurring mistake pattern.\n\n"
+            "### Dein persönlicher Trainingsplan\n"
+            "- **Maßnahme**: Concrete practice routine addressing the primary leak (e.g. specific puzzle themes, clock pacing rules, or opening repertoire repairs).\n"
+            "- **Maßnahme**: Concrete practice routine addressing the secondary leak.\n\n"
             "Critical Guidelines:\n"
             "- TIME MANAGEMENT RULE: NEVER praise fast move times in Rapid or Classical games as a strength! "
             "If the student moves in under 8 seconds per move in Rapid/Classical and leaves excess time on their clock while blundering, "
-            "classify this as a CRITICAL LEAK ('Moving Too Fast / Blitzing in Rapid'). Instruct them to slow down and calculate.\n"
+            "classify this as a CRITICAL LEAK ('Zu schnell gespielt / Blitzen im Schnellschach'). Instruct them to slow down and calculate.\n"
             "- Rely strictly on the data provided in the dossier.\n"
             "- Do NOT use emojis.\n"
             "- Keep the tone professional, direct, analytical, and encouraging.\n"
+            "- Address the student directly and informally in German (du-Form).\n"
             "- Do NOT include conversational pleasantries, introductory greetings, or sign-offs."
         )
         return self._chat(prompt, system=self._lang_instruction())

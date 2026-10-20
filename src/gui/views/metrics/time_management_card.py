@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
+from src.utils.translations import tr_speed
 
 
 class TimeManagementCard(MetricCard):
@@ -32,12 +33,12 @@ class TimeManagementCard(MetricCard):
     """
 
     FORMAT_META: dict[str, tuple[str, str]] = {
-        "Bullet": ("fa5s.bolt", "Fast-paced scrambles (<3m)"),
-        "Blitz": ("fa5s.stopwatch", "Standard fast play (3–5m)"),
-        "Rapid": ("fa5s.hourglass-half", "Tactical calculation (10–30m)"),
-        "Classical": ("fa5s.chess-rook", "Traditional classical (>30m)"),
+        "Bullet": ("fa5s.bolt", "Hektische Zeitjagd (<3 Min.)"),
+        "Blitz": ("fa5s.stopwatch", "Schnelles Standardspiel (3–5 Min.)"),
+        "Rapid": ("fa5s.hourglass-half", "Taktisches Rechnen (10–30 Min.)"),
+        "Classical": ("fa5s.chess-rook", "Klassische Partie (>30 Min.)"),
         "Chess960": ("fa5s.random", "Fischer Random (Freestyle)"),
-        "UltraBullet": ("fa5s.tachometer-alt", "Hyper-speed play (<30s)"),
+        "UltraBullet": ("fa5s.tachometer-alt", "Blitzschnelles Spiel (<30 Sek.)"),
     }
 
     def __init__(self, parent=None):
@@ -48,7 +49,7 @@ class TimeManagementCard(MetricCard):
         self.segmented_control = self._build_segmented_control()
 
         super().__init__(
-            "Time & Clock Analytics",
+            "Zeit- & Uhranalyse",
             parent=parent,
             min_height=320,
             action_widget=self.segmented_control,
@@ -95,9 +96,9 @@ class TimeManagementCard(MetricCard):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.setSpacing(2)
 
-        self.btn_formats = QPushButton("Formats")
-        self.btn_pace = QPushButton("Move Pace")
-        self.btn_trouble = QPushButton("Time Trouble")
+        self.btn_formats = QPushButton("Formate")
+        self.btn_pace = QPushButton("Zugtempo")
+        self.btn_trouble = QPushButton("Zeitnot")
 
         for btn, mode in [
             (self.btn_formats, "formats"),
@@ -187,7 +188,7 @@ class TimeManagementCard(MetricCard):
 
         # 1. Rebuild Formats Page
         if not formats and not has_clock:
-            empty_lbl = QLabel("No time control or clock data available for selected games.")
+            empty_lbl = QLabel("Keine Bedenkzeit- oder Uhrdaten für die gewählten Partien.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -202,7 +203,7 @@ class TimeManagementCard(MetricCard):
         # 2. Rebuild Move Pace Page
         if not has_clock:
             self._build_no_clock_banner(
-                self.pace_layout, "Move pace analysis requires per-move [%clk] tags."
+                self.pace_layout, "Die Zugtempo-Analyse benötigt [%clk]-Angaben pro Zug."
             )
         else:
             self._build_pace_view(self.pace_layout, time_data)
@@ -210,7 +211,7 @@ class TimeManagementCard(MetricCard):
         # 3. Rebuild Time Trouble Page
         if not has_clock:
             self._build_no_clock_banner(
-                self.trouble_layout, "Time trouble analytics require per-move [%clk] tags."
+                self.trouble_layout, "Die Zeitnot-Analyse benötigt [%clk]-Angaben pro Zug."
             )
         else:
             self._build_trouble_view(self.trouble_layout, time_data)
@@ -230,7 +231,7 @@ class TimeManagementCard(MetricCard):
         b_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         b_layout.setSpacing(8)
 
-        lbl_title = QLabel("No Clock Timestamps Recorded")
+        lbl_title = QLabel("Keine Uhrzeiten erfasst")
         lbl_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 14px;
@@ -240,8 +241,8 @@ class TimeManagementCard(MetricCard):
         b_layout.addWidget(lbl_title)
 
         lbl_desc = QLabel(
-            f"{note}\nGames imported from Chess.com or Lichess automatically include clock comments.\n"
-            "View the 'Formats' tab for win rates and accuracy by time control."
+            f"{note}\nVon Chess.com oder Lichess importierte Partien enthalten automatisch Uhrzeiten.\n"
+            "Siegquoten und Genauigkeit je Bedenkzeit findest du im Tab „Formate“."
         )
         lbl_desc.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -280,7 +281,9 @@ class TimeManagementCard(MetricCard):
             avg_t = f_data.get("avg_move_time", 0.0)
             tl = f_data.get("time_losses", 0)
 
-            icon_name, _ = self.FORMAT_META.get(sp, ("fa5s.chess-clock", f"{tot} analyzed games"))
+            icon_name, _ = self.FORMAT_META.get(
+                sp, ("fa5s.chess-clock", f"{tot} analysierte Partien")
+            )
 
             row = QFrame()
             row.setObjectName("format_row")
@@ -331,7 +334,7 @@ class TimeManagementCard(MetricCard):
             # Format name & record
             info_box = QVBoxLayout()
             info_box.setSpacing(1)
-            name_lbl = QLabel(sp)
+            name_lbl = QLabel(tr_speed(sp))
             name_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_PRIMARY};
                 font-weight: 700;
@@ -340,7 +343,7 @@ class TimeManagementCard(MetricCard):
             """)
             info_box.addWidget(name_lbl)
 
-            record_lbl = QLabel(f"{tot} Games • {w}W {d}D {losses}L")
+            record_lbl = QLabel(f"{tot} Partien • {w}S {d}R {losses}N")
             record_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
                 font-size: 11px;
@@ -357,7 +360,7 @@ class TimeManagementCard(MetricCard):
 
             # Win rate badge
             wr_color = Styles.COLOR_RESULT_WIN if wr >= 50.0 else Styles.COLOR_TEXT_PRIMARY
-            wr_badge = QLabel(f"{wr:.1f}% Win")
+            wr_badge = QLabel(f"{wr:.1f}% Siege")
             wr_badge.setStyleSheet(f"""
                 background-color: {Styles.COLOR_SURFACE};
                 color: {wr_color};
@@ -371,7 +374,7 @@ class TimeManagementCard(MetricCard):
 
             # Accuracy badge
             if acc > 0:
-                acc_badge = QLabel(f"{acc:.1f}% Acc")
+                acc_badge = QLabel(f"{acc:.1f}% Gen.")
                 acc_badge.setStyleSheet(f"""
                     background-color: {Styles.COLOR_SURFACE};
                     color: {Styles.COLOR_TEXT_PRIMARY};
@@ -385,7 +388,7 @@ class TimeManagementCard(MetricCard):
 
             # Move pace badge
             if avg_t > 0:
-                pace_badge = QLabel(f"{avg_t:.1f}s / mv")
+                pace_badge = QLabel(f"{avg_t:.1f} s / Zug")
                 pace_badge.setStyleSheet(f"""
                     background-color: {Styles.COLOR_SURFACE};
                     color: {Styles.COLOR_TEXT_PRIMARY};
@@ -399,7 +402,7 @@ class TimeManagementCard(MetricCard):
 
             # Timeouts indicator
             if tl > 0:
-                tl_badge = QLabel(f"{tl} Timeouts")
+                tl_badge = QLabel(f"{tl} auf Zeit")
                 tl_badge.setStyleSheet(f"""
                     background-color: {Styles.COLOR_SURFACE};
                     color: {Styles.COLOR_BLUNDER};
@@ -464,9 +467,9 @@ class TimeManagementCard(MetricCard):
         pillars_row.setSpacing(10)
 
         phases = [
-            ("Opening", "opening", "fa5s.chess-pawn", "Moves 1–15"),
-            ("Middlegame", "middlegame", "fa5s.chess-knight", "Moves 16–35"),
-            ("Endgame", "endgame", "fa5s.chess-king", "Moves 36+"),
+            ("Eröffnung", "opening", "fa5s.chess-pawn", "Züge 1–15"),
+            ("Mittelspiel", "middlegame", "fa5s.chess-knight", "Züge 16–35"),
+            ("Endspiel", "endgame", "fa5s.chess-king", "Züge 36+"),
         ]
 
         for title, key, icon_name, move_range in phases:
@@ -525,7 +528,7 @@ class TimeManagementCard(MetricCard):
             p_layout.addWidget(stat_lbl)
 
             # Footer: move range + move count
-            desc_lbl = QLabel(f"{m_cnt} moves • {move_range}")
+            desc_lbl = QLabel(f"{m_cnt} Züge • {move_range}")
             desc_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
                 font-size: 10px;
@@ -560,7 +563,7 @@ class TimeManagementCard(MetricCard):
         dq_layout.setContentsMargins(10, 8, 10, 8)
         dq_layout.setSpacing(8)
 
-        dq_title = QLabel("Decision Quality vs Thinking Time")
+        dq_title = QLabel("Entscheidungsqualität vs. Bedenkzeit")
         dq_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-weight: 700;
@@ -586,7 +589,7 @@ class TimeManagementCard(MetricCard):
         b_box_layout.setContentsMargins(12, 8, 12, 8)
         b_box_layout.setSpacing(3)
 
-        best_header = QLabel("Best & Brilliant Moves")
+        best_header = QLabel("Beste & brillante Züge")
         best_header.setStyleSheet(f"""
             color: {Styles.COLOR_BEST};
             font-weight: 600;
@@ -608,7 +611,7 @@ class TimeManagementCard(MetricCard):
         """)
         b_box_layout.addWidget(best_stat)
 
-        best_sub = QLabel(f"{best_m} precision moves • avg/move")
+        best_sub = QLabel(f"{best_m} präzise Züge • Ø pro Zug")
         best_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 10px;
@@ -633,7 +636,7 @@ class TimeManagementCard(MetricCard):
         bl_box_layout.setContentsMargins(12, 8, 12, 8)
         bl_box_layout.setSpacing(3)
 
-        blund_header = QLabel("Blunders & Mistakes")
+        blund_header = QLabel("Patzer & Fehler")
         blund_header.setStyleSheet(f"""
             color: {Styles.COLOR_BLUNDER};
             font-weight: 600;
@@ -655,7 +658,7 @@ class TimeManagementCard(MetricCard):
         """)
         bl_box_layout.addWidget(blund_stat)
 
-        blund_sub = QLabel(f"{blund_m} tactical errors • avg/move")
+        blund_sub = QLabel(f"{blund_m} taktische Fehler • Ø pro Zug")
         blund_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 10px;
@@ -672,13 +675,13 @@ class TimeManagementCard(MetricCard):
         if best_t > 0 and blund_t > 0:
             ratio = blund_t / best_t
             if ratio > 1.2:
-                insight_text = f"You spend {ratio:.1f}x longer calculating on blunder positions, indicating calculation traps in tricky positions."
+                insight_text = f"Bei Patzern rechnest du {ratio:.1f}x länger – ein Hinweis auf Rechenfallen in kniffligen Stellungen."
             elif ratio < 0.8:
                 inv_ratio = 1.0 / ratio
-                insight_text = f"You play blunders {inv_ratio:.1f}x faster than your best moves, suggesting premature decisions or impulsive play."
+                insight_text = f"Patzer spielst du {inv_ratio:.1f}x schneller als deine besten Züge – ein Hinweis auf voreilige oder impulsive Entscheidungen."
             else:
                 insight_text = (
-                    "Your thinking time is evenly distributed between best moves and errors."
+                    "Deine Bedenkzeit ist zwischen besten Zügen und Fehlern gleichmäßig verteilt."
                 )
 
             insight_lbl = QLabel(insight_text)
@@ -740,7 +743,7 @@ class TimeManagementCard(MetricCard):
             nc_top.addWidget(ic_nc)
         except Exception:
             pass
-        nc_title = QLabel("Normal Clock")
+        nc_title = QLabel("Normale Zeit")
         nc_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-weight: 700;
@@ -750,7 +753,7 @@ class TimeManagementCard(MetricCard):
         nc_top.addWidget(nc_title)
         nc_top.addStretch()
 
-        nc_thresh = QLabel(">15s Bullet, >30s Blitz")
+        nc_thresh = QLabel(">15 s Bullet, >30 s Blitz")
         nc_thresh.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 9px;
@@ -768,7 +771,7 @@ class TimeManagementCard(MetricCard):
         """)
         nc_layout.addWidget(nc_stat)
 
-        nc_desc = QLabel(f"{n_blund} errors across {n_moves} moves")
+        nc_desc = QLabel(f"{n_blund} Fehler in {n_moves} Zügen")
         nc_desc.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 10px;
@@ -805,7 +808,7 @@ class TimeManagementCard(MetricCard):
             tt_top.addWidget(ic_tt)
         except Exception:
             pass
-        tt_title = QLabel("Time Trouble")
+        tt_title = QLabel("Zeitnot")
         tt_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-weight: 700;
@@ -815,7 +818,7 @@ class TimeManagementCard(MetricCard):
         tt_top.addWidget(tt_title)
         tt_top.addStretch()
 
-        tt_thresh = QLabel("≤15s Bullet, ≤30s Blitz")
+        tt_thresh = QLabel("≤15 s Bullet, ≤30 s Blitz")
         tt_thresh.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 9px;
@@ -834,7 +837,7 @@ class TimeManagementCard(MetricCard):
         """)
         tt_layout.addWidget(tt_stat)
 
-        tt_desc = QLabel(f"{t_blund} errors across {t_moves} scramble moves")
+        tt_desc = QLabel(f"{t_blund} Fehler in {t_moves} Zeitnot-Zügen")
         tt_desc.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 10px;
@@ -862,29 +865,31 @@ class TimeManagementCard(MetricCard):
         b_info.setSpacing(2)
 
         if math.isinf(panic_mult):
-            banner_title = "High Blunder Rate Under Time Pressure"
+            banner_title = "Hohe Patzerquote unter Zeitdruck"
             banner_desc = (
-                f"Your tactical errors increase under low clock ({t_pct:.1f}% vs {n_pct:.1f}%).\n"
-                "Focus on pace in the opening and middlegame to preserve time reserves."
+                f"Bei wenig Zeit steigen deine taktischen Fehler ({t_pct:.1f}% vs. {n_pct:.1f}%).\n"
+                "Spiele Eröffnung und Mittelspiel zügiger, um Zeitreserven zu behalten."
             )
             title_color = Styles.COLOR_BLUNDER
         elif panic_mult > 1.2:
-            banner_title = f"{panic_mult:.1f}x Blunder Rate Under Time Pressure"
+            banner_title = f"{panic_mult:.1f}x Patzerquote unter Zeitdruck"
             banner_desc = (
-                f"Your tactical errors increase under low clock ({t_pct:.1f}% vs {n_pct:.1f}%).\n"
-                "Focus on pace in the opening and middlegame to preserve time reserves."
+                f"Bei wenig Zeit steigen deine taktischen Fehler ({t_pct:.1f}% vs. {n_pct:.1f}%).\n"
+                "Spiele Eröffnung und Mittelspiel zügiger, um Zeitreserven zu behalten."
             )
             title_color = Styles.COLOR_BLUNDER
         elif panic_mult <= 0.8 and t_moves > 0:
-            banner_title = "Disciplined in Time Scrambles"
+            banner_title = "Diszipliniert in Zeitnot"
             banner_desc = (
-                f"Your error rate remains lower in time trouble ({t_pct:.1f}%) than in regular play ({n_pct:.1f}%).\n"
-                "You rely successfully on fast tactical intuition when pressed for time."
+                f"In Zeitnot ist deine Fehlerquote ({t_pct:.1f}%) niedriger als im normalen Spiel ({n_pct:.1f}%).\n"
+                "Unter Zeitdruck verlässt du dich erfolgreich auf deine taktische Intuition."
             )
             title_color = Styles.COLOR_RESULT_WIN
         else:
-            banner_title = "Stable Under Clock Pressure"
-            banner_desc = "Your error rate remains consistent regardless of clock situation. You maintain good stability."
+            banner_title = "Stabil unter Zeitdruck"
+            banner_desc = (
+                "Deine Fehlerquote bleibt unabhängig von der Uhr konstant. Du spielst sehr stabil."
+            )
             title_color = Styles.COLOR_TEXT_PRIMARY
 
         lbl_btitle = QLabel(banner_title)
@@ -931,7 +936,7 @@ class TimeManagementCard(MetricCard):
         to_num.setAlignment(Qt.AlignmentFlag.AlignCenter)
         to_layout.addWidget(to_num)
 
-        to_lbl = QLabel("Timeouts")
+        to_lbl = QLabel("Zeitverluste")
         to_lbl.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 9px;

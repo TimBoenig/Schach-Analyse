@@ -21,8 +21,8 @@ class GameLoadingMixin:
             else:
                 QMessageBox.warning(
                     self,
-                    "Analysis in Progress",
-                    "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+                    "Analyse läuft",
+                    "Gerade wird eine andere Partie analysiert. Bitte stoppe zuerst die laufende Analyse.",
                 )
                 return
 
@@ -46,8 +46,8 @@ class GameLoadingMixin:
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
             QMessageBox.warning(
                 self,
-                "Analysis in Progress",
-                "An analysis is currently in progress for another game. Please stop the ongoing analysis first.",
+                "Analyse läuft",
+                "Gerade wird eine andere Partie analysiert. Bitte stoppe zuerst die laufende Analyse.",
             )
             return
 
@@ -114,12 +114,25 @@ class GameLoadingMixin:
                 for g in self.games:
                     g.source_data = source_data
             self.load_game(self.games[0])
+            if len(self.games) > 1:
+                # Multi-game PGNs feed the profile: keep every game, not just the first.
+                imported = self.history_manager.save_games_bulk(
+                    [(g, g.pgn_content or "") for g in self.games[1:]]
+                )
+                self.on_history_changed()
+                self.show_toast(
+                    f"{len(self.games)} Partien gefunden – {imported} weitere in den Verlauf "
+                    "übernommen. Analysiere sie gesammelt unter „Mein Profil“.",
+                    "info",
+                )
             if status_msg:
                 self._set_status(status_msg, "success")
             return True
         else:
             QMessageBox.warning(
-                self, "Error", "Could not read this game.\nThe PGN data may be empty or corrupted."
+                self,
+                "Fehler",
+                "Diese Partie konnte nicht gelesen werden.\nDie PGN-Daten sind leer oder beschädigt.",
             )
             return False
 
@@ -134,7 +147,9 @@ class GameLoadingMixin:
                     game.metadata.chess960 = parsed.metadata.chess960
             except Exception as e:
                 logger.error(f"Failed to parse PGN for history game: {e}")
-                QMessageBox.warning(self, "Error", "Failed to load game moves.")
+                QMessageBox.warning(
+                    self, "Fehler", "Die Züge der Partie konnten nicht geladen werden."
+                )
                 return
 
         # Metadata Enrichment from source data if available
@@ -265,13 +280,13 @@ class GameLoadingMixin:
                 QTimer.singleShot(
                     0,
                     lambda: self._parse_and_load_game(
-                        pgn, source_data=sd, status_msg="Game loaded."
+                        pgn, source_data=sd, status_msg="Partie geladen."
                     ),
                 )
 
     def _on_game_ready(self, pgn_text: str, source_data):
         """Deprecated: Kept for compatibility. Called by LoadGameDialog when the user confirms a game selection."""
-        self._parse_and_load_game(pgn_text, source_data=source_data, status_msg="Game loaded.")
+        self._parse_and_load_game(pgn_text, source_data=source_data, status_msg="Partie geladen.")
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -294,14 +309,16 @@ class GameLoadingMixin:
                     try:
                         with open(file_path, encoding="utf-8", errors="replace") as f:
                             content = f.read()
-                        if self._parse_and_load_game(content, status_msg="Game loaded from file"):
+                        if self._parse_and_load_game(
+                            content, status_msg="Partie aus Datei geladen"
+                        ):
                             event.acceptProposedAction()
                             return
                     except Exception as e:
                         logger.error(f"Failed to load dropped PGN file: {e}")
         elif event.mimeData().hasText():
             text = event.mimeData().text().strip()
-            if self._parse_and_load_game(text, status_msg="Game loaded from dropped text"):
+            if self._parse_and_load_game(text, status_msg="Partie aus eingefügtem Text geladen"):
                 event.acceptProposedAction()
                 return
         event.ignore()

@@ -1,6 +1,7 @@
 """
 Modern, custom UI widgets for the settings panel.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider, QWidget
 
@@ -8,6 +9,7 @@ from ...styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -257,7 +259,7 @@ class PasswordFieldWrapper(QWidget):
             icon_name = "fa5s.eye-slash" if self._visible else "fa5s.eye"
             self.toggle_btn.setIcon(qta.icon(icon_name, color=Styles.COLOR_TEXT_SECONDARY))
         else:
-            self.toggle_btn.setText("Hide" if self._visible else "Show")
+            self.toggle_btn.setText("Verbergen" if self._visible else "Anzeigen")
 
     def update_style(self, focused=False):
         border_color = Styles.COLOR_ACCENT if focused else Styles.COLOR_BORDER

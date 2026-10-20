@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 
 from src.gui.styles import Styles
 from src.gui.views.metrics.base_card import MetricCard
+from src.utils.translations import tr_filter
 
 
 class OpeningsListCard(MetricCard):
@@ -54,12 +55,12 @@ class OpeningsListCard(MetricCard):
         sort_layout.setContentsMargins(2, 2, 2, 2)
         sort_layout.setSpacing(2)
 
-        self.btn_sort_played = QPushButton("Most Played")
+        self.btn_sort_played = QPushButton("Meistgespielt")
         self.btn_sort_played.setFixedHeight(20)
         self.btn_sort_played.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_sort_played.clicked.connect(lambda: self.set_sort("played"))
 
-        self.btn_sort_winrate = QPushButton("Win Rate")
+        self.btn_sort_winrate = QPushButton("Siegquote")
         self.btn_sort_winrate.setFixedHeight(20)
         self.btn_sort_winrate.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_sort_winrate.clicked.connect(lambda: self.set_sort("winrate"))
@@ -70,7 +71,7 @@ class OpeningsListCard(MetricCard):
         self._update_sort_styles()
 
         super().__init__(
-            "Opening Repertoire",
+            "Eröffnungsrepertoire",
             parent=parent,
             min_height=380,
             action_widget=self.sort_control,
@@ -125,11 +126,11 @@ class OpeningsListCard(MetricCard):
         active_color = self.stats.get("filter_applied", {}).get("color", "All Colors")
         if hasattr(self, "lbl_title"):
             if active_color == "White":
-                self.lbl_title.setText("White Repertoire")
+                self.lbl_title.setText("Repertoire mit Weiß")
             elif active_color == "Black":
-                self.lbl_title.setText("Black Defenses")
+                self.lbl_title.setText("Verteidigungen mit Schwarz")
             else:
-                self.lbl_title.setText("Opening Repertoire")
+                self.lbl_title.setText("Eröffnungsrepertoire")
 
         self._render_view()
 
@@ -192,13 +193,15 @@ class OpeningsListCard(MetricCard):
 
         if total_openings > 0:
             if active_color == "White":
-                summary_text = f"{total_openings} White openings ({total_games} games)"
+                summary_text = f"{total_openings} Eröffnungen mit Weiß ({total_games} Partien)"
             elif active_color == "Black":
-                summary_text = f"{total_openings} Black defenses ({total_games} games)"
+                summary_text = (
+                    f"{total_openings} Verteidigungen mit Schwarz ({total_games} Partien)"
+                )
             else:
-                summary_text = f"{total_openings} openings ({total_games} games)"
+                summary_text = f"{total_openings} Eröffnungen ({total_games} Partien)"
         else:
-            summary_text = f"No openings found for {active_color.lower()}"
+            summary_text = f"Keine Eröffnungen gefunden ({tr_filter(active_color)})"
 
         summary_lbl = QLabel(summary_text)
         summary_lbl.setStyleSheet(f"""
@@ -213,7 +216,7 @@ class OpeningsListCard(MetricCard):
         main_vbox.addLayout(sub_bar)
 
         if not openings_list:
-            empty_lbl = QLabel("No openings data found for the selected filters.")
+            empty_lbl = QLabel("Keine Eröffnungsdaten für die gewählten Filter.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -255,13 +258,13 @@ class OpeningsListCard(MetricCard):
             pagination_bar.setContentsMargins(4, 4, 4, 0)
             pagination_bar.setSpacing(10)
 
-            self.btn_prev_page = QPushButton("◀ Prev")
+            self.btn_prev_page = QPushButton("◀ Zurück")
             self.btn_prev_page.setFixedHeight(26)
             self.btn_prev_page.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_prev_page.setEnabled(self.current_page > 0)
             self.btn_prev_page.clicked.connect(self._go_prev_page)
 
-            self.lbl_page_info = QLabel(f"Page {self.current_page + 1} of {total_pages}")
+            self.lbl_page_info = QLabel(f"Seite {self.current_page + 1} von {total_pages}")
             self.lbl_page_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.lbl_page_info.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -270,7 +273,7 @@ class OpeningsListCard(MetricCard):
                 background: transparent;
             """)
 
-            self.btn_next_page = QPushButton("Next ▶")
+            self.btn_next_page = QPushButton("Weiter ▶")
             self.btn_next_page.setFixedHeight(26)
             self.btn_next_page.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_next_page.setEnabled(self.current_page < total_pages - 1)
@@ -327,7 +330,7 @@ class OpeningsListCard(MetricCard):
 
     def _create_opening_row(self, item: dict, show_color_tag: bool = False) -> QFrame:
         """Creates an individual opening card row with stacked W/D/L bar."""
-        name = item.get("name", "Unknown Opening")
+        name = item.get("name", "Unbekannte Eröffnung")
         eco = item.get("eco", "")
         total = item.get("total", 1)
         wins = item.get("wins", 0)
@@ -349,7 +352,7 @@ class OpeningsListCard(MetricCard):
 
         card = QFrame()
         card.setCursor(Qt.CursorShape.PointingHandCursor)
-        card.setToolTip(f"Click to inspect games played in {name}")
+        card.setToolTip(f"Klicken, um Partien mit {name} anzusehen")
         card.mousePressEvent = lambda e, op_name=name: self._on_opening_clicked(e, op_name)
         card.setStyleSheet(f"""
             QFrame#opening_item {{
@@ -390,7 +393,7 @@ class OpeningsListCard(MetricCard):
 
         name_lbl = QLabel(name)
         name_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
-        name_lbl.setToolTip(f"Click to inspect games played in {name}")
+        name_lbl.setToolTip(f"Klicken, um Partien mit {name} anzusehen")
         name_lbl.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_PRIMARY};
             font-size: 13px;
@@ -403,9 +406,9 @@ class OpeningsListCard(MetricCard):
         # Subtle Side Badge (if in All view)
         if show_color_tag:
             side_text = (
-                "White"
+                "Weiß"
                 if as_white > 0 and as_black == 0
-                else ("Black" if as_black > 0 and as_white == 0 else "Both")
+                else ("Schwarz" if as_black > 0 and as_white == 0 else "Beide")
             )
             side_badge = QLabel(side_text)
             side_badge.setStyleSheet(f"""
@@ -423,7 +426,7 @@ class OpeningsListCard(MetricCard):
         line1.addStretch()
 
         # Win Rate text
-        wr_lbl = QLabel(f"{win_rate:.0f}% Win Rate")
+        wr_lbl = QLabel(f"{win_rate:.0f}% Siegquote")
         wr_lbl.setStyleSheet(f"""
             color: {wr_color};
             font-size: 12px;
@@ -433,7 +436,7 @@ class OpeningsListCard(MetricCard):
         """)
         line1.addWidget(wr_lbl)
 
-        games_lbl = QLabel(f"({total} {'game' if total == 1 else 'games'})")
+        games_lbl = QLabel(f"({total} {'Partie' if total == 1 else 'Partien'})")
         games_lbl.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
@@ -449,7 +452,7 @@ class OpeningsListCard(MetricCard):
         if variations:
             var_text = " • ".join(variations[:2])
             if len(variations) > 2:
-                var_text += f" +{len(variations) - 2} more"
+                var_text += f" +{len(variations) - 2} weitere"
             var_lbl = QLabel(var_text)
             var_lbl.setToolTip(" • ".join(variations))
             var_lbl.setStyleSheet(f"""
@@ -482,7 +485,7 @@ class OpeningsListCard(MetricCard):
                     border-radius: 2px;
                     border: none;
                 """)
-                w_seg.setToolTip(f"Wins: {wins} ({wins / total * 100:.0f}%)")
+                w_seg.setToolTip(f"Siege: {wins} ({wins / total * 100:.0f}%)")
                 bar_layout.addWidget(w_seg, stretch=max(1, int(wins * 100 / total)))
 
             if draws > 0:
@@ -492,7 +495,7 @@ class OpeningsListCard(MetricCard):
                     border-radius: 2px;
                     border: none;
                 """)
-                d_seg.setToolTip(f"Draws: {draws} ({draws / total * 100:.0f}%)")
+                d_seg.setToolTip(f"Remis: {draws} ({draws / total * 100:.0f}%)")
                 bar_layout.addWidget(d_seg, stretch=max(1, int(draws * 100 / total)))
 
             if losses > 0:
@@ -502,7 +505,7 @@ class OpeningsListCard(MetricCard):
                     border-radius: 2px;
                     border: none;
                 """)
-                l_seg.setToolTip(f"Losses: {losses} ({losses / total * 100:.0f}%)")
+                l_seg.setToolTip(f"Niederlagen: {losses} ({losses / total * 100:.0f}%)")
                 bar_layout.addWidget(l_seg, stretch=max(1, int(losses * 100 / total)))
         else:
             empty_seg = QFrame()
@@ -517,12 +520,12 @@ class OpeningsListCard(MetricCard):
 
         record_parts = []
         if wins > 0:
-            record_parts.append(f"{wins}W")
+            record_parts.append(f"{wins}S")
         if draws > 0:
-            record_parts.append(f"{draws}D")
+            record_parts.append(f"{draws}R")
         if losses > 0:
-            record_parts.append(f"{losses}L")
-        record_str = " · ".join(record_parts) if record_parts else "0G"
+            record_parts.append(f"{losses}N")
+        record_str = " · ".join(record_parts) if record_parts else "0 P."
 
         rec_lbl = QLabel(record_str)
         rec_lbl.setStyleSheet(f"""
@@ -539,7 +542,7 @@ class OpeningsListCard(MetricCard):
             dot_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px;")
             line4.addWidget(dot_lbl)
 
-            acc_lbl = QLabel(f"{avg_acc:.1f}% avg accuracy")
+            acc_lbl = QLabel(f"Ø {avg_acc:.1f}% Genauigkeit")
             acc_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
                 font-size: 11px;

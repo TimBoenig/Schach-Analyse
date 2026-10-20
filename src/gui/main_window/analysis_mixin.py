@@ -21,7 +21,7 @@ class AnalysisMixin:
             return
 
         if hasattr(self, "worker") and self.worker and self.worker.isRunning():
-            QMessageBox.warning(self, "Analysis in Progress", "An analysis is already running.")
+            QMessageBox.warning(self, "Analyse läuft", "Es läuft bereits eine Analyse.")
             return
 
         # Auto-detect engine if the configured path doesn't work.
@@ -93,8 +93,8 @@ class AnalysisMixin:
 
         self._full_analysis_running = True
         self._update_analyze_button(running=True)
-        self._set_engine_state("calculating", "Starting...")
-        self._set_status("Starting analysis...", "progress")
+        self._set_engine_state("calculating", "Startet …")
+        self._set_status("Analyse wird gestartet …", "progress")
         self.analysis_panel.set_analysis_running(True)
 
         if hasattr(self, "history_view") and self.current_game:
@@ -110,7 +110,7 @@ class AnalysisMixin:
         if not getattr(self, "_full_analysis_running", False):
             return
         logger.info("MainWindow: stop_analysis requested by user.")
-        self._set_status("Stopping analysis...", "warning")
+        self._set_status("Analyse wird gestoppt …", "warning")
         if hasattr(self, "btn_analyze"):
             self.btn_analyze.setEnabled(False)
 
@@ -128,7 +128,7 @@ class AnalysisMixin:
             pass
 
         if running:
-            self.btn_analyze.setText("  Stop Analysis")
+            self.btn_analyze.setText("  Analyse stoppen")
             self.btn_analyze.setStyleSheet(Styles.get_danger_button_style())
             try:
                 self.btn_analyze.setIcon(qta.icon("fa5s.stop", color="#ffffff"))
@@ -147,7 +147,7 @@ class AnalysisMixin:
                 total = getattr(self.current_game, "total_moves_count", 0) or len(
                     getattr(self.current_game, "moves", [])
                 )
-                self.btn_analyze.setText(f"  Resume ({analyzed}/{total})")
+                self.btn_analyze.setText(f"  Fortsetzen ({analyzed}/{total})")
                 self.btn_analyze.setStyleSheet(Styles.get_button_style())
                 try:
                     self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
@@ -155,7 +155,7 @@ class AnalysisMixin:
                     pass
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=True))
             elif game_status == "completed":
-                self.btn_analyze.setText("  Reanalyze Game")
+                self.btn_analyze.setText("  Erneut analysieren")
                 self.btn_analyze.setStyleSheet(Styles.get_button_style())
                 try:
                     self.btn_analyze.setIcon(qta.icon("fa5s.sync-alt", color="#ffffff"))
@@ -163,7 +163,7 @@ class AnalysisMixin:
                     pass
                 self.btn_analyze.clicked.connect(lambda: self.start_analysis(resume=False))
             else:
-                self.btn_analyze.setText("  Analyze Game")
+                self.btn_analyze.setText("  Partie analysieren")
                 self.btn_analyze.setStyleSheet(Styles.get_button_style())
                 try:
                     self.btn_analyze.setIcon(qta.icon("fa5s.play", color="#ffffff"))
@@ -174,11 +174,11 @@ class AnalysisMixin:
 
     def on_analysis_progress(self, current, total):
         if current > total:
-            self._set_engine_state("calculating", "Final...")
-            self._set_status("Analyzing final position...", "progress")
+            self._set_engine_state("calculating", "Endstellung …")
+            self._set_status("Endstellung wird analysiert …", "progress")
         else:
             self._set_engine_state("calculating", f"{current}/{total}")
-            self._set_status(f"Analyzing move {current} of {total}", "progress")
+            self._set_status(f"Analysiere Zug {current} von {total}", "progress")
 
     def on_move_analyzed(self, move_index, data):
         """Called when a move's eval/classification data becomes available."""
@@ -223,8 +223,8 @@ class AnalysisMixin:
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
-        self._set_status("Analysis stopped", "info")
-        self.show_toast("Analysis stopped", "info")
+        self._set_status("Analyse gestoppt", "info")
+        self.show_toast("Analyse gestoppt", "info")
         logger.info("Analysis cancelled; partial results preserved.")
         self.current_game = game
         if game and game.pgn_content:
@@ -257,6 +257,8 @@ class AnalysisMixin:
             self.history_view.load_history()
 
     def on_history_changed(self, *_):
+        if hasattr(self, "profile_view"):
+            self.profile_view.mark_dirty()
         if hasattr(self, "metrics_view"):
             self.metrics_view.mark_dirty()
             if self.stack.currentIndex() == 3:
@@ -266,8 +268,10 @@ class AnalysisMixin:
         self._full_analysis_running = False
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
-        self._set_status("Analysis complete", "success")
-        self.show_toast("Analysis complete!", "success")
+        self._set_status("Analyse abgeschlossen", "success")
+        if hasattr(self, "profile_view"):
+            self.profile_view.mark_dirty()
+        self.show_toast("Analyse abgeschlossen!", "success")
         logger.info("Analysis finished successfully.")
         self.current_game = game
         self._update_analyze_button(running=False)
@@ -307,7 +311,7 @@ class AnalysisMixin:
         self._update_analyze_button(running=False)
         self.analysis_panel.set_analysis_running(False)
         self._set_engine_state("ready")
-        self._set_status(f"Analysis failed: {error_msg}", "error")
+        self._set_status(f"Analyse fehlgeschlagen: {error_msg}", "error")
         logger.error(f"Analysis error: {error_msg}")
         if hasattr(self, "move_list_panel") and hasattr(self.move_list_panel, "live_worker"):
             self.move_list_panel.live_worker.start()
@@ -318,11 +322,11 @@ class AnalysisMixin:
         # Show error dialog with quick option to report bug
         msg_box = QMessageBox(self)
         msg_box.setIcon(QMessageBox.Icon.Critical)
-        msg_box.setWindowTitle("Analysis Error")
-        msg_box.setText("An error occurred during engine analysis.")
+        msg_box.setWindowTitle("Analysefehler")
+        msg_box.setText("Bei der Engine-Analyse ist ein Fehler aufgetreten.")
         msg_box.setInformativeText(str(error_msg))
-        report_btn = msg_box.addButton("Report Issue", QMessageBox.ButtonRole.ActionRole)
-        close_btn = msg_box.addButton("Close", QMessageBox.ButtonRole.RejectRole)
+        report_btn = msg_box.addButton("Problem melden", QMessageBox.ButtonRole.ActionRole)
+        close_btn = msg_box.addButton("Schließen", QMessageBox.ButtonRole.RejectRole)
         msg_box.setDefaultButton(close_btn)
         msg_box.exec()
 
@@ -330,15 +334,15 @@ class AnalysisMixin:
             dialog = FeedbackDialog(
                 self,
                 initial_tab="bug",
-                initial_title="Analysis Engine Error",
-                initial_message=f"Analysis failed with error:\n{error_msg}",
+                initial_title="Fehler der Analyse-Engine",
+                initial_message=f"Analyse fehlgeschlagen mit Fehler:\n{error_msg}",
             )
             dialog.exec()
 
     def explore_current_position(self):
         """Switches to the Explorer tab and loads the current board position."""
         if not self.current_game:
-            self._set_status("Load a game first before exploring", "warning")
+            self._set_status("Lade zuerst eine Partie, um den Explorer zu nutzen", "warning")
             return
         if hasattr(self, "board_widget"):
             self.sidebar.set_active(1)

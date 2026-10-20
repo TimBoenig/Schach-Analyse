@@ -32,18 +32,18 @@ class HangingPiecesCard(MetricCard):
     drill_down_requested = pyqtSignal(str, str)  # (category, subcategory)
 
     PIECE_CONFIG: dict[str, tuple[str, str]] = {
-        "pawn": ("fa5s.chess-pawn", "Pawn"),
-        "knight": ("fa5s.chess-knight", "Knight"),
-        "bishop": ("fa5s.chess-bishop", "Bishop"),
-        "rook": ("fa5s.chess-rook", "Rook"),
-        "queen": ("fa5s.chess-queen", "Queen"),
+        "pawn": ("fa5s.chess-pawn", "Bauer"),
+        "knight": ("fa5s.chess-knight", "Springer"),
+        "bishop": ("fa5s.chess-bishop", "Läufer"),
+        "rook": ("fa5s.chess-rook", "Turm"),
+        "queen": ("fa5s.chess-queen", "Dame"),
     }
 
     def __init__(self, parent=None):
         self.stats: dict = {}
         self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Board Awareness")
+        self.action_badge = QLabel("Brettübersicht")
         self.action_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -55,7 +55,7 @@ class HangingPiecesCard(MetricCard):
         """)
 
         super().__init__(
-            "Piece Safety & Awareness",
+            "Figurensicherheit & Wachsamkeit",
             parent=parent,
             min_height=320,
             action_widget=self.action_badge,
@@ -89,7 +89,7 @@ class HangingPiecesCard(MetricCard):
         main_vbox.setSpacing(12)
 
         if total_games == 0:
-            empty_lbl = QLabel("No games available for piece safety analysis.")
+            empty_lbl = QLabel("Keine Partien für die Analyse der Figurensicherheit vorhanden.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -141,7 +141,7 @@ class HangingPiecesCard(MetricCard):
         except Exception:
             pass
 
-        lbl_leak_title = QLabel("DEFENSIVE LEAKS")
+        lbl_leak_title = QLabel("DEFENSIVE LÜCKEN")
         lbl_leak_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
@@ -155,9 +155,9 @@ class HangingPiecesCard(MetricCard):
         l_layout.addLayout(l_top)
 
         # Hero Stat: Total Dropped
-        lbl_hung_val = QLabel(f"{total_hung} Dropped")
+        lbl_hung_val = QLabel(f"{total_hung} eingestellt")
         lbl_hung_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_hung_val.setToolTip("Click to inspect all dropped piece positions")
+        lbl_hung_val.setToolTip("Klicken, um alle Stellungen mit eingestellten Figuren anzusehen")
         lbl_hung_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
             "hung_pieces", "all"
         )
@@ -172,9 +172,9 @@ class HangingPiecesCard(MetricCard):
 
         hung_per_game = (total_hung / total_games) if total_games > 0 else 0.0
         hung_sub = (
-            f"{hung_per_game:.1f} per game • Caused {hanging_blunders} blunders"
+            f"{hung_per_game:.1f} pro Partie • {hanging_blunders} Patzer verursacht"
             if total_games > 1
-            else f"Caused {hanging_blunders} blunders"
+            else f"{hanging_blunders} Patzer verursacht"
         )
         lbl_hung_sub = QLabel(hung_sub)
         lbl_hung_sub.setStyleSheet(f"""
@@ -192,7 +192,7 @@ class HangingPiecesCard(MetricCard):
         l_layout.addWidget(div_l)
 
         # Subtitle
-        lbl_leak_sub = QLabel("DROPPED BY PIECE")
+        lbl_leak_sub = QLabel("EINGESTELLT NACH FIGUR")
         lbl_leak_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 10px;
@@ -219,7 +219,7 @@ class HangingPiecesCard(MetricCard):
 
             row_frame = QFrame()
             row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-            row_frame.setToolTip(f"Click to inspect {h_cnt} dropped {p_name} positions")
+            row_frame.setToolTip(f"Klicken, um {h_cnt} Stellungen anzusehen ({p_name} eingestellt)")
             row_frame.setStyleSheet(f"""
                 QFrame {{
                     background: transparent;
@@ -326,7 +326,7 @@ class HangingPiecesCard(MetricCard):
         except Exception:
             pass
 
-        lbl_vig_title = QLabel("TACTICAL VIGILANCE")
+        lbl_vig_title = QLabel("TAKTISCHE WACHSAMKEIT")
         lbl_vig_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 11px;
@@ -348,9 +348,11 @@ class HangingPiecesCard(MetricCard):
             else (Styles.COLOR_GOOD if cap_rate >= 50 else Styles.COLOR_INACCURACY)
         )
 
-        lbl_vig_val = QLabel(f"{cap_rate:.0f}% Capitalized" if total_opp_hanging > 0 else "N/A")
+        lbl_vig_val = QLabel(f"{cap_rate:.0f}% genutzt" if total_opp_hanging > 0 else "–")
         lbl_vig_val.setCursor(Qt.CursorShape.PointingHandCursor)
-        lbl_vig_val.setToolTip("Click to inspect all opponent hanging pieces punished")
+        lbl_vig_val.setToolTip(
+            "Klicken, um alle bestraften hängenden Figuren des Gegners anzusehen"
+        )
         lbl_vig_val.mousePressEvent = lambda e: self.drill_down_requested.emit(
             "opp_captured", "all"
         )
@@ -364,9 +366,9 @@ class HangingPiecesCard(MetricCard):
         v_layout.addWidget(lbl_vig_val)
 
         vig_sub = (
-            f"{opp_captured} of {total_opp_hanging} seized • {opp_missed} missed"
+            f"{opp_captured} von {total_opp_hanging} geschlagen • {opp_missed} verpasst"
             if total_opp_hanging > 0
-            else "No opponent hanging pieces recorded"
+            else "Keine hängenden Figuren des Gegners erfasst"
         )
         lbl_vig_sub = QLabel(vig_sub)
         lbl_vig_sub.setStyleSheet(f"""
@@ -403,7 +405,7 @@ class HangingPiecesCard(MetricCard):
         v_layout.addWidget(div_v)
 
         # Subtitle
-        lbl_cap_sub = QLabel("FREE PIECES PUNISHED")
+        lbl_cap_sub = QLabel("FREIE FIGUREN BESTRAFT")
         lbl_cap_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_MUTED};
             font-size: 10px;
@@ -430,7 +432,9 @@ class HangingPiecesCard(MetricCard):
 
             row_frame = QFrame()
             row_frame.setCursor(Qt.CursorShape.PointingHandCursor)
-            row_frame.setToolTip(f"Click to inspect {c_cnt} punished opponent {p_name} positions")
+            row_frame.setToolTip(
+                f"Klicken, um {c_cnt} Stellungen anzusehen (gegnerische Figur: {p_name})"
+            )
             row_frame.setStyleSheet(f"""
                 QFrame {{
                     background: transparent;

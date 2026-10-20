@@ -1,4 +1,3 @@
-
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, Qt, QTimer, pyqtProperty
 from PyQt6.QtGui import QColor, QLinearGradient, QPainter, QPen
 from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
@@ -33,10 +32,14 @@ class LoadingOverlay(QWidget):
         self.layout.setSpacing(10)
 
         self.text_label = QLabel("")
-        self.text_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_label_style()}")
+        self.text_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-weight: bold; font-size: 18px; {Styles.get_transparent_label_style()}"
+        )
 
         self.sub_label = QLabel("")
-        self.sub_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_label_style()}")
+        self.sub_label.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 14px; {Styles.get_transparent_label_style()}"
+        )
 
         self.layout.addStretch()
         self.layout.addSpacing(60)
@@ -53,7 +56,7 @@ class LoadingOverlay(QWidget):
         self._shimmer_pos = value
         self.update()
 
-    def start(self, text="Loading...", sub_text=""):
+    def start(self, text="Wird geladen …", sub_text=""):
         self.text_label.setText(text)
         self.sub_label.setText(sub_text)
         self.sub_label.setVisible(bool(sub_text))
@@ -118,4 +121,3 @@ class LoadingOverlay(QWidget):
         if self.parent():
             self.resize(self.parent().size())
         super().resizeEvent(event)
-

@@ -1,6 +1,7 @@
 """
 Shared GUI utility functions and widget factories.
 """
+
 import os
 from collections.abc import Callable
 
@@ -51,7 +52,7 @@ def resolve_asset(filename: str) -> str:
     candidates = [
         os.path.join("assets", "images", filename),
         os.path.join("assets", "icons", filename),
-        os.path.join("assets", filename)
+        os.path.join("assets", filename),
     ]
 
     for rel_path in candidates:
@@ -72,20 +73,21 @@ def get_user_color(game: dict, usernames: list) -> str:
     Returns:
         'white' or 'black' depending on which player matches usernames
     """
-    white = game.get('white', '').lower()
+    white = game.get("white", "").lower()
     if white in [u.lower() for u in usernames]:
-        return 'white'
-    return 'black'
+        return "white"
+    return "black"
 
 
 # ============== Widget Factory Functions ==============
+
 
 def create_button(
     text: str,
     style: str = "primary",
     on_click: Callable | None = None,
     cursor: bool = True,
-    icon_name: str | None = None
+    icon_name: str | None = None,
 ) -> QPushButton:
     """
     Factory function to create styled buttons.
@@ -118,6 +120,7 @@ def create_button(
     if icon_name:
         try:
             import qtawesome as qta
+
             icon_color = "#ffffff" if style == "primary" else Styles.COLOR_TEXT_SECONDARY
             btn.setIcon(qta.icon(icon_name, color=icon_color))
             btn.setIconSize(QSize(16, 16))
@@ -134,9 +137,7 @@ def create_button(
 
 
 def create_combobox(
-    items: list[str],
-    current: str | None = None,
-    on_change: Callable | None = None
+    items: list[str], current: str | None = None, on_change: Callable | None = None
 ) -> QComboBox:
     """
     Factory function to create styled comboboxes.
@@ -165,10 +166,7 @@ def create_combobox(
 
 
 def create_labeled_input(
-    label_text: str,
-    placeholder: str = "",
-    password: bool = False,
-    initial_value: str = ""
+    label_text: str, placeholder: str = "", password: bool = False, initial_value: str = ""
 ) -> tuple:
     """
     Factory function to create a labeled input field.
@@ -200,10 +198,7 @@ def create_labeled_input(
     return label, input_field
 
 
-def create_section_header(
-    title: str,
-    action_button: tuple | None = None
-) -> QWidget:
+def create_section_header(title: str, action_button: tuple | None = None) -> QWidget:
     """
     Factory function to create a section header with optional action button.
 
@@ -234,9 +229,13 @@ def create_section_header(
     return header
 
 
-def confirm_dialog(parent, title: str, message: str,
-                   confirm_label: str = "Confirm",
-                   cancel_label: str = "Cancel") -> bool:
+def confirm_dialog(
+    parent,
+    title: str,
+    message: str,
+    confirm_label: str = "Bestätigen",
+    cancel_label: str = "Abbrechen",
+) -> bool:
     """
     Show a lightweight, styled Yes/No confirmation dialog.
     Returns True if the user confirmed, False otherwise.
@@ -269,21 +268,23 @@ def confirm_dialog(parent, title: str, message: str,
     root.setSpacing(16)
 
     title_lbl = QLabel(f"<b>{title}</b>")
-    title_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; background: transparent; border: none;")
+    title_lbl.setStyleSheet(
+        f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 16px; background: transparent; border: none;"
+    )
     root.addWidget(title_lbl)
 
     msg_lbl = QLabel(message)
     msg_lbl.setWordWrap(True)
-    msg_lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
+    msg_lbl.setStyleSheet(
+        f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;"
+    )
     root.addWidget(msg_lbl)
 
     btn_row = QHBoxLayout()
     btn_row.addStretch()
 
-    cancel_btn = create_button(cancel_label, style="secondary",
-                               on_click=dlg.reject)
-    confirm_btn = create_button(confirm_label, style="danger",
-                                on_click=dlg.accept)
+    cancel_btn = create_button(cancel_label, style="secondary", on_click=dlg.reject)
+    confirm_btn = create_button(confirm_label, style="danger", on_click=dlg.accept)
 
     btn_row.addWidget(cancel_btn)
     btn_row.addWidget(confirm_btn)
@@ -293,7 +294,6 @@ def confirm_dialog(parent, title: str, message: str,
 
 
 def show_error_dialog(parent, title: str, message: str, details: str = "") -> None:
-
     """
     Show a modal error dialog with selectable/copyable text.
 
@@ -310,6 +310,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
     # Drop a dead parent rather than letting QMessageBox crash on it.
     try:
         from PyQt6.QtCore import QObject
+
         if parent is not None and not isinstance(parent, QObject):
             parent = None
     except Exception:
@@ -335,6 +336,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
         # PyQt6 — find the label widget in the layout instead.
         try:
             from PyQt6.QtWidgets import QLabel
+
             for label in box.findChildren(QLabel):
                 label.setTextInteractionFlags(
                     Qt.TextInteractionFlag.TextSelectableByMouse
@@ -351,6 +353,7 @@ def show_error_dialog(parent, title: str, message: str, details: str = "") -> No
         import traceback
 
         from src.utils.logger import logger
+
         logger.error("show_error_dialog failed: %s", traceback.format_exc())
 
 
@@ -410,7 +413,8 @@ def format_time_stats_for_llm(moves) -> str:
 
     by_spent = sorted(
         [m for m in moves if m.time_spent is not None],
-        key=lambda m: m.time_spent, reverse=True,
+        key=lambda m: m.time_spent,
+        reverse=True,
     )
     if by_spent:
         top = ", ".join(fmt_move(m) for m in by_spent[:5])
@@ -425,13 +429,13 @@ def format_time_stats_for_llm(moves) -> str:
         e_after = m.eval_after_cp
         if e_before is None or e_after is None:
             continue
-        if abs(e_after - e_before) < 150:   # < 1.5 pawns
+        if abs(e_after - e_before) < 150:  # < 1.5 pawns
             continue
         side = "W" if is_white(m) else "B"
         sep = "." if is_white(m) else "..."
         quick_swings.append(
             f"{m.move_number}{sep} {m.san} ({side}, {m.time_spent:.1f}s, "
-            f"swing {(m.eval_after_cp - m.eval_before_cp)/100:+.1f})"
+            f"swing {(m.eval_after_cp - m.eval_before_cp) / 100:+.1f})"
         )
     if quick_swings:
         lines.append(f"Fastest large eval swings — {', '.join(quick_swings[:3])}")
@@ -450,5 +454,3 @@ def format_time_stats_for_llm(moves) -> str:
     )
 
     return "\n".join(lines)
-
-

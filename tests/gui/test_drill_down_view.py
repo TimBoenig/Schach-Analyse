@@ -84,7 +84,7 @@ def test_drill_down_view_empty_state(qapp, qtbot):
 
     assert view.lbl_title.text() == "Dropped Queens"
     assert view.lbl_subtitle.text() == "Positions where a Queen was lost"
-    assert view.badge_count.text() == "0 Occurrences"
+    assert view.badge_count.text() == "0 Treffer"
     assert view.pagination_bar.isHidden()
 
     # Test back button emits back_requested
@@ -101,31 +101,31 @@ def test_drill_down_view_pagination(qapp, qtbot):
     items = [_create_sample_item(i) for i in range(1, 26)]
     view.set_data("Blunders", "All blunders across games", items)
 
-    assert view.badge_count.text() == "25 Occurrences"
+    assert view.badge_count.text() == "25 Treffer"
     assert not view.pagination_bar.isHidden()
     assert view.current_page == 0
     assert not view.btn_prev.isEnabled()
     assert view.btn_next.isEnabled()
-    assert "Page 1 of 3" in view.lbl_page.text()
+    assert "Seite 1 von 3" in view.lbl_page.text()
 
     # Next page -> Page 2
     view.btn_next.click()
     assert view.current_page == 1
     assert view.btn_prev.isEnabled()
     assert view.btn_next.isEnabled()
-    assert "Page 2 of 3" in view.lbl_page.text()
+    assert "Seite 2 von 3" in view.lbl_page.text()
 
     # Next page -> Page 3
     view.btn_next.click()
     assert view.current_page == 2
     assert view.btn_prev.isEnabled()
     assert not view.btn_next.isEnabled()
-    assert "Page 3 of 3" in view.lbl_page.text()
+    assert "Seite 3 von 3" in view.lbl_page.text()
 
     # Prev page -> Page 2
     view.btn_prev.click()
     assert view.current_page == 1
-    assert "Page 2 of 3" in view.lbl_page.text()
+    assert "Seite 2 von 3" in view.lbl_page.text()
 
     # Theme refresh
     view.refresh_styles()
@@ -186,8 +186,8 @@ def test_metrics_widget_drill_down_stacked_navigation(qapp, qtbot):
     assert widget.stacked_widget.currentIndex() == 1
     assert widget.header_bar.isHidden()
     assert widget.filter_bar.isHidden()
-    assert "Blunders" in widget.drill_down_view.lbl_title.text()
-    assert widget.drill_down_view.badge_count.text() == "1 Occurrence"
+    assert "Patzer" in widget.drill_down_view.lbl_title.text()
+    assert widget.drill_down_view.badge_count.text() == "1 Treffer"
 
     # Click Back to Dashboard
     widget.drill_down_view.btn_back.click()
@@ -199,7 +199,7 @@ def test_metrics_widget_drill_down_stacked_navigation(qapp, qtbot):
     # Trigger drill-down for specific piece
     widget._trigger_drill_down("hung_pieces", "queen")
     assert widget.stacked_widget.currentIndex() == 1
-    assert "Queens" in widget.drill_down_view.lbl_title.text()
+    assert "Damen" in widget.drill_down_view.lbl_title.text()
 
     # Test position selection emits game_selected with the loaded game object
     with qtbot.waitSignal(widget.game_selected) as blocker:

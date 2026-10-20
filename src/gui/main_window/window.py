@@ -36,6 +36,7 @@ from src.gui.views import HistoryView, SettingsView
 from src.gui.views.analysis_view import AnalysisPanel, MoveListPanel
 from src.gui.views.explorer_view import ExplorerView
 from src.gui.views.metrics_view import MetricsWidget
+from src.gui.views.profile import ProfileView
 from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
@@ -71,7 +72,7 @@ class MainWindow(
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chess Analyzer Pro")
+        self.setWindowTitle("Chess Analyzer Pro – Schach-Analyse")
         self.resize(1600, 900)
 
         # State
@@ -148,7 +149,7 @@ class MainWindow(
         sep.setStyleSheet(f"color: {Styles.COLOR_BORDER}; padding: 0 4px; background: transparent;")
         self.statusBar().addWidget(sep)
 
-        self._status_lbl = QLabel("Ready")
+        self._status_lbl = QLabel("Bereit")
         self._status_lbl.setStyleSheet(
             f"font-size: 12px; color: {Styles.COLOR_TEXT_SECONDARY}; background: transparent;"
         )
@@ -267,6 +268,13 @@ class MainWindow(
                     mw, signals=(getattr(mw, "finished", None), getattr(mw, "error", None))
                 )
 
+        # Stop profile import / batch analysis workers
+        if hasattr(self, "profile_view") and self.profile_view:
+            try:
+                self.profile_view.shutdown()
+            except Exception as e:
+                logger.error(f"Failed to stop profile workers: {e}")
+
         # Stop SettingsView test worker if running
         if hasattr(self, "settings_view") and self.settings_view:
             prev = getattr(self.settings_view, "_test_worker", None)
@@ -364,6 +372,17 @@ class MainWindow(
         self.settings_view.usernames_changed.connect(self.on_usernames_changed)
         self.stack.addWidget(self.settings_view)
 
+        # --- Page 5: Player Profile ---
+        self.profile_view = ProfileView(
+            self.config_manager, engine_path_provider=lambda: self.engine_path
+        )
+        self.profile_view.game_requested.connect(self.load_game_from_metrics)
+        self.profile_view.request_settings.connect(
+            lambda: (self.sidebar.set_active(4), self.switch_page(4))
+        )
+        self.profile_view.history_changed.connect(self.on_history_changed)
+        self.stack.addWidget(self.profile_view)
+
         self.sidebar.set_active(0)
         self.stack.setCurrentIndex(0)
 
@@ -393,7 +412,7 @@ class MainWindow(
         header_layout.setContentsMargins(40, 12, 40, 12)
 
         # Title
-        self.title_lbl = QLabel("Chess Analysis")
+        self.title_lbl = QLabel("Partieanalyse")
         self.title_lbl.setStyleSheet(
             f"font-size: 24px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; background: transparent; border: none;"
         )
@@ -403,7 +422,7 @@ class MainWindow(
 
         # Explore Button
         self.btn_explore = create_button(
-            "Explore from here",
+            "Im Explorer öffnen",
             style="secondary",
             on_click=self.explore_current_position,
             icon_name="fa5s.compass",
@@ -413,7 +432,7 @@ class MainWindow(
 
         # Load Game Button
         self.btn_load = create_button(
-            "Load Game",
+            "Partie laden",
             style="secondary",
             on_click=lambda: self.open_load_dialog(),
             icon_name="fa5s.folder-open",
@@ -423,7 +442,7 @@ class MainWindow(
 
         # Analyze Game Button
         self.btn_analyze = create_button(
-            "Analyze Game",
+            "Partie analysieren",
             style="primary",
             on_click=lambda: self.start_analysis(),
             icon_name="fa5s.play",
@@ -469,7 +488,7 @@ class MainWindow(
         center_layout.setContentsMargins(10, 10, 10, 10)
         center_layout.setSpacing(10)
 
-        self.game_info_label = QLabel("No Game Loaded")
+        self.game_info_label = QLabel("Keine Partie geladen")
         self.game_info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.game_info_label.setStyleSheet(
             f"font-size: 16px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY}; padding: 5px; background: transparent;"
@@ -502,7 +521,7 @@ class MainWindow(
         cta_layout.setSpacing(8)
 
         self.btn_hero_load = create_button(
-            "Load Game",
+            "Partie laden",
             style="primary",
             on_click=lambda: self.open_load_dialog(),
             icon_name="fa5s.folder-open",
@@ -511,7 +530,7 @@ class MainWindow(
         self.btn_hero_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         cta_layout.addWidget(self.btn_hero_load, 0, Qt.AlignmentFlag.AlignCenter)
 
-        self.lbl_hero_hint = QLabel("Drop a .pgn file anywhere or press Ctrl+V to paste")
+        self.lbl_hero_hint = QLabel("PGN-Datei hierher ziehen oder mit Strg+V einfügen")
         self.lbl_hero_hint.setStyleSheet(
             f"font-size: 13px; color: {Styles.COLOR_TEXT_MUTED}; background: transparent;"
         )
@@ -527,6 +546,7 @@ class MainWindow(
         if self.analysis_panel.layout:
             self.analysis_panel.layout.setContentsMargins(5, 5, 5, 5)
         self.analysis_panel.cache_toggled.connect(self.on_cache_toggled)
+        self.analysis_panel.review_widget.move_clicked.connect(self.on_move_selected)
         self.move_list_panel.lines_updated.connect(self.analysis_panel.update_lines)
         self.analysis_panel.toggle_checkbox.toggled.connect(
             self.move_list_panel.set_engine_lines_enabled

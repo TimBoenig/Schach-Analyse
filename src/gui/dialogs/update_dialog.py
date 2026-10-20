@@ -41,6 +41,7 @@ from ..styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -49,10 +50,10 @@ except ImportError:
 # ---------------------------------------------------------------------------
 # Footer page indices inside QStackedWidget
 # ---------------------------------------------------------------------------
-_PAGE_BUTTONS    = 0   # default: Remind Later + Download
-_PAGE_PROGRESS   = 1   # downloading: progress bar + Cancel
-_PAGE_DONE       = 2   # done / installing
-_PAGE_ERROR      = 3   # download failed
+_PAGE_BUTTONS = 0  # default: Remind Later + Download
+_PAGE_PROGRESS = 1  # downloading: progress bar + Cancel
+_PAGE_DONE = 2  # done / installing
+_PAGE_ERROR = 3  # download failed
 
 
 class UpdateNotificationDialog(QDialog):
@@ -60,10 +61,10 @@ class UpdateNotificationDialog(QDialog):
 
     def __init__(self, update_info, parent=None):
         super().__init__(parent)
-        self.update_info  = update_info
+        self.update_info = update_info
         self._worker: DownloadWorker | None = None
 
-        self.setWindowTitle("Update Available")
+        self.setWindowTitle("Update verfügbar")
         self.setFixedSize(480, 420)
         self.setStyleSheet(f"QDialog {{ background-color: {Styles.COLOR_BACKGROUND}; }}")
 
@@ -102,10 +103,10 @@ class UpdateNotificationDialog(QDialog):
 
         if HAS_QTAWESOME:
             ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.arrow-circle-up', color=Styles.COLOR_ACCENT).pixmap(24, 24))
+            ic.setPixmap(qta.icon("fa5s.arrow-circle-up", color=Styles.COLOR_ACCENT).pixmap(24, 24))
             title_row.addWidget(ic)
 
-        title = QLabel("Update Available")
+        title = QLabel("Update verfügbar")
         title.setStyleSheet(
             f"font-size: 17px; font-weight: bold; color: {Styles.COLOR_TEXT_PRIMARY};"
         )
@@ -120,7 +121,9 @@ class UpdateNotificationDialog(QDialog):
         ver_lay.setSpacing(4)
 
         lbl_cur = QLabel(f"v{self.update_info.current}")
-        lbl_cur.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 500;")
+        lbl_cur.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 13px; font-weight: 500;"
+        )
         ver_lay.addWidget(lbl_cur)
 
         arr = QLabel("→")
@@ -128,17 +131,15 @@ class UpdateNotificationDialog(QDialog):
         ver_lay.addWidget(arr)
 
         lbl_new = QLabel(f"v{self.update_info.latest}")
-        lbl_new.setStyleSheet(
-            f"color: {Styles.COLOR_ACCENT}; font-size: 13px; font-weight: 700;"
-        )
+        lbl_new.setStyleSheet(f"color: {Styles.COLOR_ACCENT}; font-size: 13px; font-weight: 700;")
         ver_lay.addWidget(lbl_new)
         title_row.addWidget(ver_widget)
 
         # Short format badge: ".exe" / ".dmg" / ".AppImage"
         _short = {
-            "win32":  ".exe",
+            "win32": ".exe",
             "darwin": ".dmg",
-            "linux":  ".AppImage",
+            "linux": ".AppImage",
         }.get(PLATFORM, ".pkg")
 
         _ac = Styles.COLOR_ACCENT.lstrip("#")
@@ -162,7 +163,6 @@ class UpdateNotificationDialog(QDialog):
 
         return w
 
-
     # ── Changelog ───────────────────────────────────────────────────────────
 
     def _build_changelog(self) -> QWidget:
@@ -172,8 +172,10 @@ class UpdateNotificationDialog(QDialog):
         layout.setSpacing(8)
 
         if self.update_info.changelog:
-            lbl = QLabel("What's New")
-            lbl.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
+            lbl = QLabel("Neuerungen")
+            lbl.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;"
+            )
             layout.addWidget(lbl)
 
             cleaned = self._clean_markdown(self.update_info.changelog)
@@ -227,10 +229,10 @@ class UpdateNotificationDialog(QDialog):
         outer_layout.setSpacing(0)
 
         self._footer_stack = QStackedWidget()
-        self._footer_stack.addWidget(self._page_buttons())   # 0
+        self._footer_stack.addWidget(self._page_buttons())  # 0
         self._footer_stack.addWidget(self._page_progress())  # 1
-        self._footer_stack.addWidget(self._page_done())      # 2
-        self._footer_stack.addWidget(self._page_error())     # 3
+        self._footer_stack.addWidget(self._page_done())  # 2
+        self._footer_stack.addWidget(self._page_error())  # 3
         self._footer_stack.setCurrentIndex(_PAGE_BUTTONS)
 
         outer_layout.addWidget(self._footer_stack)
@@ -244,9 +246,9 @@ class UpdateNotificationDialog(QDialog):
         layout.setSpacing(12)
         layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        btn_later = QPushButton("  Remind Later")
+        btn_later = QPushButton("  Später erinnern")
         if HAS_QTAWESOME:
-            btn_later.setIcon(qta.icon('fa5s.clock', color=Styles.COLOR_TEXT_SECONDARY))
+            btn_later.setIcon(qta.icon("fa5s.clock", color=Styles.COLOR_TEXT_SECONDARY))
         btn_later.setStyleSheet(self._btn_style_secondary())
         btn_later.setFixedHeight(40)
         btn_later.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -259,9 +261,9 @@ class UpdateNotificationDialog(QDialog):
         dl_col = QVBoxLayout()
         dl_col.setSpacing(4)
 
-        self._btn_download = QPushButton("  Download Update")
+        self._btn_download = QPushButton("  Update herunterladen")
         if HAS_QTAWESOME:
-            self._btn_download.setIcon(qta.icon('fa5s.download', color="#ffffff"))
+            self._btn_download.setIcon(qta.icon("fa5s.download", color="#ffffff"))
         self._btn_download.setStyleSheet(self._btn_style_primary())
         self._btn_download.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_download.clicked.connect(self._start_download)
@@ -270,7 +272,9 @@ class UpdateNotificationDialog(QDialog):
         if self.update_info.install_hint:
             hint = QLabel(self.update_info.install_hint)
             hint.setAlignment(Qt.AlignmentFlag.AlignRight)
-            hint.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; font-style: italic;")
+            hint.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; font-style: italic;"
+            )
             dl_col.addWidget(hint)
 
         layout.addLayout(dl_col)
@@ -285,8 +289,10 @@ class UpdateNotificationDialog(QDialog):
 
         # Status label + percentage
         top_row = QHBoxLayout()
-        self._lbl_status = QLabel("Downloading…")
-        self._lbl_status.setStyleSheet(f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;")
+        self._lbl_status = QLabel("Wird heruntergeladen…")
+        self._lbl_status.setStyleSheet(
+            f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;"
+        )
         top_row.addWidget(self._lbl_status)
         top_row.addStretch()
         self._lbl_pct = QLabel("0 %")
@@ -312,7 +318,7 @@ class UpdateNotificationDialog(QDialog):
         """)
         layout.addWidget(self._progress_bar)
 
-        btn_cancel = QPushButton("Cancel")
+        btn_cancel = QPushButton("Abbrechen")
         btn_cancel.setStyleSheet(self._btn_style_secondary())
         btn_cancel.setFixedWidth(90)
         btn_cancel.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -336,7 +342,7 @@ class UpdateNotificationDialog(QDialog):
 
         if HAS_QTAWESOME:
             ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.check-circle', color="#4caf50").pixmap(22, 22))
+            ic.setPixmap(qta.icon("fa5s.check-circle", color="#4caf50").pixmap(22, 22))
             row.addWidget(ic)
 
         self._lbl_done_title = QLabel()
@@ -347,9 +353,9 @@ class UpdateNotificationDialog(QDialog):
         row.addStretch()
 
         # macOS only: "Open in Finder" button (hidden on other platforms)
-        self._btn_open_finder = QPushButton("  Open in Finder")
+        self._btn_open_finder = QPushButton("  Im Finder öffnen")
         if HAS_QTAWESOME:
-            self._btn_open_finder.setIcon(qta.icon('fa5s.folder-open', color="#ffffff"))
+            self._btn_open_finder.setIcon(qta.icon("fa5s.folder-open", color="#ffffff"))
         self._btn_open_finder.setStyleSheet(self._btn_style_primary())
         self._btn_open_finder.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_open_finder.clicked.connect(self._open_in_finder)
@@ -359,9 +365,7 @@ class UpdateNotificationDialog(QDialog):
         layout.addLayout(row)
 
         self._lbl_done_sub = QLabel()
-        self._lbl_done_sub.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;"
-        )
+        self._lbl_done_sub.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;")
         self._lbl_done_sub.setWordWrap(True)
         layout.addWidget(self._lbl_done_sub)
 
@@ -379,27 +383,25 @@ class UpdateNotificationDialog(QDialog):
 
         if HAS_QTAWESOME:
             ic = QLabel()
-            ic.setPixmap(qta.icon('fa5s.exclamation-circle', color="#f44336").pixmap(18, 18))
+            ic.setPixmap(qta.icon("fa5s.exclamation-circle", color="#f44336").pixmap(18, 18))
 
-        self._lbl_error = QLabel("Download failed.")
+        self._lbl_error = QLabel("Download fehlgeschlagen.")
         self._lbl_error.setStyleSheet(
             f"color: {Styles.COLOR_TEXT_PRIMARY}; font-size: 13px; font-weight: 600;"
         )
         err_col.addWidget(self._lbl_error)
 
         self._lbl_error_detail = QLabel()
-        self._lbl_error_detail.setStyleSheet(
-            f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;"
-        )
+        self._lbl_error_detail.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 11px;")
         self._lbl_error_detail.setWordWrap(True)
         err_col.addWidget(self._lbl_error_detail)
 
         layout.addLayout(err_col)
         layout.addStretch()
 
-        btn_browser = QPushButton("  Open in Browser")
+        btn_browser = QPushButton("  Im Browser öffnen")
         if HAS_QTAWESOME:
-            btn_browser.setIcon(qta.icon('fa5s.external-link-alt', color="#ffffff"))
+            btn_browser.setIcon(qta.icon("fa5s.external-link-alt", color="#ffffff"))
         btn_browser.setStyleSheet(self._btn_style_primary())
         btn_browser.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_browser.clicked.connect(self._open_in_browser)
@@ -420,7 +422,7 @@ class UpdateNotificationDialog(QDialog):
 
         self._footer_stack.setCurrentIndex(_PAGE_PROGRESS)
         self._progress_bar.setValue(0)
-        self._lbl_status.setText("Downloading…")
+        self._lbl_status.setText("Wird heruntergeladen…")
         self._lbl_pct.setText("0 %")
 
         self._worker = DownloadWorker(url, dest, parent=self)
@@ -457,13 +459,14 @@ class UpdateNotificationDialog(QDialog):
 
     def _do_install(self, local_path: str):
         from PyQt6.QtWidgets import QApplication
+
         try:
             install_and_quit(local_path, QApplication.instance().quit)
         except Exception as exc:
             logger.error(f"install_and_quit raised: {exc}")
             self._show_error_page(
-                "Install step failed.",
-                f"{exc}\n\nYou can install manually from the browser.",
+                "Installation fehlgeschlagen.",
+                f"{exc}\n\nDu kannst das Update manuell über den Browser installieren.",
             )
 
     def _on_download_error(self, msg: str):
@@ -471,7 +474,7 @@ class UpdateNotificationDialog(QDialog):
         if "cancelled" in msg.lower():
             self._footer_stack.setCurrentIndex(_PAGE_BUTTONS)
             return
-        self._show_error_page("Download failed.", msg)
+        self._show_error_page("Download fehlgeschlagen.", msg)
 
     def _show_error_page(self, title: str, detail: str):
         self._lbl_error.setText(title)
@@ -481,32 +484,33 @@ class UpdateNotificationDialog(QDialog):
     def _configure_done_page(self, local_path: str):
         """Set the done-page labels and buttons depending on platform."""
         if PLATFORM == "win32":
-            self._lbl_done_title.setText("Installing update…")
+            self._lbl_done_title.setText("Update wird installiert…")
             self._lbl_done_sub.setText(
-                "The installer is running. Chess Analyzer Pro will restart automatically."
+                "Das Installationsprogramm läuft. Chess Analyzer Pro startet automatisch neu."
             )
             self._btn_open_finder.hide()
 
         elif PLATFORM == "darwin":
             filename = os.path.basename(local_path)
-            self._lbl_done_title.setText("Saved to ~/Downloads")
+            self._lbl_done_title.setText("Gespeichert unter ~/Downloads")
             self._lbl_done_sub.setText(
-                f"{filename} — open it, then drag Chess Analyzer Pro to Applications."
+                f"{filename} – öffne die Datei und ziehe Chess Analyzer Pro in „Programme“."
             )
             self._btn_open_finder.show()
-            self._btn_open_finder.setText("  Open DMG")
-            self._dest_path = local_path   # used by _open_in_finder
+            self._btn_open_finder.setText("  DMG öffnen")
+            self._dest_path = local_path  # used by _open_in_finder
 
         else:  # Linux
-            self._lbl_done_title.setText("Applying update…")
+            self._lbl_done_title.setText("Update wird angewendet…")
             self._lbl_done_sub.setText(
-                "The new AppImage will launch automatically after this window closes."
+                "Das neue AppImage startet automatisch, sobald dieses Fenster geschlossen wird."
             )
             self._btn_open_finder.hide()
 
     def _open_in_finder(self):
         """macOS: reveal the DMG in Finder (used by the 'Open DMG' button)."""
         import subprocess
+
         try:
             subprocess.Popen(["open", "-R", self._dest_path])
         except Exception:
@@ -571,12 +575,12 @@ class UpdateNotificationDialog(QDialog):
 
     @staticmethod
     def _clean_markdown(text: str) -> str:
-        text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
-        text = re.sub(r'\*(.+?)\*',     r'\1', text)
-        text = re.sub(r'^###\s+(.+)$',  r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^##\s+(.+)$',   r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^#\s+(.+)$',    r'\n\1:', text, flags=re.MULTILINE)
-        text = re.sub(r'^\*\s+',        '• ',     text, flags=re.MULTILINE)
-        text = re.sub(r'^-\s+',         '• ',     text, flags=re.MULTILINE)
-        text = re.sub(r'\n{3,}',        '\n\n',   text)
+        text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+        text = re.sub(r"\*(.+?)\*", r"\1", text)
+        text = re.sub(r"^###\s+(.+)$", r"\n\1:", text, flags=re.MULTILINE)
+        text = re.sub(r"^##\s+(.+)$", r"\n\1:", text, flags=re.MULTILINE)
+        text = re.sub(r"^#\s+(.+)$", r"\n\1:", text, flags=re.MULTILINE)
+        text = re.sub(r"^\*\s+", "• ", text, flags=re.MULTILINE)
+        text = re.sub(r"^-\s+", "• ", text, flags=re.MULTILINE)
+        text = re.sub(r"\n{3,}", "\n\n", text)
         return text.strip()

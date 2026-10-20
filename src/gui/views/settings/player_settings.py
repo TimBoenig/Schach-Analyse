@@ -1,6 +1,7 @@
 """
 Player Usernames Settings group component.
 """
+
 from PyQt6.QtWidgets import QFormLayout, QGroupBox, QLabel, QLineEdit
 
 from ...styles import Styles
@@ -9,7 +10,7 @@ from .modern_widgets import ModernSliderCounter
 
 class PlayerSettings(QGroupBox):
     def __init__(self, config_manager, parent=None):
-        super().__init__("Player Usernames", parent)
+        super().__init__("Benutzernamen", parent)
         self.config_manager = config_manager
         self.setStyleSheet(Styles.get_group_box_style())
 
@@ -23,12 +24,12 @@ class PlayerSettings(QGroupBox):
 
         self.chesscom_input = QLineEdit()
         self.chesscom_input.setText(self.config_manager.get("chesscom_username", ""))
-        self.chesscom_input.setPlaceholderText("Chess.com Username")
+        self.chesscom_input.setPlaceholderText("Chess.com-Benutzername")
         self.chesscom_input.setStyleSheet(Styles.get_input_style())
 
         self.lichess_input = QLineEdit()
         self.lichess_input.setText(self.config_manager.get("lichess_username", ""))
-        self.lichess_input.setPlaceholderText("Lichess.org Username")
+        self.lichess_input.setPlaceholderText("Lichess.org-Benutzername")
         self.lichess_input.setStyleSheet(Styles.get_input_style())
 
         self._lbl_chesscom = QLabel("Chess.com:")
@@ -37,10 +38,12 @@ class PlayerSettings(QGroupBox):
         self._lbl_lichess_user = QLabel("Lichess.org:")
         self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
 
-        self.games_limit_input = ModernSliderCounter(1, 30, step=1, value=self.config_manager.get("api_games_limit", 20), parent=self)
+        self.games_limit_input = ModernSliderCounter(
+            1, 30, step=1, value=self.config_manager.get("api_games_limit", 20), parent=self
+        )
         self.games_limit_input.setMaximumWidth(220)
 
-        self._lbl_games_limit = QLabel("Games Fetch Limit:")
+        self._lbl_games_limit = QLabel("Abruflimit (Partien):")
         self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
 
         username_layout.addRow(self._lbl_chesscom, self.chesscom_input)
@@ -58,15 +61,15 @@ class PlayerSettings(QGroupBox):
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'chesscom_input'):
+        if hasattr(self, "chesscom_input"):
             self.chesscom_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, 'lichess_input'):
+        if hasattr(self, "lichess_input"):
             self.lichess_input.setStyleSheet(Styles.get_input_style())
-        if hasattr(self, '_lbl_chesscom'):
+        if hasattr(self, "_lbl_chesscom"):
             self._lbl_chesscom.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self, '_lbl_lichess_user'):
+        if hasattr(self, "_lbl_lichess_user"):
             self._lbl_lichess_user.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self, '_lbl_games_limit'):
+        if hasattr(self, "_lbl_games_limit"):
             self._lbl_games_limit.setStyleSheet(Styles.get_label_style(size=13))
-        if hasattr(self.games_limit_input, 'refresh_styles'):
+        if hasattr(self.games_limit_input, "refresh_styles"):
             self.games_limit_input.refresh_styles()

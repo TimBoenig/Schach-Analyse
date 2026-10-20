@@ -32,7 +32,7 @@ class AdvantageConversionCard(MetricCard):
         self.stats: dict = {}
         self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("Conversion Analytics")
+        self.action_badge = QLabel("Verwertungsanalyse")
         self.action_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -44,7 +44,7 @@ class AdvantageConversionCard(MetricCard):
         """)
 
         super().__init__(
-            "Advantage Capitalization & Comeback",
+            "Vorteilsverwertung & Aufholjagd",
             parent=parent,
             min_height=280,
             action_widget=self.action_badge,
@@ -78,10 +78,10 @@ class AdvantageConversionCard(MetricCard):
 
         # Update action badge
         if hwa > 0:
-            throw_text = f" • {thrown} Thrown" if thrown > 0 else ""
-            self.action_badge.setText(f"{conv_rate:.0f}% Conversion{throw_text}")
+            throw_text = f" • {thrown} verschenkt" if thrown > 0 else ""
+            self.action_badge.setText(f"{conv_rate:.0f}% Verwertung{throw_text}")
         else:
-            self.action_badge.setText("Conversion Analytics")
+            self.action_badge.setText("Verwertungsanalyse")
 
         self.content_widget = QWidget()
         self.content_widget.setStyleSheet("background: transparent;")
@@ -90,7 +90,7 @@ class AdvantageConversionCard(MetricCard):
         main_vbox.setSpacing(14)
 
         if total_games == 0:
-            empty_lbl = QLabel("No games available for advantage conversion analysis.")
+            empty_lbl = QLabel("Keine Partien für die Vorteilsanalyse vorhanden.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -122,7 +122,7 @@ class AdvantageConversionCard(MetricCard):
         adv_vbox.setContentsMargins(14, 12, 14, 12)
         adv_vbox.setSpacing(8)
 
-        adv_title = QLabel("DECISIVE ADVANTAGE (>= +3.0 PAWNS)")
+        adv_title = QLabel("KLARER VORTEIL (≥ +3,0 BAUERN)")
         adv_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 10px;
@@ -136,7 +136,7 @@ class AdvantageConversionCard(MetricCard):
         num_sub_layout.setSpacing(10)
         num_sub_layout.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignLeft)
 
-        adv_num = QLabel(f"{conv_rate:.1f}%" if hwa > 0 else "N/A")
+        adv_num = QLabel(f"{conv_rate:.1f}%" if hwa > 0 else "–")
         adv_num.setStyleSheet(f"""
             color: {Styles.COLOR_RESULT_WIN};
             font-size: 28px;
@@ -145,7 +145,7 @@ class AdvantageConversionCard(MetricCard):
         """)
         num_sub_layout.addWidget(adv_num)
 
-        adv_sub = QLabel(f"{converted} of {hwa} won" if hwa > 0 else "No leads >= +3.0")
+        adv_sub = QLabel(f"{converted} von {hwa} gewonnen" if hwa > 0 else "Kein Vorteil ≥ +3,0")
         adv_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 12px;
@@ -212,7 +212,7 @@ class AdvantageConversionCard(MetricCard):
             w = QWidget()
             if subcategory and value > 0:
                 w.setCursor(Qt.CursorShape.PointingHandCursor)
-                w.setToolTip(f"Click to inspect {value} {label.lower()} positions")
+                w.setToolTip(f"Klicken, um {value} Stellungen anzusehen ({label})")
                 w.setStyleSheet(f"""
                     QWidget {{
                         background: transparent;
@@ -249,18 +249,18 @@ class AdvantageConversionCard(MetricCard):
 
             layout.addWidget(w)
 
-        add_stat_col(stats_line, converted, "Wins", Styles.COLOR_RESULT_WIN)
+        add_stat_col(stats_line, converted, "Siege", Styles.COLOR_RESULT_WIN)
         add_stat_col(
             stats_line,
             squandered,
-            "Draws",
+            "Remis",
             Styles.COLOR_TEXT_PRIMARY,
             subcategory="squandered_draws",
         )
         add_stat_col(
             stats_line,
             thrown,
-            "Thrown",
+            "Verschenkt",
             Styles.COLOR_BLUNDER if thrown > 0 else Styles.COLOR_TEXT_SECONDARY,
             subcategory="thrown_losses",
         )
@@ -282,7 +282,7 @@ class AdvantageConversionCard(MetricCard):
         cb_vbox.setContentsMargins(14, 12, 14, 12)
         cb_vbox.setSpacing(8)
 
-        cb_title = QLabel("DECISIVE DEFICIT (<= -3.0 PAWNS)")
+        cb_title = QLabel("KLARER NACHTEIL (≤ −3,0 BAUERN)")
         cb_title.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 10px;
@@ -296,7 +296,7 @@ class AdvantageConversionCard(MetricCard):
         cb_num_sub.setSpacing(10)
         cb_num_sub.setAlignment(Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignLeft)
 
-        cb_num = QLabel(f"{comeback_rate:.1f}%" if hlp > 0 else "N/A")
+        cb_num = QLabel(f"{comeback_rate:.1f}%" if hlp > 0 else "–")
         cb_num.setStyleSheet(f"""
             color: {Styles.COLOR_ACCENT};
             font-size: 28px;
@@ -305,7 +305,9 @@ class AdvantageConversionCard(MetricCard):
         """)
         cb_num_sub.addWidget(cb_num)
 
-        cb_sub = QLabel(f"{comeback_total} of {hlp} saved" if hlp > 0 else "No deficits <= -3.0")
+        cb_sub = QLabel(
+            f"{comeback_total} von {hlp} gerettet" if hlp > 0 else "Kein Nachteil ≤ −3,0"
+        )
         cb_sub.setStyleSheet(f"""
             color: {Styles.COLOR_TEXT_SECONDARY};
             font-size: 12px;
@@ -358,18 +360,18 @@ class AdvantageConversionCard(MetricCard):
         add_stat_col(
             cb_stats_line,
             comeback_wins,
-            "Miracle Wins",
+            "Wundersiege",
             Styles.COLOR_ACCENT,
             subcategory="comeback_wins",
         )
         add_stat_col(
             cb_stats_line,
             comeback_draws,
-            "Saved Draws",
+            "Gerettete Remis",
             Styles.COLOR_TEXT_PRIMARY,
             subcategory="comeback_draws",
         )
-        add_stat_col(cb_stats_line, lost_deficit, "Defeats", Styles.COLOR_TEXT_SECONDARY)
+        add_stat_col(cb_stats_line, lost_deficit, "Niederlagen", Styles.COLOR_TEXT_SECONDARY)
         cb_vbox.addLayout(cb_stats_line)
 
         hero_row.addWidget(comeback_pillar)
@@ -394,19 +396,19 @@ class AdvantageConversionCard(MetricCard):
 
         # Formulate insight
         if hwa == 0 and hlp == 0:
-            verdict_text = "Balanced Match Dynamics: Neither player reached extreme evaluation leads (+3.0 / -3.0 pawns) in this filter range."
+            verdict_text = "Ausgeglichene Partien: In diesem Filterbereich hat keine Seite einen klaren Vorteil (+3,0 / −3,0 Bauern) erreicht."
             indicator_color = Styles.COLOR_TEXT_SECONDARY
         elif thrown == 0 and hwa > 0:
-            verdict_text = "Clinical Finisher: Flawless advantage security. 100% of winning leads were guided to victory or safe draws with 0 thrown games."
+            verdict_text = "Eiskalter Vollstrecker: Jeder Gewinnvorteil wurde zum Sieg oder sicheren Remis geführt – keine einzige Partie verschenkt."
             indicator_color = Styles.COLOR_RESULT_WIN
         elif thrown >= 2 or (hwa > 0 and (thrown / hwa) >= 0.20):
-            verdict_text = f"High Volatility: {thrown} games were lost from winning positions (>= +3.0 pawns). Prioritize simplification and king safety when ahead."
+            verdict_text = f"Hohe Schwankungen: {thrown} Partien gingen aus Gewinnstellungen (≥ +3,0 Bauern) verloren. Vereinfache im Vorteil und achte auf Königssicherheit."
             indicator_color = Styles.COLOR_BLUNDER
         elif comeback_rate >= 25.0 and hlp >= 3:
-            verdict_text = f"Tenacious Defender: Rescued {comeback_rate:.0f}% of lost games ({comeback_total} saves). Excellent resilience and resourcefulness under pressure."
+            verdict_text = f"Zäher Verteidiger: {comeback_rate:.0f}% der verlorenen Stellungen gerettet ({comeback_total}-mal). Starke Moral und Einfallsreichtum unter Druck."
             indicator_color = Styles.COLOR_ACCENT
         else:
-            verdict_text = f"Solid Conversion: {conv_rate:.0f}% conversion efficiency on winning advantages with reliable endgame technique."
+            verdict_text = f"Solide Verwertung: {conv_rate:.0f}% der Gewinnvorteile verwertet – mit zuverlässiger Endspieltechnik."
             indicator_color = Styles.COLOR_TEXT_PRIMARY
 
         ins_lbl = QLabel(verdict_text)

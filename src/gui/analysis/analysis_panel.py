@@ -33,8 +33,10 @@ from src.utils.config import ConfigManager
 from src.utils.logger import logger
 from src.utils.path_utils import get_resource_path
 from src.utils.resources import ResourceManager
+from src.utils.translations import tr_classification, tr_speed
 
 from .analysis_lines_widget import AnalysisLinesWidget
+from .game_review_widget import GameReviewWidget
 
 
 class AnalysisPanel(QWidget):
@@ -77,12 +79,12 @@ class AnalysisPanel(QWidget):
         toggles_layout.setSpacing(10)
 
         from PyQt6.QtWidgets import QCheckBox
-        self.toggle_checkbox = QCheckBox("Engine Lines")
+        self.toggle_checkbox = QCheckBox("Engine-Varianten")
         self.toggle_checkbox.setChecked(False)
         self.toggle_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         toggles_layout.addWidget(self.toggle_checkbox)
 
-        self.cache_checkbox = QCheckBox("Use Cache")
+        self.cache_checkbox = QCheckBox("Cache nutzen")
         self.cache_checkbox.setChecked(True)
         self.cache_checkbox.setCursor(Qt.CursorShape.PointingHandCursor)
         self.cache_checkbox.toggled.connect(self.cache_toggled.emit)
@@ -95,7 +97,7 @@ class AnalysisPanel(QWidget):
         self.lines_widget = AnalysisLinesWidget()
         self.eval_layout.addWidget(self.lines_widget, stretch=1)
 
-        self.tabs.addTab(self.eval_tab, "Evaluation")
+        self.tabs.addTab(self.eval_tab, "Bewertung")
         self._apply_tabs_style()
 
         # --- Tab 2: Report ---
@@ -185,7 +187,7 @@ class AnalysisPanel(QWidget):
         self.ai_summary_layout.setContentsMargins(0, 4, 0, 0)
         self.ai_summary_layout.setSpacing(6)
 
-        self.btn_generate_summary = QPushButton(" ✨  Generate AI coach summary")
+        self.btn_generate_summary = QPushButton(" ✨  KI-Coach-Zusammenfassung erstellen")
         self.btn_generate_summary.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_generate_summary.setFixedHeight(34)
         self.btn_generate_summary.setStyleSheet(Styles.get_outline_button_style())
@@ -194,14 +196,18 @@ class AnalysisPanel(QWidget):
 
         self.txt_ai_summary = QTextEdit()
         self.txt_ai_summary.setReadOnly(True)
-        self.txt_ai_summary.setPlaceholderText("AI Coach summary & key takeaways will appear here...")
+        self.txt_ai_summary.setPlaceholderText("Hier erscheinen die Zusammenfassung und die wichtigsten Erkenntnisse des KI-Coachs …")
         self.txt_ai_summary.setStyleSheet(Styles.get_text_edit_style())
         self.txt_ai_summary.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.ai_summary_layout.addWidget(self.txt_ai_summary)
 
         self.report_layout.addWidget(self.ai_summary_frame, stretch=1)
 
-        self.tabs.addTab(self.report_tab, "Report")
+        self.tabs.addTab(self.report_tab, "Bericht")
+
+        # --- Tab 3: Review (rule-based, offline) ---
+        self.review_widget = GameReviewWidget(self.config_manager)
+        self.tabs.addTab(self.review_widget, "Review")
 
         # Loading Overlay
         self.loading_overlay = LoadingOverlay(self)
@@ -210,7 +216,7 @@ class AnalysisPanel(QWidget):
         self._analysis_running = running
 
     def _on_tab_changed(self, index):
-        if self._analysis_running and index == 1:
+        if self._analysis_running and index in (1, 2):
             self.tabs.setCurrentIndex(0)
 
     def set_game(self, game_analysis):
@@ -226,10 +232,11 @@ class AnalysisPanel(QWidget):
             self.lines_widget.clear()
             self.graph_widget.plot_game(self.current_game)
             self._update_summary(self.current_game.summary)
+            self.review_widget.set_game(self.current_game)
 
             meta = self.current_game.metadata
-            w_name = meta.white or "White"
-            b_name = meta.black or "Black"
+            w_name = meta.white or "Weiß"
+            b_name = meta.black or "Schwarz"
 
             # Result Header
             term_mode, term_desc = TerminationDetector.detect_termination(
@@ -243,7 +250,7 @@ class AnalysisPanel(QWidget):
             self.result_banner_lbl.setText(f"<span style='color: {res_color}; font-weight: 800; font-size: 13px;'>{meta.result}</span> &nbsp;<span style='color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 12px; font-weight: 500;'>{term_desc}</span>")
 
             # Opening & details section
-            opening = meta.opening or "Unknown Opening"
+            opening = meta.opening or "Unbekannte Eröffnung"
             self.opening_label.setText(opening)
 
             speed_cat = getattr(meta, "speed_category", "")
@@ -251,9 +258,9 @@ class AnalysisPanel(QWidget):
 
             details_parts = []
             if speed_cat:
-                details_parts.append(speed_cat)
+                details_parts.append(tr_speed(speed_cat))
             if num_moves:
-                details_parts.append(f"{num_moves} moves")
+                details_parts.append(f"{num_moves} Züge")
 
             if details_parts:
                 self.details_label.setText("  •  ".join(details_parts))
@@ -313,14 +320,14 @@ class AnalysisPanel(QWidget):
 
         # Stats Grid Header
         self.stats_layout.addWidget(QLabel(""), 0, 0)
-        lbl_w = QLabel("White")
+        lbl_w = QLabel("Weiß")
         lbl_w.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_w.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_w, 0, 1)
 
         self.stats_layout.addWidget(QLabel(""), 0, 2)
 
-        lbl_b = QLabel("Black")
+        lbl_b = QLabel("Schwarz")
         lbl_b.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_b.setStyleSheet(Styles.get_label_style(bold=True))
         self.stats_layout.addWidget(lbl_b, 0, 3)
@@ -337,7 +344,7 @@ class AnalysisPanel(QWidget):
             row_layout = QHBoxLayout(row_frame)
             row_layout.setContentsMargins(6, 2, 6, 2)
 
-            lbl_type = QLabel(type_name)
+            lbl_type = QLabel(tr_classification(type_name))
             lbl_type.setStyleSheet(
                 Styles.get_label_style(size=12, color=color, bold=True) + " " + Styles.get_transparent_label_style()
             )
@@ -386,7 +393,7 @@ class AnalysisPanel(QWidget):
                     window.switch_page(4)
             return
         self.btn_generate_summary.setEnabled(False)
-        self.loading_overlay.start("Generating AI Summary...")
+        self.loading_overlay.start("KI-Zusammenfassung wird erstellt …")
         logger.info("Starting AI summary generation...")
         self.summary_thread = GenerateSummaryThread(self.groq_service, self.current_game)
         self.summary_thread.finished.connect(self.on_summary_generated)
@@ -440,6 +447,7 @@ class AnalysisPanel(QWidget):
 
         if self.current_game:
             self._update_summary(self.current_game.summary)
+            self.review_widget.set_game(self.current_game)
 
     def _apply_toggle_style(self):
         tick_path = get_resource_path("assets/images/tick.svg").replace("\\", "/")
@@ -456,7 +464,7 @@ class AnalysisPanel(QWidget):
     def on_summary_generated(self, summary):
         self.loading_overlay.stop()
         self.btn_generate_summary.setEnabled(True)
-        self.btn_generate_summary.setText("Generate AI Summary")
+        self.btn_generate_summary.setText(" ✨  KI-Coach-Zusammenfassung erstellen")
 
         if is_error_message(summary):
             logger.error(f"AI Summary generation failed: {summary}")
@@ -464,7 +472,7 @@ class AnalysisPanel(QWidget):
             self.current_game.ai_summary = ""
             self.txt_ai_summary.setVisible(False)
             self.btn_generate_summary.setVisible(True)
-            if "not configured" in summary.lower():
+            if "not configured" in summary.lower() or "nicht konfiguriert" in summary.lower():
                 from ..dialogs.llm_error_dialog import LlmNotConfiguredDialog
                 dlg = LlmNotConfiguredDialog(self)
                 if dlg.exec() == QDialog.DialogCode.Accepted and dlg.wants_configure():
@@ -475,8 +483,8 @@ class AnalysisPanel(QWidget):
             else:
                 show_error_dialog(
                     self,
-                    "AI Summary Failed",
-                    "Could not generate the AI summary.",
+                    "KI-Zusammenfassung fehlgeschlagen",
+                    "Die KI-Zusammenfassung konnte nicht erstellt werden.",
                     summary,
                 )
             return

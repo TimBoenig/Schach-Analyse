@@ -1,6 +1,7 @@
 """
 Links and Updates Settings group component.
 """
+
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QGridLayout, QGroupBox
@@ -10,6 +11,7 @@ from .helpers import HAS_QTAWESOME, create_icon_button
 
 if HAS_QTAWESOME:
     import qtawesome as qta
+
 
 class LinksSettings(QGroupBox):
     def __init__(self, parent=None):
@@ -24,10 +26,16 @@ class LinksSettings(QGroupBox):
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(10)
 
-        self.website_btn = create_icon_button("Visit Website", "fa5s.globe", self.open_website, self)
-        self.update_btn = create_icon_button("Check for Updates", "fa5s.sync-alt", self.check_for_updates, self)
-        self.feedback_btn = create_icon_button("Feedback & Bugs", "fa5s.comment-dots", self.open_feedback, self)
-        self.rate_btn = create_icon_button("Rate App", "fa5s.star", self.open_review, self)
+        self.website_btn = create_icon_button(
+            "Website besuchen", "fa5s.globe", self.open_website, self
+        )
+        self.update_btn = create_icon_button(
+            "Nach Updates suchen", "fa5s.sync-alt", self.check_for_updates, self
+        )
+        self.feedback_btn = create_icon_button(
+            "Feedback & Fehler", "fa5s.comment-dots", self.open_feedback, self
+        )
+        self.rate_btn = create_icon_button("App bewerten", "fa5s.star", self.open_review, self)
 
         grid.addWidget(self.website_btn, 0, 0)
         grid.addWidget(self.update_btn, 0, 1)
@@ -39,11 +47,13 @@ class LinksSettings(QGroupBox):
 
     def open_feedback(self):
         from src.gui.dialogs.feedback_dialog import FeedbackDialog
+
         dialog = FeedbackDialog(self, initial_tab="bug")
         dialog.exec()
 
     def open_review(self):
         from src.gui.dialogs.review_prompt_dialog import ReviewPromptDialog
+
         dialog = ReviewPromptDialog(self, games_count=0)
         dialog.exec()
 
@@ -55,7 +65,7 @@ class LinksSettings(QGroupBox):
 
         # Show checking message
         self.update_btn.setEnabled(False)
-        self.update_btn.setText("  Checking...")
+        self.update_btn.setText("  Suche …")
         QApplication.processEvents()
 
         try:
@@ -66,26 +76,32 @@ class LinksSettings(QGroupBox):
                 dialog.exec()
             else:
                 from src.gui.main_window import MainWindow
-                MainWindow.toast_from_widget(self, f"You're up to date (v{APP_VERSION}).", "success")
+
+                MainWindow.toast_from_widget(
+                    self, f"Du bist auf dem neuesten Stand (v{APP_VERSION}).", "success"
+                )
         except Exception as e:
             from src.gui.main_window import MainWindow
-            MainWindow.toast_from_widget(self, f"Failed to check for updates: {e}", "error")
+
+            MainWindow.toast_from_widget(self, f"Update-Prüfung fehlgeschlagen: {e}", "error")
         finally:
             self.update_btn.setEnabled(True)
-            self.update_btn.setText("  Check for Updates")
+            self.update_btn.setText("  Nach Updates suchen")
             if HAS_QTAWESOME:
-                self.update_btn.setIcon(qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY))
+                self.update_btn.setIcon(
+                    qta.icon("fa5s.sync-alt", color=Styles.COLOR_TEXT_SECONDARY)
+                )
 
     def set_advanced_visible(self, visible):
         pass
 
     def refresh_styles(self, *args, **kwargs):
         self.setStyleSheet(Styles.get_group_box_style())
-        if hasattr(self, 'website_btn'):
+        if hasattr(self, "website_btn"):
             self.website_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'feedback_btn'):
+        if hasattr(self, "feedback_btn"):
             self.feedback_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'rate_btn'):
+        if hasattr(self, "rate_btn"):
             self.rate_btn.setStyleSheet(Styles.get_settings_default_button_style())
-        if hasattr(self, 'update_btn'):
+        if hasattr(self, "update_btn"):
             self.update_btn.setStyleSheet(Styles.get_settings_default_button_style())

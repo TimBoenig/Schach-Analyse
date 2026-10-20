@@ -48,10 +48,18 @@ STANDARD_THEME_FILES = {
 }
 
 SHORT_THEME_FILES = {
-    "K": "wk.svg", "Q": "wq.svg", "R": "wr.svg", "B": "wb.svg",
-    "N": "wn.svg", "P": "wp.svg",
-    "k": "bk.svg", "q": "bq.svg", "r": "br.svg", "b": "bb.svg",
-    "n": "bn.svg", "p": "bp.svg",
+    "K": "wk.svg",
+    "Q": "wq.svg",
+    "R": "wr.svg",
+    "B": "wb.svg",
+    "N": "wn.svg",
+    "P": "wp.svg",
+    "k": "bk.svg",
+    "q": "bq.svg",
+    "r": "br.svg",
+    "b": "bb.svg",
+    "n": "bn.svg",
+    "p": "bp.svg",
 }
 
 PIECE_THEMES: dict[str, dict[str, str]] = {
@@ -79,7 +87,7 @@ def validate_theme_folder(folder_path: str) -> tuple[bool, list[str]]:
     errors: list[str] = []
 
     if not os.path.isdir(folder_path):
-        return False, [f"Folder does not exist: {folder_path}"]
+        return False, [f"Ordner existiert nicht: {folder_path}"]
 
     missing = []
     for filename in sorted(REQUIRED_THEME_FILES):
@@ -87,9 +95,7 @@ def validate_theme_folder(folder_path: str) -> tuple[bool, list[str]]:
             missing.append(filename)
 
     if missing:
-        errors.append(
-            f"Missing {len(missing)} of 12 required files: {', '.join(missing)}"
-        )
+        errors.append(f"{len(missing)} von 12 benötigten Dateien fehlen: {', '.join(missing)}")
 
     for filename in sorted(REQUIRED_THEME_FILES):
         file_path = os.path.join(folder_path, filename)
@@ -98,7 +104,7 @@ def validate_theme_folder(folder_path: str) -> tuple[bool, list[str]]:
         try:
             _extract_g_element(file_path)
         except ET.ParseError:
-            errors.append(f"{filename} is not valid XML/SVG")
+            errors.append(f"{filename} ist kein gültiges XML/SVG")
         except OSError as e:
             errors.append(f"{filename}: {e}")
 
@@ -114,11 +120,11 @@ def import_theme_from_folder(folder_path: str) -> str | None:
 
     base_name = os.path.basename(os.path.normpath(folder_path))
     if not base_name:
-        base_name = "Imported Theme"
+        base_name = "Importiertes Design"
 
     # "Standard" is reserved for the built-in Cburnett set
     if base_name == "Standard":
-        base_name = "Custom Standard"
+        base_name = "Standard (eigenes)"
 
     final_name = _unique_theme_name(base_name)
 
@@ -188,9 +194,7 @@ def _prefix_def_refs(elem: ET.Element, prefix: str) -> None:
     for child in elem.iter():
         for attr in list(child.attrib):
             val = child.attrib[attr]
-            new_val = _RE_URL_REF.sub(
-                lambda m: f"url(#{prefix}_{m.group(1)})", val
-            )
+            new_val = _RE_URL_REF.sub(lambda m: f"url(#{prefix}_{m.group(1)})", val)
             if attr == "href" and val.startswith("#") and len(val) > 1:
                 new_val = f"#{prefix}_{val[1:]}"
             if new_val != val:
@@ -199,9 +203,7 @@ def _prefix_def_refs(elem: ET.Element, prefix: str) -> None:
 
 def _parse_path_points(d: str) -> list[tuple[float, float]]:
     """Extract all (x, y) coordinate pairs from SVG path data."""
-    tokens = re.findall(
-        r"[MLHVCSQTAZmlhvcsqtaz]|-?\d*\.?\d+(?:[eE][-+]?\d+)?", d
-    )
+    tokens = re.findall(r"[MLHVCSQTAZmlhvcsqtaz]|-?\d*\.?\d+(?:[eE][-+]?\d+)?", d)
     points = []
     i = 0
     cur_x = cur_y = 0.0
@@ -240,7 +242,7 @@ def _parse_path_points(d: str) -> list[tuple[float, float]]:
                     break
             elif cmd in "Cc":
                 if j + 6 <= len(nums):
-                    pts = nums[j:j + 6]
+                    pts = nums[j : j + 6]
                     j += 6
                     if cmd.islower():
                         pts[0] += cur_x
@@ -255,7 +257,7 @@ def _parse_path_points(d: str) -> list[tuple[float, float]]:
                     break
             elif cmd in "SsQq":
                 if j + 4 <= len(nums):
-                    pts = nums[j:j + 4]
+                    pts = nums[j : j + 4]
                     j += 4
                     if cmd.islower():
                         pts[0] += cur_x
@@ -325,8 +327,7 @@ def _get_svg_canvas(root: ET.Element) -> tuple[float, float] | None:
     h_str = root.get("height", "")
     if w_str and h_str:
         try:
-            return (float(_RE_NUM.search(w_str).group()),
-                    float(_RE_NUM.search(h_str).group()))
+            return (float(_RE_NUM.search(w_str).group()), float(_RE_NUM.search(h_str).group()))
         except (ValueError, AttributeError):
             pass
 
@@ -421,11 +422,7 @@ def _extract_g_element(
     tree = safe_parse(svg_path)
     root = tree.getroot()
 
-    g_elements = [
-        child
-        for child in root
-        if (child.tag.endswith("}g") or child.tag == "g")
-    ]
+    g_elements = [child for child in root if (child.tag.endswith("}g") or child.tag == "g")]
 
     if len(g_elements) == 1:
         g_elem = g_elements[0]
@@ -450,10 +447,9 @@ def _extract_g_element(
                 cy = (bbox[1] + bbox[3]) / 2.0
                 tx = target_size / 2.0 - cx * scale
                 ty = target_size / 2.0 - cy * scale
-                wrapper = ET.Element("g", {
-                    "transform": f"translate({tx:.2f},{ty:.2f}) "
-                                 f"scale({scale:.6f})"
-                })
+                wrapper = ET.Element(
+                    "g", {"transform": f"translate({tx:.2f},{ty:.2f}) scale({scale:.6f})"}
+                )
                 if element_id:
                     wrapper.set("id", element_id)
                     element_id = None
@@ -494,9 +490,7 @@ def _collect_theme_defs(theme_name: str) -> str:
         if os.path.isabs(file_path):
             svg_path = file_path
         else:
-            svg_path = get_resource_path(
-                os.path.join(PIECE_ASSETS_DIR, file_path)
-            )
+            svg_path = get_resource_path(os.path.join(PIECE_ASSETS_DIR, file_path))
 
         try:
             tree = safe_parse(svg_path)
@@ -543,11 +537,11 @@ def _load_theme(theme_name: str) -> dict:
         if os.path.isabs(file_path):
             svg_path = file_path
         else:
-            svg_path = get_resource_path(
-                os.path.join(PIECE_ASSETS_DIR, file_path)
-            )
+            svg_path = get_resource_path(os.path.join(PIECE_ASSETS_DIR, file_path))
         pieces[symbol] = _extract_g_element(
-            svg_path, element_id=_expected_id(symbol), target_size=45,
+            svg_path,
+            element_id=_expected_id(symbol),
+            target_size=45,
             symbol=symbol,
         )
     return pieces
@@ -561,22 +555,16 @@ def get_piece_defs(theme_name: str = "Standard") -> str:
     try:
         pieces = _load_theme_cached(theme_name)
         defs_block = _collect_theme_defs_cached(theme_name)
-        return defs_block + "\n".join(
-            pieces[symbol] for symbol in STANDARD_THEME_FILES
-        )
+        return defs_block + "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
     except Exception as e:
         logger.error(f"Failed to load piece theme {theme_name!r}: {e}")
         if theme_name != "Standard":
             logger.info("Attempting fallback to 'Standard' piece theme.")
             try:
                 pieces = _load_theme_cached("Standard")
-                return "\n".join(
-                    pieces[symbol] for symbol in STANDARD_THEME_FILES
-                )
+                return "\n".join(pieces[symbol] for symbol in STANDARD_THEME_FILES)
             except Exception as fallback_err:
-                logger.error(
-                    f"Failed to load fallback 'Standard' piece theme: {fallback_err}"
-                )
+                logger.error(f"Failed to load fallback 'Standard' piece theme: {fallback_err}")
         return ""
 
 
@@ -586,6 +574,7 @@ def get_piece_theme_names() -> list:
 
 def get_current_theme_name() -> str:
     from ...utils.config import ConfigManager
+
     return ConfigManager().get("piece_theme", "Standard")
 
 

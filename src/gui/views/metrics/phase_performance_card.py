@@ -24,7 +24,7 @@ class PhasePerformanceCard(MetricCard):
         self.stats: dict = {}
         self.content_widget: QWidget | None = None
 
-        self.action_badge = QLabel("3 Game Phases")
+        self.action_badge = QLabel("3 Partiephasen")
         self.action_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -36,7 +36,7 @@ class PhasePerformanceCard(MetricCard):
         """)
 
         super().__init__(
-            "Phase Performance",
+            "Leistung nach Phase",
             parent=parent,
             max_height=310,
             action_widget=self.action_badge,
@@ -65,7 +65,7 @@ class PhasePerformanceCard(MetricCard):
         # Check for valid data
         has_data = any(accuracies.get(p, 0.0) > 0 for p in ("opening", "middlegame", "endgame"))
         if not has_data:
-            empty_lbl = QLabel("No phase accuracy data available for selected games.")
+            empty_lbl = QLabel("Keine Genauigkeitsdaten pro Phase für die gewählten Partien.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -78,9 +78,9 @@ class PhasePerformanceCard(MetricCard):
             return
 
         phases = [
-            ("Opening", "opening", "fa5s.chess-pawn", "Moves 1–15"),
-            ("Middlegame", "middlegame", "fa5s.chess-knight", "Moves 16–35"),
-            ("Endgame", "endgame", "fa5s.chess-king", "Moves 36+"),
+            ("Eröffnung", "opening", "fa5s.chess-pawn", "Züge 1–15"),
+            ("Mittelspiel", "middlegame", "fa5s.chess-knight", "Züge 16–35"),
+            ("Endspiel", "endgame", "fa5s.chess-king", "Züge 36+"),
         ]
 
         total_games = self.stats.get("total", 0)
@@ -173,7 +173,7 @@ class PhasePerformanceCard(MetricCard):
             p_layout.addSpacing(2)
 
             # Big Hero Accuracy Number (Consistent white text)
-            acc_lbl = QLabel(f"{acc:.1f}%" if acc > 0 else "N/A")
+            acc_lbl = QLabel(f"{acc:.1f}%" if acc > 0 else "–")
             acc_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_PRIMARY};
                 font-size: 22px;
@@ -206,9 +206,9 @@ class PhasePerformanceCard(MetricCard):
 
             # Blunders Text
             b_text = (
-                f"{b_cnt} blunders ({bpg:.1f}/g)"
+                f"{b_cnt} Patzer ({bpg:.1f}/P.)"
                 if total_games > 1 and b_cnt > 0
-                else (f"{b_cnt} blunders" if b_cnt != 1 else "1 blunder")
+                else f"{b_cnt} Patzer"
             )
             b_lbl = QLabel(b_text)
             b_lbl.setStyleSheet(f"""

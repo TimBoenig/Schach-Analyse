@@ -3,6 +3,7 @@ Unified Load Game Dialog
 Replaces the fragmented dropdown menu + multiple OS dialogs with a single,
 fully-styled modal that handles all load sources inline.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -40,12 +41,13 @@ class LoadGameDialog(QDialog):
     Emits game_ready(pgn_text, source_data) when the user confirms a selection;
     the caller is responsible for parsing and loading the game.
     """
+
     # pgn_text: str, source_data: dict | None
     game_ready = pyqtSignal(str, object)
 
     def __init__(self, parent=None, initial_source: int = SRC_PGN_FILE):
         super().__init__(parent)
-        self.setWindowTitle("Load Game")
+        self.setWindowTitle("Partie laden")
         self.setModal(True)
         self.resize(680, 580)
         self.setMinimumSize(600, 480)
@@ -58,6 +60,7 @@ class LoadGameDialog(QDialog):
     # ── UI construction ─────────────────────────────────────────────────────
     def _setup_ui(self):
         from PyQt6.QtCore import Qt as _Qt
+
         # Force Qt to honour the background-color on the dialog window itself
         self.setAttribute(_Qt.WidgetAttribute.WA_StyledBackground, True)
         self.setStyleSheet(f"""
@@ -87,7 +90,7 @@ class LoadGameDialog(QDialog):
         )
         tb_layout.addWidget(chess_icon)
 
-        title_lbl = QLabel("Load Game")
+        title_lbl = QLabel("Partie laden")
         title_lbl.setStyleSheet(
             f"font-size: 17px; font-weight: 700; color: {Styles.COLOR_TEXT_PRIMARY};"
             " background: transparent; border: none;"
@@ -110,14 +113,14 @@ class LoadGameDialog(QDialog):
         nav_layout.setSpacing(12)
 
         # Online tab button
-        self.btn_online = QPushButton("  Online Fetch")
+        self.btn_online = QPushButton("  Online abrufen")
         self.btn_online.setCheckable(True)
         self.btn_online.setChecked(True)
         self.btn_online.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_online.setFixedHeight(48)
 
         # Pgn tab button
-        self.btn_pgn = QPushButton("  PGN Text / File")
+        self.btn_pgn = QPushButton("  PGN-Text / Datei")
         self.btn_pgn.setCheckable(True)
         self.btn_pgn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_pgn.setFixedHeight(48)
@@ -194,19 +197,18 @@ class LoadGameDialog(QDialog):
         footer = QWidget()
         footer.setFixedHeight(64)
         footer.setStyleSheet(
-            f"background-color: {Styles.COLOR_SURFACE};"
-            f"border-top: 1px solid {Styles.COLOR_BORDER};"
+            f"background-color: {Styles.COLOR_SURFACE};border-top: 1px solid {Styles.COLOR_BORDER};"
         )
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(20, 0, 20, 0)
         footer_layout.setSpacing(10)
         footer_layout.addStretch()
 
-        btn_cancel = create_button("Cancel", style="secondary", on_click=self.reject)
+        btn_cancel = create_button("Abbrechen", style="secondary", on_click=self.reject)
         btn_cancel.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         footer_layout.addWidget(btn_cancel)
 
-        self.btn_load = create_button("Load Game", style="primary")
+        self.btn_load = create_button("Partie laden", style="primary")
         self.btn_load.setEnabled(False)
         self.btn_load.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.btn_load.clicked.connect(self._on_load_clicked)
@@ -299,7 +301,7 @@ class LoadGameDialog(QDialog):
         super().reject()
 
     def _cleanup_workers(self):
-        if hasattr(self, '_online_fetch_panel') and self._online_fetch_panel._worker is not None:
+        if hasattr(self, "_online_fetch_panel") and self._online_fetch_panel._worker is not None:
             try:
                 self._online_fetch_panel._worker.cancel()
                 self._online_fetch_panel._worker.finished.disconnect()

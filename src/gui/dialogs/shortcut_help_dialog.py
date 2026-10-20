@@ -1,6 +1,7 @@
 """
 Keyboard Shortcuts Help Dialog for Chess Analyzer Pro.
 """
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QDialog,
@@ -17,6 +18,7 @@ from ..styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -27,7 +29,7 @@ class ShortcutHelpDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Keyboard Shortcuts")
+        self.setWindowTitle("Tastenkürzel")
         self.resize(520, 620)
         self.setMinimumSize(480, 540)
         self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
@@ -53,10 +55,12 @@ class ShortcutHelpDialog(QDialog):
 
         if HAS_QTAWESOME:
             icon_label = QLabel()
-            icon_label.setPixmap(qta.icon('fa5s.keyboard', color=Styles.COLOR_ACCENT).pixmap(28, 28))
+            icon_label.setPixmap(
+                qta.icon("fa5s.keyboard", color=Styles.COLOR_ACCENT).pixmap(28, 28)
+            )
             header_layout.addWidget(icon_label)
 
-        title = QLabel("Keyboard Shortcuts")
+        title = QLabel("Tastenkürzel")
         title.setStyleSheet(f"""
             font-size: 20px;
             font-weight: bold;
@@ -67,7 +71,7 @@ class ShortcutHelpDialog(QDialog):
         layout.addLayout(header_layout)
 
         # Subtitle
-        subtitle = QLabel("Master these shortcuts to analyze games faster")
+        subtitle = QLabel("Mit diesen Kürzeln analysierst du Partien schneller")
         subtitle.setStyleSheet(f"""
             font-size: 12px;
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -90,20 +94,20 @@ class ShortcutHelpDialog(QDialog):
         # Shortcuts grouped by category
         shortcuts = {
             "Navigation": [
-                ("←  →", "Previous / Next move"),
-                ("Home", "First move"),
-                ("End", "Last move"),
+                ("←  →", "Vorheriger / Nächster Zug"),
+                ("Pos1", "Erster Zug"),
+                ("Ende", "Letzter Zug"),
             ],
-            "Board": [
-                ("F", "Flip board"),
+            "Brett": [
+                ("F", "Brett drehen"),
             ],
-            "Actions": [
-                ("Ctrl+O", "Open PGN file"),
-                ("Ctrl+A", "Analyze game"),
+            "Aktionen": [
+                ("Strg+O", "PGN-Datei öffnen"),
+                ("Strg+A", "Partie analysieren"),
             ],
-            "General": [
-                ("F1", "Show this help"),
-                ("Esc", "Close dialogs"),
+            "Allgemein": [
+                ("F1", "Diese Hilfe anzeigen"),
+                ("Esc", "Dialoge schließen"),
             ],
         }
 
@@ -115,12 +119,16 @@ class ShortcutHelpDialog(QDialog):
             if HAS_QTAWESOME:
                 cat_icons = {
                     "Navigation": "fa5s.arrows-alt",
-                    "Board": "fa5s.chess-board",
-                    "Actions": "fa5s.bolt",
-                    "General": "fa5s.cog"
+                    "Brett": "fa5s.chess-board",
+                    "Aktionen": "fa5s.bolt",
+                    "Allgemein": "fa5s.cog",
                 }
                 cat_icon = QLabel()
-                cat_icon.setPixmap(qta.icon(cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT).pixmap(14, 14))
+                cat_icon.setPixmap(
+                    qta.icon(
+                        cat_icons.get(category, "fa5s.circle"), color=Styles.COLOR_ACCENT
+                    ).pixmap(14, 14)
+                )
                 cat_layout.addWidget(cat_icon)
 
             category_label = QLabel(category)
@@ -149,7 +157,7 @@ class ShortcutHelpDialog(QDialog):
         layout.addWidget(scroll)
 
         # Footer buttons
-        btn_feedback = QPushButton("  Report Bug / Feedback")
+        btn_feedback = QPushButton("  Fehler melden / Feedback")
         btn_feedback.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -172,7 +180,7 @@ class ShortcutHelpDialog(QDialog):
         btn_feedback.clicked.connect(self._open_feedback)
 
         # Close button
-        btn_close = QPushButton("Got it")
+        btn_close = QPushButton("Verstanden")
         btn_close.setStyleSheet(f"""
             QPushButton {{
                 background-color: {Styles.COLOR_ACCENT};
@@ -198,6 +206,7 @@ class ShortcutHelpDialog(QDialog):
 
     def _open_feedback(self):
         from .feedback_dialog import FeedbackDialog
+
         dialog = FeedbackDialog(self, initial_tab="bug")
         dialog.exec()
 

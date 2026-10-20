@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 from src.gui.styles import Styles
 from src.gui.theme.palette import BOARD_THEMES
 from src.utils.config import ConfigManager
+from src.utils.translations import tr_classification, tr_color, tr_motif, tr_piece, tr_speed
 
 
 class DrillDownItemWidget(QFrame):
@@ -85,16 +86,17 @@ class DrillDownItemWidget(QFrame):
         row1 = QHBoxLayout()
         row1.setSpacing(8)
 
-        opp_name = self.item.get("opponent", "Opponent")
+        opp_name = self.item.get("opponent", "Gegner")
         opp_elo = self.item.get("opponent_elo", "")
         elo_str = (
             f" <span style='color: {Styles.COLOR_TEXT_MUTED}'>({opp_elo})</span>" if opp_elo else ""
         )
-        user_color = self.item.get("user_color", "white").capitalize()
+        raw_user_color = str(self.item.get("user_color", "white")).lower()
+        user_color = tr_color(raw_user_color)
 
         match_lbl = QLabel(
-            f"<b>vs {opp_name}</b>{elo_str} &nbsp;•&nbsp; "
-            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>as {user_color}</span>"
+            f"<b>gegen {opp_name}</b>{elo_str} &nbsp;•&nbsp; "
+            f"<span style='color: {Styles.COLOR_TEXT_SECONDARY}'>als {user_color}</span>"
         )
         match_lbl.setStyleSheet(
             Styles.get_label_style(size=13, color=Styles.COLOR_TEXT_PRIMARY)
@@ -105,7 +107,7 @@ class DrillDownItemWidget(QFrame):
 
         # Result badge (Win/Loss/Draw)
         result = self.item.get("result", "*")
-        res_color = self._get_result_color(result, user_color.lower())
+        res_color = self._get_result_color(result, raw_user_color)
         res_lbl = QLabel(result)
         res_lbl.setStyleSheet(Styles.get_result_badge_style(res_color, 11, "2px 8px", 4))
         row1.addWidget(res_lbl)
@@ -113,7 +115,7 @@ class DrillDownItemWidget(QFrame):
         # Speed category badge
         speed = self.item.get("speed_category", "")
         if speed:
-            speed_lbl = QLabel(speed)
+            speed_lbl = QLabel(tr_speed(speed))
             speed_lbl.setStyleSheet(f"""
                 QLabel {{
                     background-color: {Styles.COLOR_SURFACE_LIGHT};
@@ -141,7 +143,7 @@ class DrillDownItemWidget(QFrame):
             is_user_white = self.item.get("user_color", "white") == "white"
             move_prefix = f"{move_num}." if is_user_white else f"{move_num}..."
             move_display = (
-                f"{move_prefix} {san}".strip() if san else f"Ply {self.item.get('ply', 1)}"
+                f"{move_prefix} {san}".strip() if san else f"Halbzug {self.item.get('ply', 1)}"
             )
 
         move_badge = QLabel(move_display)
@@ -168,7 +170,7 @@ class DrillDownItemWidget(QFrame):
                 class_color = Styles.COLOR_ACCENT
             else:
                 class_color = Styles.get_class_color(classification)
-            class_badge = QLabel(classification)
+            class_badge = QLabel(tr_classification(classification))
             class_badge.setStyleSheet(Styles.get_result_badge_style(class_color, 11, "3px 8px", 4))
             row2.addWidget(class_badge)
 
@@ -220,7 +222,7 @@ class DrillDownItemWidget(QFrame):
         right_layout.addStretch()
 
         action_text = self.item.get("action_text") or (
-            "Analyze Game →" if self.item.get("is_game") else "Analyze Move →"
+            "Partie analysieren →" if self.item.get("is_game") else "Zug analysieren →"
         )
         btn_action = QPushButton(action_text)
         btn_action.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -255,19 +257,21 @@ class DrillDownItemWidget(QFrame):
         wp_drop = self.item.get("wp_drop")
 
         if piece_name and square:
-            parts.append(f"Dropped {piece_name.capitalize()} on {square}")
+            parts.append(f"{tr_piece(piece_name)} auf {square} eingestellt")
 
         if eval_drop is not None and eval_before is not None and eval_after is not None:
             drop_str = (
                 f"-{abs(eval_drop) / 100:.1f}" if eval_drop > 0 else f"+{abs(eval_drop) / 100:.1f}"
             )
-            parts.append(f"Eval: {eval_before / 100:+.1f} → {eval_after / 100:+.1f} ({drop_str})")
+            parts.append(
+                f"Bewertung: {eval_before / 100:+.1f} → {eval_after / 100:+.1f} ({drop_str})"
+            )
         elif wp_drop is not None and wp_drop > 0.05:
-            parts.append(f"Win % drop: -{wp_drop * 100:.0f}%")
+            parts.append(f"Gewinnchance: -{wp_drop * 100:.0f}%")
 
         motif = self.item.get("motif")
         if motif and not piece_name:
-            parts.append(f"Motif: {motif.replace('_', ' ').title()}")
+            parts.append(f"Motiv: {tr_motif(motif)}")
 
         desc = self.item.get("description")
         if desc:

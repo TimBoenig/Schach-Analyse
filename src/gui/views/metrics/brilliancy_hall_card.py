@@ -57,7 +57,7 @@ class BrilliancyHallCard(MetricCard):
         self.content_widget: QWidget | None = None
         self.current_page: int = 0
 
-        self.action_badge = QLabel("0 Brilliancies")
+        self.action_badge = QLabel("0 Glanzzüge")
         self.action_badge.setStyleSheet(f"""
             background-color: {Styles.COLOR_SURFACE_LIGHT};
             color: {Styles.COLOR_TEXT_SECONDARY};
@@ -69,7 +69,7 @@ class BrilliancyHallCard(MetricCard):
         """)
 
         super().__init__(
-            "Brilliancy Hall",
+            "Ruhmeshalle der Glanzzüge",
             parent=parent,
             min_height=340,
             action_widget=self.action_badge,
@@ -92,7 +92,7 @@ class BrilliancyHallCard(MetricCard):
         count = len(brilliants)
 
         # Update header badge
-        badge_text = f"{count} Brilliancy" if count == 1 else f"{count} Brilliancies"
+        badge_text = f"{count} Glanzzug" if count == 1 else f"{count} Glanzzüge"
         self.action_badge.setText(badge_text)
         badge_border = Styles.COLOR_BRILLIANT if count > 0 else Styles.COLOR_BORDER
         badge_color = Styles.COLOR_BRILLIANT if count > 0 else Styles.COLOR_TEXT_SECONDARY
@@ -113,7 +113,7 @@ class BrilliancyHallCard(MetricCard):
         main_vbox.setSpacing(8)
 
         if not brilliants:
-            empty_lbl = QLabel("No brilliant moves found in selected games.")
+            empty_lbl = QLabel("Keine brillanten Züge in den gewählten Partien.")
             empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty_lbl.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -152,13 +152,13 @@ class BrilliancyHallCard(MetricCard):
             pagination_bar.setContentsMargins(4, 4, 4, 0)
             pagination_bar.setSpacing(10)
 
-            self.btn_prev = QPushButton("◀ Prev")
+            self.btn_prev = QPushButton("◀ Zurück")
             self.btn_prev.setFixedHeight(26)
             self.btn_prev.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_prev.setEnabled(self.current_page > 0)
             self.btn_prev.clicked.connect(self._go_prev_page)
 
-            self.lbl_page = QLabel(f"Page {self.current_page + 1} of {total_pages}")
+            self.lbl_page = QLabel(f"Seite {self.current_page + 1} von {total_pages}")
             self.lbl_page.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.lbl_page.setStyleSheet(f"""
                 color: {Styles.COLOR_TEXT_SECONDARY};
@@ -167,7 +167,7 @@ class BrilliancyHallCard(MetricCard):
                 background: transparent;
             """)
 
-            self.btn_next = QPushButton("Next ▶")
+            self.btn_next = QPushButton("Weiter ▶")
             self.btn_next.setFixedHeight(26)
             self.btn_next.setCursor(Qt.CursorShape.PointingHandCursor)
             self.btn_next.setEnabled(self.current_page < total_pages - 1)
@@ -224,9 +224,9 @@ class BrilliancyHallCard(MetricCard):
         move_num = b.get("move_number", "")
         move_str = f"{move_num}. {san}" if move_num and not san.startswith(str(move_num)) else san
 
-        opp = b.get("opponent", "Unknown Opponent")
+        opp = b.get("opponent", "Unbekannter Gegner")
         elo = b.get("opponent_elo", "")
-        opp_str = f"vs {opp} ({elo})" if elo else f"vs {opp}"
+        opp_str = f"gegen {opp} ({elo})" if elo else f"gegen {opp}"
 
         date_str = b.get("date", "")
         opening = b.get("opening_name", "")
@@ -261,7 +261,9 @@ class BrilliancyHallCard(MetricCard):
                 border: 1px solid {Styles.COLOR_BRILLIANT};
             }}
         """)
-        row.setToolTip(f"{move_str} in {meta_str}\nClick to view move on Analysis Board.")
+        row.setToolTip(
+            f"{move_str} in {meta_str}\nKlicken, um den Zug auf dem Analysebrett anzuzeigen."
+        )
 
         r_layout = QHBoxLayout(row)
         r_layout.setContentsMargins(12, 8, 12, 8)
@@ -324,7 +326,7 @@ class BrilliancyHallCard(MetricCard):
         r_layout.addWidget(text_container, stretch=1)
 
         # 3. Analyze Action Button
-        btn_analyze = QPushButton("Analyze →")
+        btn_analyze = QPushButton("Analysieren →")
         btn_analyze.setFixedHeight(24)
         btn_analyze.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_analyze.setStyleSheet(f"""

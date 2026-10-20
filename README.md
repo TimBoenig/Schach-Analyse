@@ -43,6 +43,21 @@
 
 </details>
 
+## 🇩🇪 Mein Schachprofil (neu)
+
+Die Oberfläche ist jetzt komplett auf Deutsch. Dazu kommt die Seite **„Mein Profil“**: Sie wertet alle deine Partien gemeinsam aus.
+
+- **Partien importieren**: per chess.com-Benutzername (öffentliche API, wählbarer Zeitraum) oder als PGN-Dateien. Bereits bekannte Partien werden übersprungen.
+- **Alle analysieren**: Stapelanalyse aller noch offenen Partien mit Stockfish im Hintergrund, abbrechbar und fortsetzbar.
+- **Fähigkeiten**: neun Werte (Eröffnung, Mittelspiel, Endspiel, Taktisches Sehen, Figurensicherheit, Vorteilsverwertung, Verteidigung, Zeitmanagement, Konstanz) mit Netzdiagramm.
+- **Stärken und Schwächen** mit konkreten Zahlen, dazu Farbe, Eröffnungen und Bedenkzeiten im Vergleich.
+- **Spielstil**: Einordnung (z. B. Angriffsspieler, Taktiker, Solider Positionsspieler) anhand von Schachgeboten, Abtauschen, Risiko und Endspielneigung.
+- **Wiederkehrende Muster**: z. B. Fehler in Gewinnstellungen, nicht bestrafte Gegnerfehler, Fehler nach der Eröffnungstheorie, in Zeitnot oder nach Niederlagen. Jedes Muster verlinkt Beispielzüge aus deinen Partien.
+- **Trainingsplan** mit Prioritäten und ein **Fehlertrainer**, der die Stellungen deiner eigenen Patzer als Aufgaben stellt.
+- **Partie-Review** (Tab „Review“ in der Analyse): Note, Phasenbewertung, was gut und schlecht lief, Schlüsselmomente mit Wendepunkt und konkrete Lehren.
+
+Lege in den Einstellungen deinen chess.com-Benutzernamen fest, damit das Profil weiß, welche Seite du gespielt hast.
+
 ## 🚀 Features
 
 ### Core Analysis

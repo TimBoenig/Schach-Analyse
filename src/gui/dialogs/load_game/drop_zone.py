@@ -1,6 +1,7 @@
 """
 Drop zone component for the Load Game dialog.
 """
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from PyQt6.QtWidgets import QLabel
@@ -10,8 +11,9 @@ from ...styles import Styles
 
 class DropZone(QLabel):
     """Dashed-border drop target for .pgn files. Emits file_dropped(path)."""
+
     file_dropped = pyqtSignal(str)
-    clicked       = pyqtSignal()      # for keyboard / click-to-browse
+    clicked = pyqtSignal()  # for keyboard / click-to-browse
 
     @property
     def _STYLE_IDLE(self):
@@ -48,8 +50,8 @@ class DropZone(QLabel):
         self.setText(
             "<div style='text-align:center; line-height:2'>"
             "<span style='font-size:36px'>📂</span><br>"
-            "<span style='font-size:14px; font-weight:600'>Drop a .pgn file here</span><br>"
-            "<span style='font-size:12px'>or click to browse</span>"
+            "<span style='font-size:14px; font-weight:600'>.pgn-Datei hier ablegen</span><br>"
+            "<span style='font-size:12px'>oder klicken zum Durchsuchen</span>"
             "</div>"
         )
         self.setTextFormat(Qt.TextFormat.RichText)
@@ -59,7 +61,7 @@ class DropZone(QLabel):
         self.setText(
             "<div style='text-align:center; line-height:2'>"
             "<span style='font-size:36px'>⬇️</span><br>"
-            "<span style='font-size:14px; font-weight:600'>Release to load</span>"
+            "<span style='font-size:14px; font-weight:600'>Loslassen zum Laden</span>"
             "</div>"
         )
 

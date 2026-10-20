@@ -1,6 +1,7 @@
 """
 Modern Date Picker Widget - An ultra-sleek, unified desktop date picker with custom calendar popup.
 """
+
 from PyQt6.QtCore import QDate, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QCalendarWidget,
@@ -18,6 +19,7 @@ from ..styles import Styles
 
 try:
     import qtawesome as qta
+
     HAS_QTAWESOME = True
 except ImportError:
     HAS_QTAWESOME = False
@@ -44,10 +46,14 @@ class ModernDatePicker(QFrame):
         self.icon_label = QLabel()
         self.icon_label.setStyleSheet("background: transparent; border: none;")
         if HAS_QTAWESOME:
-            self.icon_label.setPixmap(qta.icon("fa5s.calendar-alt", color=Styles.COLOR_TEXT_SECONDARY).pixmap(15, 15))
+            self.icon_label.setPixmap(
+                qta.icon("fa5s.calendar-alt", color=Styles.COLOR_TEXT_SECONDARY).pixmap(15, 15)
+            )
         else:
             self.icon_label.setText("📅")
-            self.icon_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;")
+            self.icon_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_SECONDARY}; font-size: 13px; background: transparent; border: none;"
+            )
         layout.addWidget(self.icon_label)
 
         # 2. Date Text Label
@@ -67,10 +73,14 @@ class ModernDatePicker(QFrame):
         self.chevron_label = QLabel()
         self.chevron_label.setStyleSheet("background: transparent; border: none;")
         if HAS_QTAWESOME:
-            self.chevron_label.setPixmap(qta.icon("fa5s.chevron-down", color=Styles.COLOR_TEXT_MUTED).pixmap(12, 12))
+            self.chevron_label.setPixmap(
+                qta.icon("fa5s.chevron-down", color=Styles.COLOR_TEXT_MUTED).pixmap(12, 12)
+            )
         else:
             self.chevron_label.setText("▼")
-            self.chevron_label.setStyleSheet(f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;")
+            self.chevron_label.setStyleSheet(
+                f"color: {Styles.COLOR_TEXT_MUTED}; font-size: 10px; background: transparent; border: none;"
+            )
         layout.addWidget(self.chevron_label)
 
         self._apply_container_style()
@@ -173,7 +183,7 @@ class ModernDatePicker(QFrame):
         box_layout.addWidget(calendar)
 
         # Bottom Bar: "Today" shortcut button
-        today_btn = QPushButton("Today")
+        today_btn = QPushButton("Heute")
         today_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         today_btn.setStyleSheet(f"""
             QPushButton {{

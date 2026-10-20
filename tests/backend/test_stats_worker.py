@@ -287,7 +287,7 @@ def test_metrics_aggregator_build_coach_dossier():
 
     # 1. Empty stats
     empty_dossier = MetricsAggregator.build_coach_dossier({"total": 0})
-    assert "No analyzed games available" in empty_dossier
+    assert "Keine analysierten Partien" in empty_dossier
 
     # 2. Populated stats
     sample_stats = {
@@ -345,13 +345,15 @@ def test_metrics_aggregator_build_coach_dossier():
     }
 
     dossier = MetricsAggregator.build_coach_dossier(sample_stats)
-    assert "STUDENT CHESS PERFORMANCE DOSSIER" in dossier
-    assert "Overall Win Rate: 60.0%" in dossier
-    assert "Average Accuracy: 82.5%" in dossier
-    assert "Conversion: 80.0%" in dossier
-    assert "Comeback Rate: 33.3%" in dossier
+    assert "LEISTUNGSDOSSIER DES SCHÜLERS (Stichprobe: 10 Partien)" in dossier
+    assert "Gesamt-Siegquote: 60.0% (6S / 1R / 3N)" in dossier
+    assert "Durchschnittliche Genauigkeit: 82.5%" in dossier
+    assert "(+3,0+ Bauern): 80.0%" in dossier
+    assert "Aufholquote bei Rückstand (-3,0- Bauern): 33.3%" in dossier
     assert "Sicilian Defense (ECO B20)" in dossier
-    assert "Undefended Pieces Dropped: 2" in dossier
+    assert "Eingestellte ungedeckte Figuren: 2" in dossier
+    # Motif keys are rendered through the German display mapping
+    assert "Gabel: 5" in dossier
 
 
 def test_metrics_aggregator_drill_down():

@@ -19,6 +19,7 @@ from src.gui.components.toast import Toast
 from src.gui.styles import Styles
 from src.gui.utils.gui_utils import create_button
 from src.utils.config import ConfigManager
+from src.utils.translations import tr_speed
 
 from .api_worker import ApiWorker, register_worker, remove_worker
 from .inline_game_list import InlineGameList
@@ -32,12 +33,11 @@ class DateClickFilter(QObject):
     def eventFilter(self, obj, event):
         from PyQt6.QtCore import QCoreApplication, QEvent, Qt
         from PyQt6.QtGui import QKeyEvent
+
         if event.type() == QEvent.Type.MouseButtonRelease:
             self.date_picker.setFocus()
             press_event = QKeyEvent(
-                QEvent.Type.KeyPress,
-                Qt.Key.Key_Down,
-                Qt.KeyboardModifier.AltModifier
+                QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.AltModifier
             )
             QCoreApplication.postEvent(self.date_picker, press_event)
             return True
@@ -157,19 +157,30 @@ class SegmentedSelector(QWidget):
                 """)
 
 
-def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date: datetime.date, url: str, game_id: str, limit: int) -> list[GameInfo]:
+def fetch_job(
+    cache: ApiGameCache,
+    mode: str,
+    platform: str,
+    username: str,
+    date: datetime.date,
+    url: str,
+    game_id: str,
+    limit: int,
+) -> list[GameInfo]:
     if mode == "recent":
         if platform == "lichess":
             from src.backend.api.lichess_api import LichessAPI
 
             def func_recent_li():
                 return LichessAPI().get_user_games(username, limit)
+
             func = func_recent_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
 
             def func_recent_cc():
                 return ChessComAPI.get_last_games(username, limit)
+
             func = func_recent_cc
         return cache.get_recent(platform, username, limit, func)
 
@@ -179,12 +190,14 @@ def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date
 
             def func_date_li():
                 return LichessAPI().get_user_games_by_date(username, date)
+
             func = func_date_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
 
             def func_date_cc():
                 return ChessComAPI.get_user_games_by_date(username, date)
+
             func = func_date_cc
         return cache.get_by_date(platform, username, date, func)
 
@@ -194,12 +207,14 @@ def fetch_job(cache: ApiGameCache, mode: str, platform: str, username: str, date
 
             def func_url_li():
                 return LichessAPI().get_game_by_id(game_id)
+
             func = func_url_li
         else:
             from src.backend.api.chess_com_api import ChessComAPI
 
             def func_url_cc():
                 return ChessComAPI.get_game_by_id(game_id, url, username)
+
             func = func_url_cc
         res = cache.get_by_id(platform, game_id, func)
         return [res] if res else []
@@ -222,6 +237,7 @@ class OnlineFetchPanel(QWidget):
 
     def setup_ui(self):
         from PyQt6.QtWidgets import QSizePolicy
+
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 20, 20, 20)
         root.setSpacing(16)
@@ -254,37 +270,44 @@ class OnlineFetchPanel(QWidget):
         self.form_layout.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
 
         # Platform selector row
-        lbl_platform = QLabel("Platform:")
+        lbl_platform = QLabel("Plattform:")
         lbl_platform.setStyleSheet(Styles.get_form_label_style())
-        self.platform_selector = SegmentedSelector([
-            ("chesscom", "Chess.com", "assets/icons/chesscom.png"),
-            ("lichess", "Lichess", "assets/icons/lichess.png")
-        ], "chesscom")
+        self.platform_selector = SegmentedSelector(
+            [
+                ("chesscom", "Chess.com", "assets/icons/chesscom.png"),
+                ("lichess", "Lichess", "assets/icons/lichess.png"),
+            ],
+            "chesscom",
+        )
         self.platform_selector.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.platform_selector.valueChanged.connect(self._on_platform_changed)
         self.form_layout.addRow(lbl_platform, self.platform_selector)
 
         # Mode selector row
-        lbl_mode = QLabel("Mode:")
+        lbl_mode = QLabel("Modus:")
         lbl_mode.setStyleSheet(Styles.get_form_label_style())
-        self.mode_selector = SegmentedSelector([
-            ("recent", "Recent", "fa5s.history"),
-            ("date", "By Date", "fa5s.calendar-alt"),
-            ("url", "By URL", "fa5s.link")
-        ], "recent")
+        self.mode_selector = SegmentedSelector(
+            [
+                ("recent", "Neueste", "fa5s.history"),
+                ("date", "Nach Datum", "fa5s.calendar-alt"),
+                ("url", "Per URL", "fa5s.link"),
+            ],
+            "recent",
+        )
         self.mode_selector.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         self.mode_selector.valueChanged.connect(self._on_mode_changed)
         self.form_layout.addRow(lbl_mode, self.mode_selector)
 
         # Form Field 1: Username
-        self.username_label = QLabel("Username:")
+        self.username_label = QLabel("Benutzername:")
         self.username_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Enter username")
+        self.username_input.setPlaceholderText("Benutzername eingeben")
         self.username_input.setStyleSheet(self._input_style())
         self.username_input.returnPressed.connect(self._fetch)
 
         import qtawesome as qta
+
         user_icon = qta.icon("fa5s.user", color=Styles.COLOR_TEXT_SECONDARY)
         self.username_input.addAction(user_icon, QLineEdit.ActionPosition.LeadingPosition)
 
@@ -292,16 +315,19 @@ class OnlineFetchPanel(QWidget):
 
         # Form Field 2: Modern Date Picker
         from src.gui.components.modern_date_picker import ModernDatePicker
-        self.date_label = QLabel("Date:")
+
+        self.date_label = QLabel("Datum:")
         self.date_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
         self.date_picker = ModernDatePicker(self, initial_date=QDate.currentDate())
         self.form_layout.addRow(self.date_label, self.date_picker)
 
         # Form Field 3: URL Input
-        self.url_label = QLabel("Game URL:")
+        self.url_label = QLabel("Partie-URL:")
         self.url_label.setStyleSheet(f"font-size: 13px; color: {Styles.COLOR_TEXT_PRIMARY};")
         self.url_input = QLineEdit()
-        self.url_input.setPlaceholderText("Paste chess.com or lichess.org game link")
+        self.url_input.setPlaceholderText(
+            "Link zu einer chess.com- oder lichess.org-Partie einfügen"
+        )
         self.url_input.setStyleSheet(self._input_style())
         self.url_input.returnPressed.connect(self._fetch)
 
@@ -311,7 +337,12 @@ class OnlineFetchPanel(QWidget):
         self.form_layout.addRow(self.url_label, self.url_input)
 
         # Centered action button
-        self.fetch_btn = create_button("Fetch Games", style="primary", on_click=self._fetch, icon_name="fa5s.cloud-download-alt")
+        self.fetch_btn = create_button(
+            "Partien abrufen",
+            style="primary",
+            on_click=self._fetch,
+            icon_name="fa5s.cloud-download-alt",
+        )
         self.fetch_btn.setFixedHeight(38)
         self.fetch_btn.setMinimumWidth(200)
         self.fetch_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -392,9 +423,9 @@ class OnlineFetchPanel(QWidget):
         platform = self.platform_selector.value()
         mode = self.mode_selector.value()
 
-        recent_mode = (mode == "recent")
-        date_mode = (mode == "date")
-        url_mode = (mode == "url")
+        recent_mode = mode == "recent"
+        date_mode = mode == "date"
+        url_mode = mode == "url"
 
         show_username = recent_mode or date_mode or (url_mode and platform == "chesscom")
 
@@ -406,9 +437,9 @@ class OnlineFetchPanel(QWidget):
         self.url_input.setVisible(url_mode)
 
         if url_mode:
-            self.fetch_btn.setText("Fetch Game")
+            self.fetch_btn.setText("Partie abrufen")
         else:
-            self.fetch_btn.setText("Fetch Games")
+            self.fetch_btn.setText("Partien abrufen")
 
     def _fetch(self):
         platform = self.platform_selector.value()
@@ -421,30 +452,38 @@ class OnlineFetchPanel(QWidget):
 
         game_id = ""
 
-        username_required = (mode in ["recent", "date"]) or (mode == "url" and platform == "chesscom")
+        username_required = (mode in ["recent", "date"]) or (
+            mode == "url" and platform == "chesscom"
+        )
         if username_required and not username:
-            Toast.show_message(self.window(), "Please enter a username.", "warning")
+            Toast.show_message(self.window(), "Bitte gib einen Benutzernamen ein.", "warning")
             return
         if mode == "url":
             if not url:
-                Toast.show_message(self.window(), "Please enter a game URL.", "warning")
+                Toast.show_message(self.window(), "Bitte gib eine Partie-URL ein.", "warning")
                 return
 
             # Extract game ID
             if platform == "lichess":
                 from src.backend.api.lichess_api import LichessAPI
+
                 game_id = LichessAPI().extract_game_id(url)
             else:
                 from src.backend.api.chess_com_api import ChessComAPI
+
                 game_id = ChessComAPI.extract_game_id(url)
 
             if not game_id:
-                Toast.show_message(self.window(), f"Could not extract a valid game ID from the URL for {platform}.", "error")
+                Toast.show_message(
+                    self.window(),
+                    f"Aus der URL konnte keine gültige Partie-ID für {platform} gelesen werden.",
+                    "error",
+                )
                 return
 
         # Prepare UI for loading
         self.fetch_btn.setEnabled(False)
-        self.fetch_btn.setText("Fetching...")
+        self.fetch_btn.setText("Wird abgerufen...")
         self.username_input.setEnabled(False)
         self.url_input.setEnabled(False)
         self.date_picker.setEnabled(False)
@@ -463,16 +502,7 @@ class OnlineFetchPanel(QWidget):
 
         # Start ApiWorker with fetch_job helper
         self._worker = ApiWorker(
-            fetch_job,
-            self.cache,
-            mode,
-            platform,
-            username,
-            date,
-            url,
-            game_id,
-            limit,
-            parent=self
+            fetch_job, self.cache, mode, platform, username, date, url, game_id, limit, parent=self
         )
 
         register_worker(self._worker)
@@ -485,13 +515,13 @@ class OnlineFetchPanel(QWidget):
 
     def _on_fetch_error(self, err_msg: str):
         self._reset_input_ui()
-        Toast.show_message(self.window(), f"Fetch failed: {err_msg}", "error")
+        Toast.show_message(self.window(), f"Abruf fehlgeschlagen: {err_msg}", "error")
 
     def _on_fetch_finished(self, game_infos: list[GameInfo]):
         self._reset_input_ui()
 
         if not game_infos:
-            Toast.show_message(self.window(), "No games found matching the query.", "warning")
+            Toast.show_message(self.window(), "Keine passenden Partien gefunden.", "warning")
             return
 
         self._parsed_games = game_infos
@@ -507,14 +537,16 @@ class OnlineFetchPanel(QWidget):
             move_count = info.move_count or "?"
             opening = info.opening
 
-            line1 = f"{date}  ·  {tc_label.upper()}  ·  {result}  ·  {move_count} moves"
+            line1 = f"{date}  ·  {tr_speed(tc_label).upper()}  ·  {result}  ·  {move_count} Züge"
             line2 = f"{white} ({w_elo})  vs  {black} ({b_elo})"
             if opening:
                 line2 += f"  ·  {opening}"
             rows.append((line1, line2))
 
         n = len(self._parsed_games)
-        header_text = "1 game ready to load:" if n == 1 else f"Select a game ({n} found):"
+        header_text = (
+            "1 Partie bereit zum Laden:" if n == 1 else f"Wähle eine Partie ({n} gefunden):"
+        )
 
         self.controls_widget.setVisible(False)
         self.game_list.populate(rows, header_text)
