@@ -69,9 +69,37 @@ export function cancelCurrent(): void {
   abort?.abort();
 }
 
+// Keeps the screen on during batch analysis: iOS pauses the engine worker when
+// the display locks. Not every browser supports it, so failures are ignored.
+let wakeLock: { release: () => Promise<void> } | null = null;
+
+async function holdWakeLock(on: boolean): Promise<void> {
+  const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
+  try {
+    if (on && !wakeLock && nav.wakeLock && document.visibilityState === "visible") wakeLock = await nav.wakeLock.request("screen");
+    if (!on && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch {
+    wakeLock = null;
+  }
+}
+
+if (typeof document !== "undefined") {
+  // The lock is dropped when the page is hidden; take it again on return.
+  document.addEventListener("visibilitychange", () => {
+    if (running) {
+      wakeLock = null;
+      void holdWakeLock(true);
+    }
+  });
+}
+
 async function pump(): Promise<void> {
   if (running) return;
   running = true;
+  void holdWakeLock(true);
   try {
     while (state.queued.length) {
       const [id, ...rest] = state.queued;
@@ -84,6 +112,7 @@ async function pump(): Promise<void> {
     }
   } finally {
     running = false;
+    void holdWakeLock(false);
     emit({ current: null, live: null });
   }
 }

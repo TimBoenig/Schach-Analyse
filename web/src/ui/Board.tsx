@@ -1,4 +1,4 @@
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { badgeFor } from "./labels";
 import type { Classification } from "../domain/types";
@@ -55,6 +55,7 @@ function squareXY(square: string, flipped: boolean): [number, number] {
 export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [] }: Props) {
   const grid = useMemo(() => parseBoard(fen), [fen]);
   const [selected, setSelected] = useState<string | null>(null);
+  useEffect(() => setSelected(null), [fen]);
   const targets = selected && legalTargets ? legalTargets(selected) : [];
 
   const tap = (sq: string) => {

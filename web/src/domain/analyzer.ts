@@ -104,7 +104,7 @@ export function firstUnanalyzedIndex(game: GameAnalysis): number {
   return i === -1 ? game.moves.length : i;
 }
 
-function pvToSan(fen: string, pv: string[]): string {
+export function pvToSan(fen: string, pv: string[]): string {
   try {
     const board = new Chess(fen);
     const out: string[] = [];
@@ -117,6 +117,12 @@ function pvToSan(fen: string, pv: string[]): string {
   } catch {
     return pv.join(" ");
   }
+}
+
+/** Engine lines are side-to-move relative; this gives a line's score from White's perspective. */
+export function lineScoreWhite(fen: string, line: Pick<PvLine, "cp" | "mate">): { cp: number | null; mate: number | null } {
+  const sign = sideToMove(fen) === "white" ? 1 : -1;
+  return { cp: line.cp !== null ? line.cp * sign : null, mate: line.mate !== null ? line.mate * sign : null };
 }
 
 /** Stores the engine lines on the move; the best line's score becomes the White-perspective eval_before. */
