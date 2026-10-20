@@ -113,6 +113,10 @@ We prioritize your privacy. **Chess Analyzer Pro** is a "Local-First" applicatio
 - **No Cloud Uploads**: Your games and moves are **never** uploaded to our servers. Analysis happens entirely on your machine using the bundled Stockfish engine.
 - **Secure Config**: API keys (Groq, Lichess) are stored locally in `config.json` and are never shared.
 
+## 📱 Web-App für iPad & Handy
+
+Unter [`web/`](web/README.md) liegt eine installierbare PWA mit derselben Analyse-Logik. Stockfish läuft als WebAssembly auf dem Gerät, die App funktioniert offline, und ein optionales Konto gleicht Partien zwischen Geräten ab.
+
 ## 🛠️ Installation
 
 ### Prerequisites

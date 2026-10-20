@@ -1,0 +1,70 @@
+[Event "Variations & NAGs"]
+[Site "https://lichess.org/abcd1234"]
+[Date "2024.01.02"]
+[White "Alice"]
+[Black "Bob"]
+[Result "1-0"]
+[WhiteElo "1800"]
+[BlackElo "1750"]
+[TimeControl "180+2"]
+[Opening "Sicilian Defense"]
+
+{ Game starts } 1. e4 { [%clk 0:03:00] [%eval 0.3] } c5 $1 { [%clk 0:02:59] }
+2. Nf3 ( 2. c3 { Alapin } d5 ( 2... Nf6 3. e5 ) 3. exd5 ) ( { side } 2. Nc3 Nc6 )
+2... d6 !? 3. d4 cxd4 4. Nxd4 Nf6 5. Nc3 a6 6. Be2 e5 7. Nb3 Be7 8. O-O O-O
+9. Be3 Be6 10. Qd2 Nbd7 11. a4 Rc8 12. a5 Qc7 13. Rfd1 { a long
+comment over
+three lines } 13... Rfd8 ?? 14. f3 h6 15. Qe1 Nh7 16. Bf1 Ng5 17. Qf2 Nf6 1-0
+
+[White "NoRoster"]
+[Black "Players"]
+[Result "*"]
+[FEN "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 30"]
+[SetUp "1"]
+
+30. exd6 Kd7 31. Kd2 Kxd6 *
+
+[Event "Promotion; castling long"]
+[White "P1"]
+[Black "P2"]
+[Result "0-1"]
+
+1. d4 d5 2. c4 dxc4 3. e4 b5 4. a4 c6 5. axb5 cxb5 6. b3 cxb3 7. Qxb3 a6
+8. Bxb5+ axb5 9. Rxa8 Qxd4 10. Nf3 Qxe4+ 11. Kd1 Bg4 12. Qxb5+ Nd7 13. Rxb8 Qxf3+
+14. gxf3 Bxf3+ 15. Kc2 Bxh1 16. Rxd7 Kxd7 17. Qb7+ Ke6 18. Qc6+ Kf5 19. Qf3+ Kg6
+20. Qxh1 f6 21. Bb2 e5 22. Nc3 Ne7 23. Ne4 Nf5 24. Rc1 Kf7 25. Rc7+ Ke6 26. Qh3 g5
+27. Qxf5+ Kxf5 28. Ng3+ Kg6 29. Bxe5 fxe5 30. Rc6+ Kf7 31. Rc7+ Be7 32. Ne4 h5
+33. Ng5+ Kg6 34. Ne6 Kf6 35. Nf8 Rxf8 36. Rxe7 Kxe7 37. Kd3 Kd6 38. Ke4 h4
+39. f4 h3 40. fxg5 h2 41. g6 h1=Q+ 42. Kd3 Qd1+ 0-1
+
+% escaped line
+; semicolon line
+[Event "Null move and error"]
+[White "N1"]
+[Black "N2"]
+[Result "*"]
+
+1. e4 -- 2. d4 e5 3. Nf3 Bb4 4. Ke3 ( 4. c3 ) Nf6 5. d5 *
+
+[Event "Threefold"]
+[White "R1"]
+[Black "R2"]
+[Result "1/2-1/2"]
+[Termination "Normal"]
+
+1. Nf3 Nf6 2. Ng1 Ng8 3. Nf3 Nf6 4. Ng1 Ng8 1/2-1/2
+
+[Event "Stalemate"]
+[White "S1"]
+[Black "S2"]
+[Result "1/2-1/2"]
+[FEN "7k/8/6Q1/8/8/8/8/6K1 w - - 0 1"]
+
+1. Kf2 1/2-1/2
+
+[Event "Fully specified"]
+[White "F1"]
+[Black "F2"]
+[Result "*"]
+
+1. e2e4 e7e5 2. g1f3 b8c6 3. 0-0 *
