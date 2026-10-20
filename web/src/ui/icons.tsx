@@ -27,3 +27,7 @@ export const IconStop = () => (<svg {...base}><rect x="6" y="6" width="12" heigh
 export const IconTrash = () => (<svg {...base}><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>);
 export const IconSync = () => (<svg {...base}><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18 2v4h-4M6 22v-4h4" /></svg>);
 export const IconBack = () => (<svg {...base}><path d="M19 12H5M12 19l-7-7 7-7" /></svg>);
+export const IconSpark = () => (<svg {...base}><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" /></svg>);
+export const IconInsights = () => (<svg {...base}><path d="M3 20h18M6 16v-5M10 16V7M14 16v-3M18 16V4" /></svg>);
+export const IconSearch = () => (<svg {...base}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>);
+export const IconKeyboard = () => (<svg {...base}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></svg>);

@@ -10,6 +10,7 @@ import { extractFeatures, type GameFeatures, sanForUci } from "./features";
 import type { Insight, OpeningLine, PlayerProfile, Puzzle, SkillScore } from "./models";
 import { avg, fmt, pyRound } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
+import { buildDeepInsights } from "./insights";
 import { detectPatterns } from "./patterns";
 import { computeSkills } from "./skills";
 import { buildStyle } from "./style";
@@ -105,6 +106,7 @@ export function buildPlayerProfile(
     training_plan: [],
     puzzles: [],
     rating: ratingContext(feats),
+    deep: null,
   };
   profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
   if (!analyzed.length) return profile;
@@ -117,6 +119,7 @@ export function buildPlayerProfile(
   contextInsights(profile, feats);
   profile.style = buildStyle(analyzed, profile.skills);
   profile.patterns = detectPatterns(feats);
+  profile.deep = buildDeepInsights(feats);
   profile.training_plan = buildTrainingPlan(
     profile.skills,
     profile.patterns,

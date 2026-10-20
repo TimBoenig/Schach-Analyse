@@ -1,21 +1,25 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 import { subscribeQueue } from "../app/analysisService";
 import { syncAvailable, syncNow, supabase } from "../storage/sync";
 import { AnalysisView } from "./AnalysisView";
 import { GamesView } from "./GamesView";
-import { IconBoard, IconGames, IconProfile, IconSettings, IconTraining } from "./icons";
+import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
+import { IconBoard, IconGames, IconInsights, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { InsightsView } from "./InsightsView";
+import { isTyping, MOD } from "./keys";
 import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 
-const NAV: { view: Route["view"]; label: string; icon: () => preact.JSX.Element }[] = [
+const NAV: { view: Route["view"]; label: string; short?: string; icon: () => preact.JSX.Element }[] = [
   { view: "games", label: "Partien", icon: IconGames },
   { view: "analysis", label: "Analyse", icon: IconBoard },
   { view: "profile", label: "Profil", icon: IconProfile },
+  { view: "insights", label: "Einblicke", icon: IconInsights },
   { view: "training", label: "Training", icon: IconTraining },
-  { view: "settings", label: "Einstellungen", icon: IconSettings },
+  { view: "settings", label: "Einstellungen", short: "Optionen", icon: IconSettings },
 ];
 
 function useBackgroundSync(): void {
@@ -48,41 +52,94 @@ function useBackgroundSync(): void {
   }, []);
 }
 
+function go(view: Route["view"], lastGame: string | null): void {
+  navigate(view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view } as Route));
+}
+
 export function App() {
   const route = useRoute();
   const [lastGame, setLastGame] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
+  const [overlay, setOverlay] = useState<"palette" | "keys" | null>(null);
   useBackgroundSync();
-  useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
 
   useEffect(() => {
-    if (route.view === "analysis" && route.gameId) setLastGame(route.gameId);
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setOverlay((o) => (o === "palette" ? null : "palette"));
+        return;
+      }
+      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector(".overlay, dialog[open]")) return;
+      if (e.key === "?") {
+        e.preventDefault();
+        setOverlay("keys");
+        return;
+      }
+      const page = PAGES.find((p) => p.key === e.key);
+      if (page) {
+        e.preventDefault();
+        go(page.view, lastGameRef.current);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
+
+  // A new page starts at the top, like a native app; moving within a game keeps the scroll.
+  useEffect(() => window.scrollTo(0, 0), [route.view]);
+
+  const lastGameRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (route.view === "analysis" && route.gameId) {
+      setLastGame(route.gameId);
+      lastGameRef.current = route.gameId;
+    }
   }, [route]);
 
   return (
     <div class="app">
       <nav class="nav">
-        <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
+        <div class="nav-brand">
+          <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
+          <span class="nav-title">Schach-Analyse</span>
+        </div>
+        <button class="nav-search" onClick={() => setOverlay("palette")} aria-label="Befehle und Suche">
+          <IconSearch />
+          <span class="nav-search-text">Suchen</span>
+          <kbd>{MOD} K</kbd>
+        </button>
         {NAV.map((n) => (
           <button
             key={n.view}
-            class={route.view === n.view ? "active" : ""}
-            onClick={() => navigate(n.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : { view: n.view })}
+            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}`}
+            onClick={() => go(n.view, lastGame)}
+            aria-current={route.view === n.view ? "page" : undefined}
           >
             {n.view === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
             <n.icon />
-            {n.label}
+            <span class="nav-label">{n.label}</span>
+            {n.short && <span class="nav-short">{n.short}</span>}
           </button>
         ))}
         <div class="nav-spacer" />
+        <button class="nav-keys" onClick={() => setOverlay("keys")}>
+          Tastenkürzel <kbd>?</kbd>
+        </button>
       </nav>
       <main class="main">
-        {route.view === "games" && <GamesView />}
+        {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
         {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
         {route.view === "profile" && <ProfileView />}
+        {route.view === "insights" && <InsightsView />}
         {route.view === "training" && <TrainingView />}
         {route.view === "settings" && <SettingsView />}
       </main>
+      {overlay === "palette" && (
+        <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />
+      )}
+      {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
     </div>
   );
 }
