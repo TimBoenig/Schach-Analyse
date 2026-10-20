@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 
+import { subscribeQueue } from "../app/analysisService";
 import { syncAvailable, syncNow, supabase } from "../storage/sync";
 import { AnalysisView } from "./AnalysisView";
 import { GamesView } from "./GamesView";
@@ -21,20 +22,28 @@ function useBackgroundSync(): void {
   useEffect(() => {
     if (!syncAvailable()) return;
     const run = () => void syncNow().catch(() => undefined);
-    run();
-    const sb = supabase();
-    const sub = sb?.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") run();
+    // Let the first screen render before the sync client loads.
+    const first = window.setTimeout(run, 1200);
+    let unsubscribe: (() => void) | null = null;
+    let alive = true;
+    void supabase()?.then((sb) => {
+      if (!alive) return;
+      const sub = sb.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_IN") run();
+      });
+      unsubscribe = () => sub.data.subscription.unsubscribe();
     });
     const onVisible = () => document.visibilityState === "visible" && run();
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", run);
     const timer = window.setInterval(run, 2 * 60 * 1000);
     return () => {
-      sub?.data.subscription.unsubscribe();
+      alive = false;
+      unsubscribe?.();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", run);
       window.clearInterval(timer);
+      window.clearTimeout(first);
     };
   }, []);
 }
@@ -42,7 +51,9 @@ function useBackgroundSync(): void {
 export function App() {
   const route = useRoute();
   const [lastGame, setLastGame] = useState<string | null>(null);
+  const [analysing, setAnalysing] = useState(false);
   useBackgroundSync();
+  useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
 
   useEffect(() => {
     if (route.view === "analysis" && route.gameId) setLastGame(route.gameId);
@@ -58,6 +69,7 @@ export function App() {
             class={route.view === n.view ? "active" : ""}
             onClick={() => navigate(n.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : { view: n.view })}
           >
+            {n.view === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
             <n.icon />
             {n.label}
           </button>

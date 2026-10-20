@@ -40,9 +40,9 @@ function Examples({ refs }: { refs: GameRef[] }) {
   );
 }
 
-function Select({ value, options, onChange }: { value: string; options: string[]; onChange: (v: string) => void }) {
+function Select({ value, options, onChange, label }: { value: string; options: string[]; onChange: (v: string) => void; label: string }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.currentTarget.value)} style={{ width: "auto" }}>
+    <select value={value} onChange={(e) => onChange(e.currentTarget.value)} aria-label={label}>
       {options.map((o) => (
         <option key={o} value={o}>
           {trFilter(o)}
@@ -94,13 +94,14 @@ export function ProfileView() {
   }, [format, date, color, version]);
 
   const header = (
-    <div class="page-title">
-      Mein Profil
-      <span class="spacer" />
-      <Select value={format} options={FORMATS} onChange={setFormat} />
-      <Select value={date} options={DATES} onChange={setDate} />
-      <Select value={color} options={COLORS} onChange={setColor} />
-    </div>
+    <>
+      <div class="page-title">Mein Profil</div>
+      <div class="filters">
+        <Select value={format} options={FORMATS} onChange={setFormat} label="Bedenkzeit" />
+        <Select value={date} options={DATES} onChange={setDate} label="Zeitraum" />
+        <Select value={color} options={COLORS} onChange={setColor} label="Farbe" />
+      </div>
+    </>
   );
 
   if (usernames && !usernames.length) {
@@ -120,7 +121,11 @@ export function ProfileView() {
     return (
       <div>
         {header}
-        <div class="empty">Profil wird berechnet …</div>
+        <div class="stat-tiles">
+          {[0, 1, 2, 3].map((k) => (
+            <div key={k} class="skeleton" style={{ height: "86px" }} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -200,17 +205,19 @@ export function ProfileView() {
           Stärken, Schwächen und dein Trainingsplan.
         </div>
       ) : (
-        <div class="grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", alignItems: "start" }}>
+        <div class="masonry">
           <div class="card">
             <h3>Fähigkeiten</h3>
             {profile.skills.map((s) => (
-              <div key={s.key}>
-                <div class="skill">
+              <div class="skill" key={s.key}>
+                <div class="head">
                   <span>{s.name}</span>
-                  <div class="bar">
-                    <div style={{ width: `${s.score}%`, background: scoreColor(s.score), opacity: s.reliable ? 1 : 0.45 }} />
-                  </div>
-                  <span class="score">{s.grade}</span>
+                  <span class="score" style={{ color: scoreColor(s.score) }}>
+                    {s.grade}
+                  </span>
+                </div>
+                <div class="bar">
+                  <div style={{ width: `${Math.max(2, s.score)}%`, background: scoreColor(s.score), opacity: s.reliable ? 1 : 0.45 }} />
                 </div>
               </div>
             ))}

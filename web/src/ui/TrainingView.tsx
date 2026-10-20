@@ -6,6 +6,7 @@ import { trClassification, trPhase } from "../domain/i18n";
 import type { Puzzle } from "../domain/profile";
 import { getSetting, listGames, setSetting } from "../storage/db";
 import { Board, type Arrow } from "./Board";
+import { formatDate } from "./labels";
 import { navigate } from "./router";
 
 type Feedback = { ok: boolean; text: string } | null;
@@ -72,7 +73,13 @@ export function TrainingView() {
     }
   }, [fen]);
 
-  if (puzzles === null) return <div class="empty">Aufgaben werden aus deinen Partien gesucht …</div>;
+  if (puzzles === null)
+    return (
+      <div>
+        <div class="page-title">Training</div>
+        <div class="empty">Aufgaben werden aus deinen Partien gesucht …</div>
+      </div>
+    );
 
   if (!puzzles.length) {
     return (
@@ -169,11 +176,14 @@ export function TrainingView() {
               <h3>{userIsWhite ? "Weiß" : "Schwarz"} am Zug: Finde den besseren Zug</h3>
               <p class="small" style={{ marginTop: 0 }}>
                 In deiner Partie gegen <strong>{puzzle.opponent || "?"}</strong>
-                {puzzle.date ? ` (${puzzle.date})` : ""} hast du hier <strong>{puzzle.played_san}</strong> gespielt –{" "}
+                {puzzle.date ? ` (${formatDate(puzzle.date)})` : ""} hast du hier <strong>{puzzle.played_san}</strong> gespielt –{" "}
                 {trClassification(puzzle.classification)} im {trPhase(puzzle.phase)}, deine Gewinnchance fiel um{" "}
                 {(puzzle.wp_loss * 100).toFixed(0)} Prozentpunkte.
               </p>
               <p class="muted small">Tippe die Figur und dann das Zielfeld an.</p>
+              <div class="progress" style={{ marginBottom: "12px" }}>
+                <div style={{ width: `${(done / Math.max(1, puzzles.length)) * 100}%` }} />
+              </div>
               {feedback && <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>{feedback.text}</p>}
               {reveal && !feedback?.ok && (
                 <p>

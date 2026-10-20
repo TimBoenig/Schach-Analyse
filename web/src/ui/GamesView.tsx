@@ -4,10 +4,10 @@ import { cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/anal
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
-import { deleteGame, gameExists, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
+import { gameExists, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
 import { toStoredGame } from "../storage/rows";
-import { IconPlay, IconPlus, IconStop, IconTrash } from "./icons";
-import { SPEED_DE, formatDate, resultText } from "./labels";
+import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
+import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { navigate } from "./router";
 
 type Source = "chesscom" | "lichess" | "pgn";
@@ -182,12 +182,146 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
   );
 }
 
+interface Summary {
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  accuracy: number | null;
+  analyzed: number;
+}
+
+function summarize(games: StoredGame[], usernames: string[]): Summary {
+  const s: Summary = { games: 0, wins: 0, draws: 0, losses: 0, accuracy: null, analyzed: 0 };
+  let accSum = 0;
+  for (const g of games) {
+    const color = getUserColor(g, usernames);
+    if (!color) continue;
+    s.games++;
+    const o = outcomeFor(g.result, color);
+    if (o === "win") s.wins++;
+    else if (o === "draw") s.draws++;
+    else if (o === "loss") s.losses++;
+    const acc = g.summary_json?.[color]?.accuracy;
+    if (status(g) === "completed" && typeof acc === "number") {
+      s.analyzed++;
+      accSum += acc;
+    }
+  }
+  s.accuracy = s.analyzed ? accSum / s.analyzed : null;
+  return s;
+}
+
+function SummaryStrip({ s }: { s: Summary }) {
+  const decided = Math.max(1, s.wins + s.draws + s.losses);
+  return (
+    <div class="summary-strip">
+      <div class="stat-tile">
+        <div class="label">Deine Partien</div>
+        <div class="value">{s.games}</div>
+        <div class="sub">{s.analyzed} analysiert</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Bilanz</div>
+        <div class="value tnum">
+          <span style={{ color: "var(--win)" }}>{s.wins}</span>
+          <span class="faint"> / </span>
+          {s.draws}
+          <span class="faint"> / </span>
+          <span style={{ color: "var(--loss)" }}>{s.losses}</span>
+        </div>
+        <div class="wdl" aria-hidden="true">
+          <div class="w" style={{ width: `${(s.wins / decided) * 100}%` }} />
+          <div class="d" style={{ width: `${(s.draws / decided) * 100}%` }} />
+          <div class="l" style={{ width: `${(s.losses / decided) * 100}%` }} />
+        </div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Punkte-Quote</div>
+        <div class="value">{s.games ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}</div>
+        <div class="sub">Sieg = 1, Remis = ½</div>
+      </div>
+      <div class="stat-tile">
+        <div class="label">Ø Genauigkeit</div>
+        <div class={`value ${accClass(s.accuracy)}`}>{s.accuracy !== null ? s.accuracy.toFixed(1) : "–"}</div>
+        <div class="sub">über analysierte Partien</div>
+      </div>
+    </div>
+  );
+}
+
+function GameRow({
+  g,
+  usernames,
+  queue,
+}: {
+  g: StoredGame;
+  usernames: string[];
+  queue: QueueState | null;
+}) {
+  const color = getUserColor(g, usernames);
+  const st = status(g);
+  const acc = color ? g.summary_json?.[color]?.accuracy : undefined;
+  const outcome = outcomeFor(g.result, color);
+  const isCurrent = queue?.current === g.id;
+  const isMe = (name: string) => usernames.some((u) => u.toLowerCase() === name.toLowerCase());
+  return (
+    <div class={`game-item ${outcome ?? ""}`} role="button" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
+      <div class="stripe" />
+      <div class="players">
+        <span class="side-dot white" />
+        <span class={isMe(g.white) ? "me" : ""}>
+          {g.white}
+          {g.white_elo ? <span class="faint"> {g.white_elo}</span> : null}
+        </span>
+        <span class="faint">–</span>
+        <span class="side-dot black" />
+        <span class={isMe(g.black) ? "me" : ""}>
+          {g.black}
+          {g.black_elo ? <span class="faint"> {g.black_elo}</span> : null}
+        </span>
+      </div>
+      <div class="right">
+        {acc !== undefined && st === "completed" ? (
+          <>
+            <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1)}</div>
+            <div class="acc-label">Genauigkeit</div>
+          </>
+        ) : isCurrent ? (
+          <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
+        ) : queue?.queued.includes(g.id) ? (
+          <span class="pill">wartet</span>
+        ) : st === "completed" ? (
+          <span class="pill">analysiert</span>
+        ) : (
+          <button
+            class="btn small"
+            onClick={(e) => {
+              e.stopPropagation();
+              enqueue([g.id]);
+            }}
+          >
+            <IconPlay /> Analysieren
+          </button>
+        )}
+      </div>
+      <div class="meta">
+        <span class={`pill ${outcome ?? ""}`}>{resultText(g.result)}</span>
+        {g.speed_category && <span>{SPEED_DE[g.speed_category] ?? g.speed_category}</span>}
+        <span>{formatDate(g.date)}</span>
+        {g.opening && <span class="opening">· {shortOpening(g.opening)}</span>}
+      </div>
+    </div>
+  );
+}
+
 export function GamesView() {
   const [games, setGames] = useState<StoredGame[] | null>(null);
   const [usernames, setUsernames] = useState<string[]>([]);
   const [queue, setQueue] = useState<QueueState | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
+  const [speed, setSpeed] = useState("all");
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(60);
   const [justImported, setJustImported] = useState<string[]>([]);
@@ -202,19 +336,40 @@ export function GamesView() {
     return onDataChanged(() => void load());
   }, []);
 
+  const speeds = useMemo(() => [...new Set((games ?? []).map((g) => g.speed_category).filter((v): v is string => Boolean(v)))], [games]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (games ?? []).filter((g) => {
       if (filter === "analyzed" && status(g) !== "completed") return false;
       if (filter === "open" && status(g) === "completed") return false;
+      if (speed !== "all" && g.speed_category !== speed) return false;
       if (q && !`${g.white} ${g.black} ${g.opening ?? ""} ${g.event}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [games, filter, search]);
+  }, [games, filter, speed, search]);
+
+  const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
 
   const open = (games ?? []).filter((g) => status(g) !== "completed").map((g) => g.id);
   const busy = Boolean(queue?.current) || (queue?.queued.length ?? 0) > 0;
   const remaining = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
+
+  // Month headers keep long histories scannable.
+  const rows: preact.JSX.Element[] = [];
+  let lastMonth = "";
+  for (const g of filtered.slice(0, limit)) {
+    const m = monthLabel(g.date);
+    if (m !== lastMonth) {
+      rows.push(
+        <div class="month-head" key={`m-${m}`}>
+          {m}
+        </div>,
+      );
+      lastMonth = m;
+    }
+    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} />);
+  }
 
   return (
     <div>
@@ -223,7 +378,7 @@ export function GamesView() {
         <span class="spacer" />
         {busy ? (
           <button class="btn" onClick={cancelAll}>
-            <IconStop /> Analyse stoppen ({remaining})
+            <IconStop /> Stoppen ({remaining})
           </button>
         ) : (
           open.length > 0 && (
@@ -256,13 +411,17 @@ export function GamesView() {
 
       {busy && queue && (
         <div class="card">
-          <div class="row" style={{ justifyContent: "space-between", marginBottom: "6px" }}>
+          <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
             <span>
-              Analysiere Partie {queue.current ? `(${queue.done}/${queue.total} Züge)` : ""} · noch {remaining} in der
-              Warteschlange
+              <strong>Analyse läuft</strong>
+              <span class="muted">
+                {" "}
+                · {queue.current ? `${queue.done}/${queue.total} Züge · ` : ""}noch {remaining}{" "}
+                {remaining === 1 ? "Partie" : "Partien"}
+              </span>
             </span>
             {queue.current && (
-              <button class="btn" onClick={() => navigate({ view: "analysis", gameId: queue.current! })}>
+              <button class="btn small" onClick={() => navigate({ view: "analysis", gameId: queue.current! })}>
                 Ansehen
               </button>
             )}
@@ -274,8 +433,10 @@ export function GamesView() {
         </div>
       )}
 
+      {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <SummaryStrip s={summary} />}
+
       {games && games.length > 0 && (
-        <div class="row" style={{ marginBottom: "12px" }}>
+        <div class="filters">
           <div class="segmented">
             {(
               [
@@ -289,76 +450,50 @@ export function GamesView() {
               </button>
             ))}
           </div>
-          <input type="search" placeholder="Spieler oder Eröffnung suchen" value={search} onInput={(e) => setSearch(e.currentTarget.value)} style={{ flex: 1, minWidth: "180px", width: "auto" }} />
+          {speeds.length > 1 && (
+            <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label="Bedenkzeit" style={{ flex: "1 1 120px", maxWidth: "200px" }}>
+              <option value="all">Alle Bedenkzeiten</option>
+              {speeds.map((sp) => (
+                <option key={sp} value={sp}>
+                  {SPEED_DE[sp] ?? sp}
+                </option>
+              ))}
+            </select>
+          )}
+          <input
+            type="search"
+            placeholder="Spieler oder Eröffnung suchen"
+            value={search}
+            onInput={(e) => setSearch(e.currentTarget.value)}
+            style={{ flex: "1 1 200px", width: "auto" }}
+          />
         </div>
       )}
 
       {games === null ? (
-        <div class="empty">Lade …</div>
+        <div class="game-list">
+          {[0, 1, 2, 3].map((k) => (
+            <div key={k} class="skeleton" style={{ height: "64px" }} />
+          ))}
+        </div>
       ) : games.length === 0 ? (
         <div class="empty">
-          <p>Noch keine Partien. Importiere deine Partien von Chess.com, Lichess oder als PGN.</p>
+          <div class="empty-icon">
+            <IconGames />
+          </div>
+          <h3>Noch keine Partien</h3>
+          <p>Importiere deine Partien von Chess.com oder Lichess, oder füge eine PGN ein. Stockfish analysiert sie dann direkt auf diesem Gerät.</p>
           <button class="btn primary" onClick={() => setShowImport(true)}>
             <IconPlus /> Partien importieren
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <div class="empty">
+          <p>Keine Partie passt zu diesen Filtern.</p>
+        </div>
       ) : (
         <div class="game-list">
-          {filtered.slice(0, limit).map((g) => {
-            const color = getUserColor(g, usernames);
-            const st = status(g);
-            const acc = color ? g.summary_json?.[color]?.accuracy : undefined;
-            const res = g.result;
-            const outcome = color && res !== "*" ? (res === "1/2-1/2" ? "draw" : (res === "1-0") === (color === "white") ? "win" : "loss") : null;
-            const isCurrent = queue?.current === g.id;
-            return (
-              <div class="game-item" key={g.id} role="button" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
-                <div class="players">
-                  {g.white}
-                  {g.white_elo ? <span class="muted"> ({g.white_elo})</span> : null} – {g.black}
-                  {g.black_elo ? <span class="muted"> ({g.black_elo})</span> : null}
-                </div>
-                <div class="right">
-                  {acc !== undefined && st === "completed" ? (
-                    <div class="acc">{acc.toFixed(1)}</div>
-                  ) : isCurrent ? (
-                    <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
-                  ) : queue?.queued.includes(g.id) ? (
-                    <span class="pill">wartet</span>
-                  ) : st === "completed" ? (
-                    <span class="pill">analysiert</span>
-                  ) : (
-                    <button
-                      class="btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        enqueue([g.id]);
-                      }}
-                    >
-                      Analysieren
-                    </button>
-                  )}
-                </div>
-                <div class="meta">
-                  <span class={`pill ${outcome === "win" ? "win" : outcome === "loss" ? "loss" : ""}`}>{resultText(res)}</span>
-                  {g.speed_category && <span>{SPEED_DE[g.speed_category] ?? g.speed_category}</span>}
-                  <span>{formatDate(g.date)}</span>
-                  {g.opening && <span>· {g.opening}</span>}
-                  <button
-                    class="btn icon danger"
-                    style={{ minHeight: "32px", width: "32px", marginLeft: "auto", background: "none", border: 0 }}
-                    aria-label="Partie löschen"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Partie ${g.white} – ${g.black} löschen?`)) void deleteGame(g.id);
-                    }}
-                  >
-                    <IconTrash />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          {rows}
           {filtered.length > limit && (
             <button class="btn" onClick={() => setLimit((l) => l + 60)}>
               Weitere {Math.min(60, filtered.length - limit)} anzeigen

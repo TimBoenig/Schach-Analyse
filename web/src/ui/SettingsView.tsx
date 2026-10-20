@@ -5,6 +5,62 @@ import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, putGames, setSetting } from "../storage/db";
 import { currentUser, signIn, signOut, signUp, syncAvailable, syncNow } from "../storage/sync";
 import { IconSync } from "./icons";
+import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
+
+function AppearanceCard() {
+  const [theme, setThemeState] = useState<ThemeMode>("system");
+  const [board, setBoard] = useState<BoardTheme>("holz");
+  useEffect(() => {
+    void getSetting<ThemeMode>("ui.theme", "system").then(setThemeState);
+    void getSetting<BoardTheme>("ui.board", "holz").then(setBoard);
+  }, []);
+  return (
+    <div class="card">
+      <h3>Darstellung</h3>
+      <div class="segmented" style={{ marginBottom: "14px" }}>
+        {(Object.keys(THEME_LABELS) as ThemeMode[]).map((k) => (
+          <button
+            key={k}
+            class={theme === k ? "active" : ""}
+            onClick={() => {
+              setThemeState(k);
+              void setTheme(k);
+            }}
+          >
+            {THEME_LABELS[k]}
+          </button>
+        ))}
+      </div>
+      <div class="muted small" style={{ marginBottom: "6px" }}>
+        Brettfarben
+      </div>
+      <div class="board-themes">
+        {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((k) => {
+          const t = BOARD_THEMES[k];
+          return (
+            <button
+              key={k}
+              class={`board-theme${board === k ? " active" : ""}`}
+              aria-label={`Brettfarben ${t.label}`}
+              onClick={() => {
+                setBoard(k);
+                void setBoardTheme(k);
+              }}
+            >
+              <span class="swatch">
+                <span style={{ background: t.light }} />
+                <span style={{ background: t.dark }} />
+                <span style={{ background: t.dark }} />
+                <span style={{ background: t.light }} />
+              </span>
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function AccountCard() {
   const [email, setEmail] = useState("");
@@ -239,6 +295,7 @@ export function SettingsView() {
           </div>
         </div>
         <div>
+          <AppearanceCard />
           <AccountCard />
           <BackupCard />
           <div class="card">

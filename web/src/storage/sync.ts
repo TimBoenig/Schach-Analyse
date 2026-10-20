@@ -1,7 +1,8 @@
 // Optional cloud sync through Supabase. The app is fully usable without it;
 // when signed in, games and settings are merged across devices
 // last-writer-wins on `updated_at`. Engine evaluations stay device-local.
-import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+// supabase-js is loaded on demand so it stays out of the startup bundle.
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoredGame } from "../domain/types";
 import {
@@ -35,20 +36,24 @@ const SEQ_OVERLAP = 50;
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
-let client: SupabaseClient | null = null;
+let client: Promise<SupabaseClient> | null = null;
 
 export function syncAvailable(): boolean {
   return Boolean(url && key);
 }
 
-export function supabase(): SupabaseClient | null {
+export function supabase(): Promise<SupabaseClient> | null {
   if (!syncAvailable()) return null;
-  if (!client) client = createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } });
+  if (!client) {
+    client = import("@supabase/supabase-js").then(({ createClient }) =>
+      createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } }),
+    );
+  }
   return client;
 }
 
 export async function currentUser(): Promise<User | null> {
-  const sb = supabase();
+  const sb = await supabase();
   if (!sb) return null;
   const { data } = await sb.auth.getSession();
   return data.session?.user ?? null;
@@ -125,7 +130,7 @@ let running: Promise<SyncReport> | null = null;
 export function syncNow(): Promise<SyncReport> {
   if (!running) {
     running = (async () => {
-      const sb = supabase();
+      const sb = await supabase();
       const user = await currentUser();
       if (!sb || !user) return { pulled: 0, pushed: 0 };
       return syncWith(sb, user.id);
@@ -195,7 +200,7 @@ export async function syncWith(sb: SupabaseClient, userId: string): Promise<Sync
 }
 
 export async function signIn(email: string, password: string): Promise<void> {
-  const sb = supabase();
+  const sb = await supabase();
   if (!sb) throw new Error("Sync ist nicht eingerichtet.");
   const { error } = await sb.auth.signInWithPassword({ email, password });
   if (error) throw new Error(translateAuthError(error.message));
@@ -203,7 +208,7 @@ export async function signIn(email: string, password: string): Promise<void> {
 
 /** Returns true when the account still has to be confirmed by e-mail. */
 export async function signUp(email: string, password: string): Promise<boolean> {
-  const sb = supabase();
+  const sb = await supabase();
   if (!sb) throw new Error("Sync ist nicht eingerichtet.");
   const { data, error } = await sb.auth.signUp({
     email,
@@ -215,7 +220,7 @@ export async function signUp(email: string, password: string): Promise<boolean> 
 }
 
 export async function signOut(): Promise<void> {
-  await supabase()?.auth.signOut();
+  await (await supabase())?.auth.signOut();
   await setSetting("sync.lastSyncAt", 0);
 }
 

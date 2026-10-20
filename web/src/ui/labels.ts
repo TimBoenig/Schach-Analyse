@@ -75,3 +75,37 @@ export const SPEED_DE: Record<string, string> = {
   Daily: "Fernschach",
   Correspondence: "Fernschach",
 };
+
+/** Colour class for an accuracy value, matching the classification colours. */
+export function accClass(acc: number | null | undefined): string {
+  if (acc === null || acc === undefined) return "";
+  if (acc >= 85) return "acc-high";
+  if (acc >= 70) return "acc-mid";
+  if (acc >= 55) return "acc-low";
+  return "acc-bad";
+}
+
+/** "Sicilian Defense: Najdorf Variation, ..." → "Sicilian Defense: Najdorf Variation". */
+export function shortOpening(name: string | null | undefined): string {
+  if (!name) return "";
+  return name.split(",")[0].trim();
+}
+
+const MONTHS_DE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+
+/** PGN date "2026.04.03" → "April 2026"; unknown dates group under "Ohne Datum". */
+export function monthLabel(date: string): string {
+  const m = /^(\d{4})\.(\d{2})/.exec(date ?? "");
+  if (!m || m[2] === "??") return "Ohne Datum";
+  const month = Number(m[2]);
+  return month >= 1 && month <= 12 ? `${MONTHS_DE[month - 1]} ${m[1]}` : m[1];
+}
+
+export type Outcome = "win" | "loss" | "draw" | null;
+
+/** Result from the user's point of view, null when unknown or not the user's game. */
+export function outcomeFor(result: string, color: "white" | "black" | null): Outcome {
+  if (!color || result === "*" || !result) return null;
+  if (result === "1/2-1/2") return "draw";
+  return (result === "1-0") === (color === "white") ? "win" : "loss";
+}
