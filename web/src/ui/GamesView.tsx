@@ -21,7 +21,7 @@ function status(g: StoredGame): "completed" | "paused" | "not_started" {
 }
 
 async function storeBatch(games: GameAnalysis[]): Promise<void> {
-  // Newest games get the newest timestamp so they sort to the top.
+  // The list sorts by date played; the save time only orders games within one batch.
   const now = Date.now() / 1000;
   await putGames(games.map((g, i) => toStoredGame(g, now - i / 1000)));
 }

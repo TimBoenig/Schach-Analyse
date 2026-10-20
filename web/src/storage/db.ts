@@ -1,6 +1,7 @@
 // Local-first persistence in IndexedDB. Every record carries `updated_at`
 // (ms) so the optional cloud sync can merge devices last-writer-wins;
 // deletions are soft (`deleted: true`) so they propagate too.
+import { parsePlayedAt } from "../domain/profile/features";
 import type { PvLine, StoredGame } from "../domain/types";
 
 const DB_NAME = "schach-analyse";
@@ -66,11 +67,28 @@ function notify(): void {
 
 // ---- games ----
 
-/** All live (not deleted) games, newest first. */
+/**
+ * Newest played game first. `timestamp` is when a game was saved, and imports
+ * arrive in archive order, so it only breaks ties (and orders undated games).
+ */
+export function sortGames(games: StoredGame[]): StoredGame[] {
+  const keyed = games.map((g) => ({ g, played: parsePlayedAt(g) }));
+  keyed.sort((a, b) => {
+    if (a.played !== b.played) {
+      if (a.played === null) return 1;
+      if (b.played === null) return -1;
+      return b.played - a.played;
+    }
+    return b.g.timestamp - a.g.timestamp;
+  });
+  return keyed.map((k) => k.g);
+}
+
+/** All live (not deleted) games, newest played first. */
 export async function listGames(): Promise<StoredGame[]> {
   const db = await openDb();
   const all = (await req(db.transaction("games").objectStore("games").getAll())) as StoredGame[];
-  return all.filter((g) => !g.deleted).sort((a, b) => b.timestamp - a.timestamp);
+  return sortGames(all.filter((g) => !g.deleted));
 }
 
 /** Every record including tombstones (sync). */

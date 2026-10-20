@@ -11,6 +11,7 @@ import type { Insight, OpeningLine, PlayerProfile, Puzzle, SkillScore } from "./
 import { avg, fmt, pyRound } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { buildDeepInsights } from "./insights";
+import { buildOpeningInsights, openingMain } from "./openings";
 import { detectPatterns } from "./patterns";
 import { computeSkills } from "./skills";
 import { buildStyle } from "./style";
@@ -62,7 +63,6 @@ function groupBy<K, V>(items: V[], key: (v: V) => K): Map<K, V[]> {
   return out;
 }
 
-const openingMain = (name: string) => name.split(":")[0].split(",")[0].trim();
 
 /** Build the complete player profile for the tracked usernames. */
 export function buildPlayerProfile(
@@ -107,8 +107,11 @@ export function buildPlayerProfile(
     puzzles: [],
     rating: ratingContext(feats),
     deep: null,
+    openings: null,
   };
   profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
+  // Results per opening need no engine, so this page works right after an import.
+  profile.openings = buildOpeningInsights(feats);
   if (!analyzed.length) return profile;
 
   profile.skills = withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null);

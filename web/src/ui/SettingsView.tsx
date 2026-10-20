@@ -358,7 +358,7 @@ export function SettingsView() {
   return (
     <div>
       <div class="page-title">Einstellungen</div>
-      <div class="grid" style={{ alignItems: "start" }}>
+      <div class="settings-grid">
         <div>
           <div class="card">
             <h3>Deine Spielernamen</h3>
@@ -380,27 +380,31 @@ export function SettingsView() {
               Höhere Stärke ist genauer, braucht aber mehr Zeit und Akku. „Normal“ ist für Tablets und Handys ein guter
               Kompromiss.
             </p>
-            <div class="segmented">
-              {(Object.keys(STRENGTHS) as AnalysisStrength[]).map((k) => (
-                <button
-                  key={k}
-                  class={strength === k ? "active" : ""}
-                  onClick={() => {
-                    setStrength(k);
-                    void setSetting("analysis.strength", k);
-                  }}
-                >
-                  {STRENGTHS[k].label}
-                </button>
-              ))}
+            <div class="segmented full stacked">
+              {(Object.keys(STRENGTHS) as AnalysisStrength[]).map((k) => {
+                const [name, depth] = STRENGTHS[k].label.split(" (");
+                return (
+                  <button
+                    key={k}
+                    class={strength === k ? "active" : ""}
+                    onClick={() => {
+                      setStrength(k);
+                      void setSetting("analysis.strength", k);
+                    }}
+                  >
+                    {name}
+                    {depth && <small>{depth.replace(")", "")}</small>}
+                  </button>
+                );
+              })}
             </div>
           </div>
+          <AccountCard />
+          <BackupCard />
         </div>
         <div>
           <AppearanceCard />
           <AiCard />
-          <AccountCard />
-          <BackupCard />
           <div class="card">
             <h3>Über die App</h3>
             <p class="small muted" style={{ margin: 0 }}>

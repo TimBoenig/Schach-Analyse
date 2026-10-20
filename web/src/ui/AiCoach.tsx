@@ -176,7 +176,10 @@ export function AiChat({
   const end = useRef<HTMLDivElement>(null);
 
   useEffect(() => () => abort.current?.abort(), []);
-  useEffect(() => end.current?.scrollIntoView({ block: "nearest" }), [history.length, busy]);
+  // Follow the conversation, but never jump the page to the chat when it first renders.
+  useEffect(() => {
+    if (history.length || busy) end.current?.scrollIntoView({ block: "nearest" });
+  }, [history.length, busy]);
 
   if (!cfg) return <AiSetupHint text="Stell einem KI-Coach Fragen zu deinem Profil, z. B. für einen Trainingsplan." />;
 

@@ -3,6 +3,7 @@
 // stats), so its answer explains real data instead of inventing chess.
 
 import type { GameReview, PlayerProfile } from "./models";
+import type { OpeningStat } from "./openings";
 
 export interface CoachMessage {
   role: "system" | "user" | "assistant";
@@ -88,6 +89,18 @@ export function profileSummary(p: PlayerProfile): string {
   if (p.openings_worst.length) out.push(`Schwache Eröffnungen: ${p.openings_worst.map((l) => `${l.name} (${l.color}, ${pct(l.score_pct)})`).join(", ")}.`);
   if (p.openings_best.length) out.push(`Starke Eröffnungen: ${p.openings_best.map((l) => `${l.name} (${l.color}, ${pct(l.score_pct)})`).join(", ")}.`);
   if (p.style) out.push(`Spielstil: ${p.style.label}.`);
+  const op = p.openings;
+  if (op) {
+    const line = (l: OpeningStat) =>
+      `${l.name} (${l.games} Partien, ${pct(l.score_pct)} Punkte${l.wp_after_opening !== null ? `, Gewinnchance nach der Eröffnung ${pct(l.wp_after_opening)}` : ""}${l.first_error_move !== null ? `, erster schwerer Fehler im Schnitt Zug ${Math.round(l.first_error_move)}` : ""})`;
+    if (op.white.length) out.push(`Repertoire mit Weiß: ${op.white.slice(0, 6).map(line).join("; ")}.`);
+    if (op.black.length) out.push(`Repertoire mit Schwarz: ${op.black.slice(0, 6).map(line).join("; ")}.`);
+    if (op.white_first.length) out.push(`Erste Züge mit Weiß: ${op.white_first.map((c) => `1. ${c.san} (${c.games}×, ${pct(c.score_pct)})`).join(", ")}.`);
+    for (const v of op.black_vs.slice(0, 3)) {
+      out.push(`Mit Schwarz gegen 1. ${v.san}: ${v.replies.map((r) => `1… ${r.san} (${r.games}×, ${pct(r.score_pct)})`).join(", ")}.`);
+    }
+    if (op.facts.length) out.push("Befunde zu Eröffnungen:", ...op.facts.map((f) => `- ${f}`));
+  }
   return out.join("\n");
 }
 
@@ -96,6 +109,13 @@ export const PROFILE_QUESTIONS = [
   "Was ist der eine Punkt, der mir am schnellsten mehr Wertung bringt?",
   "Welche Eröffnungen sollte ich behalten und welche ersetzen?",
   "Erkläre mir meine größte Schwäche und wie ich sie trainiere.",
+];
+
+export const OPENING_QUESTIONS = [
+  "Welche Eröffnung sollte ich als Erstes verbessern?",
+  "Stell mir ein schlankes Repertoire für Weiß und Schwarz zusammen.",
+  "Warum stehe ich nach der Eröffnung oft schlechter?",
+  "Was soll ich gegen 1. d4 spielen?",
 ];
 
 export function profileCoachMessages(p: PlayerProfile, history: CoachMessage[], question: string): CoachMessage[] {
