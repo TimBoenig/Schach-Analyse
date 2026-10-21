@@ -1,8 +1,6 @@
 // End-to-end analysis against the real Stockfish WASM build (run in Node),
 // plus the scoring invariants the desktop app guards.
-import { spawn } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
 
 import { Chess } from "chess.js";
 import { afterAll, describe, expect, it } from "vitest";
@@ -10,29 +8,8 @@ import { afterAll, describe, expect, it } from "vitest";
 import { analyzeGame, classifyAndSummarize, processAnalysisResults } from "../../src/domain/analyzer";
 import { gameAccuracy, MIN_MOVE_ACCURACY } from "../../src/domain/math";
 import { emptyMetadata, emptyMove, type GameAnalysis } from "../../src/domain/types";
-import { UciEngine, parseInfoLine, type UciTransport } from "../../src/engine/uci";
-
-// The npm package is CommonJS, so run its copy rather than public/ (an ESM scope).
-const SF_DIR = join(__dirname, "..", "..", "node_modules", "stockfish", "src");
-const ENGINE_JS = join(SF_DIR, readdirSync(SF_DIR).find((f) => /lite-single.*\.js$/.test(f)) ?? "missing.js");
-
-function nodeTransport(): UciTransport {
-  const child = spawn(process.execPath, [ENGINE_JS], { stdio: ["pipe", "pipe", "ignore"] });
-  let buf = "";
-  return {
-    send: (cmd) => child.stdin.write(cmd + "\n"),
-    onLine: (cb) =>
-      child.stdout.on("data", (d: Buffer) => {
-        buf += d.toString();
-        let i;
-        while ((i = buf.indexOf("\n")) >= 0) {
-          cb(buf.slice(0, i).trim());
-          buf = buf.slice(i + 1);
-        }
-      }),
-    terminate: () => child.kill(),
-  };
-}
+import { UciEngine, parseInfoLine } from "../../src/engine/uci";
+import { ENGINE_JS, nodeTransport } from "../engine";
 
 function gameFromSans(sans: string[]): GameAnalysis {
   const board = new Chess();

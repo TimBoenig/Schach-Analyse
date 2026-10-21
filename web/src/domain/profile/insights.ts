@@ -38,6 +38,18 @@ export interface DeepInsights {
   after_result: ScoreBucket[];
   /** Score by position of the game within a session (1st, 2nd, …). */
   by_session_game: ScoreBucket[];
+  /** Error rate by how the game stood before the move (player's winning chance). */
+  by_situation: MoveBucket[];
+  /** Error rate by thinking time per move (only moves with clock data). */
+  by_think_time: MoveBucket[];
+  /** Error rate right after leaving theory vs. later. */
+  after_book: MoveBucket[];
+  /** Error rate with enough time vs. in time trouble. */
+  time_trouble: MoveBucket[];
+  /** How often the player punished an opponent error (kept the gain). */
+  punish: { chances: number; punished: number; rate: number | null };
+  /** Average count per analyzed game of each error class. */
+  errors_per_game: { classification: string; per_game: number }[];
   /** Headline findings in German, strongest first. */
   facts: string[];
 }
@@ -82,6 +94,22 @@ const DAYTIMES: [string, string, (h: number) => boolean][] = [
   ["evening", "Abends (17–22 Uhr)", (h) => h >= 17 && h < 22],
   ["night", "Nachts (22–5 Uhr)", (h) => h >= 22 || h < 5],
 ];
+
+const SITUATIONS: [string, (wp: number) => boolean][] = [
+  ["Klar besser (ab 70 %)", (wp) => wp >= 0.7],
+  ["Ausgeglichen", (wp) => wp > 0.3 && wp < 0.7],
+  ["Klar schlechter (bis 30 %)", (wp) => wp <= 0.3],
+];
+
+const THINK_TIMES: [string, (s: number) => boolean][] = [
+  ["unter 3 s", (s) => s < 3],
+  ["3–10 s", (s) => s >= 3 && s < 10],
+  ["10–30 s", (s) => s >= 10 && s < 30],
+  ["über 30 s", (s) => s >= 30],
+];
+
+// The first moves after theory are where players without a plan go wrong.
+const AFTER_BOOK_MOVES = 5;
 
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -189,6 +217,26 @@ export function buildDeepInsights(
     scoreBucket(String(i + 1), label, bySession[i]),
   );
 
+  const bySituation = SITUATIONS.map(([label, test]) => moveBucket(label, moves.filter((m) => test(m.wp_before))));
+  const clocked = moves.filter((m) => m.time_spent !== null);
+  const byThink = THINK_TIMES.map(([label, test]) => moveBucket(label, clocked.filter((m) => test(m.time_spent as number))));
+  const outOfBook = moves.filter((m) => m.moves_since_book >= 0);
+  const afterBook = [
+    moveBucket(`Erste ${AFTER_BOOK_MOVES} Züge nach der Theorie`, outOfBook.filter((m) => m.moves_since_book < AFTER_BOOK_MOVES)),
+    moveBucket("Danach", outOfBook.filter((m) => m.moves_since_book >= AFTER_BOOK_MOVES)),
+  ];
+  const withClock = moves.filter((m) => m.time_left !== null);
+  const timeTrouble = [
+    moveBucket("Genug Zeit", withClock.filter((m) => !m.in_time_trouble)),
+    moveBucket("Zeitnot", withClock.filter((m) => m.in_time_trouble)),
+  ];
+  const chances = analyzed.reduce((s, f) => s + f.punish_chances, 0);
+  const punished = analyzed.reduce((s, f) => s + f.punished, 0);
+  const errorsPerGame = ["Inaccuracy", "Mistake", "Miss", "Blunder"].map((c) => ({
+    classification: c,
+    per_game: analyzed.length ? pyRound(moves.filter((m) => m.classification === c).length / analyzed.length, 2) : 0,
+  }));
+
   const insights: DeepInsights = {
     error_squares: squares,
     error_total: errorTotal,
@@ -199,6 +247,12 @@ export function buildDeepInsights(
     by_weekday: byWeekday,
     after_result: afterResult,
     by_session_game: bySessionGame,
+    by_situation: bySituation,
+    by_think_time: byThink,
+    after_book: afterBook,
+    time_trouble: timeTrouble,
+    punish: { chances, punished, rate: chances ? pyRound((punished / chances) * 100, 1) : null },
+    errors_per_game: errorsPerGame,
     facts: [],
   };
   insights.facts = headlineFacts(insights, feats);
@@ -284,6 +338,60 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const top = d.hot_squares[0];
   if (top && d.error_total >= 10 && top.count / d.error_total >= 0.08 && top.count >= 3) {
     facts.push([top.count, `Auf ${top.square} landen auffällig viele deiner Fehler (${top.count} von ${d.error_total}).`]);
+  }
+
+  // Thinking time: quick moves clearly more error-prone than considered ones.
+  const fast = d.by_think_time[0];
+  const slow = d.by_think_time.slice(1).filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
+  if (fast.moves >= MIN_MOVES && fast.per100 !== null && slow.length) {
+    const rest = slow.reduce((s, b) => s + b.errors, 0) / Math.max(1, slow.reduce((s, b) => s + b.moves, 0)) * 100;
+    if (fast.per100 >= rest * 1.5 && fast.errors >= 3) {
+      facts.push([
+        (fast.per100 / Math.max(rest, 0.1)) * 6,
+        `Schnelle Züge (unter 3 Sekunden) gehen bei dir ${de(fast.per100 / Math.max(rest, 0.1))}-mal so oft schief wie überlegte: ${de(fast.per100)} gegenüber ${de(rest)} schweren Fehlern pro 100 Züge.`,
+      ]);
+    }
+  }
+
+  // Time trouble.
+  const [calm, trouble] = d.time_trouble;
+  if (trouble.moves >= MIN_MOVES && calm.moves >= MIN_MOVES && trouble.per100 !== null && calm.per100 !== null && trouble.per100 >= calm.per100 * 1.8) {
+    facts.push([
+      (trouble.per100 / Math.max(calm.per100, 0.1)) * 5,
+      `In Zeitnot machst du ${de(trouble.per100)} schwere Fehler pro 100 Züge, mit genug Zeit nur ${de(calm.per100)}.`,
+    ]);
+  }
+
+  // Right after theory.
+  const [early, later] = d.after_book;
+  if (early.moves >= MIN_MOVES && later.moves >= MIN_MOVES && early.per100 !== null && later.per100 !== null && early.per100 >= later.per100 * 1.4) {
+    facts.push([
+      (early.per100 / Math.max(later.per100, 0.1)) * 5,
+      `Direkt nach der Theorie wird es gefährlich: In den ersten ${AFTER_BOOK_MOVES} Zügen danach patzt du ${de(early.per100)}-mal pro 100 Züge, später ${de(later.per100)}-mal.`,
+    ]);
+  }
+
+  // Position type: in which situation errors pile up.
+  const sit = d.by_situation.filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
+  if (sit.length >= 2) {
+    const worst = sit.reduce((a, b) => ((b.per100 as number) > (a.per100 as number) ? b : a));
+    const mean = avg(sit.map((b) => b.per100 as number));
+    if ((worst.per100 as number) >= mean * 1.4 && worst.errors >= 3) {
+      const where =
+        worst === d.by_situation[0] ? "wenn du klar besser stehst" : worst === d.by_situation[1] ? "in ausgeglichenen Stellungen" : "wenn du schlechter stehst";
+      facts.push([
+        ((worst.per100 as number) / Math.max(mean, 0.1)) * 5,
+        `Die meisten Fehler pro Zug machst du ${where} (${de(worst.per100 as number)} je 100 Züge).`,
+      ]);
+    }
+  }
+
+  // Punishing opponent errors.
+  if (d.punish.chances >= 8 && d.punish.rate !== null && d.punish.rate < 50) {
+    facts.push([
+      (50 - d.punish.rate) / 3,
+      `Nur ${Math.round(d.punish.rate)} % der Fehler deiner Gegner bestrafst du (${d.punish.punished} von ${d.punish.chances}). Hier liegen leichte Punkte.`,
+    ]);
   }
 
   return facts.sort((a, b) => b[0] - a[0]).map(([, t]) => t);

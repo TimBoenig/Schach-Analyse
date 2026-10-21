@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { type AiConfig, aiReady, parseSse, streamChat } from "../../src/app/ai";
-import { gameCoachMessages, profileSummary } from "../../src/domain/profile";
-import type { GameReview, PlayerProfile } from "../../src/domain/profile";
+import { annotatedMoves, buildPlayerProfile, DETAIL_LEVELS, gameCoachMessages, profileContext } from "../../src/domain/profile";
+import { buildMoves, profileGames, THROWN_WIN } from "../profile/fixtures";
+import type { GameReview } from "../../src/domain/profile";
 
 const CFG: AiConfig = { provider: "groq", baseUrl: "https://ai.test/v1/", model: "m", apiKey: "gsk_x" };
 
@@ -87,27 +88,27 @@ describe("coach prompts", () => {
     expect(user.content).toContain("Wertung: ich 1500, Gegner 1550.");
   });
 
-  it("summarises skills with the typical value for the rating", () => {
-    const p = {
-      total_games: 12,
-      analyzed_games: 10,
-      overview: { wins: 5, draws: 1, losses: 6, score_pct: 45.8, avg_accuracy: 74.2 },
-      rating: null,
-      skills: [
-        { key: "tactics", name: "Taktisches Sehen", score: 41.6, typical: 55, sample: 10 },
-        { key: "time", name: "Zeitmanagement", score: 50, typical: null, sample: 0 },
-      ],
-      strengths: [],
-      weaknesses: [{ title: "Taktisches Sehen" }],
-      patterns: [],
-      deep: { facts: ["Abends spielst du am besten."] },
-      openings_best: [],
-      openings_worst: [],
-      style: null,
-    } as unknown as PlayerProfile;
-    const text = profileSummary(p);
-    expect(text).toContain("- Taktisches Sehen: 42 (55)");
-    expect(text).not.toContain("Zeitmanagement");
-    expect(text).toContain("- Abends spielst du am besten.");
+  it("hands the whole profile and the newest games to the coach within the budget", () => {
+    const p = buildPlayerProfile(profileGames(9, 3), ["tim"]);
+    const full = profileContext(p, "full");
+    for (const heading of ["## Überblick", "## Fähigkeiten", "## Wiederkehrende Muster", "## Einblicke", "## Eröffnungen", "## Letzte Partien"]) {
+      expect(full).toContain(heading);
+    }
+    // Newest game first, with the player's costliest move and the engine's alternative.
+    const games = full.slice(full.indexOf("## Letzte Partien")).split("\n").slice(1);
+    expect(games[0]).toMatch(/^- 2026\.06\.03 .*Weiß gegen Gegner \(1500 vs\. 1500\): Sieg/);
+    expect(games.find((g) => g.startsWith("- 2026.05.09"))).toMatch(/Niederlage.*teuerste Züge: 9\. d5 \(Patzer im \S+, 85→25 %, besser \S+\)/);
+
+    const compact = profileContext(p, "compact");
+    expect(compact.length).toBeLessThanOrEqual(DETAIL_LEVELS.compact.chars);
+    expect(compact).toContain("## Fähigkeiten");
+  });
+
+  it("annotates every error of the game for the game coach", () => {
+    const moves = buildMoves(THROWN_WIN);
+    const text = annotatedMoves(moves, "white");
+    expect(text.startsWith("1. e4 e5 2. Nf3")).toBe(true);
+    expect(text).toMatch(/8\. O-O Bxc3 \{Gegner: Patzer, Gewinnchance 50→85 %, besser \S+\} 9\. d5 /);
+    expect(text).toMatch(/9\. d5 \{ich: Patzer, Gewinnchance 85→25 %, besser \S+\} 9\.\.\. Bf6/);
   });
 });

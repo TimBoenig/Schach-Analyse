@@ -1,9 +1,11 @@
-import { PROFILE_QUESTIONS, profileCoachMessages, type ScoreBucket } from "../domain/profile";
-import { AiChat } from "./AiCoach";
+import { type MoveBucket, PROFILE_QUESTIONS, profileCoachMessages, reportMessages, type ScoreBucket } from "../domain/profile";
+import { AiAnswer, AiChat, coachDetail } from "./AiCoach";
 import { BarList, ColumnChart, SquareHeatmap } from "./charts";
 import type { BarRow, Column } from "./charts";
+import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
+import { loadTrainingSummary } from "./training/useTraining";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Buckets below these sizes are drawn faint: the numbers are real but thin.
@@ -20,6 +22,20 @@ function scoreColumns(buckets: ScoreBucket[]): Column[] {
     sub: plural(b.games, "Partie", "Partien"),
     faint: b.games < MIN_GAMES,
   }));
+}
+
+const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+
+function errorRows(buckets: MoveBucket[]): BarRow[] {
+  return buckets
+    .filter((b) => b.moves > 0)
+    .map((b) => ({
+      label: b.label,
+      value: b.per100,
+      valueText: b.per100 !== null ? `${de1(b.per100)} je 100` : "–",
+      note: `${plural(b.errors, "Fehler", "Fehler")} in ${plural(b.moves, "Zug", "Zügen")}`,
+      faint: b.moves < MIN_MOVES,
+    }));
 }
 
 function Tile({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 12; children: preact.ComponentChildren }) {
@@ -127,6 +143,23 @@ export function InsightsView() {
       faint: b.games < MIN_GAMES,
     }));
   const timed = d.by_daytime.reduce((s, b) => s + b.games, 0);
+  const situationRows = errorRows(d.by_situation);
+  const thinkCols: Column[] = d.by_think_time.map((b) => ({
+    label: b.label,
+    value: b.per100,
+    valueText: b.per100 !== null ? de1(b.per100) : undefined,
+    sub: plural(b.moves, "Zug", "Züge"),
+    faint: b.moves < MIN_MOVES,
+  }));
+  const clocked = d.by_think_time.some((b) => b.moves > 0);
+  const pressureRows = [...errorRows(d.time_trouble), ...errorRows(d.after_book)];
+  const rowsMax = (rows: BarRow[]) => Math.max(5, ...rows.map((r) => r.value ?? 0)) * 1.1;
+  const errorTypeRows: BarRow[] = d.errors_per_game.map((e) => ({
+    label: trClassification(e.classification),
+    value: e.per_game,
+    valueText: `${e.per_game.toFixed(2).replace(".", ",")} pro Partie`,
+  }));
+  const coachTraining = () => loadTrainingSummary(profile.exercises).catch(() => null);
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
@@ -136,6 +169,10 @@ export function InsightsView() {
           <div class="tile-head">
             <h3>Das Wichtigste auf einen Blick</h3>
             <span class="tile-sub">aus {plural(profile.analyzed_games, "analysierten Partie", "analysierten Partien")}</span>
+            <span class="spacer" />
+            <button class="btn small" onClick={() => navigate({ view: "training" })}>
+              Zum Trainingsplan
+            </button>
           </div>
           {d.facts.length ? (
             <ol class="fact-list">
@@ -149,6 +186,16 @@ export function InsightsView() {
               belastbarer.
             </p>
           )}
+        </section>
+
+        <section class="card span-12">
+          <AiAnswer
+            cacheKey={`report:${profile.analyzed_games}:${filters.format}:${filters.date}:${filters.color}`}
+            title="Dein Trainerbericht"
+            start="Ausführlichen Bericht vom KI-Coach schreiben lassen"
+            hint="Lass dir vom KI-Coach einen Trainerbericht über alle deine Partien schreiben."
+            messages={async () => reportMessages(profile, coachDetail(), await coachTraining())}
+          />
         </section>
 
         <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={4}>
@@ -170,7 +217,41 @@ export function InsightsView() {
           <BarList rows={pieceRows} max={pieceMax} />
         </Tile>
 
-        <Tile title="Tageszeit" sub="Punkte-Quote" span={6}>
+        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={4}>
+          <BarList rows={situationRows} max={rowsMax(situationRows)} />
+          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
+        </Tile>
+
+        <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={4}>
+          {clocked ? (
+            <ColumnChart columns={thinkCols} />
+          ) : (
+            <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
+          )}
+        </Tile>
+
+        <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={4}>
+          {pressureRows.length ? (
+            <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
+          ) : (
+            <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
+          )}
+        </Tile>
+
+        <Tile title="Fehler pro Partie" sub="Durchschnitt" span={4}>
+          <BarList rows={errorTypeRows} max={Math.max(1, ...errorTypeRows.map((r) => r.value ?? 0)) * 1.15} />
+          {d.punish.chances > 0 && (
+            <p class="small tile-foot">
+              Gegnerfehler bestraft: <strong>{d.punish.rate !== null ? Math.round(d.punish.rate) : 0} %</strong> ({d.punish.punished} von{" "}
+              {d.punish.chances}).{" "}
+              <button class="link-btn" onClick={() => navigate({ view: "training", tab: "uebungen", category: "chance" })}>
+                Chancen nutzen üben
+              </button>
+            </p>
+          )}
+        </Tile>
+
+        <Tile title="Tageszeit" sub="Punkte-Quote" span={4}>
           {timed ? (
             <ColumnChart columns={scoreColumns(d.by_daytime)} max={100} reference={scoreRef} />
           ) : (
@@ -178,7 +259,7 @@ export function InsightsView() {
           )}
         </Tile>
 
-        <Tile title="Wochentag" sub="Punkte-Quote" span={6}>
+        <Tile title="Wochentag" sub="Punkte-Quote" span={4}>
           {timed ? (
             <ColumnChart columns={scoreColumns(d.by_weekday)} max={100} reference={scoreRef} />
           ) : (
@@ -209,7 +290,10 @@ export function InsightsView() {
             </h3>
             <span class="tile-sub">kennt dein Profil und diese Einblicke</span>
           </div>
-          <AiChat build={(history, q) => profileCoachMessages(profile, history, q)} suggestions={PROFILE_QUESTIONS} />
+          <AiChat
+            build={async (history, q) => profileCoachMessages(profile, history, q, coachDetail(), await coachTraining())}
+            suggestions={PROFILE_QUESTIONS}
+          />
         </section>
       </div>
     </div>

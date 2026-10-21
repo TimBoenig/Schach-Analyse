@@ -104,7 +104,7 @@ export function App() {
     <div class="app">
       <nav class="nav">
         <div class="nav-brand">
-          <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/icon-192.png`} alt="" />
+          <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span class="nav-title">Schach-Analyse</span>
         </div>
         <button class="nav-search" onClick={() => setOverlay("palette")} aria-label="Befehle und Suche">
@@ -136,7 +136,10 @@ export function App() {
         {route.view === "profile" && <ProfileView />}
         {route.view === "insights" && <InsightsView />}
         {route.view === "openings" && <OpeningsView />}
-        {route.view === "training" && <TrainingView />}
+        {route.view === "training" && (
+          // A new tab or deep link starts fresh (and leaves a running session).
+          <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />
+        )}
         {route.view === "settings" && <SettingsView />}
       </main>
       {overlay === "palette" && (

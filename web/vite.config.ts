@@ -7,7 +7,7 @@ export default defineConfig({
     preact(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icons/*.png", "pieces/*.svg", "badges/*.svg"],
+      includeAssets: ["icons/*.png", "icons/*.svg", "pieces/*.svg", "badges/*.svg"],
       manifest: {
         name: "Schach Analyse",
         short_name: "Schach",

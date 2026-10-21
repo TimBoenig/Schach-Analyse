@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
+export type TrainingTab = "heute" | "uebungen" | "fortschritt";
+
 export type Route =
   | { view: "games"; import?: boolean }
   | { view: "insights" }
   | { view: "openings" }
   | { view: "analysis"; gameId?: string; ply?: number }
   | { view: "profile" }
-  | { view: "training" }
+  | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings" };
 
 export function parseHash(hash: string): Route {
@@ -22,8 +24,10 @@ export function parseHash(hash: string): Route {
       return { view: "openings" };
     case "import":
       return { view: "games", import: true };
-    case "training":
-      return { view: "training" };
+    case "training": {
+      const tab = (["heute", "uebungen", "fortschritt"] as const).find((t) => t === parts[1]);
+      return { view: "training", tab, category: tab === "uebungen" ? parts[2] : undefined };
+    }
     case "einstellungen":
       return { view: "settings" };
     default:
@@ -42,7 +46,8 @@ export function toHash(r: Route): string {
     case "openings":
       return "#/eroeffnungen";
     case "training":
-      return "#/training";
+      if (!r.tab || r.tab === "heute") return "#/training";
+      return `#/training/${r.tab}${r.category ? `/${r.category}` : ""}`;
     case "settings":
       return "#/einstellungen";
     default:

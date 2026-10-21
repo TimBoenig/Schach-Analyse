@@ -12,6 +12,24 @@ Einstellungen zwischen Geräten ab.
 2. **Teilen** → **Zum Home-Bildschirm**.
 3. Die App startet danach im Vollbild und offline.
 
+## Training
+
+Die Seite **Training** baut aus den eigenen Partien Übungen und einen
+Tagesplan:
+
+- **Übungen**: Blunder-Check, Chancen nutzen, Eröffnungsfehler, Endspiel-
+  Aufgaben, Vorteil verwerten und Zähe Verteidigung (Stellungen aus eigenen
+  Partien, `src/domain/training/exercises.ts`), Repertoire üben (die eigene
+  Hauptvariante je Eröffnung, typische Fehler durch den Engine-Zug ersetzt)
+  sowie Endspiel-Grundlagen und Gewinnstellungen, die gegen Stockfish zu Ende
+  gespielt werden (`basics.ts`, `playout.ts`).
+- **Tagesplan** (`plan.ts`): verteilt die gewählte Zeit auf die schwächsten
+  Bereiche (Fähigkeiten, Muster, Wertungs-Richtwerte), wiederholt fällige
+  Übungen und hält eine Stärke warm.
+- **Fortschritt** (`progress.ts`): Leitner-Wiederholung (1, 3, 7, 14, 30 Tage),
+  Serie und Erfolgsquote pro Bereich. Alles liegt in den Einstellungen und
+  wird mit synchronisiert.
+
 ## Entwicklung
 
 ```bash
@@ -56,7 +74,9 @@ Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`.
 - Stockfish 17.1 *lite* (single-threaded, kleineres Netz), damit es ohne
   besondere Server-Header auch auf iOS läuft. Etwas schwächer als die
   Desktop-Engine.
-- Keine KI-Coach-Funktion.
+- Der KI-Coach läuft direkt aus dem Browser; nicht jeder Anbieter erlaubt das
+  (CORS). Die Datenmenge pro Frage ist in den Einstellungen wählbar, damit auch
+  kleine lokale Modelle mit kurzem Kontext funktionieren.
 
 ## Lizenzen
 
