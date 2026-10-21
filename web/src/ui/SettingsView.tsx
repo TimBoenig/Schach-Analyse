@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 
-import { AI_PROVIDERS, type AiConfig, aiReady, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
+import { AI_PROVIDERS, type AiConfig, aiReady, defaultDetail, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
+import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile";
 import { STRENGTHS, type AnalysisStrength } from "../app/analysisService";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, putGames, setSetting } from "../storage/db";
@@ -69,15 +70,17 @@ function AiCard() {
   const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? AI_PROVIDERS.groq.baseUrl);
   const [model, setModel] = useState(saved?.model ?? AI_PROVIDERS.groq.model);
   const [apiKey, setApiKey] = useState(saved?.apiKey ?? "");
+  const [detail, setDetail] = useState<CoachDetail>(saved?.detail ?? defaultDetail(saved?.provider ?? "groq"));
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [testing, setTesting] = useState(false);
   const p = AI_PROVIDERS[provider] ?? AI_PROVIDERS.custom;
-  const cfg: AiConfig = { provider, baseUrl: baseUrl.trim(), model: model.trim(), apiKey: apiKey.trim() };
+  const cfg: AiConfig = { provider, baseUrl: baseUrl.trim(), model: model.trim(), apiKey: apiKey.trim(), detail };
 
   const pick = (k: string) => {
     setProvider(k);
     setBaseUrl(AI_PROVIDERS[k].baseUrl);
     setModel(AI_PROVIDERS[k].model);
+    setDetail(defaultDetail(k));
     setStatus(null);
   };
   const test = async () => {
@@ -134,6 +137,29 @@ function AiCard() {
           placeholder={p.keyHint}
         />
       </label>
+      <label class="field">
+        <span>Datenmenge pro Frage</span>
+        <select
+          value={detail}
+          onChange={(e) => {
+            const v = e.currentTarget.value as CoachDetail;
+            setDetail(v);
+            // A working connection keeps working; only the amount of data changes.
+            if (saved) saveAiConfig({ ...saved, detail: v });
+          }}
+        >
+          {(Object.keys(DETAIL_LEVELS) as CoachDetail[]).map((k) => (
+            <option key={k} value={k}>
+              {DETAIL_LEVELS[k].label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p class="small faint" style={{ margin: "-4px 0 10px" }}>
+        Mehr Daten (alle Fähigkeiten, Einblicke, Eröffnungen und bis zu 40 Partien mit ihren teuersten Zügen) machen die
+        Antworten genauer, brauchen aber ein Modell mit großem Kontext. Bei LM Studio dafür die Kontextlänge auf mindestens
+        16 000 Tokens stellen.
+      </p>
       {p.helpUrl && (
         <p class="small faint" style={{ margin: "0 0 10px" }}>
           Schlüssel erstellen:{" "}

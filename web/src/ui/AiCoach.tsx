@@ -1,8 +1,8 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import { aiReady, type AiConfig, loadAiConfig, streamChat } from "../app/ai";
-import type { CoachMessage } from "../domain/profile";
+import { aiReady, type AiConfig, detailOf, loadAiConfig, streamChat } from "../app/ai";
+import type { CoachDetail, CoachMessage } from "../domain/profile";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
 
@@ -19,6 +19,14 @@ export function useAiConfig(): AiConfig | null {
   }, []);
   return aiReady(cfg) ? cfg : null;
 }
+
+/** Detail level of the configured coach (how much data goes into a prompt). */
+export function coachDetail(): CoachDetail {
+  const cfg = loadAiConfig();
+  return cfg ? detailOf(cfg) : "normal";
+}
+
+type Messages = CoachMessage[] | Promise<CoachMessage[]>;
 
 function inline(text: string): ComponentChildren[] {
   // **bold** only; everything else stays plain text (no HTML from the model).
@@ -86,11 +94,14 @@ export function AiAnswer({
   messages,
   title,
   start,
+  hint = "Lass dir die Partie von einem KI-Coach erklären.",
 }: {
   cacheKey: string;
-  messages: () => CoachMessage[];
+  messages: () => Messages;
   title: string;
   start: string;
+  /** Shown instead while no coach is set up. */
+  hint?: string;
 }) {
   const cfg = useAiConfig();
   const [text, setText] = useState(answerCache.get(cacheKey) ?? "");
@@ -104,7 +115,7 @@ export function AiAnswer({
     return () => abort.current?.abort();
   }, [cacheKey]);
 
-  if (!cfg) return <AiSetupHint text="Lass dir die Partie von einem KI-Coach erklären." />;
+  if (!cfg) return <AiSetupHint text={hint} />;
 
   const run = async () => {
     abort.current?.abort();
@@ -114,7 +125,7 @@ export function AiAnswer({
     setError("");
     setText("");
     try {
-      const out = await streamChat(cfg, messages(), setText, ctl.signal);
+      const out = await streamChat(cfg, await messages(), setText, ctl.signal);
       answerCache.set(cacheKey, out);
     } catch (e) {
       if (!ctl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
@@ -163,7 +174,7 @@ export function AiChat({
   build,
   suggestions,
 }: {
-  build: (history: CoachMessage[], question: string) => CoachMessage[];
+  build: (history: CoachMessage[], question: string) => Messages;
   suggestions: string[];
 }) {
   const cfg = useAiConfig();
@@ -195,7 +206,7 @@ export function AiChat({
     const before = history;
     setHistory([...before, { role: "user", content: question }]);
     try {
-      const answer = await streamChat(cfg, build(before, question), setPending, ctl.signal);
+      const answer = await streamChat(cfg, await build(before, question), setPending, ctl.signal);
       setHistory([...before, { role: "user", content: question }, { role: "assistant", content: answer }]);
     } catch (e) {
       if (!ctl.signal.aborted) setError(e instanceof Error ? e.message : String(e));

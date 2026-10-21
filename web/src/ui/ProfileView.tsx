@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
 import type { GameRef, Insight, PlayerProfile, RatingContext } from "../domain/profile";
+import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { qualitySegments } from "./labels";
@@ -26,6 +27,12 @@ const PHASES: [string, string][] = [
   ["middlegame", "Mittelspiel"],
   ["endgame", "Endspiel"],
 ];
+
+/** First exercise category training this skill that has exercises. */
+function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
+  if (!skill) return undefined;
+  return CATEGORY_ORDER.find((c) => CATEGORIES[c].skills.includes(skill) && pool.some((e) => e.category === c));
+}
 
 function pct(v: number | null | undefined, digits = 0): string {
   return v === null || v === undefined || Number.isNaN(v) ? "–" : `${v.toFixed(digits)} %`;
@@ -456,12 +463,10 @@ export function ProfileView() {
             {profile.training_plan.length > 0 && (
               <section class="card tile span-12">
                 <div class="tile-head">
-                  <h3>Dein Trainingsplan</h3>
-                  {profile.puzzles.length > 0 && (
-                    <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
-                      {profile.puzzles.length} Aufgaben lösen
-                    </button>
-                  )}
+                  <h3>Deine Trainingsschwerpunkte</h3>
+                  <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
+                    Zum Tagesplan
+                  </button>
                 </div>
                 <div class="plan">
                   {profile.training_plan.map((t) => (
@@ -477,6 +482,17 @@ export function ProfileView() {
                         ))}
                       </ul>
                       <Examples refs={t.examples} />
+                      {skillCategory(t.focus_skill, profile.exercises) && (
+                        <button
+                          class="btn small"
+                          style={{ marginTop: "8px" }}
+                          onClick={() =>
+                            navigate({ view: "training", tab: "uebungen", category: skillCategory(t.focus_skill, profile.exercises) })
+                          }
+                        >
+                          In der App üben
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>

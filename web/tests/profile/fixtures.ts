@@ -116,3 +116,22 @@ export function gameAnalysis(moves: MoveData[], result = "0-1", userWhite = true
     pgn_content: "",
   };
 }
+
+// Opponent (Black) blunders at ply 15 -> White winning; user (White) throws it away at ply 16.
+export const THROWN_WIN: Events = { 15: ["Blunder", 0.85], 16: ["Blunder", 0.25] };
+// Opponent blunders at ply 15 and the user keeps the advantage.
+export const PUNISHED: Events = { 15: ["Blunder", 0.85], 16: ["Best", 0.86] };
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/** `nThrown` lost games (May) where Tim throws a won position away, then `nClean` won games (June). */
+export function profileGames(nThrown: number, nClean: number): RawGame[] {
+  const rows: RawGame[] = [];
+  for (let i = 0; i < nThrown; i++) {
+    rows.push(gameRow(`t${i}`, buildMoves(THROWN_WIN), { result: "0-1", utc: `2026.05.${pad(i + 1)} 18:00:00` }));
+  }
+  for (let i = 0; i < nClean; i++) {
+    rows.push(gameRow(`c${i}`, buildMoves(PUNISHED), { result: "1-0", utc: `2026.06.${pad(i + 1)} 18:00:00` }));
+  }
+  return rows;
+}

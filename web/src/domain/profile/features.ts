@@ -7,6 +7,7 @@
 // signals (checks, pawn storms, trades, castling).
 
 import { GameRecord, parseMoves, type RawGame } from "../metrics/models";
+import type { MoveData } from "../types";
 import {
   BLACK,
   Board,
@@ -139,6 +140,11 @@ export class MoveEvent {
     public moves_since_book: number, // user moves since leaving theory (0 = first non-book move)
   ) {}
 
+  /** Engine line from the position before this move (best move first), UCI. */
+  best_pv: string[] = [];
+  /** Other engine moves about as good as the best one (UCI), so a puzzle accepts them too. */
+  alt_moves: string[] = [];
+
   get wp_drop(): number {
     return Math.max(0, this.wp_before - this.wp_after);
   }
@@ -149,6 +155,18 @@ export class MoveEvent {
     return SERIOUS_ERROR_CLASSES.has(this.classification);
   }
 }
+
+/** One ply of the opening, as needed to rebuild the player's repertoire. */
+export interface LinePly {
+  san: string;
+  uci: string;
+  classification: string;
+  best_move: string | null;
+  is_book: boolean;
+}
+
+// Repertoire drills never need more than the first 15 moves of a game.
+export const OPENING_LINE_PLIES = 30;
 
 export class GameFeatures {
   plies = 0;
@@ -170,6 +188,8 @@ export class GameFeatures {
   time_known = false;
   /** SAN of the first two plies from the standard start position (empty for set-up positions). */
   first_sans: string[] = [];
+  /** Opening plies from the standard start position (both sides), for repertoire drills. */
+  opening_line: LinePly[] = [];
 
   constructor(
     public rec: GameRecord,
@@ -234,7 +254,16 @@ export function extractFeatures(
   const moves = parseMoves(game.moves_json);
   feats.plies = moves.length;
   if (!moves.length) return feats;
-  if (!game.starting_fen && !chess960) feats.first_sans = moves.slice(0, 2).map((m) => m.san || "");
+  if (!game.starting_fen && !chess960) {
+    feats.first_sans = moves.slice(0, 2).map((m) => m.san || "");
+    feats.opening_line = moves.slice(0, OPENING_LINE_PLIES).map((m) => ({
+      san: m.san || "",
+      uci: m.uci || "",
+      classification: m.classification || "",
+      best_move: m.best_move ?? null,
+      is_book: Boolean(m.is_book_move),
+    }));
+  }
 
   const trouble = troubleThreshold(record.speed);
   let startClock: number | null = null;
@@ -298,8 +327,7 @@ export function extractFeatures(
       if (Math.max(0, wpB - wpA) < PUNISH_KEEP_THRESHOLD) feats.punished += 1;
     }
 
-    feats.moves.push(
-      new MoveEvent(
+    const event = new MoveEvent(
         idx,
         Number(md.move_number) || Math.floor(idx / 2) + 1,
         md.san || "",
@@ -316,8 +344,10 @@ export function extractFeatures(
         afterOppError,
         timeLeft !== null && timeLeft <= trouble,
         bookExitUserMove === null ? -1 : userMovesSeen - bookExitUserMove,
-      ),
     );
+    event.best_pv = Array.isArray(md.pv) ? md.pv.slice(0, 8).map(String) : [];
+    event.alt_moves = equivalentMoves(md.multi_pvs);
+    feats.moves.push(event);
     userMovesSeen += 1;
     prevOppDrop = 0;
   });
@@ -327,6 +357,25 @@ export function extractFeatures(
   }
   if (wpChanges.length) feats.wp_volatility = wpChanges.reduce((s, v) => s + v, 0) / wpChanges.length;
   return feats;
+}
+
+// A second engine line within this many centipawns of the best one solves a
+// puzzle just as well; marking it wrong would teach the player nothing.
+export const EQUIVALENT_CP = 40;
+
+/** First moves of engine lines that are practically as good as the best line. */
+export function equivalentMoves(lines: MoveData["multi_pvs"] | undefined): string[] {
+  if (!Array.isArray(lines) || lines.length < 2) return [];
+  const [best, ...rest] = lines;
+  const out: string[] = [];
+  for (const l of rest) {
+    const first = l.pv?.[0];
+    if (!first) continue;
+    const bothMate = best.mate !== null && best.mate > 0 && l.mate !== null && l.mate > 0;
+    const close = best.cp !== null && l.cp !== null && best.cp - l.cp <= EQUIVALENT_CP;
+    if (bothMate || close) out.push(first);
+  }
+  return out;
 }
 
 /** Collect cheap style signals for one of the player's moves. */

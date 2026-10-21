@@ -8,7 +8,7 @@ import {
   openingLabel,
   profileCoachMessages,
 } from "../domain/profile";
-import { AiChat } from "./AiCoach";
+import { AiChat, coachDetail } from "./AiCoach";
 import { BarList, Legend, StackBar } from "./charts";
 import type { BarRow } from "./charts";
 import { IconSpark } from "./icons";
@@ -327,7 +327,7 @@ export function OpeningsView() {
             </h3>
             <span class="tile-sub">kennt deine Eröffnungen und Ergebnisse</span>
           </div>
-          <AiChat build={(history, q) => profileCoachMessages(profile, history, q)} suggestions={OPENING_QUESTIONS} />
+          <AiChat build={(history, q) => profileCoachMessages(profile, history, q, coachDetail())} suggestions={OPENING_QUESTIONS} />
         </section>
       </div>
     </div>

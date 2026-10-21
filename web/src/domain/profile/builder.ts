@@ -6,8 +6,9 @@ import { trColor, trSpeed } from "../i18n";
 import { StatsAccumulator } from "../metrics/accumulators";
 import { filterGames } from "../metrics/filters";
 import { GameRecord, type RawGame } from "../metrics/models";
-import { extractFeatures, type GameFeatures, sanForUci } from "./features";
-import type { Insight, OpeningLine, PlayerProfile, Puzzle, SkillScore } from "./models";
+import { buildExercisePool } from "../training/exercises";
+import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
+import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmt, pyRound } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { buildDeepInsights } from "./insights";
@@ -20,9 +21,8 @@ import { buildTrainingPlan } from "./training";
 type Dict = Record<string, any>;
 
 export const MIN_OPENING_GAMES = 3;
-export const MAX_PUZZLES = 60;
-// Only clear errors become puzzles: a drop of 20 points in winning chances.
-export const PUZZLE_MIN_WP_LOSS = 0.2;
+// Games the AI coach sees one by one (newest first); older games only count in the aggregates.
+export const MAX_DIGEST_GAMES = 40;
 
 const STRENGTH_TEXT: Record<string, string> = {
   opening: "Du kommst gut aus der Eröffnung und legst damit die Basis für deine Partien.",
@@ -104,7 +104,8 @@ export function buildPlayerProfile(
     trends: trends(feats),
     breakdowns: breakdowns(feats),
     training_plan: [],
-    puzzles: [],
+    exercises: [],
+    recent_games: recentGames(feats),
     rating: ratingContext(feats),
     deep: null,
     openings: null,
@@ -112,6 +113,8 @@ export function buildPlayerProfile(
   profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
   // Results per opening need no engine, so this page works right after an import.
   profile.openings = buildOpeningInsights(feats);
+  // Repertoire drills and endgame basics need no engine either.
+  profile.exercises = buildExercisePool(feats);
   if (!analyzed.length) return profile;
 
   profile.skills = withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null);
@@ -129,7 +132,6 @@ export function buildPlayerProfile(
     stats,
     worst.length ? worst[0].name : "",
   );
-  profile.puzzles = puzzles(analyzed);
   return profile;
 }
 
@@ -441,33 +443,42 @@ function expectedPct(fs: GameFeatures[]): number | null {
   return pyRound((rated.reduce((s, f) => s + expectedScore(f.user_rating, f.opp_rating), 0) / rated.length) * 100, 1);
 }
 
-function puzzles(analyzed: GameFeatures[]): Puzzle[] {
-  const candidates = analyzed.flatMap((f) =>
-    f.moves
-      .filter(
-        (m) =>
-          m.is_serious_error &&
-          m.wp_drop >= PUZZLE_MIN_WP_LOSS &&
-          m.best_move_uci &&
-          m.best_move_uci !== m.uci,
-      )
-      .map((m) => ({ f, m })),
-  );
-  candidates.sort(
-    (a, b) => (b.f.played_at || 0) - (a.f.played_at || 0) || b.m.wp_drop - a.m.wp_drop,
-  );
-  return candidates.slice(0, MAX_PUZZLES).map(({ f, m }) => ({
-    game_id: f.game_id,
-    ply_index: m.ply_index,
-    fen: m.fen_before,
-    best_move_uci: m.best_move_uci || "",
-    best_move_san: sanForUci(m.fen_before, m.best_move_uci, f.chess960),
-    played_san: m.san,
-    classification: m.classification,
-    phase: m.phase,
-    wp_loss: pyRound(m.wp_drop, 3),
-    opponent: f.rec.opp_name,
-    date: f.date,
-    chess960: f.chess960,
-  }));
+/** Compact per-game record for the AI coach: newest first, the player's worst moves included. */
+function recentGames(feats: GameFeatures[]): GameDigest[] {
+  return [...feats]
+    .sort((a, b) => (b.played_at || 0) - (a.played_at || 0) || b.date.localeCompare(a.date))
+    .slice(0, MAX_DIGEST_GAMES)
+    .map((f) => {
+      const q = f.rec.quality_counts as Record<string, number>;
+      const worst = f.analyzed
+        ? [...f.errors(true)]
+            .sort((a, b) => b.wp_drop - a.wp_drop)
+            .slice(0, 2)
+            .map((m) => ({
+              move: moveLabel(m.move_number, f.rec.user_color === "white", m.san),
+              classification: m.classification,
+              best: sanForUci(m.fen_before, m.best_move_uci, f.chess960),
+              wp_before: pyRound(m.wp_before * 100, 0),
+              wp_after: pyRound(m.wp_after * 100, 0),
+              phase: m.phase,
+            }))
+        : [];
+      return {
+        game_id: f.game_id,
+        date: f.date,
+        color: f.rec.user_color,
+        opponent: f.rec.opp_name,
+        user_rating: f.user_rating || null,
+        opp_rating: f.opp_rating || null,
+        score: f.score,
+        speed: f.rec.speed,
+        opening: f.rec.opening,
+        accuracy: f.analyzed ? pyRound(f.rec.game_acc, 1) : null,
+        blunders: f.analyzed ? Number(q.Blunder ?? 0) : null,
+        mistakes: f.analyzed ? Number(q.Mistake ?? 0) + Number(q.Miss ?? 0) : null,
+        plies: f.plies,
+        termination: f.rec.term_type,
+        worst,
+      };
+    });
 }

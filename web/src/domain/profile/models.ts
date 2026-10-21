@@ -1,6 +1,7 @@
 // Result structures for the player profile and per-game review
 // (port of src/backend/analysis/profile/models.py). All user-visible text is German.
 
+import type { Exercise } from "../training/exercises";
 import type { DeepInsights } from "./insights";
 import type { OpeningInsights } from "./openings";
 
@@ -65,20 +66,24 @@ export interface TrainingItem {
   examples: GameRef[];
 }
 
-/** A position from the player's own games where a better move existed. */
-export interface Puzzle {
+/** One game as the AI coach sees it (player's perspective). */
+export interface GameDigest {
   game_id: string;
-  ply_index: number;
-  fen: string;
-  best_move_uci: string;
-  best_move_san: string;
-  played_san: string;
-  classification: string;
-  phase: string;
-  wp_loss: number;
-  opponent: string;
   date: string;
-  chess960: boolean;
+  color: "white" | "black";
+  opponent: string;
+  user_rating: number | null;
+  opp_rating: number | null;
+  score: number | null;
+  speed: string;
+  opening: string;
+  accuracy: number | null;
+  blunders: number | null;
+  mistakes: number | null;
+  plies: number;
+  termination: string;
+  /** The player's two most costly moves (winning chance in percent, player's view). */
+  worst: { move: string; classification: string; best: string; wp_before: number; wp_after: number; phase: string }[];
 }
 
 export interface OpeningLine {
@@ -108,7 +113,10 @@ export interface PlayerProfile {
   trends: Record<string, any>;
   breakdowns: Record<string, any>;
   training_plan: TrainingItem[];
-  puzzles: Puzzle[];
+  /** Exercises from the player's own games plus endgame basics (empty until a game is analyzed). */
+  exercises: Exercise[];
+  /** Newest games, compact, for the AI coach. */
+  recent_games: GameDigest[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */

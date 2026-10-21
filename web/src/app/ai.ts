@@ -5,6 +5,8 @@
 // The key lives only in this device's localStorage: it is never synced, so a
 // leaked sync record can't expose it and each device opts in on its own.
 
+import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile/coach";
+
 export interface AiProvider {
   label: string;
   baseUrl: string;
@@ -62,6 +64,17 @@ export interface AiConfig {
   baseUrl: string;
   model: string;
   apiKey: string;
+  /** How much of the player's data goes into a prompt. */
+  detail?: CoachDetail;
+}
+
+/** Local models often run with a 4k context window, so they start compact. */
+export function defaultDetail(provider: string): CoachDetail {
+  return provider === "lmstudio" || provider === "custom" ? "compact" : "normal";
+}
+
+export function detailOf(c: AiConfig): CoachDetail {
+  return c.detail && c.detail in DETAIL_LEVELS ? c.detail : defaultDetail(c.provider);
 }
 
 export interface ChatMessage {
@@ -77,7 +90,9 @@ export function loadAiConfig(): AiConfig | null {
     if (!raw) return null;
     const c = JSON.parse(raw) as Partial<AiConfig>;
     if (typeof c.baseUrl !== "string" || typeof c.model !== "string") return null;
-    return { provider: c.provider ?? "custom", baseUrl: c.baseUrl, model: c.model, apiKey: c.apiKey ?? "" };
+    const provider = c.provider ?? "custom";
+    const detail = c.detail && c.detail in DETAIL_LEVELS ? c.detail : defaultDetail(provider);
+    return { provider, baseUrl: c.baseUrl, model: c.model, apiKey: c.apiKey ?? "", detail };
   } catch {
     return null;
   }
@@ -125,6 +140,9 @@ export class AiError extends Error {}
 function friendlyError(status: number, body: string): string {
   if (status === 401 || status === 403) return "Der API-Schlüssel wurde abgelehnt. Prüfe ihn in den Einstellungen.";
   if (status === 404) return "Modell oder Adresse nicht gefunden. Prüfe Modellname und Server-Adresse.";
+  if (status === 400 && /context|token|length/i.test(body)) {
+    return "Die Anfrage ist zu lang für das Modell. Stelle in den Einstellungen die Datenmenge auf „Kompakt“ oder erhöhe die Kontextlänge des Modells.";
+  }
   if (status === 429) return "Zu viele Anfragen oder Kontingent aufgebraucht. Versuche es gleich noch einmal.";
   const msg = /"message"\s*:\s*"([^"]{1,200})"/.exec(body)?.[1];
   return `Der KI-Dienst meldet Fehler ${status}${msg ? `: ${msg}` : ""}.`;
@@ -148,7 +166,13 @@ export async function streamChat(
     res = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ model: cfg.model, messages, stream: true, temperature: 0.4, max_tokens: 900 }),
+      body: JSON.stringify({
+        model: cfg.model,
+        messages,
+        stream: true,
+        temperature: 0.4,
+        max_tokens: DETAIL_LEVELS[detailOf(cfg)].maxTokens,
+      }),
       signal,
     });
   } catch (e) {

@@ -11,7 +11,8 @@ import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
 import { Board, type Arrow } from "./Board";
-import { AiAnswer } from "./AiCoach";
+import { AiAnswer, coachDetail } from "./AiCoach";
+import { loadFullProfile } from "./training/useTraining";
 import { BarList, StackBar } from "./charts";
 import { IconBack, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
 import {
@@ -724,8 +725,10 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   cacheKey={`game:${game.game_id}`}
                   title="Partie erklärt"
                   start="Partie vom KI-Coach erklären lassen"
-                  messages={() => {
+                  messages={async () => {
                     const me = userColor ?? "white";
+                    // The profile lets the coach say whether an error is typical for the player.
+                    const profile = await loadFullProfile().catch(() => null);
                     const opp = me === "white" ? "black" : "white";
                     const elo = (c: Side) => Number(game.metadata[c === "white" ? "white_elo" : "black_elo"]) || null;
                     return gameCoachMessages(review, {
@@ -738,7 +741,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                       opponentAccuracy: acc(opp) ?? null,
                       userRating: elo(me),
                       opponentRating: elo(opp),
-                    });
+                    }, { moves: game.moves, profile: coachDetail() === "compact" ? null : profile });
                   }}
                 />
               </div>

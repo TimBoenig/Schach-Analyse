@@ -9,35 +9,10 @@ import {
   schoolGrade,
 } from "../../src/domain/profile";
 import { Board, moveFromUci } from "../../src/domain/tactics/board";
-import { buildMoves, type Events, gameAnalysis, gameRow } from "./fixtures";
+import type { PuzzleExercise } from "../../src/domain/training";
+import { buildMoves, gameAnalysis, gameRow, profileGames, PUNISHED, THROWN_WIN } from "./fixtures";
 
-// Opponent (Black) blunders at ply 15 -> White winning; user (White) throws it away at ply 16.
-const THROWN_WIN: Events = { 15: ["Blunder", 0.85], 16: ["Blunder", 0.25] };
-// Opponent blunders at ply 15 and the user keeps the advantage.
-const PUNISHED: Events = { 15: ["Blunder", 0.85], 16: ["Best", 0.86] };
-
-const pad = (n: number) => String(n).padStart(2, "0");
-
-function games(nThrown: number, nClean: number) {
-  const rows = [];
-  for (let i = 0; i < nThrown; i++) {
-    rows.push(
-      gameRow(`t${i}`, buildMoves(THROWN_WIN), {
-        result: "0-1",
-        utc: `2026.05.${pad(i + 1)} 18:00:00`,
-      }),
-    );
-  }
-  for (let i = 0; i < nClean; i++) {
-    rows.push(
-      gameRow(`c${i}`, buildMoves(PUNISHED), {
-        result: "1-0",
-        utc: `2026.06.${pad(i + 1)} 18:00:00`,
-      }),
-    );
-  }
-  return rows;
-}
+const games = profileGames;
 
 describe("player profile", () => {
   it("measures a Black error as a drop in Black's winning chance", () => {
@@ -74,13 +49,16 @@ describe("player profile", () => {
     const winning = profile.patterns.find((p) => p.key === "errors_when_winning");
     expect(winning?.examples[0]?.ply_index).toBe(16);
 
-    // Every thrown game yields a puzzle whose solution is legal in its position.
-    expect(profile.puzzles).toHaveLength(9);
-    for (const pz of profile.puzzles) {
+    // Every thrown game yields a puzzle whose solution is legal in its position;
+    // the error came right after the opponent's blunder, so it trains punishing.
+    const puzzles = profile.exercises.filter((e): e is PuzzleExercise => e.kind === "puzzle");
+    expect(puzzles).toHaveLength(9);
+    for (const pz of puzzles) {
       const board = new Board(pz.fen);
-      const mv = moveFromUci(pz.best_move_uci);
+      const mv = moveFromUci(pz.solution);
       expect(board.legalMoves().some((m) => m.from === mv.from && m.to === mv.to)).toBe(true);
-      expect(pz.best_move_san).toBe(board.san(mv));
+      expect(pz.solution_san).toBe(board.san(mv));
+      expect(pz.category).toBe("chance");
     }
 
     expect(profile.training_plan.length).toBeGreaterThan(0);
