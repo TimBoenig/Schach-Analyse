@@ -5,7 +5,8 @@ import { syncAvailable, syncNow, supabase } from "../storage/sync";
 import { AnalysisView } from "./AnalysisView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
-import { IconBoard, IconGames, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { HomeView } from "./HomeView";
+import { IconBoard, IconGames, IconHome, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
 import { InsightsView } from "./InsightsView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
@@ -15,6 +16,7 @@ import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 
 const NAV: { view: Route["view"]; label: string; short?: string; icon: () => preact.JSX.Element }[] = [
+  { view: "home", label: "Start", icon: IconHome },
   { view: "games", label: "Partien", icon: IconGames },
   { view: "analysis", label: "Analyse", icon: IconBoard },
   { view: "profile", label: "Profil", icon: IconProfile },
@@ -115,7 +117,7 @@ export function App() {
         {NAV.map((n) => (
           <button
             key={n.view}
-            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}`}
+            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}${n.view === "analysis" ? " nav-wide-only" : ""}`}
             onClick={() => go(n.view, lastGame)}
             aria-current={route.view === n.view ? "page" : undefined}
           >
@@ -131,6 +133,7 @@ export function App() {
         </button>
       </nav>
       <main class="main">
+        {route.view === "home" && <HomeView />}
         {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
         {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
         {route.view === "profile" && <ProfileView />}

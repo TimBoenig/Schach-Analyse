@@ -724,6 +724,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 <AiAnswer
                   cacheKey={`game:${game.game_id}`}
                   title="Partie erklärt"
+                  saveTitle={`Partie erklärt: ${game.metadata.white} – ${game.metadata.black}, ${formatDate(game.metadata.date)}`}
                   start="Partie vom KI-Coach erklären lassen"
                   messages={async () => {
                     const me = userColor ?? "white";

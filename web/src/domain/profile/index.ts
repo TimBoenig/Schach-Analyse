@@ -42,3 +42,5 @@ export type {
   TrainingItem,
 } from "./models";
 export { SKILL_NAMES } from "./skills";
+export { activityCalendar, comparePeriods, dailyActivity, focusNotes, SKILL_TREND_POINTS, trendOf } from "./dashboard";
+export type { CalendarDay, KpiChange, PeriodComparison, SkillChange } from "./dashboard";

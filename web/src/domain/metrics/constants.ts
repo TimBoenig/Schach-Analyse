@@ -76,8 +76,11 @@ export const VALID_DATE_FILTERS: ReadonlySet<string> = new Set([
   "All Time",
   "Last 24 Hours",
   "Last 7 Days",
+  "Last 14 Days",
   "Last 30 Days",
   "Last 90 Days",
+  "Last 180 Days",
+  "Last 365 Days",
   "This Year",
 ]);
 

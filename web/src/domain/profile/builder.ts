@@ -109,6 +109,7 @@ export function buildPlayerProfile(
     rating: ratingContext(feats),
     deep: null,
     openings: null,
+    statistics: stats,
   };
   profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
   // Results per opening need no engine, so this page works right after an import.
@@ -354,6 +355,49 @@ function monthKey(ts: number): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const localDayKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+/** Local calendar day: what "today" means to the player, unlike the UTC month buckets. */
+export function dayKey(ts: number): string {
+  return localDayKey(new Date(ts * 1000));
+}
+
+/** Monday of the local week the game was played in. */
+export function weekKey(ts: number): string {
+  const d = new Date(ts * 1000);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  return localDayKey(d);
+}
+
+function periodRows(feats: GameFeatures[], key: (ts: number) => string, field: string): Dict[] {
+  const groups = new Map<string, GameFeatures[]>();
+  for (const f of feats) {
+    if (!f.played_at) continue;
+    const k = key(f.played_at);
+    const list = groups.get(k);
+    if (list) list.push(f);
+    else groups.set(k, [f]);
+  }
+  return [...groups.keys()].sort().map((k) => {
+    const fs = groups.get(k) as GameFeatures[];
+    const analyzed = fs.filter((f) => f.analyzed);
+    const finished = fs.filter((f) => f.score !== null);
+    return {
+      [field]: k,
+      games: fs.length,
+      wins: finished.filter((f) => f.rec.is_win).length,
+      draws: finished.filter((f) => f.rec.is_draw).length,
+      losses: finished.filter((f) => f.rec.is_loss).length,
+      score_pct: scoreOf(fs),
+      avg_accuracy: analyzed.length ? avg(analyzed.map((f) => f.rec.game_acc)) : null,
+      blunders_per_game: analyzed.length
+        ? avg(analyzed.map((f) => Number(f.rec.quality_counts.Blunder ?? 0)))
+        : null,
+    };
+  });
+}
+
 function trends(feats: GameFeatures[]): Dict {
   const months = new Map<string, GameFeatures[]>();
   const ratingPoints = new Map<string, Array<[number, number]>>();
@@ -387,7 +431,12 @@ function trends(feats: GameFeatures[]): Dict {
   for (const [k, v] of ratingPoints) {
     if (v.length >= 2) ratingsOut[k] = [...v].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
   }
-  return { monthly, ratings: ratingsOut };
+  return {
+    monthly,
+    weekly: periodRows(feats, weekKey, "week"),
+    daily: periodRows(feats, dayKey, "day"),
+    ratings: ratingsOut,
+  };
 }
 
 function breakdowns(feats: GameFeatures[]): Dict {

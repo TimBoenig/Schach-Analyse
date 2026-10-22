@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 export type TrainingTab = "heute" | "uebungen" | "fortschritt";
 
 export type Route =
+  | { view: "home" }
   | { view: "games"; import?: boolean }
   | { view: "insights" }
   | { view: "openings" }
@@ -22,6 +23,8 @@ export function parseHash(hash: string): Route {
       return { view: "insights" };
     case "eroeffnungen":
       return { view: "openings" };
+    case "partien":
+      return { view: "games" };
     case "import":
       return { view: "games", import: true };
     case "training": {
@@ -31,7 +34,7 @@ export function parseHash(hash: string): Route {
     case "einstellungen":
       return { view: "settings" };
     default:
-      return { view: "games" };
+      return { view: "home" };
   }
 }
 
@@ -50,8 +53,10 @@ export function toHash(r: Route): string {
       return `#/training/${r.tab}${r.category ? `/${r.category}` : ""}`;
     case "settings":
       return "#/einstellungen";
+    case "games":
+      return r.import ? "#/import" : "#/partien";
     default:
-      return r.import ? "#/import" : "#/";
+      return "#/";
   }
 }
 

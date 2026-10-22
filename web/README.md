@@ -12,6 +12,20 @@ Einstellungen zwischen Geräten ab.
 2. **Teilen** → **Zum Home-Bildschirm**.
 3. Die App startet danach im Vollbild und offline.
 
+## Startseite, Zeitraum und Export
+
+- **Start** (`#/`) ist das tägliche Dashboard: Vergleich des gewählten Zeitraums mit dem gleich langen Zeitraum davor
+  (Partien, Punkte-Quote, Genauigkeit, Patzer pro Partie, bestrafte Gegnerfehler, Wertung), Fähigkeiten-Trends,
+  die drei größten Baustellen mit Übungslink, Tagesplan-Stand, Formkurve pro Woche, Aktivitätskalender,
+  letzte Partien und der letzte gespeicherte Trainerbericht. Bei „Gesamter Zeitraum“ vergleicht sie die letzten 30 Tage.
+- **Zeitraum**: Start, Profil, Einblicke, Eröffnungen und Partien filtern nach 7/14/30/90 Tagen, 6/12 Monaten,
+  diesem Jahr oder einem eigenen Von–bis-Zeitraum. Maßgeblich ist das Spieldatum aus der PGN, nicht das Importdatum.
+  Die Auswahl wird gespeichert.
+- **Export** (Einstellungen → Export & Datensicherung, Start → Exportieren, Befehlspalette): eine JSON-Datei mit allen
+  Partien samt analysierten Zügen, Partie-Auswertungen, dem kompletten Profil (Statistiken, Fähigkeiten, Eröffnungen,
+  Einblicke, Trainingsplan), Trainingsfortschritt und gespeicherten KI-Coach-Antworten. Dazu CSV (Excel, `;`) und PGN.
+  Eine JSON-Sicherung lässt sich wieder einspielen; Einstellungen ergänzen dabei nur Fehlendes.
+
 ## Training
 
 Die Seite **Training** baut aus den eigenen Partien Übungen und einen

@@ -123,6 +123,8 @@ export interface PlayerProfile {
   deep: DeepInsights | null;
   /** Repertoire and opening quality (null only for an empty profile). */
   openings: OpeningInsights | null;
+  /** Full aggregated statistics (phases, terminations, clock, tactics) behind the overview. */
+  statistics: Record<string, any>;
 }
 
 export interface RatingContext {

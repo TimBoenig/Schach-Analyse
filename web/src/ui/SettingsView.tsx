@@ -3,10 +3,11 @@ import { useEffect, useState } from "preact/hooks";
 import { AI_PROVIDERS, type AiConfig, aiReady, defaultDetail, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
 import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile";
 import { STRENGTHS, type AnalysisStrength } from "../app/analysisService";
-import type { StoredGame } from "../domain/types";
-import { getSetting, listGames, putGames, setSetting } from "../storage/db";
+import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
+import { getSetting, setSetting } from "../storage/db";
 import { currentUser, signIn, signOut, signUp, syncAvailable, syncNow } from "../storage/sync";
 import { IconSync } from "./icons";
+import { PeriodSelect } from "./useProfile";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 
 function AppearanceCard() {
@@ -313,50 +314,80 @@ function AccountCard() {
 }
 
 function BackupCard() {
-  const [msg, setMsg] = useState("");
-  const exportData = async () => {
-    const games = await listGames();
-    const blob = new Blob([JSON.stringify({ format: "schach-analyse-backup", version: 1, games })], { type: "application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `schach-analyse-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [busy, setBusy] = useState<ExportKind | "import" | null>(null);
+  const [period, setPeriod] = useState("All Time");
+  const run = async (kind: ExportKind) => {
+    setBusy(kind);
+    setMsg(null);
+    try {
+      const n = await exportData(kind, period);
+      setMsg({ text: `${n} ${n === 1 ? "Partie" : "Partien"} exportiert.` });
+    } catch (e) {
+      setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
+    } finally {
+      setBusy(null);
+    }
   };
   const importData = async (file: File) => {
+    setBusy("import");
+    setMsg(null);
     try {
-      const data = JSON.parse(await file.text()) as { games?: StoredGame[] };
-      const games = (data.games ?? []).filter((g) => g && typeof g.id === "string");
-      await putGames(games);
-      setMsg(`${games.length} Partien importiert.`);
+      const r = await restoreBackup(file);
+      setMsg({
+        text:
+          `${r.games} Partien eingespielt` +
+          (r.settings ? `, ${r.settings} Einstellungen ergänzt` : "") +
+          (r.answers ? `, ${r.answers} Coach-Antworten` : "") +
+          ".",
+      });
     } catch {
-      setMsg("Die Datei konnte nicht gelesen werden.");
+      setMsg({ text: "Die Datei ist keine lesbare Sicherung der Schach-Analyse.", error: true });
+    } finally {
+      setBusy(null);
     }
   };
   return (
-    <div class="card">
-      <h3>Datensicherung</h3>
+    <div class="card" id="export">
+      <h3>Export &amp; Datensicherung</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
-        Exportiere alle Partien samt Analysen als Datei, oder spiele eine Sicherung wieder ein.
+        Der vollständige Export enthält alles in einer Datei: jede Partie mit allen analysierten Zügen, die Auswertung
+        pro Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke, Trainingsplan und
+        -fortschritt sowie die gespeicherten Berichte des KI-Coachs. Der API-Schlüssel ist nie dabei.
       </p>
-      <div class="row">
-        <button class="btn" onClick={exportData}>
-          Exportieren
-        </button>
-        <label class="btn">
-          Importieren
-          <input
-            type="file"
-            accept="application/json,.json"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const f = e.currentTarget.files?.[0];
-              if (f) void importData(f);
-            }}
-          />
-        </label>
+      <div class="filters">
+        <PeriodSelect value={period} onChange={setPeriod} />
       </div>
-      {msg && <p class="small">{msg}</p>}
+      <div class="row">
+        <button class="btn primary" disabled={busy !== null} onClick={() => void run("json")}>
+          {busy === "json" ? "Wird erstellt …" : "Alles exportieren (JSON)"}
+        </button>
+        <button class="btn" disabled={busy !== null} onClick={() => void run("csv")}>
+          Tabelle (CSV)
+        </button>
+        <button class="btn" disabled={busy !== null} onClick={() => void run("pgn")}>
+          PGN
+        </button>
+      </div>
+      <p class="small faint" style={{ margin: "8px 0 12px" }}>
+        CSV öffnet sich in Excel oder Numbers (eine Zeile pro Partie mit Genauigkeit und Fehlern), PGN in jedem
+        Schachprogramm.
+      </p>
+      <label class={`btn${busy ? " disabled" : ""}`}>
+        Sicherung einspielen
+        <input
+          type="file"
+          accept="application/json,.json"
+          style={{ display: "none" }}
+          disabled={busy !== null}
+          onChange={(e) => {
+            const f = e.currentTarget.files?.[0];
+            e.currentTarget.value = "";
+            if (f) void importData(f);
+          }}
+        />
+      </label>
+      {msg && <p class={`small ${msg.error ? "error" : "ok"}`}>{msg.text}</p>}
     </div>
   );
 }

@@ -7,6 +7,7 @@
 // signals (checks, pawn storms, trades, castling).
 
 import { GameRecord, parseMoves, type RawGame } from "../metrics/models";
+import { parsePlayedAt } from "../metrics/played";
 import type { MoveData } from "../types";
 import {
   BLACK,
@@ -22,6 +23,8 @@ import {
 } from "../tactics/board";
 import { DEFAULT_TROUBLE_SECONDS, PIECE_VALUES, TROUBLE_SECONDS } from "../tactics/constants";
 import { classifyGamePhase } from "../tactics/phase";
+
+export { parsePlayedAt };
 
 export const ERROR_CLASSES: ReadonlySet<string> = new Set([
   "Inaccuracy",
@@ -42,8 +45,6 @@ export const GOOD_CLASSES: ReadonlySet<string> = new Set([
 export const PUNISH_KEEP_THRESHOLD = 0.1;
 // Opponent moves losing >= 15 points of winning chance count as a chance to punish.
 export const OPPONENT_ERROR_THRESHOLD = 0.15;
-
-const HEADER_RE = /\[(\w+)\s+"([^"]*)"\]/g;
 
 /** Convert a White-perspective win probability into the tracked player's perspective. */
 export function userWp(whiteWp: number | null | undefined, isWhite: boolean): number {
@@ -74,44 +75,6 @@ export function sanForUci(fen: string, uci: string | null | undefined, _chess960
 
 export function moveLabel(moveNumber: number, isWhiteMove: boolean, san: string): string {
   return isWhiteMove ? `${moveNumber}. ${san}` : `${moveNumber}... ${san}`;
-}
-
-function parseUtc(dateStr: string, timeStr: string | null): number | null {
-  const d = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(dateStr);
-  if (!d) return null;
-  const [y, mo, da] = [Number(d[1]), Number(d[2]), Number(d[3])];
-  let h = 0;
-  let mi = 0;
-  let s = 0;
-  if (timeStr !== null) {
-    const t = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(timeStr);
-    if (!t) return null;
-    [h, mi, s] = [Number(t[1]), Number(t[2]), Number(t[3])];
-    if (h > 23 || mi > 59 || s > 61) return null;
-  }
-  const dt = new Date(Date.UTC(y, mo - 1, da, h, mi, s));
-  if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== da) return null;
-  return dt.getTime() / 1000;
-}
-
-/**
- * Best-effort start time of the game as a UTC epoch (seconds).
- *
- * The stored 'timestamp' is the save time, not the play time, so session and
- * trend analysis must use the PGN UTCDate/UTCTime headers instead.
- */
-export function parsePlayedAt(game: RawGame): number | null {
-  const headers: Record<string, string> = {};
-  let count = 0;
-  for (const m of (game.pgn || "").matchAll(HEADER_RE)) {
-    if (count++ >= 40) break;
-    headers[m[1]] = m[2];
-  }
-  let dateStr = headers.UTCDate || game.date || headers.Date || "";
-  const timeStr = headers.UTCTime || headers.StartTime || "12:00:00";
-  dateStr = dateStr.replace(/-/g, ".");
-  if (!/^\d{4}\.\d{2}\.\d{2}$/.test(dateStr)) return null;
-  return parseUtc(dateStr, timeStr.slice(0, 8)) ?? parseUtc(dateStr, null);
 }
 
 function intOrZero(val: unknown): number {
