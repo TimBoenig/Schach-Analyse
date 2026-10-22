@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
-import { getUserColor } from "../domain/metrics";
+import { getUserColor, inDateFilter } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
 import { toStoredGame } from "../storage/rows";
@@ -12,6 +12,7 @@ import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { isTyping } from "./keys";
 import { navigate } from "./router";
+import { PeriodSelect } from "./useProfile";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
@@ -338,6 +339,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [speed, setSpeed] = useState("all");
   const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState("All Time");
   const [limit, setLimit] = useState(60);
   const [justImported, setJustImported] = useState<string[]>([]);
 
@@ -359,10 +361,11 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       if (filter === "analyzed" && status(g) !== "completed") return false;
       if (filter === "open" && status(g) === "completed") return false;
       if (speed !== "all" && g.speed_category !== speed) return false;
+      if (period !== "All Time" && !inDateFilter(g, period)) return false;
       if (q && !`${g.white} ${g.black} ${g.opening ?? ""} ${g.event}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [games, filter, speed, search]);
+  }, [games, filter, speed, search, period]);
 
   const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
 
@@ -475,6 +478,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
               ))}
             </select>
           )}
+          <PeriodSelect value={period} onChange={setPeriod} />
           <input
             ref={searchRef}
             type="search"

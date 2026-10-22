@@ -47,6 +47,30 @@ export async function loadTrainingSummary(pool: Exercise[]): Promise<TrainingSum
   return summarizeTraining(pool, await getSetting<ProgressMap>(K.progress, {}), log, today, plan?.date === today ? plan.headline : undefined);
 }
 
+export interface TodayTraining {
+  streak: number;
+  week: { done: number; correct: number };
+  done: number;
+  /** Exercises in today's plan, 0 when no plan was made today. */
+  planned: number;
+  headline: string | null;
+}
+
+/** Today's training state for the start page, without building a plan. */
+export async function loadTodayTraining(): Promise<TodayTraining> {
+  const today = localDay();
+  const [log, plan] = await Promise.all([getSetting<TrainingLog>(K.log, {}), getSetting<DailyPlan | null>(K.plan, null)]);
+  const s = summarizeTraining([], {}, log, today);
+  const todays = plan?.date === today ? plan : null;
+  return {
+    streak: s.streak,
+    week: s.week,
+    done: log[today]?.done ?? 0,
+    planned: todays ? todays.blocks.reduce((n, b) => n + b.exercise_ids.length, 0) : 0,
+    headline: todays?.headline ?? null,
+  };
+}
+
 export function useTraining() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [usernames, setUsernames] = useState<string[] | null>(null);

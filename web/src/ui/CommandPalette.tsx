@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import type { StoredGame } from "../domain/types";
+import { exportData } from "../app/exporter";
 import { getSetting, listGames } from "../storage/db";
 import { IconSearch } from "./icons";
 import { MOD } from "./keys";
@@ -18,13 +19,14 @@ interface Command {
 }
 
 export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
-  { view: "games", label: "Partien", key: "1" },
-  { view: "analysis", label: "Analyse", key: "2" },
-  { view: "profile", label: "Profil", key: "3" },
-  { view: "insights", label: "Einblicke", key: "4" },
-  { view: "openings", label: "Eröffnungen", key: "5" },
-  { view: "training", label: "Training", key: "6" },
-  { view: "settings", label: "Einstellungen", key: "7" },
+  { view: "home", label: "Start", key: "1" },
+  { view: "games", label: "Partien", key: "2" },
+  { view: "analysis", label: "Analyse", key: "3" },
+  { view: "profile", label: "Profil", key: "4" },
+  { view: "insights", label: "Einblicke", key: "5" },
+  { view: "openings", label: "Eröffnungen", key: "6" },
+  { view: "training", label: "Training", key: "7" },
+  { view: "settings", label: "Einstellungen", key: "8" },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -71,6 +73,13 @@ export function CommandPalette({
         run: go(p.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view: p.view } as Route)),
       })),
       { id: "import", group: "Aktionen", label: "Partien importieren", keywords: "chess.com lichess pgn laden", run: go({ view: "games", import: true }) },
+      {
+        id: "export",
+        group: "Aktionen",
+        label: "Alle Daten exportieren",
+        keywords: "export sicherung backup json csv pgn datei",
+        run: () => void exportData("json", "All Time"),
+      },
       { id: "theme-dark", group: "Aktionen", label: "Dunkles Design", keywords: "theme dark nacht", run: () => void setTheme("dark") },
       { id: "theme-light", group: "Aktionen", label: "Helles Design", keywords: "theme light tag", run: () => void setTheme("light") },
       { id: "theme-system", group: "Aktionen", label: "Design automatisch", keywords: "theme system", run: () => void setTheme("system") },

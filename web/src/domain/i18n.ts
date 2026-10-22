@@ -115,8 +115,11 @@ export const FILTER_LABELS: Record<string, string> = {
   "All Time": "Gesamter Zeitraum",
   "Last 24 Hours": "Letzte 24 Stunden",
   "Last 7 Days": "Letzte 7 Tage",
+  "Last 14 Days": "Letzte 14 Tage",
   "Last 30 Days": "Letzte 30 Tage",
   "Last 90 Days": "Letzte 90 Tage",
+  "Last 180 Days": "Letzte 6 Monate",
+  "Last 365 Days": "Letzte 12 Monate",
   "This Year": "Dieses Jahr",
   ...SPEED_LABELS,
 };
@@ -143,4 +146,20 @@ export const trSpeed = (key: string | null | undefined): string => lookup(SPEED_
 export const trTermination = (key: string | null | undefined): string =>
   lookup(TERMINATION_LABELS, key);
 export const trOutcome = (key: string | null | undefined): string => lookup(OUTCOME_LABELS, key);
-export const trFilter = (key: string | null | undefined): string => lookup(FILTER_LABELS, key);
+export const trFilter = (key: string | null | undefined): string =>
+  key?.startsWith("range:") ? rangeLabel(key) : lookup(FILTER_LABELS, key);
+
+const dayDe = (seconds: number) =>
+  new Date(seconds * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+
+/** "range:<start>:<end>" (seconds, end exclusive) → "01.09.2026 – 22.10.2026". */
+function rangeLabel(key: string): string {
+  const [, a, b] = key.split(":");
+  const start = a ? Number(a) : null;
+  // The end is exclusive (midnight after the last day), so show the day before it.
+  const end = b ? Number(b) - 1 : null;
+  if (start !== null && end !== null) return `${dayDe(start)} – ${dayDe(end)}`;
+  if (start !== null) return `ab ${dayDe(start)}`;
+  if (end !== null) return `bis ${dayDe(end)}`;
+  return "Gesamter Zeitraum";
+}

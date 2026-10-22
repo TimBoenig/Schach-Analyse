@@ -1,6 +1,9 @@
 // Minimal stroke icons (24px grid) so the app needs no icon font.
 const base = { fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", viewBox: "0 0 24 24" } as const;
 
+export const IconHome = () => (
+  <svg {...base}><path d="M3 11l9-7 9 7M5 9.5V20h5v-6h4v6h5V9.5" /></svg>
+);
 export const IconGames = () => (
   <svg {...base}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9h10M7 13h10M7 17h6" /></svg>
 );

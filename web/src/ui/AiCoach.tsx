@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { aiReady, type AiConfig, detailOf, loadAiConfig, streamChat } from "../app/ai";
+import { getCoachAnswer, saveCoachAnswers } from "../app/coachAnswers";
 import type { CoachDetail, CoachMessage } from "../domain/profile";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
@@ -93,31 +94,51 @@ export function AiAnswer({
   cacheKey,
   messages,
   title,
+  saveTitle,
   start,
   hint = "Lass dir die Partie von einem KI-Coach erklären.",
 }: {
   cacheKey: string;
   messages: () => Messages;
   title: string;
+  /** Title of the saved answer (export, other devices); defaults to `title`. */
+  saveTitle?: string;
   start: string;
   /** Shown instead while no coach is set up. */
   hint?: string;
 }) {
   const cfg = useAiConfig();
   const [text, setText] = useState(answerCache.get(cacheKey) ?? "");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    let alive = true;
     setText(answerCache.get(cacheKey) ?? "");
+    setSavedAt(null);
     setError("");
-    return () => abort.current?.abort();
+    // An answer from an earlier session (or another device) shows without asking again.
+    void getCoachAnswer(cacheKey).then((a) => {
+      if (!alive || !a) return;
+      setSavedAt(a.created_at);
+      if (!answerCache.has(cacheKey)) {
+        answerCache.set(cacheKey, a.text);
+        setText(a.text);
+      }
+    });
+    return () => {
+      alive = false;
+      abort.current?.abort();
+    };
   }, [cacheKey]);
 
-  if (!cfg) return <AiSetupHint text={hint} />;
+  // A saved answer stays readable even after the coach was switched off.
+  if (!cfg && !text) return <AiSetupHint text={hint} />;
 
   const run = async () => {
+    if (!cfg) return;
     abort.current?.abort();
     const ctl = new AbortController();
     abort.current = ctl;
@@ -127,6 +148,11 @@ export function AiAnswer({
     try {
       const out = await streamChat(cfg, await messages(), setText, ctl.signal);
       answerCache.set(cacheKey, out);
+      if (out.trim()) {
+        const now = Date.now();
+        setSavedAt(now);
+        void saveCoachAnswers([{ key: cacheKey, title: saveTitle ?? title, text: out, created_at: now }]);
+      }
     } catch (e) {
       if (!ctl.signal.aborted) setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -146,7 +172,7 @@ export function AiAnswer({
           <button class="btn small ghost" onClick={() => abort.current?.abort()}>
             Stopp
           </button>
-        ) : text ? (
+        ) : text && cfg ? (
           <button class="btn small ghost" onClick={run}>
             Neu fragen
           </button>
@@ -164,7 +190,10 @@ export function AiAnswer({
       </div>}
       {text && <Markdown text={text} />}
       {error && <p class="error small">{error}</p>}
-      <p class="faint small ai-note">Die KI kennt nur die Analysewerte dieser App. Prüfe Ratschläge am Brett.</p>
+      <p class="faint small ai-note">
+        {savedAt && !busy ? `Gespeichert am ${new Date(savedAt).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" })} · ` : ""}
+        Die KI kennt nur die Analysewerte dieser App. Prüfe Ratschläge am Brett.
+      </p>
     </div>
   );
 }

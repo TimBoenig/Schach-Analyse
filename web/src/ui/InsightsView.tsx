@@ -2,7 +2,7 @@ import { type MoveBucket, PROFILE_QUESTIONS, profileCoachMessages, reportMessage
 import { AiAnswer, AiChat, coachDetail } from "./AiCoach";
 import { BarList, ColumnChart, SquareHeatmap } from "./charts";
 import type { BarRow, Column } from "./charts";
-import { trClassification } from "../domain/i18n";
+import { trClassification, trFilter } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
 import { loadTrainingSummary } from "./training/useTraining";
@@ -192,6 +192,7 @@ export function InsightsView() {
           <AiAnswer
             cacheKey={`report:${profile.analyzed_games}:${filters.format}:${filters.date}:${filters.color}`}
             title="Dein Trainerbericht"
+            saveTitle={`Trainerbericht · ${trFilter(filters.date)} · ${plural(profile.analyzed_games, "analysierte Partie", "analysierte Partien")}`}
             start="Ausführlichen Bericht vom KI-Coach schreiben lassen"
             hint="Lass dir vom KI-Coach einen Trainerbericht über alle deine Partien schreiben."
             messages={async () => reportMessages(profile, coachDetail(), await coachTraining())}
