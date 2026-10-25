@@ -1198,8 +1198,10 @@ dialog::backdrop {
 
 .engine-head {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px;
+  gap: 0 8px;
+  white-space: nowrap;
 }
 
 .engine-line {
@@ -1807,7 +1809,8 @@ button.engine-line:hover {
 
 .puzzle {
   display: grid;
-  grid-template-columns: minmax(0, 560px) minmax(280px, 1fr);
+  /* The board grows with the window height, like on the analysis page. */
+  grid-template-columns: minmax(0, min(calc(100dvh - 190px), 720px)) minmax(300px, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -1827,6 +1830,13 @@ button.engine-line:hover {
 .feedback-bad {
   color: var(--blunder);
   font-weight: 700;
+}
+
+.feedback-detail {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-weight: 400;
 }
 
 /* Keep the puzzle text visible below the board on portrait tablets. */

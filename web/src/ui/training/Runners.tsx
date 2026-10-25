@@ -27,7 +27,7 @@ export interface RunnerProps<T> {
   nextLabel: string;
 }
 
-type Feedback = { ok: boolean; text: string } | null;
+type Feedback = { ok: boolean; text: string; detail?: string } | null;
 
 /** The piece the board's picker chose, or a queen when a pawn reaches the last rank without one. */
 function promotionFor(board: Chess, from: string, to: string, chosen?: Promotion): Promotion | undefined {
@@ -132,9 +132,12 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
         }
         failed.current = true;
         setWrong((w) => [...w, { from, to }]);
+        // The better-move sentence would give the solution away, so only the refutation is shown.
+        const why = v?.explanation.replace(/\s*(Besser war|Du hattest Matt)[\s\S]*$/, "") ?? "";
         setFeedback({
           ok: false,
-          text: v ? `${san} – ${classLabel(v.classification)}. ${v.explanation} Versuch es noch einmal.` : `${san} ist nicht der gesuchte Zug. Versuch es noch einmal.`,
+          text: v ? `${san} – ${classLabel(v.classification)}.` : `${san} ist nicht der gesuchte Zug.`,
+          detail: `${why} Versuch es noch einmal.`.trim(),
         });
         window.setTimeout(() => setFen(ex.fen), 1200);
       });
@@ -168,7 +171,12 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             {trClassification(ex.classification)} im {trPhase(ex.phase)}, deine Gewinnchance fiel um {(ex.wp_loss * 100).toFixed(0)}{" "}
             Prozentpunkte.
           </p>
-          {feedback && <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>{feedback.text}</p>}
+          {feedback && (
+            <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>
+              {feedback.text}
+              {feedback.detail && <span class="feedback-detail">{feedback.detail}</span>}
+            </p>
+          )}
           {(solved || reveal) && others.length > 0 && (
             <p class="small">
               Ebenfalls richtig: <strong>{others.join(", ")}</strong>
