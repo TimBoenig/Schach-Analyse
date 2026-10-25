@@ -1,7 +1,9 @@
 import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
+import { judgeTried } from "../../app/liveEval";
 import { engineMove } from "../../app/trainingEngine";
+import { solvesPuzzle } from "../../domain/live";
 import { trClassification, trPhase } from "../../domain/i18n";
 import { openingLabel } from "../../domain/profile";
 import {
@@ -13,8 +15,8 @@ import {
   type RepertoireExercise,
   type Verdict,
 } from "../../domain/training";
-import { Board, type Arrow } from "../Board";
-import { formatDate } from "../labels";
+import { Board, type Arrow, type Promotion } from "../Board";
+import { classLabel, formatDate } from "../labels";
 import { navigate } from "../router";
 
 export interface RunnerProps<T> {
@@ -27,8 +29,9 @@ export interface RunnerProps<T> {
 
 type Feedback = { ok: boolean; text: string } | null;
 
-function promotionFor(board: Chess, from: string, to: string): "q" | undefined {
-  return board.get(from as Square)?.type === "p" && (to[1] === "8" || to[1] === "1") ? "q" : undefined;
+/** The piece the board's picker chose, or a queen when a pawn reaches the last rank without one. */
+function promotionFor(board: Chess, from: string, to: string, chosen?: Promotion): Promotion | undefined {
+  return board.get(from as Square)?.type === "p" && (to[1] === "8" || to[1] === "1") ? (chosen ?? "q") : undefined;
 }
 
 function sideOf(fen: string): "white" | "black" {
@@ -65,6 +68,9 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
   const [hint, setHint] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [solved, setSolved] = useState(false);
+  const [checking, setChecking] = useState(false);
+  // Wrong tries stay on the board as red arrows, so the player sees what was already ruled out.
+  const [wrong, setWrong] = useState<{ from: string; to: string }[]>([]);
   const failed = useRef(false);
   const reported = useRef(false);
   const board = useMemo(() => new Chess(fen), [fen]);
@@ -76,13 +82,27 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
     onResult(ok);
   };
 
-  const tryMove = (from: string, to: string) => {
-    if (solved || fen !== ex.fen) return false;
+  // Other moves the analysis already accepts, shown once the puzzle is over.
+  const others = useMemo(() => {
+    return ex.accept
+      .filter((u) => u.slice(0, 4) !== ex.solution.slice(0, 4))
+      .map((u) => {
+        try {
+          return new Chess(ex.fen).move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }).san;
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is string => Boolean(x));
+  }, [ex]);
+
+  const tryMove = (from: string, to: string, chosen?: Promotion) => {
+    if (solved || checking || fen !== ex.fen) return false;
     const b = new Chess(ex.fen);
     let san = "";
     let uci = "";
     try {
-      const m = b.move({ from, to, promotion: promotionFor(b, from, to) });
+      const m = b.move({ from, to, promotion: promotionFor(b, from, to, chosen) });
       san = m.san;
       uci = m.from + m.to + (m.promotion ?? "");
     } catch {
@@ -98,14 +118,31 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       });
       report(!failed.current && !hint && !reveal);
     } else {
-      failed.current = true;
-      setFeedback({ ok: false, text: `${san} ist nicht der gesuchte Zug. Versuch es noch einmal.` });
-      window.setTimeout(() => setFen(ex.fen), 900);
+      // Not a stored answer: let the engine decide, since another move can be just as good.
+      const after = b.fen();
+      setChecking(true);
+      setFeedback({ ok: true, text: `Stockfish prüft ${san} …` });
+      void judgeTried(ex.fen, uci, after).then((v) => {
+        setChecking(false);
+        if (v && solvesPuzzle(v)) {
+          setSolved(true);
+          setFeedback({ ok: true, text: `Auch richtig! ${san} ist laut Engine genauso stark wie ${ex.solution_san}.` });
+          report(!failed.current && !hint && !reveal);
+          return;
+        }
+        failed.current = true;
+        setWrong((w) => [...w, { from, to }]);
+        setFeedback({
+          ok: false,
+          text: v ? `${san} – ${classLabel(v.classification)}. ${v.explanation} Versuch es noch einmal.` : `${san} ist nicht der gesuchte Zug. Versuch es noch einmal.`,
+        });
+        window.setTimeout(() => setFen(ex.fen), 1200);
+      });
     }
     return true;
   };
 
-  const arrows: Arrow[] = [];
+  const arrows: Arrow[] = fen === ex.fen ? wrong.map((w) => ({ ...w, kind: "wrong" as const })) : [];
   if (reveal && !solved) arrows.push({ from: ex.solution.slice(0, 2), to: ex.solution.slice(2, 4), kind: "best" });
 
   return (
@@ -132,6 +169,11 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             Prozentpunkte.
           </p>
           {feedback && <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>{feedback.text}</p>}
+          {(solved || reveal) && others.length > 0 && (
+            <p class="small">
+              Ebenfalls richtig: <strong>{others.join(", ")}</strong>
+            </p>
+          )}
           {(solved || reveal) && ex.line_san.length > 1 && (
             <p class="small">
               Fortsetzung der Engine: <span class="mono">{ex.line_san.join(" ")}</span>
@@ -221,12 +263,12 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
     return () => window.clearTimeout(t);
   }, [ply, done]);
 
-  const tryMove = (from: string, to: string) => {
+  const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (done || !isUserPly(ply)) return false;
     let san = "";
     try {
       const b = new Chess(fen);
-      san = b.move({ from, to, promotion: promotionFor(b, from, to) }).san;
+      san = b.move({ from, to, promotion: promotionFor(b, from, to, chosen) }).san;
     } catch {
       return false;
     }
@@ -348,12 +390,12 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
     return null;
   };
 
-  const tryMove = (from: string, to: string) => {
+  const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (thinking || verdict.done || board.turn() !== userColor[0]) return false;
     const b = new Chess(fen);
     let mv;
     try {
-      mv = b.move({ from, to, promotion: promotionFor(b, from, to) });
+      mv = b.move({ from, to, promotion: promotionFor(b, from, to, chosen) });
     } catch {
       return false;
     }

@@ -22,6 +22,7 @@ export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
   { view: "home", label: "Start", key: "1" },
   { view: "games", label: "Partien", key: "2" },
   { view: "analysis", label: "Analyse", key: "3" },
+  { view: "board", label: "Analysebrett", key: "9" },
   { view: "profile", label: "Profil", key: "4" },
   { view: "insights", label: "Einblicke", key: "5" },
   { view: "openings", label: "Eröffnungen", key: "6" },

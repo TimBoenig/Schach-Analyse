@@ -8,6 +8,7 @@ export type Route =
   | { view: "insights" }
   | { view: "openings" }
   | { view: "analysis"; gameId?: string; ply?: number }
+  | { view: "board"; fen?: string }
   | { view: "profile" }
   | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings" };
@@ -17,6 +18,8 @@ export function parseHash(hash: string): Route {
   switch (parts[0]) {
     case "analyse":
       return { view: "analysis", gameId: parts[1], ply: parts[2] !== undefined ? Number(parts[2]) : undefined };
+    case "brett":
+      return parts[1] ? { view: "board", fen: decodeURIComponent(parts[1]) } : { view: "board" };
     case "profil":
       return { view: "profile" };
     case "einblicke":
@@ -42,6 +45,8 @@ export function toHash(r: Route): string {
   switch (r.view) {
     case "analysis":
       return r.gameId ? `#/analyse/${r.gameId}${r.ply !== undefined ? `/${r.ply}` : ""}` : "#/analyse";
+    case "board":
+      return r.fen ? `#/brett/${encodeURIComponent(r.fen)}` : "#/brett";
     case "profile":
       return "#/profil";
     case "insights":

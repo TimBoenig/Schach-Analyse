@@ -1,8 +1,9 @@
 import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { enqueue, cancelCurrent, getEngine, subscribeQueue, type QueueState } from "../app/analysisService";
+import { enqueue, cancelCurrent, subscribeQueue, type QueueState } from "../app/analysisService";
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
+import { explainMove } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
 import { buildGameReview, gameCoachMessages } from "../domain/profile";
@@ -10,11 +11,11 @@ import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
-import { Board, type Arrow } from "./Board";
+import { Board, type Arrow, type Promotion } from "./Board";
 import { AiAnswer, coachDetail } from "./AiCoach";
 import { loadFullProfile } from "./training/useTraining";
 import { BarList, StackBar } from "./charts";
-import { IconBack, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
+import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
 import {
   CLASSIFICATION_ORDER,
   accClass,
@@ -27,6 +28,8 @@ import {
   shortOpening,
 } from "./labels";
 import { isTyping } from "./keys";
+import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
+import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
 
 type Side = "white" | "black";
@@ -38,6 +41,17 @@ function fenAfter(move: MoveData): string {
     return b.fen();
   } catch {
     return move.fen_before;
+  }
+}
+
+/** Plays `uci` at the end of a side line; returns the line unchanged if the move is illegal. */
+function extendLine(line: Explore, uci: string, pending: string[]): Explore {
+  try {
+    const b = new Chess(line.fens[line.fens.length - 1]);
+    const m = b.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+    return { ...line, fens: [...line.fens, b.fen()], sans: [...line.sans, m.san], ucis: [...line.ucis, uci], lastUci: uci, pending };
+  } catch {
+    return line;
   }
 }
 
@@ -56,18 +70,43 @@ function winChanceAt(moves: MoveData[], idx: number): number | null {
   return m.win_chance_after;
 }
 
-function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: boolean; label: string }) {
+export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: boolean; label: string }) {
   const pct = Math.round((wc ?? 0.5) * 100);
+  const whiteAhead = pct >= 50;
   return (
-    <div class={`evalbar${flipped ? " flipped" : ""}`} style={{ gridRow: "2" }}>
+    <div class={`evalbar${flipped ? " flipped" : ""}`} style={{ gridRow: "2" }} aria-label={`Bewertung ${label}`}>
       <div class="white" style={{ height: `${pct}%` }} />
-      <span style={{ [pct >= 50 !== flipped ? "bottom" : "top"]: "4px", color: pct >= 50 ? "#222" : "#eee" }}>{label}</span>
+      <div class="mid" />
+      <span class={whiteAhead ? "on-white" : "on-black"} style={{ [whiteAhead !== flipped ? "bottom" : "top"]: "5px" }}>
+        {label}
+      </span>
     </div>
   );
 }
 
-function EvalGraph({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPick: (i: number) => void }) {
+/** Clock of `side` after `idx` moves: the time left after that side's last move. */
+function clockAt(moves: MoveData[], idx: number, side: Side): number | null {
+  for (let k = idx - 1; k >= 0; k--) {
+    const m = moves[k];
+    if ((m.fen_before.split(" ")[1] === "w") === (side === "white")) return m.time_left;
+  }
+  return null;
+}
+
+function formatClock(s: number | null): string {
+  if (s === null || !Number.isFinite(s)) return "";
+  const t = Math.max(0, Math.round(s));
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = String(t % 60).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}
+
+const ERROR_CLASSES = new Set(["Blunder", "Mistake", "Miss", "Inaccuracy"]);
+
+function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null }) {
   const dragging = useRef(false);
+  const [hover, setHover] = useState<number | null>(null);
   const n = moves.length;
   if (!n) return null;
   const pts: [number, number][] = [];
@@ -77,48 +116,78 @@ function EvalGraph({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onP
   }
   if (pts.length < 2) return null;
   const W = 400;
-  const H = 110;
+  const H = 120;
   const x = (i: number) => (i / n) * W;
   const y = (wc: number) => (1 - wc) * H;
-  const area = `M0,${H} ` + pts.map(([i, wc]) => `L${x(i)},${y(wc)}`).join(" ") + ` L${x(pts[pts.length - 1][0])},${H} Z`;
+  const line = pts.map(([i, wc], k) => `${k ? "L" : "M"}${x(i).toFixed(2)},${y(wc).toFixed(2)}`).join(" ");
+  const area = `M0,${H} ` + pts.map(([i, wc]) => `L${x(i).toFixed(2)},${y(wc).toFixed(2)}`).join(" ") + ` L${x(pts[pts.length - 1][0])},${H} Z`;
   const errors = moves
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => m.classification === "Blunder" || m.classification === "Mistake" || m.classification === "Miss");
-  const pick = (e: PointerEvent) => {
-    const rect = (e.currentTarget as SVGElement).getBoundingClientRect();
-    onPick(Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * n));
+  const bookEnd = moves.findIndex((m) => m.classification && m.classification !== "Book");
+  const indexAt = (e: PointerEvent) => {
+    const rect = (e.currentTarget as Element).getBoundingClientRect();
+    return Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * n);
   };
+  const shown = hover ?? null;
+  const hm = shown !== null && shown > 0 ? moves[shown - 1] : null;
+  const hwc = shown !== null ? winChanceAt(moves, shown) : null;
+  const userSide = userColor === "black" ? "b" : "w";
   return (
-    <svg
-      class="eval-graph"
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label="Bewertungsverlauf, antippen oder ziehen zum Springen"
-      // Drag to scrub through the game, like a video timeline.
-      onPointerDown={(e) => {
-        dragging.current = true;
-        (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
-        pick(e);
-      }}
-      onPointerMove={(e) => dragging.current && pick(e)}
-      onPointerUp={() => (dragging.current = false)}
-      onPointerCancel={() => (dragging.current = false)}
-    >
-      <rect x="0" y="0" width={W} height={H} fill="#3a3d44" />
-      <path d={area} fill="#f2f2f2" />
-      <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#888" stroke-width="0.5" />
-      {errors.map(({ m, i }) => (
-        <circle
-          key={i}
-          cx={x(i + 1)}
-          cy={y(m.win_chance_after)}
-          r="3.5"
-          fill={m.classification === "Blunder" ? "#e5524b" : m.classification === "Miss" ? "#e05a8f" : "#ea933b"}
-        />
-      ))}
-      <line x1={x(idx)} y1="0" x2={x(idx)} y2={H} stroke="#f2aa3c" stroke-width="2" />
-    </svg>
+    <div class="eval-graph-wrap">
+      <svg
+        class="eval-graph"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label="Bewertungsverlauf, antippen oder ziehen zum Springen"
+        // Drag to scrub through the game, like a video timeline.
+        onPointerDown={(e) => {
+          dragging.current = true;
+          (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
+          onPick(indexAt(e));
+        }}
+        onPointerMove={(e) => {
+          const i = indexAt(e);
+          if (e.pointerType === "mouse") setHover(i);
+          if (dragging.current) onPick(i);
+        }}
+        onPointerLeave={() => setHover(null)}
+        onPointerUp={() => (dragging.current = false)}
+        onPointerCancel={() => (dragging.current = false)}
+      >
+        <rect class="eg-bg" x="0" y="0" width={W} height={H} />
+        <path class="eg-area" d={area} />
+        <path class="eg-line" d={line} />
+        <line class="eg-mid" x1="0" y1={H / 2} x2={W} y2={H / 2} />
+        {bookEnd > 0 && <line class="eg-book" x1={x(bookEnd)} y1="0" x2={x(bookEnd)} y2={H} />}
+        {errors.map(({ m, i }) => (
+          <circle
+            key={i}
+            cx={x(i + 1)}
+            cy={y(m.win_chance_after)}
+            r={m.fen_before.split(" ")[1] === userSide ? 4 : 3}
+            class={`eg-dot ${m.classification.toLowerCase()}${m.fen_before.split(" ")[1] === userSide ? " own" : ""}`}
+          />
+        ))}
+        {shown !== null && <line class="eg-hover" x1={x(shown)} y1="0" x2={x(shown)} y2={H} />}
+        <line class="eg-cursor" x1={x(idx)} y1="0" x2={x(idx)} y2={H} />
+      </svg>
+      {shown !== null && (
+        <div class="eg-tip" style={{ left: `${Math.max(12, Math.min(88, (shown / n) * 100))}%` }}>
+          <strong>{hm ? `${hm.move_number}${hm.fen_before.split(" ")[1] === "w" ? "." : "..."} ${hm.san}` : "Start"}</strong>
+          {hm?.classification && hm.classification !== "Book" ? ` · ${classLabel(hm.classification)}` : ""}
+          {hwc !== null && <span class="faint"> · Weiß {Math.round(hwc * 100)} %</span>}
+        </div>
+      )}
+      <div class="eg-legend faint">
+        <span>Gewinnchance Weiß</span>
+        {bookEnd > 0 && <span>┆ Ende der Theorie</span>}
+        <span>
+          <i class="eg-key blunder" /> Patzer <i class="eg-key mistake" /> Fehler
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -167,7 +236,12 @@ function MoveList({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPi
       const moveIdx = startBlack ? k : k + 1;
       const badge = badgeFor(m.classification);
       rows.push(
-        <button key={`m${k}`} class={moveIdx === idx ? "active" : ""} onClick={() => onPick(moveIdx)} data-ply={moveIdx}>
+        <button
+          key={`m${k}`}
+          class={`${moveIdx === idx ? "active" : ""}${ERROR_CLASSES.has(m.classification) ? ` err ${m.classification.toLowerCase()}` : ""}`}
+          onClick={() => onPick(moveIdx)}
+          data-ply={moveIdx}
+        >
           {badge && <img src={badge} alt={classLabel(m.classification)} />}
           {m.san}
         </button>,
@@ -191,19 +265,79 @@ function MoveList({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPi
   );
 }
 
-function EngineLines({ fen, lines, label }: { fen: string; lines: PvLine[]; label?: string }) {
+export function EngineLines({
+  fen,
+  lines,
+  label,
+  onPlay,
+  max = 2,
+}: {
+  fen: string;
+  lines: PvLine[];
+  label?: string;
+  onPlay?: (pv: string[]) => void;
+  max?: number;
+}) {
   if (!lines.length) return null;
   return (
     <div class="engine-lines">
-      {label && <div class="faint small">{label}</div>}
-      {lines.slice(0, 2).map((l, k) => {
+      {label && (
+        <div class="faint small engine-head">
+          <span>{label}</span>
+          {onPlay && <span>Antippen zum Nachspielen</span>}
+        </div>
+      )}
+      {lines.slice(0, max).map((l, k) => {
         const s = lineScoreWhite(fen, l);
         const whiteBetter = s.mate !== null ? s.mate > 0 : (s.cp ?? 0) >= 0;
-        return (
-          <div class="engine-line" key={k}>
+        const body = (
+          <>
             <span class={`ev ${whiteBetter ? "w" : "b"}`}>{formatEval(s.cp, s.mate)}</span>
             <span class="pv">{l.pv_san ?? pvToSan(fen, l.pv)}</span>
+            {l.depth ? <span class="depth faint">T{l.depth}</span> : null}
+          </>
+        );
+        return onPlay && l.pv.length ? (
+          <button class="engine-line" key={k} onClick={() => onPlay(l.pv)} title="Variante auf dem Brett nachspielen">
+            {body}
+          </button>
+        ) : (
+          <div class="engine-line" key={k}>
+            {body}
           </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Horizontal strip of moves under the board on tablets and phones (the full list sits further down). */
+function MoveStrip({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPick: (i: number) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = ref.current;
+    const el = list?.querySelector<HTMLElement>(`[data-ply="${idx}"]`);
+    if (!list) return;
+    if (!el) {
+      list.scrollLeft = 0;
+      return;
+    }
+    list.scrollLeft = el.offsetLeft - list.clientWidth / 2 + el.offsetWidth / 2;
+  }, [idx]);
+  return (
+    <div class="move-strip" ref={ref}>
+      {moves.map((m, k) => {
+        const white = m.fen_before.split(" ")[1] === "w";
+        return (
+          <button
+            key={k}
+            data-ply={k + 1}
+            class={`${k + 1 === idx ? "active" : ""}${ERROR_CLASSES.has(m.classification) ? ` err ${m.classification.toLowerCase()}` : ""}`}
+            onClick={() => onPick(k + 1)}
+          >
+            {white || k === 0 ? <span class="faint">{m.move_number}{white ? "." : "..."}</span> : null}
+            {m.san}
+          </button>
         );
       })}
     </div>
@@ -215,35 +349,11 @@ interface Explore {
   base: number;
   fens: string[];
   sans: string[];
+  /** UCI of each tried move; ucis[k] leads from fens[k] to fens[k + 1]. */
+  ucis: string[];
   lastUci: string | null;
-}
-
-/** Evaluates a position the user reached by trying their own moves. */
-function useLiveEval(fen: string | null): { lines: PvLine[]; busy: boolean } {
-  const [lines, setLines] = useState<PvLine[]>([]);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (!fen) {
-      setLines([]);
-      return;
-    }
-    let alive = true;
-    setBusy(true);
-    setLines([]);
-    // Short delay so stepping through a line quickly doesn't queue a search per move.
-    const t = window.setTimeout(() => {
-      getEngine()
-        .analyse(fen, { depth: 16, movetimeMs: 1200, multiPv: 2 })
-        .then((res) => alive && setLines(res.map((l) => ({ ...l, pv_san: pvToSan(fen, l.pv) }))))
-        .catch(() => undefined)
-        .finally(() => alive && setBusy(false));
-    }, 250);
-    return () => {
-      alive = false;
-      window.clearTimeout(t);
-    };
-  }, [fen]);
-  return { lines, busy };
+  /** Engine moves (UCI) still to be played when stepping forward through a picked line. */
+  pending: string[];
 }
 
 function useSwipe(onLeft: () => void, onRight: () => void) {
@@ -251,7 +361,9 @@ function useSwipe(onLeft: () => void, onRight: () => void) {
   return {
     onTouchStart: (e: TouchEvent) => {
       const t = e.touches[0];
-      start.current = t ? { x: t.clientX, y: t.clientY } : null;
+      // A touch on a piece picks it up for dragging; only empty squares swipe.
+      const onPiece = (e.target as Element | null)?.closest?.(".piece");
+      start.current = t && !onPiece ? { x: t.clientX, y: t.clientY } : null;
     },
     onTouchEnd: (e: TouchEvent) => {
       const s = start.current;
@@ -273,6 +385,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const [usernames, setUsernames] = useState<string[]>([]);
   const [tab, setTab] = useState<"moves" | "report">("moves");
   const [explore, setExplore] = useState<Explore | null>(null);
+  const [showArrows, setShowArrows] = useState(true);
 
   useEffect(() => subscribeQueue(setQueue), []);
   useEffect(() => {
@@ -317,7 +430,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   };
   const step = (d: 1 | -1) => {
     if (explore) {
-      // Inside a side line: back steps undo tried moves, then return to the game.
+      // Inside a side line: back steps undo tried moves, then return to the game;
+      // forward steps play the rest of a picked engine line.
       if (d === -1) {
         if (explore.sans.length <= 1) setExplore(null);
         else
@@ -325,8 +439,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             ...explore,
             fens: explore.fens.slice(0, -1),
             sans: explore.sans.slice(0, -1),
-            lastUci: null,
+            ucis: explore.ucis.slice(0, -1),
+            lastUci: explore.ucis[explore.ucis.length - 2] ?? null,
+            pending: [explore.ucis[explore.ucis.length - 1], ...explore.pending],
           });
+      } else if (explore.pending.length) {
+        setExplore(extendLine(explore, explore.pending[0], explore.pending.slice(1)));
       }
       return;
     }
@@ -345,6 +463,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     const target = d === 1 ? errorPlies.find((p) => p + 1 > idx) : [...errorPlies].reverse().find((p) => p + 1 < idx);
     if (target !== undefined) goTo(target + 1);
   };
+  const errorPos = errorPlies.indexOf(idx - 1);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -356,7 +475,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       else if (e.key === "Escape") setExplore(null);
       else if (e.key === "f") setFlipped((f) => !f);
       else if (e.key === "n") jumpError(1);
-      else if (e.key === "N") jumpError(-1);
+      else if (e.key === "N" || e.key === "p") jumpError(-1);
+      else if (e.key === "a") setShowArrows((v) => !v);
       else if (e.key === "b" && review) setTab((t) => (t === "report" ? "moves" : "report"));
       else return;
       e.preventDefault();
@@ -378,7 +498,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   }, [review]);
 
   const exploreFen = explore ? explore.fens[explore.fens.length - 1] : null;
-  const live = useLiveEval(exploreFen);
+  const live = usePositionLines(exploreFen);
+  const verdicts = useVerdicts(
+    explore ? explore.ucis.map((uci, k) => ({ fenBefore: explore.fens[k], uci, fenAfter: explore.fens[k + 1] })) : [],
+  );
+  const lastVerdict = verdicts.length ? verdicts[verdicts.length - 1] : null;
   const swipe = useSwipe(
     () => step(1),
     () => step(-1),
@@ -403,11 +527,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const fen = exploreFen ?? gameFen;
 
   const arrows: Arrow[] = [];
-  if (!explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book") {
+  if (showArrows && !explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book") {
     const b = sq(move.best_move);
     if (b) arrows.push({ ...b, kind: "best" });
   }
-  if (explore && live.lines[0]?.pv[0]) {
+  if (showArrows && explore && !explore.pending.length && live.lines[0]?.pv[0]) {
     const b = sq(live.lines[0].pv[0]);
     if (b) arrows.push({ ...b, kind: "hint" });
   }
@@ -453,9 +577,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     }
   })();
   const legalTargets = (from: string) => (board ? board.moves({ square: from as Square, verbose: true }).map((m) => m.to) : []);
-  const tryMove = (from: string, to: string) => {
+  const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (!board) return false;
-    const promo = board.get(from as Square)?.type === "p" && (to[1] === "8" || to[1] === "1") ? "q" : undefined;
+    const promo = board.get(from as Square)?.type === "p" && (to[1] === "8" || to[1] === "1") ? (chosen ?? "q") : undefined;
     let san: string;
     try {
       san = board.move({ from, to, promotion: promo }).san;
@@ -467,12 +591,30 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       setIdx(i + 1);
       return true;
     }
-    const base = explore ?? { base: i, fens: [gameFen], sans: [], lastUci: null };
-    setExplore({ base: base.base, fens: [...base.fens, board.fen()], sans: [...base.sans, san], lastUci: uci });
+    const base = explore ?? { base: i, fens: [gameFen], sans: [], ucis: [], lastUci: null, pending: [] };
+    setExplore({ ...base, fens: [...base.fens, board.fen()], sans: [...base.sans, san], ucis: [...base.ucis, uci], lastUci: uci, pending: [] });
     return true;
+  };
+  // Plays the first move of an engine line; forward steps play the rest.
+  const playLine = (pv: string[]) => {
+    const base: Explore = explore ?? { base: i, fens: [gameFen], sans: [], ucis: [], lastUci: null, pending: [] };
+    const next = extendLine(base, pv[0], pv.slice(1, 12));
+    if (next !== base) setExplore(next);
   };
 
   const lastMove = explore ? sq(explore.lastUci) : move ? sq(move.uci) : null;
+  // Concrete reasons for an error: the opponent's refutation and the better move.
+  const reasons =
+    move && !explore && ERROR_CLASSES.has(move.classification)
+      ? explainMove({
+          fenBefore: move.fen_before,
+          uci: move.uci,
+          bestPv: move.multi_pvs[0]?.pv ?? move.pv,
+          replyPv: nextMove?.multi_pvs[0]?.pv ?? [],
+          mateBefore: move.eval_before_mate,
+          mateAfter: move.eval_after_mate,
+        })
+      : [];
 
   const playerLine = (c: Side, r: number) => (
     <div class="player-line" style={{ gridRow: r }}>
@@ -483,26 +625,17 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           {eloOf(c) ? <span class="faint"> {eloOf(c)}</span> : null}
         </span>
       </span>
-      {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1)} %</span>}
+      <span class="player-meta">
+        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1)} %</span>}
+        {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
+          <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
+            {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}
+          </span>
+        )}
+      </span>
     </div>
   );
 
-  const exploreLine = explore
-    ? (() => {
-        const startFen = explore.fens[0];
-        const parts = startFen.split(" ");
-        let num = Number(parts[5]) || 1;
-        let white = parts[1] === "w";
-        return explore.sans
-          .map((s, k) => {
-            const label = white ? `${num}. ${s}` : k === 0 ? `${num}... ${s}` : s;
-            if (!white) num++;
-            white = !white;
-            return label;
-          })
-          .join(" ");
-      })()
-    : "";
 
   return (
     <div>
@@ -514,6 +647,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           {game.metadata.white} – {game.metadata.black} <span class="muted">{resultText(game.metadata.result)}</span>
         </span>
         <span class="spacer" />
+        <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
+          <IconFreeBoard /> Im Analysebrett
+        </button>
         <button
           class="btn icon ghost danger"
           aria-label="Partie löschen"
@@ -536,9 +672,10 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               flipped={flipped}
               lastMove={lastMove}
               arrows={arrows}
-              badge={explore ? undefined : move?.classification}
+              badge={explore ? (lastVerdict?.classification || undefined) : move?.classification}
               onMove={tryMove}
               legalTargets={legalTargets}
+              annotate
             />
           </div>
           {playerLine(bottom, 3)}
@@ -549,7 +686,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             <button class="btn" onClick={() => step(-1)} aria-label="Zug zurück">
               <IconPrev />
             </button>
-            <button class="btn" onClick={() => step(1)} aria-label="Zug vor" disabled={Boolean(explore)}>
+            <button class="btn" onClick={() => step(1)} aria-label="Zug vor" disabled={Boolean(explore && !explore.pending.length)}>
               <IconNext />
             </button>
             <button class="btn" onClick={() => goTo(n)} aria-label="Zum Ende">
@@ -558,11 +695,31 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label="Brett drehen" title="Brett drehen (F)">
               <IconFlip />
             </button>
+            <button
+              class={`btn${showArrows ? " on" : ""}`}
+              onClick={() => setShowArrows((v) => !v)}
+              aria-pressed={showArrows}
+              aria-label="Pfeil für den besten Zug ein- oder ausblenden"
+              title="Bester-Zug-Pfeil (A)"
+            >
+              <IconArrow />
+            </button>
             {errorPlies.length > 0 && !explore && (
-              <button class="btn next-error" onClick={() => jumpError(1)} title="Nächster eigener Fehler (N)">
-                Nächster Fehler
-              </button>
+              <div class="error-nav" role="group" aria-label="Eigene Fehler">
+                <button class="btn" onClick={() => jumpError(-1)} disabled={!errorPlies.some((p) => p + 1 < idx)} aria-label="Voriger eigener Fehler" title="Voriger eigener Fehler (P)">
+                  <IconPrev />
+                </button>
+                <span class="error-count tnum">
+                  {errorPos >= 0 ? `Fehler ${errorPos + 1}/${errorPlies.length}` : `${errorPlies.length} Fehler`}
+                </span>
+                <button class="btn" onClick={() => jumpError(1)} disabled={!errorPlies.some((p) => p + 1 > idx)} aria-label="Nächster eigener Fehler" title="Nächster eigener Fehler (N)">
+                  <IconNext />
+                </button>
+              </div>
             )}
+          </div>
+          <div class="strip-row" style={{ gridRow: 5 }}>
+            <MoveStrip moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
           </div>
         </div>
 
@@ -616,17 +773,19 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               <>
                 <div class="explore-bar">
                   <span class="pill accent">Eigene Variante</span>
-                  <span class="line-san">{exploreLine}</span>
+                  <span class="spacer" />
                   <button class="btn small" onClick={() => setExplore(null)}>
                     Zurück zur Partie
                   </button>
                 </div>
+                <LineMoves startFen={explore.fens[0]} sans={explore.sans} verdicts={verdicts} />
+                {explore.sans.length > 0 && <VerdictCard san={explore.sans[explore.sans.length - 1]} verdict={lastVerdict} />}
                 {live.busy && !live.lines.length ? (
                   <p class="muted small" style={{ marginBottom: 0 }}>
                     Stockfish rechnet …
                   </p>
                 ) : (
-                  <EngineLines fen={exploreFen!} lines={live.lines} label="Beste Fortsetzungen" />
+                  <EngineLines fen={exploreFen!} lines={live.lines} label="Beste Fortsetzungen" onPlay={explore.pending.length ? undefined : playLine} />
                 )}
               </>
             ) : move ? (
@@ -638,17 +797,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     {move.fen_before.split(" ")[1] === "w" ? "." : "..."} {move.san}
                   </strong>{" "}
                   {move.classification && <span class="muted">· {classLabel(move.classification)}</span>}
-                  <div class="small">
-                    {move.classification === "Book" && move.opening_name
-                      ? move.opening_name
-                      : move.explanation || (analyzing ? "Wird analysiert …" : "Noch nicht bewertet.")}
-                  </div>
-                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && (
+                  {!reasons.length && (
+                    <div class="small">
+                      {move.classification === "Book" && move.opening_name
+                        ? move.opening_name
+                        : move.explanation || (analyzing ? "Wird analysiert …" : "Noch nicht bewertet.")}
+                    </div>
+                  )}
+                  {reasons.length > 0 && (
+                    <ul class="reasons">
+                      {reasons.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
+                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
                     <div class="small muted" style={{ marginTop: "4px" }}>
                       Besser war: {move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ")}
                     </div>
                   )}
-                  <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" />
+                  <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
                 </div>
               </div>
             ) : (
@@ -656,9 +825,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 <div class="small muted">
                   {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
                 </div>
-                <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" />
+                <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
                 <p class="faint small" style={{ marginBottom: 0 }}>
-                  Tipp: Wische über das Brett zum Blättern, oder ziehe selbst eine Figur, um eine eigene Variante zu prüfen.
+                  Tipp: Wische über ein leeres Feld zum Blättern, ziehe eine Figur für eine eigene Variante oder tippe eine Engine-Zeile an, um sie nachzuspielen. Mit der rechten Maustaste zeichnest du Pfeile.
                 </p>
               </div>
             )}
@@ -677,7 +846,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
           {tab === "moves" || !review ? (
             <>
-              <EvalGraph moves={game.moves} idx={i} onPick={goTo} />
+              <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} />
               <MoveList moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
             </>
           ) : (

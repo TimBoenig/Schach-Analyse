@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor, inDateFilter } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
@@ -528,7 +528,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             setShowImport(false);
             if (openImport) navigate({ view: "games" }, true);
           }}
-          onImported={(ids) => ids.length && setJustImported((prev) => [...new Set([...ids, ...prev])])}
+          onImported={(ids) => {
+            if (!ids.length) return;
+            void autoAnalyze(ids).then((queued) => !queued && setJustImported((prev) => [...new Set([...ids, ...prev])]));
+          }}
         />
       )}
     </div>

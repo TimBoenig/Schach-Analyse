@@ -11,6 +11,7 @@ import {
   comparePeriods,
   dailyActivity,
   focusNotes,
+  formSummary,
   type KpiChange,
   type PlayerProfile,
   trendOf,
@@ -87,6 +88,36 @@ function KpiStrip({ kpis, label }: { kpis: KpiChange[]; label: string }) {
         );
       })}
     </section>
+  );
+}
+
+const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+
+function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: number | null }[] }) {
+  const f = formSummary(weekly);
+  if (f.weeks < 2) return null;
+  const diff = f.recent !== null && f.previous !== null ? f.recent - f.previous : null;
+  const trend = f.trend_per_month;
+  return (
+    <div class="mini-stats tile-foot">
+      <div>
+        <span class="kpi-label">Letzte 4 Wochen</span>
+        <strong class="tnum">{f.recent !== null ? `${de1(f.recent)} %` : "–"}</strong>
+        {diff !== null && <span class={`small ${diff >= 2 ? "ok" : diff <= -2 ? "bad" : "faint"}`}>{diff >= 0 ? "+" : "−"}{de1(Math.abs(diff))} zu davor</span>}
+      </div>
+      <div>
+        <span class="kpi-label">Richtung</span>
+        <strong class={trend === null ? "" : trend >= 1 ? "ok" : trend <= -1 ? "bad" : ""}>
+          {trend === null ? "–" : trend >= 1 ? "steigend" : trend <= -1 ? "fallend" : "stabil"}
+        </strong>
+        {trend !== null && <span class="small faint">{trend >= 0 ? "+" : "−"}{de1(Math.abs(trend))} Punkte pro Monat</span>}
+      </div>
+      <div>
+        <span class="kpi-label">Beste Woche</span>
+        <strong class="tnum">{f.best ? `${de1(f.best.accuracy)} %` : "–"}</strong>
+        {f.best && <span class="small faint">ab {formatDate(f.best.week.replace(/-/g, "."))}</span>}
+      </div>
+    </div>
   );
 }
 
@@ -402,9 +433,10 @@ export function HomeView() {
           <AreaChart
             points={formPoints}
             format={(v) => v.toFixed(0)}
-            domain={[0, 100]}
+            height={220}
             reference={profile.rating ? { value: profile.rating.typical_accuracy, label: `Typisch für ${profile.rating.rating}` } : null}
           />
+          <FormStats weekly={weekly} />
         </section>
 
         <section class="card tile span-6">

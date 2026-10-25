@@ -35,3 +35,12 @@ export const IconInsights = () => (<svg {...base}><path d="M3 20h18M6 16v-5M10 1
 export const IconSearch = () => (<svg {...base}><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>);
 export const IconKeyboard = () => (<svg {...base}><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" /></svg>);
 export const IconOpenings = () => (<svg {...base}><path d="M4 5a2 2 0 0 1 2-2h5v18H6a2 2 0 0 0-2 2zM20 5a2 2 0 0 0-2-2h-5v18h5a2 2 0 0 1 2 2z" /></svg>);
+export const IconArrow = () => (
+  <svg {...base}><path d="M5 19L18 6M10 6h8v8" /></svg>
+);
+export const IconFreeBoard = () => (
+  <svg {...base}><path d="M9 21h6M10 21l.5-4h3l.5 4M12 3a2.5 2.5 0 0 1 1.6 4.4L15 13H9l1.4-5.6A2.5 2.5 0 0 1 12 3zM8 13h8" /></svg>
+);
+export const IconReset = () => (
+  <svg {...base}><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" /></svg>
+);
