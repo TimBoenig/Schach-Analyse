@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { subscribeQueue } from "../app/analysisService";
 import { syncAvailable, syncNow, supabase } from "../storage/sync";
 import { AnalysisView } from "./AnalysisView";
+import { FreeBoardView } from "./FreeBoardView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
-import { IconBoard, IconGames, IconHome, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { IconBoard, IconFreeBoard, IconGames, IconHome, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
 import { InsightsView } from "./InsightsView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
@@ -19,6 +20,7 @@ const NAV: { view: Route["view"]; label: string; short?: string; icon: () => pre
   { view: "home", label: "Start", icon: IconHome },
   { view: "games", label: "Partien", icon: IconGames },
   { view: "analysis", label: "Analyse", icon: IconBoard },
+  { view: "board", label: "Brett", icon: IconFreeBoard },
   { view: "profile", label: "Profil", icon: IconProfile },
   { view: "insights", label: "Einblicke", icon: IconInsights },
   { view: "openings", label: "Eröffnungen", short: "Eröffnung", icon: IconOpenings },
@@ -117,7 +119,7 @@ export function App() {
         {NAV.map((n) => (
           <button
             key={n.view}
-            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}${n.view === "analysis" ? " nav-wide-only" : ""}`}
+            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}${n.view === "analysis" || n.view === "board" ? " nav-wide-only" : ""}`}
             onClick={() => go(n.view, lastGame)}
             aria-current={route.view === n.view ? "page" : undefined}
           >
@@ -136,6 +138,7 @@ export function App() {
         {route.view === "home" && <HomeView />}
         {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
         {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
+        {route.view === "board" && <FreeBoardView key={route.fen ?? ""} fen={route.fen} />}
         {route.view === "profile" && <ProfileView />}
         {route.view === "insights" && <InsightsView />}
         {route.view === "openings" && <OpeningsView />}

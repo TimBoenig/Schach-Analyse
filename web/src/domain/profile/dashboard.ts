@@ -211,3 +211,44 @@ export function dailyActivity(
     .sort(([a], [b]) => (a < b ? -1 : 1))
     .map(([day, d]) => ({ day, games: d.games, score_pct: d.finished ? (d.points / d.finished) * 100 : 50 }));
 }
+
+export interface FormSummary {
+  /** Average accuracy of the last `window` weeks with games, and of the weeks before. */
+  recent: number | null;
+  previous: number | null;
+  best: { week: string; accuracy: number } | null;
+  /** Least-squares slope in accuracy points per four weeks (null below 4 weeks). */
+  trend_per_month: number | null;
+  weeks: number;
+}
+
+// Weekly accuracy is noisy; four weeks smooth out a single bad evening.
+const FORM_WINDOW = 4;
+
+/** Summary of the weekly form curve: recent vs. earlier level, best week and direction. */
+export function formSummary(weekly: { week: string; avg_accuracy: number | null }[]): FormSummary {
+  const pts = weekly.filter((w) => w.avg_accuracy !== null) as { week: string; avg_accuracy: number }[];
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
+  const recent = mean(pts.slice(-FORM_WINDOW).map((p) => p.avg_accuracy));
+  const previous = pts.length > FORM_WINDOW ? mean(pts.slice(0, -FORM_WINDOW).map((p) => p.avg_accuracy)) : null;
+  const best = pts.length ? pts.reduce((a, b) => (b.avg_accuracy > a.avg_accuracy ? b : a)) : null;
+  let trend: number | null = null;
+  if (pts.length >= 4) {
+    // Weeks without games are left out, so x is the real week offset, not the index.
+    const t0 = Date.parse(pts[0].week);
+    const xs = pts.map((p) => (Date.parse(p.week) - t0) / (7 * 86400000));
+    const ys = pts.map((p) => p.avg_accuracy);
+    const mx = mean(xs) as number;
+    const my = mean(ys) as number;
+    const sxx = xs.reduce((s, x) => s + (x - mx) ** 2, 0);
+    const sxy = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0);
+    trend = sxx > 0 ? Math.round((sxy / sxx) * 4 * 10) / 10 : null;
+  }
+  return {
+    recent: recent !== null ? Math.round(recent * 10) / 10 : null,
+    previous: previous !== null ? Math.round(previous * 10) / 10 : null,
+    best: best ? { week: best.week, accuracy: Math.round(best.avg_accuracy * 10) / 10 } : null,
+    trend_per_month: trend,
+    weeks: pts.length,
+  };
+}

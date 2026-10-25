@@ -4,12 +4,16 @@
 
 import type { GameFeatures, MoveEvent } from "./features";
 import { avg, pyRound } from "./num";
+import { buildEvolution, bySpeed, type Evolution, type FeedbackItem, gameTypes, type GameTypeStat, personalFeedback } from "./evolution";
+import { buildPrecision, type PrecisionStats, wilsonMargin } from "./precision";
 
 export interface ScoreBucket {
   key: string;
   label: string;
   games: number;
   score_pct: number | null;
+  /** Half width of the 95 % interval of score_pct, in percentage points. */
+  margin: number | null;
   avg_accuracy: number | null;
 }
 
@@ -50,6 +54,15 @@ export interface DeepInsights {
   punish: { chances: number; punished: number; rate: number | null };
   /** Average count per analyzed game of each error class. */
   errors_per_game: { classification: string; per_game: number }[];
+  /** Confidence margins, rating expectation, game curve, consistency and turnarounds. */
+  precision: PrecisionStats;
+  /** Score and accuracy by kind of game and by time control. */
+  game_types: GameTypeStat[];
+  speeds: GameTypeStat[];
+  /** Chronological blocks and before/after changes. */
+  evolution: Evolution;
+  /** Personal feedback sentences (progress, regress, game types, next step). */
+  feedback: FeedbackItem[];
   /** Headline findings in German, strongest first. */
   facts: string[];
 }
@@ -131,6 +144,7 @@ function scoreBucket(key: string, label: string, fs: GameFeatures[]): ScoreBucke
     label,
     games: fs.length,
     score_pct: scores.length ? pyRound(avg(scores) * 100, 1) : null,
+    margin: scores.length ? wilsonMargin(avg(scores), scores.length) : null,
     avg_accuracy: accs.length ? pyRound(avg(accs), 1) : null,
   };
 }
@@ -253,9 +267,15 @@ export function buildDeepInsights(
     time_trouble: timeTrouble,
     punish: { chances, punished, rate: chances ? pyRound((punished / chances) * 100, 1) : null },
     errors_per_game: errorsPerGame,
+    precision: buildPrecision(feats),
+    game_types: gameTypes(feats),
+    speeds: bySpeed(feats),
+    evolution: buildEvolution(feats),
+    feedback: [],
     facts: [],
   };
   insights.facts = headlineFacts(insights, feats);
+  insights.feedback = personalFeedback(insights.evolution, insights.game_types, insights.speeds, insights.precision);
   return insights;
 }
 
@@ -394,5 +414,6 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     ]);
   }
 
+  facts.push(...d.precision.facts);
   return facts.sort((a, b) => b[0] - a[0]).map(([, t]) => t);
 }

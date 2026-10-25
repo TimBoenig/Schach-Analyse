@@ -52,6 +52,16 @@ export function getEngine(): UciEngine {
   return engine;
 }
 
+/** Setting key: analyse freshly imported games without asking (on by default). */
+export const AUTO_ANALYZE_KEY = "analysis.auto";
+
+/** Queues freshly imported games when automatic analysis is on; returns whether it did. */
+export async function autoAnalyze(ids: string[]): Promise<boolean> {
+  if (!ids.length || !(await getSetting<boolean>(AUTO_ANALYZE_KEY, true))) return false;
+  enqueue(ids);
+  return true;
+}
+
 /** Adds games to the queue (front = analyse next). */
 export function enqueue(ids: string[], { front = false } = {}): void {
   const rest = state.queued.filter((id) => !ids.includes(id) && id !== state.current);

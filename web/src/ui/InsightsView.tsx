@@ -1,6 +1,16 @@
-import { type MoveBucket, PROFILE_QUESTIONS, profileCoachMessages, reportMessages, type ScoreBucket } from "../domain/profile";
+import {
+  type DeepInsights,
+  type GameTypeStat,
+  type MoveBucket,
+  type PrecisionStats,
+  PROFILE_QUESTIONS,
+  profileCoachMessages,
+  reportMessages,
+  type ScoreBucket,
+  type ScoreStat,
+} from "../domain/profile";
 import { AiAnswer, AiChat, coachDetail } from "./AiCoach";
-import { BarList, ColumnChart, SquareHeatmap } from "./charts";
+import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./charts";
 import type { BarRow, Column } from "./charts";
 import { trClassification, trFilter } from "../domain/i18n";
 import { IconSpark } from "./icons";
@@ -14,14 +24,226 @@ const MIN_MOVES = 30;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function scoreColumns(buckets: ScoreBucket[]): Column[] {
+/** "± 12" for a 95 % margin, shown next to a sample size so thin numbers read as such. */
+const pm = (margin: number | null) => (margin !== null ? ` · ±${Math.round(margin)}` : "");
+
+function scoreColumns(buckets: (ScoreBucket | ScoreStat)[]): Column[] {
   return buckets.map((b) => ({
     label: b.label.split(" (")[0],
     value: b.games ? b.score_pct : null,
     valueText: b.score_pct !== null && b.games ? `${Math.round(b.score_pct)} %` : undefined,
-    sub: plural(b.games, "Partie", "Partien"),
+    sub: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)}`,
     faint: b.games < MIN_GAMES,
   }));
+}
+
+const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(digits).replace(".", ",")}`;
+
+function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
+  return types.map((t) => ({
+    label: t.label,
+    value: t.score_pct,
+    reference: overall,
+    valueText: t.score_pct !== null ? `${Math.round(t.score_pct)} %` : "–",
+    note: `${plural(t.games, "Partie", "Partien")}${pm(t.margin)}${t.accuracy !== null ? ` · Genauigkeit ${Math.round(t.accuracy)} %` : ""}${t.description ? ` · ${t.description}` : ""}`,
+    faint: t.games < MIN_GAMES,
+  }));
+}
+
+const fmtChange = (v: number, unit: string) => (unit ? `${v.toFixed(1).replace(".", ",")} ${unit}` : v.toFixed(2).replace(".", ","));
+
+/** Development over time: accuracy per block of games and a before/after test per metric. */
+function EvolutionTiles({ d, overall }: { d: DeepInsights; overall: number }) {
+  const evo = d.evolution;
+  const points = evo.blocks
+    .filter((b) => b.accuracy !== null)
+    .map((b) => ({ label: b.label.split("–")[0], value: b.accuracy as number, detail: `${b.label} · ${plural(b.games, "Partie", "Partien")}` }));
+  const phaseRow = (label: string, pick: (b: (typeof evo.blocks)[number]) => number | null) => (
+    <tr>
+      <th>{label}</th>
+      {evo.blocks.map((b, i) => {
+        const v = pick(b);
+        const prev = i > 0 ? pick(evo.blocks[i - 1]) : null;
+        const tone = v !== null && prev !== null ? (v < prev - 0.5 ? "ok" : v > prev + 0.5 ? "bad" : "") : "";
+        return (
+          <td key={i} class={`tnum ${tone}`}>
+            {v !== null ? v.toFixed(1).replace(".", ",") : "–"}
+          </td>
+        );
+      })}
+    </tr>
+  );
+  return (
+    <>
+      <Tile title="Deine Entwicklung" sub={evo.blocks.length ? `Genauigkeit in ${evo.blocks.length} Abschnitten deiner Partien` : undefined} span={8}>
+        {points.length >= 2 ? (
+          <>
+            <AreaChart points={points} format={(v) => `${Math.round(v)} %`} height={200} />
+            <div class="table-scroll">
+              <table class="evo-table">
+                <thead>
+                  <tr>
+                    <th>Schwere Fehler je 100 Züge</th>
+                    {evo.blocks.map((b, i) => (
+                      <th key={i} class="tnum">
+                        {b.label.split("–")[0]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {phaseRow("Eröffnung", (b) => b.opening_errors)}
+                  {phaseRow("Mittelspiel", (b) => b.middlegame_errors)}
+                  {phaseRow("Endspiel", (b) => b.endgame_errors)}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <p class="muted small">Ab etwa zehn analysierten Partien siehst du hier, wie sich dein Spiel entwickelt.</p>
+        )}
+      </Tile>
+      <Tile title="Was sich verändert hat" sub={evo.half ? `letzte ${evo.half} gegen die ${evo.half} davor` : undefined} span={4}>
+        {evo.changes.length ? (
+          <ul class="change-list">
+            {evo.changes.map((c) => (
+              <li key={c.key} class={c.significant ? (c.improved ? "up" : "down") : "flat"}>
+                <span class="change-icon" aria-hidden="true">
+                  {c.significant ? (c.improved ? "▲" : "▼") : "•"}
+                </span>
+                <span class="change-label">
+                  {c.label}
+                  <span class="faint small">
+                    {fmtChange(c.earlier, c.unit)} → {fmtChange(c.recent, c.unit)}
+                  </span>
+                </span>
+                <span class="change-tag small">{c.significant ? (c.improved ? "besser" : "schlechter") : "im Rauschen"}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="muted small">Für einen belastbaren Vorher-nachher-Vergleich braucht es mindestens zehn analysierte Partien.</p>
+        )}
+        <p class="small faint tile-foot">„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.</p>
+      </Tile>
+
+      <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
+        {d.game_types.length ? (
+          <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
+        ) : (
+          <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
+        )}
+      </Tile>
+      <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={6}>
+        <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
+      </Tile>
+    </>
+  );
+}
+
+/** Score against the Elo expectation, game curve, consistency and turnarounds. */
+function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) {
+  const ratingRows: BarRow[] = p.by_rating_diff
+    .filter((b) => b.games > 0)
+    .map((b) => ({
+      label: b.label,
+      value: b.score_pct,
+      reference: b.expected_pct,
+      valueText: b.score_pct !== null ? `${Math.round(b.score_pct)} %` : "–",
+      note: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)} · erwartet ${b.expected_pct !== null ? Math.round(b.expected_pct) : "–"} %${b.avg_diff !== null ? ` · Ø ${b.avg_diff > 0 ? "+" : ""}${b.avg_diff} Elo` : ""}`,
+      color: b.score_pct !== null && b.expected_pct !== null ? (b.score_pct >= b.expected_pct ? "var(--win)" : "var(--loss)") : undefined,
+      faint: b.games < MIN_GAMES,
+    }));
+  const curve = p.curve.map((c) => ({ label: String(c.move), value: c.avg_wp, detail: `Zug ${c.move} · ${plural(c.games, "Partie", "Partien")}` }));
+  const s = p.spread;
+  const t = p.turnarounds;
+  const resultRows: BarRow[] = s.by_result
+    .filter((r) => r.games > 0)
+    .map((r) => ({
+      label: r.label,
+      value: r.accuracy,
+      valueText: r.accuracy !== null ? `${r.accuracy.toFixed(1).replace(".", ",")} %` : "–",
+      note: plural(r.games, "Partie", "Partien"),
+      color: r.key === "win" ? "var(--win)" : r.key === "loss" ? "var(--loss)" : "var(--draw)",
+      faint: r.games < MIN_GAMES,
+    }));
+  return (
+    <>
+      <Tile
+        title="Gegen die Erwartung"
+        sub={p.vs_expectation !== null ? `${signed(p.vs_expectation)} Prozentpunkte gegenüber der Elo-Erwartung` : "braucht Wertungen"}
+        span={6}
+      >
+        {ratingRows.length ? (
+          <>
+            <BarList rows={ratingRows} referenceLabel="Elo-Erwartung" />
+            <p class="small faint tile-foot">
+              Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus {plural(p.rated_games, "Partie", "Partien")} mit beiden Wertungen.
+            </p>
+          </>
+        ) : (
+          <p class="muted small">Deine Partien enthalten keine Wertungen beider Spieler.</p>
+        )}
+      </Tile>
+
+      <Tile title="Wo deine Partien kippen" sub="Ø Gewinnchance nach Zug" span={6}>
+        <AreaChart points={curve} format={(v) => `${Math.round(v)} %`} domain={[0, 100]} reference={{ value: 50, label: "Ausgeglichen" }} />
+        <p class="small faint tile-foot">Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.</p>
+      </Tile>
+
+      <Tile title="Konstanz" sub={s.stdev !== null ? `Streuung ±${s.stdev.toFixed(1).replace(".", ",")} Punkte` : undefined} span={4}>
+        <ColumnChart columns={s.histogram.map((h) => ({ label: h.label, value: h.games }))} format={(v) => String(v)} height={150} />
+        {s.median !== null && (
+          <p class="small tile-foot">
+            Median <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>, die mittlere Hälfte deiner Partien liegt zwischen{" "}
+            {(s.p25 ?? 0).toFixed(0)} und {(s.p75 ?? 0).toFixed(0)} %.
+          </p>
+        )}
+      </Tile>
+
+      <Tile title="Genauigkeit nach Ergebnis" sub="Durchschnitt" span={4}>
+        <BarList rows={resultRows} />
+        <p class="small faint tile-foot">Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.</p>
+      </Tile>
+
+      <Tile title="Wendepunkte" sub="ab 75 % Gewinnchance" span={4}>
+        {t.winning > 0 && (
+          <>
+            <h4>Aus {plural(t.winning, "gewonnener Stellung", "gewonnenen Stellungen")}</h4>
+            <StackBar
+              segments={[
+                { label: "Gewonnen", value: t.converted, color: "var(--win)" },
+                { label: "Remis", value: t.drawn_from_winning, color: "var(--draw)" },
+                { label: "Verloren", value: t.lost_from_winning, color: "var(--loss)" },
+              ]}
+            />
+          </>
+        )}
+        {t.losing > 0 && (
+          <>
+            <h4>Aus {plural(t.losing, "verlorener Stellung", "verlorenen Stellungen")}</h4>
+            <StackBar
+              segments={[
+                { label: "Noch gewonnen", value: t.won_from_losing, color: "var(--win)" },
+                { label: "Gerettet (Remis)", value: t.saved - t.won_from_losing, color: "var(--draw)" },
+                { label: "Verloren", value: t.losing - t.saved, color: "var(--loss)" },
+              ]}
+            />
+          </>
+        )}
+        {!t.winning && !t.losing && <p class="muted small">Noch keine klar entschiedenen Stellungen.</p>}
+      </Tile>
+
+      <Tile title="Nach Partielänge" sub="Punkte-Quote" span={6}>
+        <ColumnChart columns={scoreColumns(p.by_length)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
+      </Tile>
+
+      <Tile title="Nach Farbe" sub="Punkte-Quote" span={6}>
+        <ColumnChart columns={scoreColumns(p.by_color)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
+        <p class="small faint tile-foot">± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</p>
+      </Tile>
+    </>
+  );
 }
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
@@ -38,7 +260,7 @@ function errorRows(buckets: MoveBucket[]): BarRow[] {
     }));
 }
 
-function Tile({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 12; children: preact.ComponentChildren }) {
+function Tile({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 8 | 12; children: preact.ComponentChildren }) {
   return (
     <section class={`card tile span-${span}`}>
       <div class="tile-head">
@@ -165,6 +387,24 @@ export function InsightsView() {
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
       <div class="dash">
+        {d.feedback.length > 0 && (
+          <section class="card tile span-12 feedback-card">
+            <div class="tile-head">
+              <h3>
+                <IconSpark /> Dein persönliches Feedback
+              </h3>
+              <span class="tile-sub">aus deinen eigenen Partien berechnet</span>
+            </div>
+            <ul class="feedback-list">
+              {d.feedback.map((f) => (
+                <li key={f.title + f.text} class={`tone-${f.tone}`}>
+                  <strong>{f.title}</strong> {f.text}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section class="card tile span-12 facts-card">
           <div class="tile-head">
             <h3>Das Wichtigste auf einen Blick</h3>
@@ -198,6 +438,22 @@ export function InsightsView() {
             messages={async () => reportMessages(profile, coachDetail(), await coachTraining())}
           />
         </section>
+
+        <div class="section-head span-12">
+          <h2>Entwicklung und Partietypen</h2>
+          <span class="tile-sub">wird dein Spiel besser, und welche Partien liegen dir?</span>
+        </div>
+        <EvolutionTiles d={d} overall={overall} />
+
+        <div class="section-head span-12">
+          <h2>Präzision und Verlauf</h2>
+          <span class="tile-sub">mit Unsicherheitsbereich, damit du weißt, wie belastbar jede Zahl ist</span>
+        </div>
+        <PrecisionTiles p={d.precision} overall={overall} />
+
+        <div class="section-head span-12">
+          <h2>Wann, wo und womit du Fehler machst</h2>
+        </div>
 
         <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={4}>
           <SquareHeatmap values={d.error_squares} />

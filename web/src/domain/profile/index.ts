@@ -23,6 +23,10 @@ export { extractFeatures, GameFeatures, MoveEvent, sanForUci } from "./features"
 export { buildGameReview, schoolGrade } from "./game_review";
 export { buildDeepInsights, pieceOf, sessions, SESSION_GAP_SECONDS } from "./insights";
 export type { DeepInsights, MoveBucket, PieceBucket, ScoreBucket } from "./insights";
+export { buildPrecision, wilsonMargin } from "./precision";
+export { buildEvolution, bySpeed, gameTypes, personalFeedback } from "./evolution";
+export type { Evolution, EvolutionBlock, FeedbackItem, GameTypeStat, MetricChange } from "./evolution";
+export type { AccuracySpread, CurvePoint, PrecisionStats, RatingBucket, ScoreStat, Turnarounds } from "./precision";
 export { buildOpeningInsights, openingLabel, openingMain } from "./openings";
 export type { FirstMoveStat, MoveChoice, OpeningGameRef, OpeningInsights, OpeningStat } from "./openings";
 export type {
@@ -42,5 +46,5 @@ export type {
   TrainingItem,
 } from "./models";
 export { SKILL_NAMES } from "./skills";
-export { activityCalendar, comparePeriods, dailyActivity, focusNotes, SKILL_TREND_POINTS, trendOf } from "./dashboard";
-export type { CalendarDay, KpiChange, PeriodComparison, SkillChange } from "./dashboard";
+export { activityCalendar, comparePeriods, dailyActivity, focusNotes, formSummary, SKILL_TREND_POINTS, trendOf } from "./dashboard";
+export type { CalendarDay, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";
