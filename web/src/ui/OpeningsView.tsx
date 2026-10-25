@@ -207,10 +207,14 @@ function savedColor(): "white" | "black" {
 
 export function OpeningsView() {
   const { profile, usernames, loading, error, filters, setFilters } = useProfile();
-  const [color, setColor] = useState<"white" | "black">(savedColor);
+  const [savedPick, setColor] = useState<"white" | "black">(savedColor);
   const [showAllFacts, setShowAllFacts] = useState(false);
+  // A colour chosen in the shared filter bar wins, so switch and filter never disagree.
+  const filterColor = filters.color === "White" ? "white" : filters.color === "Black" ? "black" : null;
+  const color = filterColor ?? savedPick;
   const pickColor = (c: "white" | "black") => {
     setColor(c);
+    if (filterColor) setFilters({ ...filters, color: c === "white" ? "White" : "Black" });
     try {
       localStorage.setItem(COLOR_KEY, c);
     } catch {

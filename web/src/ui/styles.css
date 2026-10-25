@@ -2551,6 +2551,28 @@ kbd {
   .nav-search kbd {
     display: none !important;
   }
+  /* Finger-sized targets (about 40–44 px) for everything tapped often on a tablet. */
+  .btn.small {
+    min-height: 40px;
+    padding: 0 12px;
+  }
+  button.engine-line {
+    padding: 9px 8px;
+    font-size: 14px;
+  }
+  .line-move {
+    padding: 8px 10px;
+    font-size: 15px;
+  }
+  .segmented button {
+    min-height: 40px;
+  }
+  .rep-row {
+    min-height: 52px;
+  }
+  .movelist button {
+    min-height: 42px;
+  }
 }
 
 @media (max-width: 760px) {
