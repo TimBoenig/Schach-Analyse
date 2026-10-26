@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
+/** Path segment of the friends ranking; never handed out as a player id. */
+export const RANKING_SLUG = "rangliste";
+
 export type TrainingTab = "heute" | "uebungen" | "fortschritt";
 
 export type Route =
@@ -10,6 +13,7 @@ export type Route =
   | { view: "analysis"; gameId?: string; ply?: number }
   | { view: "board"; fen?: string }
   | { view: "profile" }
+  | { view: "players"; playerId?: string; tab?: "rangliste" }
   | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings" };
 
@@ -24,6 +28,9 @@ export function parseHash(hash: string): Route {
       return { view: "profile" };
     case "einblicke":
       return { view: "insights" };
+    case "spieler":
+      if (parts[1] === RANKING_SLUG) return { view: "players", tab: "rangliste" };
+      return parts[1] ? { view: "players", playerId: decodeURIComponent(parts[1]) } : { view: "players" };
     case "eroeffnungen":
       return { view: "openings" };
     case "partien":
@@ -51,6 +58,9 @@ export function toHash(r: Route): string {
       return "#/profil";
     case "insights":
       return "#/einblicke";
+    case "players":
+      if (r.tab === "rangliste") return `#/spieler/${RANKING_SLUG}`;
+      return r.playerId ? `#/spieler/${encodeURIComponent(r.playerId)}` : "#/spieler";
     case "openings":
       return "#/eroeffnungen";
     case "training":

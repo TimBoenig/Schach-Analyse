@@ -64,9 +64,26 @@ export interface RadarAxis {
   value: number; // 0..100
   typical?: number | null;
   faint?: boolean;
+  /** ± uncertainty in points; drawn as a band around the value. */
+  margin?: number | null;
+  /** Value before blending with the prior, shown in the tooltip when it differs. */
+  raw?: number | null;
+  /** Second player's value on this axis (see `compare`). */
+  compare?: number | null;
 }
 
-export function RadarChart({ axes, typicalLabel }: { axes: RadarAxis[]; typicalLabel?: string }) {
+export function RadarChart({
+  axes,
+  typicalLabel,
+  ownLabel = "Du",
+  compare,
+}: {
+  axes: RadarAxis[];
+  typicalLabel?: string;
+  ownLabel?: string;
+  /** Name of the second series drawn from `axis.compare`. */
+  compare?: string;
+}) {
   const [ref, w] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   useDismiss(hover !== null, () => setHover(null), ref);
@@ -83,14 +100,22 @@ export function RadarChart({ axes, typicalLabel }: { axes: RadarAxis[]; typicalL
     cy + Math.sin(ang(i)) * r * (v / 100),
   ];
   const poly = (vals: number[]) => vals.map((v, i) => pt(i, Math.max(3, v)).join(",")).join(" ");
-  const hasTypical = axes.some((a) => a.typical !== null && a.typical !== undefined);
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  const hasTypical = !compare && axes.some((a) => a.typical !== null && a.typical !== undefined);
+  // With two players the band would hide the second outline.
+  const hasBand = !compare && axes.some((a) => a.margin);
+  const hasCompare = Boolean(compare) && axes.some((a) => a.compare !== null && a.compare !== undefined);
+  // Ring between value - margin and value + margin (even-odd cuts out the inner part).
+  const band = hasBand
+    ? `M${poly(axes.map((a) => clamp(a.value + (a.margin ?? 0))))}Z M${poly(axes.map((a) => clamp(a.value - (a.margin ?? 0))))}Z`
+    : "";
   const h = hover !== null ? axes[hover] : null;
   const hp = hover !== null ? pt(hover, axes[hover].value) : null;
 
   return (
     <div ref={ref} class="chart-wrap">
       {n >= 3 && (
-        <svg class="chart" width={w} height={H} role="img" aria-label="Netzdiagramm deiner Fähigkeiten">
+        <svg class="chart" width={w} height={H} role="img" aria-label="Netzdiagramm der Fähigkeiten">
           {[25, 50, 75, 100].map((ring) => (
             <polygon key={ring} class="radar-ring" points={poly(axes.map(() => ring))} />
           ))}
@@ -113,9 +138,11 @@ export function RadarChart({ axes, typicalLabel }: { axes: RadarAxis[]; typicalL
               </g>
             );
           })}
+          {hasBand && <path class="radar-band" d={band} fill-rule="evenodd" />}
           {hasTypical && (
             <polygon class="radar-typical" points={poly(axes.map((a) => a.typical ?? 0))} />
           )}
+          {hasCompare && <polygon class="radar-compare" points={poly(axes.map((a) => a.compare ?? 0))} />}
           <polygon class="radar-area" points={poly(axes.map((a) => a.value))} />
           {axes.map((a, i) => {
             const [x, y] = pt(i, Math.max(3, a.value));
@@ -137,15 +164,27 @@ export function RadarChart({ axes, typicalLabel }: { axes: RadarAxis[]; typicalL
       {h && hp && (
         <Tip x={hp[0]} y={hp[1] - 12}>
           <strong>{h.label}</strong> {Math.round(h.value)}
-          {h.typical !== null && h.typical !== undefined && (
+          {h.margin ? <span> ±{h.margin}</span> : null}
+          {hasCompare && h.compare !== null && h.compare !== undefined && (
+            <span class="faint">
+              {" "}
+              · {compare} {Math.round(h.compare)}
+            </span>
+          )}
+          {hasTypical && h.typical !== null && h.typical !== undefined && (
             <span class="faint"> · typisch {Math.round(h.typical)}</span>
+          )}
+          {h.raw !== null && h.raw !== undefined && Math.abs(h.raw - h.value) >= 3 && (
+            <span class="faint"> · gemessen {Math.round(h.raw)}</span>
           )}
         </Tip>
       )}
       <Legend
         items={[
-          { label: "Du", color: "var(--accent)" },
+          { label: ownLabel, color: "var(--accent)" },
+          ...(hasCompare ? [{ label: compare as string, color: "var(--great)" }] : []),
           ...(hasTypical ? [{ label: typicalLabel ?? "Typisch", color: "var(--text-3)", dashed: true }] : []),
+          ...(hasBand ? [{ label: "Unsicherheit", color: "var(--accent-soft)" }] : []),
         ]}
       />
     </div>

@@ -4,8 +4,8 @@ import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor, inDateFilter } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
-import { gameExists, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
-import { toStoredGame } from "../storage/rows";
+import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
+import { storeImported } from "../storage/rows";
 import { Donut, Gauge, Legend } from "./charts";
 import type { Segment } from "./charts";
 import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
@@ -19,12 +19,6 @@ type Filter = "all" | "analyzed" | "open";
 
 function status(g: StoredGame): "completed" | "paused" | "not_started" {
   return (g.summary_json?.analysis_status as "completed" | "paused" | "not_started") ?? "not_started";
-}
-
-async function storeBatch(games: GameAnalysis[]): Promise<void> {
-  // The list sorts by date played; the save time only orders games within one batch.
-  const now = Date.now() / 1000;
-  await putGames(games.map((g, i) => toStoredGame(g, now - i / 1000)));
 }
 
 function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: (ids: string[]) => void }) {
@@ -60,7 +54,7 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
     const ids: string[] = [];
     const onBatch = async (games: GameAnalysis[]) => {
       ids.push(...games.map((g) => g.game_id));
-      await storeBatch(games);
+      await storeImported(games);
     };
     try {
       let res: ImportResult;
@@ -341,6 +335,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState("All Time");
   const [limit, setLimit] = useState(60);
+  // Games of tracked opponents and friends live in the same store; by default the list shows only the user's own.
+  const [scope, setScope] = useState<"mine" | "all">("mine");
   const [justImported, setJustImported] = useState<string[]>([]);
 
   useEffect(() => subscribeQueue(setQueue), []);
@@ -355,9 +351,15 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
 
   const speeds = useMemo(() => [...new Set((games ?? []).map((g) => g.speed_category).filter((v): v is string => Boolean(v)))], [games]);
 
+  const scoped = useMemo(
+    () => (scope === "mine" && usernames.length ? (games ?? []).filter((g) => getUserColor(g, usernames)) : (games ?? [])),
+    [games, usernames, scope],
+  );
+  const othersCount = usernames.length ? (games ?? []).length - (games ?? []).filter((g) => getUserColor(g, usernames)).length : 0;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return (games ?? []).filter((g) => {
+    return scoped.filter((g) => {
       if (filter === "analyzed" && status(g) !== "completed") return false;
       if (filter === "open" && status(g) === "completed") return false;
       if (speed !== "all" && g.speed_category !== speed) return false;
@@ -365,11 +367,11 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       if (q && !`${g.white} ${g.black} ${g.opening ?? ""} ${g.event}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [games, filter, speed, search, period]);
+  }, [scoped, filter, speed, search, period]);
 
   const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
 
-  const open = (games ?? []).filter((g) => status(g) !== "completed").map((g) => g.id);
+  const open = scoped.filter((g) => status(g) !== "completed").map((g) => g.id);
   const busy = Boolean(queue?.current) || (queue?.queued.length ?? 0) > 0;
   const remaining = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
 
@@ -468,6 +470,12 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
               </button>
             ))}
           </div>
+          {othersCount > 0 && (
+            <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label="Spieler" style={{ flex: "1 1 120px", maxWidth: "220px" }}>
+              <option value="mine">Meine Partien</option>
+              <option value="all">Auch andere Spieler ({othersCount})</option>
+            </select>
+          )}
           {speeds.length > 1 && (
             <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label="Bedenkzeit" style={{ flex: "1 1 120px", maxWidth: "200px" }}>
               <option value="all">Alle Bedenkzeiten</option>

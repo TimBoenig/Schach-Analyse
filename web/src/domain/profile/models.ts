@@ -23,6 +23,10 @@ export interface SkillScore {
   reliable: boolean;
   /** Score a typical player of the user's rating reaches (null without rating). */
   typical?: number | null;
+  /** Score straight from the measurement, before blending with the prior. */
+  raw_score?: number;
+  /** Rough ± uncertainty of `score` in points (null without data). */
+  margin?: number | null;
 }
 
 export interface Insight {

@@ -14,7 +14,7 @@ import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { buildDeepInsights } from "./insights";
 import { buildOpeningInsights, openingMain } from "./openings";
 import { detectPatterns } from "./patterns";
-import { computeSkills } from "./skills";
+import { computeSkills, settleSkills } from "./skills";
 import { buildStyle } from "./style";
 import { buildTrainingPlan } from "./training";
 
@@ -118,7 +118,7 @@ export function buildPlayerProfile(
   profile.exercises = buildExercisePool(feats);
   if (!analyzed.length) return profile;
 
-  profile.skills = withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null);
+  profile.skills = settleSkills(withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null));
   [profile.strengths, profile.weaknesses] = strengthsWeaknesses(profile.skills, profile.rating?.rating ?? null);
   const [best, worst] = openings(feats);
   profile.openings_best = best;

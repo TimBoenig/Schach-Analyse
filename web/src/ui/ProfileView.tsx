@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import type { GameRef, Insight, PlayerProfile, RatingContext } from "../domain/profile";
+import type { GameRef, Insight, PlayerProfile, RatingContext, SkillScore } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
@@ -40,6 +40,13 @@ function pct(v: number | null | undefined, digits = 0): string {
 
 function signed(v: number, digits = 1): string {
   return `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(digits)}`;
+}
+
+/** Evidence line under a skill bar: uncertainty and the raw measurement when blending moved it. */
+export function skillNote(s: SkillScore): string | undefined {
+  if (!s.sample || s.margin === null || s.margin === undefined) return undefined;
+  const raw = s.raw_score !== undefined && Math.abs(s.raw_score - s.score) >= 3 ? ` · gemessen ${Math.round(s.raw_score)}` : "";
+  return `±${s.margin}${raw}`;
 }
 
 function Examples({ refs }: { refs: GameRef[] }) {
@@ -253,13 +260,16 @@ export function ProfileView() {
     value: s.score,
     typical: s.typical,
     faint: !s.reliable,
+    margin: s.margin,
+    raw: s.raw_score,
   }));
   const skillRows: BarRow[] = profile.skills.map((s) => ({
     label: s.name,
     value: s.sample > 0 ? s.score : null,
     reference: s.typical,
-    valueText: s.grade,
+    valueText: s.sample > 0 && s.grade !== "Keine Uhrdaten" ? `${s.grade} · ${Math.round(s.score)}` : s.grade,
     faint: !s.reliable,
+    note: skillNote(s),
   }));
 
   const phaseAcc = (o.phase_accuracy ?? {}) as Record<string, number>;
@@ -336,7 +346,10 @@ export function ProfileView() {
 
             <Card title="Fähigkeiten im Detail" sub="0–100 Punkte" span={6}>
               <BarList rows={skillRows} referenceLabel={typicalLabel} />
-              <p class="faint small tile-foot">Blasse Balken beruhen auf wenigen Daten.</p>
+              <p class="faint small tile-foot">
+                Blasse Balken beruhen auf wenigen Daten. Solche Werte gleicht die App zum Richtwert hin aus, statt sie auf 0
+                oder 100 springen zu lassen; ± zeigt, wie genau ein Wert ist.
+              </p>
             </Card>
 
             <Card title="Genauigkeit nach Phase" span={4}>

@@ -26,6 +26,21 @@ Einstellungen zwischen Geräten ab.
   Einblicke, Trainingsplan), Trainingsfortschritt und gespeicherten KI-Coach-Antworten. Dazu CSV (Excel, `;`) und PGN.
   Eine JSON-Sicherung lässt sich wieder einspielen; Einstellungen ergänzen dabei nur Fehlendes.
 
+## Spieler und Freundes-Rangliste
+
+- **Spieler** (`#/spieler`): Gegner und Freunde mit ihrem Lichess- oder Chess.com-Namen anlegen (oder nur aus vorhandenen
+  Partien). Ihre Partien landen im normalen Speicher, ihre Namen aber nie bei den eigenen; die Partienliste zeigt
+  standardmäßig nur die eigenen Partien. Häufige Gegner aus den eigenen Partien lassen sich mit einem Tipp hinzufügen.
+- **Gegnerbericht** (`#/spieler/<id>`, `src/domain/players/scout.ts`): „So schlägst du …“ mit Eröffnungen für Weiß und
+  Schwarz (wo der Gegner schlecht punktet, verrechnet mit dem eigenen Ergebnis), Taktik- und Strategietipps aus den
+  Fähigkeiten, Zeitverlusten, Farb- und Bedenkzeitlücken, Tilt und Fehlerphasen, Warnungen vor Stärken, Fähigkeiten-Netz
+  im Vergleich und Direktvergleich. Eröffnungstipps brauchen keine Analyse, der Rest analysierte Partien.
+- **Rangliste** (`#/spieler/rangliste`, `ranking.ts`): du und deine Freunde nach 15 Faktoren (Wertung, Punkte über
+  Elo-Erwartung, Punkte-Quote, Direktvergleich, Genauigkeit, Patzer, acht Fähigkeiten, Aktivität). Jeder Faktor vergibt
+  Punkte nach Platz, die Gesamtwertung ist der gewichtete Schnitt.
+- **Fähigkeitswerte** werden mit wenig Daten zum Richtwert der Wertung (sonst 50) hin ausgeglichen
+  (`settleSkills`) und tragen eine ±-Unsicherheit, die das Netzdiagramm als Band zeigt.
+
 ## Training
 
 Die Seite **Training** baut aus den eigenen Partien Übungen und einen

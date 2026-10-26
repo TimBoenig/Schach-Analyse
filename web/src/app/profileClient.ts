@@ -9,7 +9,8 @@ const pending = new Map<number, { resolve: (r: unknown) => void; reject: (e: Err
 // Profile and training both need the same profile; building it costs ~50 ms per
 // game, so results are reused until the games or filters change.
 const cache = new Map<string, Promise<PlayerProfile>>();
-const CACHE_SIZE = 8;
+// The friends ranking builds one profile per player, so keep a few more around.
+const CACHE_SIZE = 16;
 
 function cacheKey(req: Omit<ProfileRequest, "id">): string {
   let newest = 0;
