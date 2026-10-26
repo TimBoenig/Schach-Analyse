@@ -24,6 +24,13 @@ export function pstdev(values: number[]): number {
   return Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / values.length);
 }
 
+/** Sample standard deviation (statistics.stdev): unbiased for a handful of games. */
+export function stdev(values: number[]): number {
+  if (values.length < 2) return 0;
+  const mean = avg(values);
+  return Math.sqrt(values.reduce((s, v) => s + (v - mean) ** 2, 0) / (values.length - 1));
+}
+
 /** Python-style "{x:.Nf}" formatting (ties to even like CPython's float formatting). */
 export function fmt(x: number, digits: number): string {
   return pyRound(x, digits).toFixed(digits);

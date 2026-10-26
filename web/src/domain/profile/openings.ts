@@ -59,6 +59,8 @@ export interface OpeningInsights {
   white_first: MoveChoice[];
   /** The opponent's first moves when the player has Black, with the player's replies. */
   black_vs: FirstMoveStat[];
+  /** The player's first moves as White, with the opponents' replies (for scouting). */
+  white_vs: FirstMoveStat[];
   /** Average winning chance after the opening over all analyzed games, in percent. */
   wp_after_opening: number | null;
   /** Headline findings in German, strongest first. */
@@ -198,14 +200,17 @@ export function buildOpeningInsights(feats: GameFeatures[]): OpeningInsights {
   const byLine = new Map<string, GameFeatures[]>();
   const whiteFirst = new Map<string, GameFeatures[]>();
   const blackVs = new Map<string, GameFeatures[]>();
+  const whiteVs = new Map<string, GameFeatures[]>();
   for (const f of feats) {
     if (f.chess960) continue; // Chess960 has no opening theory to compare.
     const color = f.rec.user_color;
     if (f.rec.opening) push(byLine, `${color}\u0000${openingMain(f.rec.opening)}`, f);
     const [first, reply] = f.first_sans;
     if (!first) continue;
-    if (color === "white") push(whiteFirst, first, f);
-    else if (reply) push(blackVs, first, f);
+    if (color === "white") {
+      push(whiteFirst, first, f);
+      if (reply) push(whiteVs, first, f);
+    } else if (reply) push(blackVs, first, f);
   }
 
   const lines = [...byLine.entries()].map(([k, fs]) => {
@@ -215,20 +220,22 @@ export function buildOpeningInsights(feats: GameFeatures[]): OpeningInsights {
   const sortLines = (c: "white" | "black") =>
     lines.filter((l) => l.color === c).sort((a, b) => b.games - a.games || a.name.localeCompare(b.name));
 
-  const black_vs: FirstMoveStat[] = [...blackVs.entries()]
-    .map(([san, fs]) => {
-      const replies = new Map<string, GameFeatures[]>();
-      for (const f of fs) push(replies, f.first_sans[1], f);
-      return { san, games: fs.length, score_pct: scoreCounts(fs).score_pct, replies: choices(replies) };
-    })
-    .sort((a, b) => b.games - a.games || a.san.localeCompare(b.san));
+  const withReplies = (groups: Map<string, GameFeatures[]>): FirstMoveStat[] =>
+    [...groups.entries()]
+      .map(([san, fs]) => {
+        const replies = new Map<string, GameFeatures[]>();
+        for (const f of fs) push(replies, f.first_sans[1], f);
+        return { san, games: fs.length, score_pct: scoreCounts(fs).score_pct, replies: choices(replies) };
+      })
+      .sort((a, b) => b.games - a.games || a.san.localeCompare(b.san));
 
   const allWp = feats.map(wpAfterOpening).filter((v): v is number => v !== null);
   const out: OpeningInsights = {
     white: sortLines("white"),
     black: sortLines("black"),
     white_first: choices(whiteFirst),
-    black_vs,
+    black_vs: withReplies(blackVs),
+    white_vs: withReplies(whiteVs),
     wp_after_opening: allWp.length ? avg(allWp) * 100 : null,
     facts: [],
   };

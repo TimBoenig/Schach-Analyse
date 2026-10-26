@@ -24,6 +24,7 @@ export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
   { view: "analysis", label: "Analyse", key: "3" },
   { view: "board", label: "Analysebrett", key: "9" },
   { view: "profile", label: "Profil", key: "4" },
+  { view: "players", label: "Spieler & Rangliste", key: "0" },
   { view: "insights", label: "Einblicke", key: "5" },
   { view: "openings", label: "Eröffnungen", key: "6" },
   { view: "training", label: "Training", key: "7" },

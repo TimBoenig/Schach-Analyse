@@ -45,6 +45,6 @@ export type {
   StyleProfile,
   TrainingItem,
 } from "./models";
-export { SKILL_NAMES } from "./skills";
+export { PRIOR_WEIGHT, settleSkills, SKILL_NAMES } from "./skills";
 export { activityCalendar, comparePeriods, dailyActivity, focusNotes, formSummary, SKILL_TREND_POINTS, trendOf } from "./dashboard";
 export type { CalendarDay, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";

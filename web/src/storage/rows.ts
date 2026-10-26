@@ -6,6 +6,7 @@ import { detectSpeedCategory } from "../domain/pgn";
 import { analyzeGameTactics } from "../domain/tactics";
 import { detectTermination } from "../domain/termination";
 import { emptyMetadata, type GameAnalysis, type GameSummary, type MoveData, type StoredGame } from "../domain/types";
+import { putGames } from "./db";
 
 function analysisStatus(game: GameAnalysis): "completed" | "paused" | "not_started" {
   const s = game.summary?.analysis_status;
@@ -137,4 +138,10 @@ export function fromStoredGame(row: StoredGame): GameAnalysis {
     summary: (row.summary_json ?? {}) as GameSummary,
     pgn_content: row.pgn ?? "",
   };
+}
+
+/** Saves freshly imported games. Lists sort by date played; the save time only orders games within one batch. */
+export async function storeImported(games: GameAnalysis[]): Promise<void> {
+  const now = Date.now() / 1000;
+  await putGames(games.map((g, i) => toStoredGame(g, now - i / 1000)));
 }

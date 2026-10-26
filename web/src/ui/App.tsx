@@ -7,10 +7,11 @@ import { FreeBoardView } from "./FreeBoardView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
-import { IconBoard, IconFreeBoard, IconGames, IconHome, IconInsights, IconOpenings, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { IconBoard, IconFreeBoard, IconGames, IconHome, IconInsights, IconOpenings, IconPlayers, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
 import { InsightsView } from "./InsightsView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
+import { PlayersView } from "./PlayersView";
 import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
 import { TrainingView } from "./TrainingView";
@@ -22,6 +23,7 @@ const NAV: { view: Route["view"]; label: string; short?: string; icon: () => pre
   { view: "analysis", label: "Analyse", icon: IconBoard },
   { view: "board", label: "Brett", icon: IconFreeBoard },
   { view: "profile", label: "Profil", icon: IconProfile },
+  { view: "players", label: "Spieler", icon: IconPlayers },
   { view: "insights", label: "Einblicke", icon: IconInsights },
   { view: "openings", label: "Eröffnungen", short: "Eröffnung", icon: IconOpenings },
   { view: "training", label: "Training", icon: IconTraining },
@@ -140,6 +142,7 @@ export function App() {
         {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
         {route.view === "board" && <FreeBoardView key={route.fen ?? ""} fen={route.fen} />}
         {route.view === "profile" && <ProfileView />}
+        {route.view === "players" && <PlayersView key={route.playerId ?? route.tab ?? ""} playerId={route.playerId} tab={route.tab} />}
         {route.view === "insights" && <InsightsView />}
         {route.view === "openings" && <OpeningsView />}
         {route.view === "training" && (

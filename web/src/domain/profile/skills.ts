@@ -7,7 +7,7 @@
 import { pct } from "../metrics/accumulators";
 import type { GameFeatures } from "./features";
 import type { SkillScore } from "./models";
-import { fmt, pstdev, pyRound } from "./num";
+import { fmt, pyRound, stdev } from "./num";
 
 type Dict = Record<string, any>;
 
@@ -15,6 +15,29 @@ type Dict = Record<string, any>;
 export const MIN_GAMES = 5;
 export const MIN_PHASE_MOVES = 40;
 export const MIN_SITUATIONS = 3;
+// Games this short (own moves after the book) say little about steadiness: a
+// resignation after a few moves reads as 95 % or 40 % accuracy at random.
+export const MIN_CONSISTENCY_MOVES = 10;
+
+// Evidence (in units of each skill's `sample`) at which the measurement and the
+// prior count half each. A 0..100 score from a few situations swings wildly
+// (one thrown win reads as 0 % conversion), so until enough evidence exists the
+// score is blended with what is typical for the player's rating (or 50 without
+// one). This shrinkage gives a better estimate of the true skill than the raw
+// value and keeps the radar from jumping between 0 and 100.
+export const PRIOR_WEIGHT: Record<string, number> = {
+  opening: 40,
+  middlegame: 40,
+  endgame: 40,
+  tactics: 6,
+  safety: 120,
+  conversion: 3,
+  defense: 3,
+  time: 150,
+  consistency: 5,
+};
+// Uncertainty (score points) of a skill without any evidence; shrinks with 1/sqrt(n).
+const PRIOR_MARGIN = 30;
 
 /** Linear map of value onto 0..100 where `weak`->0 and `strong`->100 (either direction). */
 export function scale(value: number, weak: number, strong: number): number {
@@ -174,8 +197,11 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
 
   skills.push(timeSkill(stats, analyzed));
 
-  const accs = analyzed.map((f) => f.rec.game_acc).filter((a) => a > 0);
-  const spread = accs.length >= 2 ? pstdev(accs) : 0;
+  const accs = analyzed
+    .filter((f) => f.moves.filter((m) => !m.is_book).length >= MIN_CONSISTENCY_MOVES)
+    .map((f) => f.rec.game_acc)
+    .filter((a) => a > 0);
+  const spread = accs.length >= 2 ? stdev(accs) : 0;
   skills.push(
     skill(
       "consistency",
@@ -223,4 +249,26 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
     (tt.trouble_moves ?? 0) + (tt.normal_moves ?? 0),
     analyzed.length >= MIN_GAMES,
   );
+}
+
+/**
+ * Blend each measured skill with its prior (the rating-typical score, else 50)
+ * by the evidence behind it, and attach the remaining uncertainty. Call after
+ * `withTypical` so the prior is known; skills without data stay untouched.
+ */
+export function settleSkills(skills: SkillScore[]): SkillScore[] {
+  return skills.map((s) => {
+    const k = PRIOR_WEIGHT[s.key];
+    if (!k || s.sample <= 0) return { ...s, raw_score: s.score, margin: null };
+    const prior = s.typical ?? 50;
+    const w = s.sample / (s.sample + k);
+    const score = pyRound(w * s.score + (1 - w) * prior, 1);
+    return {
+      ...s,
+      raw_score: s.score,
+      score,
+      grade: gradeFor(score),
+      margin: Math.round(PRIOR_MARGIN * Math.sqrt(k / (s.sample + k))),
+    };
+  });
 }
