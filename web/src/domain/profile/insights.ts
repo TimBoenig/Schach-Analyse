@@ -3,8 +3,23 @@
 // Every block carries its sample size so the UI can hide thin evidence.
 
 import type { GameFeatures, MoveEvent } from "./features";
+import { expectedScore } from "./benchmarks";
 import { avg, pyRound } from "./num";
 import { buildEvolution, bySpeed, type Evolution, type FeedbackItem, gameTypes, type GameTypeStat, personalFeedback } from "./evolution";
+import {
+  MIN_BUCKET_MOVES,
+  MIN_ERRORS,
+  MIN_GROUP_GAMES,
+  ratesDiffer,
+  restOf,
+  type ScoreSample,
+  scoreZ,
+  scoresDiffer,
+  shareAtLeast,
+  shareBelow,
+  Z95,
+  Z_MULTI,
+} from "./evidence";
 import { buildPrecision, type PrecisionStats, wilsonMargin } from "./precision";
 
 export interface ScoreBucket {
@@ -15,6 +30,11 @@ export interface ScoreBucket {
   /** Half width of the 95 % interval of score_pct, in percentage points. */
   margin: number | null;
   avg_accuracy: number | null;
+  /**
+   * Points above (+) or below (−) the Elo expectation against the opponents of
+   * this bucket, in percentage points; null when most games lack ratings.
+   */
+  vs_expectation?: number | null;
 }
 
 export interface MoveBucket {
@@ -69,9 +89,10 @@ export interface DeepInsights {
 
 // Two games belong to one session when the second starts within this gap.
 export const SESSION_GAP_SECONDS = 2 * 60 * 60;
-// Buckets with fewer games/moves than this are not used for headline findings.
-const MIN_GAMES = 4;
-const MIN_MOVES = 30;
+// Buckets with fewer games/moves than this are not used for headline findings
+// (see evidence.ts); each finding must also pass a significance test.
+const MIN_GAMES = MIN_GROUP_GAMES;
+const MIN_MOVES = MIN_BUCKET_MOVES;
 
 const FILES = "abcdefgh";
 
@@ -137,8 +158,10 @@ export function pieceOf(m: MoveEvent): string {
 }
 
 function scoreBucket(key: string, label: string, fs: GameFeatures[]): ScoreBucket {
-  const scores = fs.map((f) => f.score).filter((s): s is number => s !== null);
+  const finished = fs.filter((f) => f.score !== null);
+  const scores = finished.map((f) => f.score as number);
   const accs = fs.filter((f) => f.analyzed).map((f) => f.rec.game_acc);
+  const rated = finished.filter((f) => f.user_rating > 0 && f.opp_rating > 0);
   return {
     key,
     label,
@@ -146,6 +169,10 @@ function scoreBucket(key: string, label: string, fs: GameFeatures[]): ScoreBucke
     score_pct: scores.length ? pyRound(avg(scores) * 100, 1) : null,
     margin: scores.length ? wilsonMargin(avg(scores), scores.length) : null,
     avg_accuracy: accs.length ? pyRound(avg(accs), 1) : null,
+    vs_expectation:
+      rated.length && rated.length >= finished.length * 0.8
+        ? pyRound(avg(rated.map((f) => (f.score as number) - expectedScore(f.user_rating, f.opp_rating))) * 100, 1)
+        : null,
   };
 }
 
@@ -279,22 +306,50 @@ export function buildDeepInsights(
   return insights;
 }
 
+/**
+ * Score of a bucket for comparisons. With ratings the points over the Elo
+ * expectation are compared, so "evenings are your best time" is not just an
+ * artefact of meeting weaker opponents in the evening.
+ */
+function sampleOf(b: ScoreBucket, adjusted: boolean): ScoreSample {
+  return { games: b.games, score_pct: adjusted ? 50 + (b.vs_expectation as number) : b.score_pct };
+}
+
+const bothRated = (...bs: ScoreBucket[]) => bs.every((b) => b.vs_expectation !== null && b.vs_expectation !== undefined);
+
+/** Two buckets differ beyond chance (opponent strength taken into account where known). */
+function bucketsDiffer(a: ScoreBucket, b: ScoreBucket, z = Z95): boolean {
+  const adj = bothRated(a, b);
+  return scoresDiffer(sampleOf(a, adj), sampleOf(b, adj), z, MIN_GAMES);
+}
+
+/** z of a bucket against all other games (positive = bucket better). */
+function zVsRest(b: ScoreBucket, all: ScoreBucket): number {
+  const adj = bothRated(b, all);
+  const rest = restOf(sampleOf(all, adj), sampleOf(b, adj));
+  if (b.games < MIN_GAMES || rest.games < MIN_GAMES) return 0;
+  return scoreZ(sampleOf(b, adj), rest);
+}
+
+const errorsOf = (bs: MoveBucket[]) => bs.reduce((s, b) => s + b.errors, 0);
+const movesOf = (bs: MoveBucket[]) => bs.reduce((s, b) => s + b.moves, 0);
+
 function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const facts: [number, string][] = [];
-  const overallScores = feats.map((f) => f.score).filter((s): s is number => s !== null);
-  const overall = overallScores.length ? avg(overallScores) * 100 : null;
+  const all = scoreBucket("all", "Alle Partien", feats);
+  const overall = all.score_pct;
 
-  // Tilt: clearly worse right after a loss.
-  const afterWin = d.after_result[0];
+  // Tilt: clearly worse right after a loss than in the other games.
   const afterLoss = d.after_result[2];
-  if (afterLoss.games >= MIN_GAMES && afterLoss.score_pct !== null && overall !== null) {
+  if (afterLoss.score_pct !== null && overall !== null) {
     const gap = overall - afterLoss.score_pct;
-    if (gap >= 10) {
+    const z = zVsRest(afterLoss, all);
+    if (gap >= 10 && z <= -Z95) {
       facts.push([
         gap,
         `Nach einer Niederlage holst du nur ${afterLoss.score_pct.toFixed(0)} % der Punkte (sonst ${overall.toFixed(0)} %). Eine kurze Pause vor der nächsten Partie lohnt sich.`,
       ]);
-    } else if (afterWin.games >= MIN_GAMES && afterWin.score_pct !== null && gap <= -5) {
+    } else if (gap <= -5 && z >= Z95) {
       facts.push([5, `Niederlagen werfen dich nicht aus der Bahn: Direkt danach holst du sogar ${afterLoss.score_pct.toFixed(0)} %.`]);
     }
   }
@@ -302,9 +357,9 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   // Sessions: does the player fade in long sessions?
   const first = d.by_session_game[0];
   const late = d.by_session_game[3];
-  if (first.games >= MIN_GAMES && late.games >= MIN_GAMES && first.score_pct !== null && late.score_pct !== null) {
+  if (first.score_pct !== null && late.score_pct !== null) {
     const drop = first.score_pct - late.score_pct;
-    if (drop >= 12) {
+    if (drop >= 12 && bucketsDiffer(first, late)) {
       facts.push([
         drop,
         `Ab der 4. Partie am Stück sinkt deine Punktequote von ${first.score_pct.toFixed(0)} % auf ${late.score_pct.toFixed(0)} %. Lange Serien kosten dich Punkte.`,
@@ -318,7 +373,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     const best = slots.reduce((a, b) => ((b.score_pct as number) > (a.score_pct as number) ? b : a));
     const worst = slots.reduce((a, b) => ((b.score_pct as number) < (a.score_pct as number) ? b : a));
     const gap = (best.score_pct as number) - (worst.score_pct as number);
-    if (gap >= 12) {
+    if (gap >= 12 && bucketsDiffer(best, worst, slots.length > 2 ? Z_MULTI : Z95)) {
       facts.push([
         gap * 0.8,
         `${best.label.split(" ")[0]} spielst du am besten (${(best.score_pct as number).toFixed(0)} %), ${worst.label.split(" ")[0].toLowerCase()} am schwächsten (${(worst.score_pct as number).toFixed(0)} %).`,
@@ -326,15 +381,20 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     }
   }
 
-  // Move number: where errors pile up.
+  // Move number: where errors pile up (compared with all other moves).
   const ranges = d.by_move_number.filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
   if (ranges.length >= 2) {
     const peak = ranges.reduce((a, b) => ((b.per100 as number) > (a.per100 as number) ? b : a));
-    const mean = avg(ranges.map((b) => b.per100 as number));
-    if ((peak.per100 as number) >= mean * 1.35 && (peak.per100 as number) >= 3) {
+    const others = d.by_move_number.filter((b) => b !== peak);
+    const rest = (errorsOf(others) / Math.max(1, movesOf(others))) * 100;
+    if (
+      (peak.per100 as number) >= rest * 1.35 &&
+      (peak.per100 as number) >= 3 &&
+      ratesDiffer(peak.errors, peak.moves, errorsOf(others), movesOf(others), Z_MULTI)
+    ) {
       facts.push([
-        ((peak.per100 as number) / Math.max(mean, 0.1)) * 8,
-        `Deine Fehler häufen sich zwischen Zug ${peak.label.replace("–", " und ")}: ${de(peak.per100 as number)} schwere Fehler pro 100 Züge (Schnitt ${de(mean)}).`,
+        ((peak.per100 as number) / Math.max(rest, 0.1)) * 8,
+        `Deine Fehler häufen sich zwischen Zug ${peak.label.replace("–", " und ")}: ${de(peak.per100 as number)} schwere Fehler pro 100 Züge (sonst ${de(rest)}).`,
       ]);
     }
   }
@@ -343,9 +403,9 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const pieces = d.by_piece.filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
   if (pieces.length >= 3) {
     const worst = pieces.reduce((a, b) => ((b.per100 as number) > (a.per100 as number) ? b : a));
-    const others = pieces.filter((b) => b !== worst);
-    const rest = others.reduce((s, b) => s + b.errors, 0) / Math.max(1, others.reduce((s, b) => s + b.moves, 0)) * 100;
-    if ((worst.per100 as number) >= rest * 1.5 && worst.errors >= 3) {
+    const others = d.by_piece.filter((b) => b !== worst);
+    const rest = (errorsOf(others) / Math.max(1, movesOf(others))) * 100;
+    if ((worst.per100 as number) >= rest * 1.5 && ratesDiffer(worst.errors, worst.moves, errorsOf(others), movesOf(others), Z_MULTI)) {
       const factor = (worst.per100 as number) / Math.max(rest, 0.1);
       facts.push([
         factor * 7,
@@ -354,9 +414,11 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     }
   }
 
-  // Hot square: one square that keeps coming back.
+  // Hot square: one square that keeps coming back. Some squares are busier than
+  // others anyway, so a "hot" one needs 8 % of the errors and, with 95 %
+  // confidence, at least 4 % (2.5 times an even share of 1/64).
   const top = d.hot_squares[0];
-  if (top && d.error_total >= 10 && top.count / d.error_total >= 0.08 && top.count >= 3) {
+  if (top && d.error_total >= MIN_ERRORS * 2 && top.count / d.error_total >= 0.08 && shareAtLeast(top.count, d.error_total, 0.04)) {
     facts.push([top.count, `Auf ${top.square} landen auffällig viele deiner Fehler (${top.count} von ${d.error_total}).`]);
   }
 
@@ -364,8 +426,8 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const fast = d.by_think_time[0];
   const slow = d.by_think_time.slice(1).filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
   if (fast.moves >= MIN_MOVES && fast.per100 !== null && slow.length) {
-    const rest = slow.reduce((s, b) => s + b.errors, 0) / Math.max(1, slow.reduce((s, b) => s + b.moves, 0)) * 100;
-    if (fast.per100 >= rest * 1.5 && fast.errors >= 3) {
+    const rest = (errorsOf(slow) / Math.max(1, movesOf(slow))) * 100;
+    if (fast.per100 >= rest * 1.5 && ratesDiffer(fast.errors, fast.moves, errorsOf(slow), movesOf(slow))) {
       facts.push([
         (fast.per100 / Math.max(rest, 0.1)) * 6,
         `Schnelle Züge (unter 3 Sekunden) gehen bei dir ${de(fast.per100 / Math.max(rest, 0.1))}-mal so oft schief wie überlegte: ${de(fast.per100)} gegenüber ${de(rest)} schweren Fehlern pro 100 Züge.`,
@@ -375,7 +437,12 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
 
   // Time trouble.
   const [calm, trouble] = d.time_trouble;
-  if (trouble.moves >= MIN_MOVES && calm.moves >= MIN_MOVES && trouble.per100 !== null && calm.per100 !== null && trouble.per100 >= calm.per100 * 1.8) {
+  if (
+    trouble.per100 !== null &&
+    calm.per100 !== null &&
+    trouble.per100 >= calm.per100 * 1.8 &&
+    ratesDiffer(trouble.errors, trouble.moves, calm.errors, calm.moves)
+  ) {
     facts.push([
       (trouble.per100 / Math.max(calm.per100, 0.1)) * 5,
       `In Zeitnot machst du ${de(trouble.per100)} schwere Fehler pro 100 Züge, mit genug Zeit nur ${de(calm.per100)}.`,
@@ -384,7 +451,12 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
 
   // Right after theory.
   const [early, later] = d.after_book;
-  if (early.moves >= MIN_MOVES && later.moves >= MIN_MOVES && early.per100 !== null && later.per100 !== null && early.per100 >= later.per100 * 1.4) {
+  if (
+    early.per100 !== null &&
+    later.per100 !== null &&
+    early.per100 >= later.per100 * 1.4 &&
+    ratesDiffer(early.errors, early.moves, later.errors, later.moves)
+  ) {
     facts.push([
       (early.per100 / Math.max(later.per100, 0.1)) * 5,
       `Direkt nach der Theorie wird es gefährlich: In den ersten ${AFTER_BOOK_MOVES} Zügen danach patzt du ${de(early.per100)}-mal pro 100 Züge, später ${de(later.per100)}-mal.`,
@@ -395,19 +467,20 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const sit = d.by_situation.filter((b) => b.moves >= MIN_MOVES && b.per100 !== null);
   if (sit.length >= 2) {
     const worst = sit.reduce((a, b) => ((b.per100 as number) > (a.per100 as number) ? b : a));
-    const mean = avg(sit.map((b) => b.per100 as number));
-    if ((worst.per100 as number) >= mean * 1.4 && worst.errors >= 3) {
+    const others = d.by_situation.filter((b) => b !== worst);
+    const rest = (errorsOf(others) / Math.max(1, movesOf(others))) * 100;
+    if ((worst.per100 as number) >= rest * 1.4 && ratesDiffer(worst.errors, worst.moves, errorsOf(others), movesOf(others), Z_MULTI)) {
       const where =
         worst === d.by_situation[0] ? "wenn du klar besser stehst" : worst === d.by_situation[1] ? "in ausgeglichenen Stellungen" : "wenn du schlechter stehst";
       facts.push([
-        ((worst.per100 as number) / Math.max(mean, 0.1)) * 5,
+        ((worst.per100 as number) / Math.max(rest, 0.1)) * 5,
         `Die meisten Fehler pro Zug machst du ${where} (${de(worst.per100 as number)} je 100 Züge).`,
       ]);
     }
   }
 
-  // Punishing opponent errors.
-  if (d.punish.chances >= 8 && d.punish.rate !== null && d.punish.rate < 50) {
+  // Punishing opponent errors: only when clearly below one in two.
+  if (d.punish.chances >= MIN_ERRORS && d.punish.rate !== null && shareBelow(d.punish.punished, d.punish.chances, 0.5)) {
     facts.push([
       (50 - d.punish.rate) / 3,
       `Nur ${Math.round(d.punish.rate)} % der Fehler deiner Gegner bestrafst du (${d.punish.punished} von ${d.punish.chances}). Hier liegen leichte Punkte.`,

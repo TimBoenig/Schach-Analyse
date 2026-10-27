@@ -7,6 +7,7 @@
 import { pct } from "../metrics/accumulators";
 import type { GameFeatures } from "./features";
 import type { SkillScore } from "./models";
+import { effectiveMoves } from "./evidence";
 import { fmt, pyRound, stdev } from "./num";
 
 type Dict = Record<string, any>;
@@ -19,25 +20,37 @@ export const MIN_SITUATIONS = 3;
 // resignation after a few moves reads as 95 % or 40 % accuracy at random.
 export const MIN_CONSISTENCY_MOVES = 10;
 
-// Evidence (in units of each skill's `sample`) at which the measurement and the
-// prior count half each. A 0..100 score from a few situations swings wildly
-// (one thrown win reads as 0 % conversion), so until enough evidence exists the
-// score is blended with what is typical for the player's rating (or 50 without
-// one). This shrinkage gives a better estimate of the true skill than the raw
-// value and keeps the radar from jumping between 0 and 100.
+// Shrinkage toward the prior (what is typical for the player's rating, or 50
+// without one). A 0..100 score from a few situations swings wildly (one thrown
+// win reads as 0 % conversion), so the measurement is blended with the prior by
+// the evidence behind it: weight n / (n + k). This is the empirical-Bayes
+// estimate of the true skill, with k = (noise of one unit of evidence)² /
+// (spread of true skill between players of one rating)², roughly:
+// - phases, safety, time: per effective move (moves of one game are
+//   correlated, see `effectiveMoves`); one game of a phase is worth ~5 of them
+//   and the game-to-game swing of a phase is large, so ~4 games count half,
+// - tactics: per chance to punish an error,
+// - conversion/defence: per won/lost position; the result of one such
+//   position is all or nothing, so these need many situations,
+// - consistency: per game (a spread from few games is itself noisy).
 export const PRIOR_WEIGHT: Record<string, number> = {
-  opening: 40,
-  middlegame: 40,
-  endgame: 40,
+  opening: 20,
+  middlegame: 20,
+  endgame: 20,
   tactics: 6,
-  safety: 120,
-  conversion: 3,
-  defense: 3,
-  time: 150,
-  consistency: 5,
+  safety: 30,
+  conversion: 10,
+  defense: 15,
+  time: 40,
+  consistency: 10,
 };
-// Uncertainty (score points) of a skill without any evidence; shrinks with 1/sqrt(n).
+// Skills whose `sample` counts moves; their evidence is the effective number of moves.
+const MOVE_SKILLS = new Set(["opening", "middlegame", "endgame", "safety", "time"]);
+// 95 % uncertainty (score points) of a skill without any evidence: twice the
+// spread of true skill between players of one rating. Shrinks with sqrt(k / (n + k)).
 const PRIOR_MARGIN = 30;
+// Above this uncertainty a skill is shown faint and never called a strength or weakness.
+export const RELIABLE_MARGIN = 18;
 
 /** Linear map of value onto 0..100 where `weak`->0 and `strong`->100 (either direction). */
 export function scale(value: number, weak: number, strong: number): number {
@@ -71,6 +84,7 @@ function skill(
   score: number,
   detail: string,
   sample: number,
+  games: number,
   reliable: boolean,
   grade?: string,
 ): SkillScore {
@@ -81,7 +95,8 @@ function skill(
     grade: grade ?? gradeFor(score),
     detail,
     sample,
-    reliable,
+    games,
+    reliable: reliable && games >= MIN_GAMES,
   };
 }
 
@@ -101,19 +116,23 @@ function phaseSkill(key: string, stats: Dict, feats: GameFeatures[]): SkillScore
   const acc: number = stats.phase_stats?.accuracies?.[key] ?? 0;
   let moves = 0;
   let serious = 0;
+  let games = 0;
   for (const f of feats) {
+    let here = 0;
     for (const m of f.moves) {
       if (m.phase !== key) continue;
-      if (!m.is_book) moves += 1;
+      if (!m.is_book) here += 1;
       if (m.is_serious_error) serious += 1;
     }
+    moves += here;
+    if (here) games += 1;
   }
   const per100 = moves ? (serious / moves) * 100 : 0;
   const score = phaseScore(acc, per100);
   const detail = moves
     ? `${fmt(acc, 1)} % Genauigkeit, ${fmt(per100, 1)} Fehler/Patzer pro 100 Züge`
     : "Noch keine analysierten Züge in dieser Phase";
-  return skill(key, score, detail, moves, moves >= MIN_PHASE_MOVES);
+  return skill(key, score, detail, moves, games, moves >= MIN_PHASE_MOVES);
 }
 
 /** Compute all skill scores from aggregated stats plus move-level features. */
@@ -144,6 +163,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       `${fmt(pct(punished, chances), 0)} % der gegnerischen Fehler bestraft ` +
         `(${punished}/${chances}), ${misses} verpasste Chancen`,
       chances,
+      analyzed.filter((f) => f.punish_chances > 0).length,
       chances >= MIN_SITUATIONS * 2,
     ),
   );
@@ -164,7 +184,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       `${fmt(blunderRate, 1)} Patzer pro 100 Züge, ` +
         `${fmt(hungPerGame, 2)} eingestellte Figuren pro Partie`,
       userMoves,
-      n >= MIN_GAMES,
+      n,
+      true,
     ),
   );
 
@@ -178,6 +199,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       `${fmt(conv, 0)} % der klar gewonnenen Stellungen (+3) auch gewonnen ` +
         `(${adv.converted_advantage ?? 0}/${hadWin})`,
       hadWin,
+      hadWin,
       hadWin >= MIN_SITUATIONS,
     ),
   );
@@ -190,6 +212,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       defenseScore(comeback),
       `${fmt(comeback, 0)} % der klar verlorenen Stellungen (-3) noch gehalten oder gedreht ` +
         `(${adv.comeback_drawn_or_won ?? 0}/${hadLose})`,
+      hadLose,
       hadLose,
       hadLose >= MIN_SITUATIONS,
     ),
@@ -208,7 +231,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       consistencyScore(spread),
       `Genauigkeit schwankt um ±${fmt(spread, 1)} Prozentpunkte von Partie zu Partie`,
       accs.length,
-      accs.length >= MIN_GAMES,
+      accs.length,
+      true,
     ),
   );
   return skills;
@@ -221,6 +245,7 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
       "time",
       50,
       "Die Partien enthalten keine Uhrzeiten (z. B. reine PGN ohne %clk).",
+      0,
       0,
       false,
       "Keine Uhrdaten",
@@ -247,28 +272,41 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
     `${timeLosses} Niederlagen durch Zeit, in ${fmt(troubleShare * 100, 0)} % der Partien ` +
       `in Zeitnot, Patzerrisiko in Zeitnot ${fmt(panic, 1)}×`,
     (tt.trouble_moves ?? 0) + (tt.normal_moves ?? 0),
-    analyzed.length >= MIN_GAMES,
+    analyzed.filter((f) => f.moves.some((m) => m.time_left !== null)).length,
+    true,
   );
+}
+
+/** Evidence behind a skill in the units of its PRIOR_WEIGHT. */
+export function evidenceOf(s: SkillScore): number {
+  if (!MOVE_SKILLS.has(s.key)) return s.sample;
+  // Older callers without a game count: assume one game per 30 moves.
+  return effectiveMoves(s.sample, s.games ?? Math.max(1, Math.round(s.sample / 30)));
 }
 
 /**
  * Blend each measured skill with its prior (the rating-typical score, else 50)
  * by the evidence behind it, and attach the remaining uncertainty. Call after
  * `withTypical` so the prior is known; skills without data stay untouched.
+ * A skill whose margin is still wide is marked unreliable, so it is never
+ * named as a strength or weakness.
  */
 export function settleSkills(skills: SkillScore[]): SkillScore[] {
   return skills.map((s) => {
     const k = PRIOR_WEIGHT[s.key];
     if (!k || s.sample <= 0) return { ...s, raw_score: s.score, margin: null };
     const prior = s.typical ?? 50;
-    const w = s.sample / (s.sample + k);
+    const n = evidenceOf(s);
+    const w = n / (n + k);
     const score = pyRound(w * s.score + (1 - w) * prior, 1);
+    const margin = Math.round(PRIOR_MARGIN * Math.sqrt(k / (n + k)));
     return {
       ...s,
       raw_score: s.score,
       score,
       grade: gradeFor(score),
-      margin: Math.round(PRIOR_MARGIN * Math.sqrt(k / (s.sample + k))),
+      margin,
+      reliable: s.reliable && margin <= RELIABLE_MARGIN,
     };
   });
 }

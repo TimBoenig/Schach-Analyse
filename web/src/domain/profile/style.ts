@@ -6,20 +6,40 @@ import type { SkillScore, StyleAxis, StyleProfile } from "./models";
 import { avg, fmt, pyRound } from "./num";
 import { scale } from "./skills";
 
+// A style read from a handful of games is mostly the openings and opponents of
+// those games, so no style is shown below this many analyzed games.
+export const STYLE_MIN_GAMES = 10;
+// Games at which an axis counts half measured, half neutral (50): one wild game
+// among ten should not make a positional player "angriffslustig".
+export const STYLE_PRIOR_GAMES = 8;
+// 95 % uncertainty of an axis without evidence; shrinks with sqrt(k / (n + k)).
+const STYLE_MARGIN = 30;
+
+/** Pull an axis toward the neutral middle by the games behind it. */
+function settle(raw: number, n: number): { value: number; margin: number } {
+  const w = n / (n + STYLE_PRIOR_GAMES);
+  return {
+    value: pyRound(50 + (raw - 50) * w, 1),
+    margin: Math.round(STYLE_MARGIN * Math.sqrt(STYLE_PRIOR_GAMES / (n + STYLE_PRIOR_GAMES))),
+  };
+}
+
 const axis = (
   key: string,
   name: string,
-  value: number,
+  raw: number,
+  n: number,
   low_label: string,
   high_label: string,
-): StyleAxis => ({ key, name, value, low_label, high_label });
+): StyleAxis => ({ key, name, ...settle(raw, n), low_label, high_label });
 
 const themesOf = (f: GameFeatures): Record<string, number> =>
   ((f.rec.tactics_data ?? {}).tactical_themes ?? {}) as Record<string, number>;
 
 export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StyleProfile | null {
   const games = feats.filter((f) => f.user_move_count >= 10);
-  if (games.length < 3) return null;
+  if (games.length < STYLE_MIN_GAMES) return null;
+  const n = games.length;
 
   const moves = games.reduce((s, f) => s + f.user_move_count, 0);
   const checksPm = games.reduce((s, f) => s + f.checks, 0) / moves;
@@ -56,20 +76,23 @@ export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StylePr
   const endgame = scale(endgameRate, 0.2, 0.7);
 
   const axes = [
-    axis("aggression", "Angriffslust", aggression, "abwartend", "angriffslustig"),
-    axis("tactical", "Taktik-Orientierung", tactical, "positionell", "taktisch"),
-    axis("trading", "Tauschfreude", trading, "hält Spannung", "tauscht gern"),
-    axis("risk", "Risikobereitschaft", risk, "sicherheitsorientiert", "riskant"),
-    axis("endgame", "Endspielneigung", endgame, "Entscheidung früh", "spielt lange"),
+    axis("aggression", "Angriffslust", aggression, n, "abwartend", "angriffslustig"),
+    axis("tactical", "Taktik-Orientierung", tactical, n, "positionell", "taktisch"),
+    axis("trading", "Tauschfreude", trading, n, "hält Spannung", "tauscht gern"),
+    axis("risk", "Risikobereitschaft", risk, finished.length, "sicherheitsorientiert", "riskant"),
+    axis("endgame", "Endspielneigung", endgame, n, "Entscheidung früh", "spielt lange"),
   ];
-  if (clockFracs.length) {
+  if (clockFracs.length >= STYLE_MIN_GAMES) {
     axes.push(
-      axis("tempo", "Zeitverbrauch", scale(1 - avg(clockFracs), 0.2, 0.9), "zügig", "gründlich"),
+      axis("tempo", "Zeitverbrauch", scale(1 - avg(clockFracs), 0.2, 0.9), clockFracs.length, "zügig", "gründlich"),
     );
   }
 
+  // The label is read from the settled axes, so it only names a pronounced
+  // style once enough games show it.
+  const v = Object.fromEntries(axes.map((a) => [a.key, a.value]));
   const skillMap = new Map(skills.map((s) => [s.key, s]));
-  const [label, description] = styleLabel(aggression, tactical, trading, risk, endgame, skillMap);
+  const [label, description] = styleLabel(v.aggression, v.tactical, v.trading, v.risk, v.endgame, skillMap);
 
   const facts = [
     `${fmt(checksPm * 40, 1)} Schachgebote pro 40 Züge`,
@@ -115,7 +138,7 @@ function styleLabel(
         "Stellungen ohne direkte Ziele sind eher Neuland – dort lohnt sich Planungstraining.",
     ];
   }
-  if (endgame >= 60 && egSkill !== undefined && egSkill.score >= 55) {
+  if (endgame >= 60 && egSkill !== undefined && egSkill.reliable && egSkill.score >= 55) {
     return [
       "Endspieltechniker",
       "Du spielst Partien gern lange und bist im Endspiel sicher unterwegs. Vereinfachen, " +

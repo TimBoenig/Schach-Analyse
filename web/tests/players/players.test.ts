@@ -124,7 +124,9 @@ describe("scouting report", () => {
       openings: openings({
         black_vs: [
           { san: "e4", games: 10, score_pct: 70, replies: [{ san: "c5", games: 10, score_pct: 70 }] },
-          { san: "d4", games: 6, score_pct: 20, replies: [{ san: "d5", games: 6, score_pct: 20 }] },
+          { san: "d4", games: 12, score_pct: 20, replies: [{ san: "d5", games: 12, score_pct: 20 }] },
+          // Three lost games prove nothing: no recommendation.
+          { san: "c4", games: 3, score_pct: 0, replies: [{ san: "e5", games: 3, score_pct: 0 }] },
         ],
         white_first: [{ san: "e4", games: 12, score_pct: 60 }],
         white_vs: [
@@ -134,15 +136,18 @@ describe("scouting report", () => {
             score_pct: 60,
             replies: [
               { san: "e5", games: 8, score_pct: 75 },
-              { san: "c6", games: 4, score_pct: 25 },
+              { san: "c6", games: 10, score_pct: 25 },
+              { san: "d5", games: 2, score_pct: 0 },
             ],
           },
         ],
       }),
     };
-    const me: PlayerProfile = { ...base, openings: openings({ white_first: [{ san: "d4", games: 5, score_pct: 80 }] }) };
+    const me: PlayerProfile = { ...base, openings: openings({ white_first: [{ san: "d4", games: 10, score_pct: 80 }] }) };
     const r = buildScoutReport("Max", them, me, headToHead([], [], []));
-    expect(r.as_white[0]).toMatchObject({ title: "1. d4", their_score_pct: 20, my_games: 5, my_score_pct: 80 });
+    expect(r.as_white[0]).toMatchObject({ title: "1. d4", their_score_pct: 20, my_games: 10, my_score_pct: 80 });
+    expect(r.as_white.map((p) => p.title)).not.toContain("1. c4");
+    expect(r.as_black.map((p) => p.title)).not.toContain("1. e4 d5");
     expect(r.as_white[0].text).toContain("Du selbst holst damit 80 %");
     expect(r.as_black[0]).toMatchObject({ title: "1. e4 c6", their_score_pct: 25 });
     expect(r.plan.map((t) => t.key)).toEqual(expect.arrayContaining(["opening_white", "opening_black"]));
@@ -153,7 +158,7 @@ describe("scouting report", () => {
     const them: PlayerProfile = {
       ...base,
       openings: openings({}),
-      statistics: { ...base.statistics, losses: 6, loss_term_counts: { Checkmate: 1, Resignation: 2, Time: 3, Abandon: 0 } },
+      statistics: { ...base.statistics, losses: 12, loss_term_counts: { Checkmate: 2, Resignation: 4, Time: 6, Abandon: 0 } },
       skills: base.skills.map((s) =>
         s.key === "endgame"
           ? { ...s, score: 20, typical: 50, reliable: true }
@@ -167,7 +172,10 @@ describe("scouting report", () => {
     expect(keys).toContain("skill_endgame");
     expect(keys).toContain("loses_on_time");
     expect(r.cautions.map((c) => c.key)).toEqual(["strong_tactics"]);
-    expect(r.losses[0]).toMatchObject({ key: "Time", label: "Zeit", count: 3, pct: 50 });
+    expect(r.losses[0]).toMatchObject({ key: "Time", label: "Zeit", count: 6, pct: 50 });
+    // The same share of time losses from a handful of games is no plan yet.
+    const few = { ...them, statistics: { ...them.statistics, losses: 4, loss_term_counts: { Checkmate: 1, Resignation: 1, Time: 2, Abandon: 0 } } };
+    expect(buildScoutReport("Max", few, null, headToHead([], [], [])).plan.map((t) => t.key)).not.toContain("loses_on_time");
     // Advice talks about the player by name, never with a guessed pronoun.
     for (const t of [...r.plan, ...r.cautions]) expect(t.text).not.toMatch(/\b(er|sie|ihn|ihm|ihr)\b/);
   });

@@ -8,12 +8,16 @@
 import { trClassification, trColor, trPhaseIn, trPiece } from "../i18n";
 import { type GameFeatures, type MoveEvent, moveLabel } from "./features";
 import type { GameRef, Pattern } from "./models";
+import { expectedScore } from "./benchmarks";
+import { MIN_ERRORS, MIN_GROUP_GAMES, meansDiffer, ratesDiffer, scoreDeviation, scoresDiffer, shareAtLeast, shareBelow } from "./evidence";
 import { avg, fmt } from "./num";
 
 export const MAX_EXAMPLES = 8;
 // Two games belong to the same session when they start less than 90 minutes apart.
 export const SESSION_GAP_SECONDS = 90 * 60;
-export const MIN_ERRORS_FOR_SHARE = 8;
+// Shares of errors ("35 % of your errors …") need this many serious errors, and
+// the share must reach its threshold with 95 % confidence, not just by luck.
+export const MIN_ERRORS_FOR_SHARE = MIN_ERRORS;
 
 type Severity = Pattern["severity"];
 
@@ -77,7 +81,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
   const winningErr = serious.filter(([, m]) => m.wp_before >= 0.7);
   if (nSerious >= MIN_ERRORS_FOR_SHARE && winningErr.length) {
     const share = winningErr.length / nSerious;
-    if (share >= 0.2) {
+    if (share >= 0.2 && shareAtLeast(winningErr.length, nSerious, 0.12)) {
       patterns.push(
         pattern(
           "errors_when_winning",
@@ -97,7 +101,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
   const losingErr = serious.filter(([, m]) => m.wp_before <= 0.3);
   if (nSerious >= MIN_ERRORS_FOR_SHARE && losingErr.length) {
     const share = losingErr.length / nSerious;
-    if (share >= 0.3) {
+    if (share >= 0.3 && shareAtLeast(losingErr.length, nSerious, 0.2)) {
       patterns.push(
         pattern(
           "errors_under_pressure",
@@ -115,9 +119,9 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
   // 3) Missing opponent mistakes.
   const chances = analyzed.reduce((s, f) => s + f.punish_chances, 0);
   const punished = analyzed.reduce((s, f) => s + f.punished, 0);
-  if (chances >= 6) {
+  if (chances >= MIN_ERRORS) {
     const rate = punished / chances;
-    if (rate < 0.6) {
+    if (rate < 0.6 && shareBelow(punished, chances, 0.7)) {
       patterns.push(
         pattern(
           "missed_punish",
@@ -130,7 +134,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
           examples(analyzed, (m) => m.after_opponent_error && m.wp_drop >= 0.1),
         ),
       );
-    } else if (rate >= 0.8) {
+    } else if (rate >= 0.8 && shareAtLeast(punished, chances, 0.7)) {
       patterns.push(
         pattern(
           "punisher",
@@ -149,7 +153,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
   if (timed.length >= MIN_ERRORS_FOR_SHARE) {
     const fast = timed.filter(([, m]) => (m.time_spent || 0) < 3 && !m.in_time_trouble);
     const share = fast.length / timed.length;
-    if (share >= 0.35) {
+    if (share >= 0.35 && shareAtLeast(fast.length, timed.length, 0.25)) {
       patterns.push(
         pattern(
           "hasty_errors",
@@ -173,7 +177,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
 
     const trouble = timed.filter(([, m]) => m.in_time_trouble);
     const shareT = trouble.length / timed.length;
-    if (shareT >= 0.3) {
+    if (shareT >= 0.3 && shareAtLeast(trouble.length, timed.length, 0.2)) {
       patterns.push(
         pattern(
           "time_trouble_errors",
@@ -195,7 +199,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
     );
     const gamesWithEarly = new Set(early.map(([f]) => f.game_id)).size;
     const shareGames = gamesWithEarly / analyzed.length;
-    if (shareGames >= 0.2) {
+    if (analyzed.length >= MIN_GROUP_GAMES && shareGames >= 0.2 && shareAtLeast(gamesWithEarly, analyzed.length, 0.12)) {
       patterns.push(
         pattern(
           "post_book_errors",
@@ -229,7 +233,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
     const phaseErr = new Map<string, number>();
     for (const [, m] of serious) phaseErr.set(m.phase, (phaseErr.get(m.phase) ?? 0) + 1);
     const rates = new Map<string, number>();
-    for (const [p, cnt] of phaseMoves) if (cnt >= 30) rates.set(p, (phaseErr.get(p) ?? 0) / cnt);
+    for (const [p, cnt] of phaseMoves) if (cnt >= 150) rates.set(p, (phaseErr.get(p) ?? 0) / cnt);
     if (rates.size >= 2) {
       let worst = "";
       let best = "";
@@ -239,7 +243,8 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       }
       const rw = rates.get(worst) as number;
       const rb = rates.get(best) as number;
-      if (rb > 0 && rw / rb >= 1.6) {
+      const clear = ratesDiffer(phaseErr.get(worst) ?? 0, phaseMoves.get(worst) ?? 0, phaseErr.get(best) ?? 0, phaseMoves.get(best) ?? 0);
+      if (rb > 0 && rw / rb >= 1.6 && clear) {
         patterns.push(
           pattern(
             `phase_${worst}`,
@@ -280,7 +285,7 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
     for (const [p, c] of Object.entries(byPiece)) counts.set(p, (counts.get(p) ?? 0) + c);
   }
   const total = [...counts.values()].reduce((s, v) => s + v, 0);
-  if (total < 5) return [];
+  if (total < 10) return [];
   // Counter.most_common(1): highest count, first inserted wins ties.
   let piece = "";
   let cnt = -1;
@@ -291,7 +296,8 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
     }
   }
   const share = cnt / total;
-  if (share < 0.35) return [];
+  // Pawns and knights hang more often anyway; only a clear majority is a pattern.
+  if (share < 0.35 || !shareAtLeast(cnt, total, 0.25)) return [];
   const exampleRefs: GameRef[] = [];
   for (const f of analyzed) {
     for (const h of ((f.rec.tactics_data ?? {}).hung_pieces_details ?? []) as Record<
@@ -348,15 +354,21 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
 
   // Tilt: results of the game right after a loss within the same session.
   const afterLoss: number[] = [];
+  const others: number[] = [];
   const overall: number[] = [];
   for (const s of sess) {
     s.forEach((f, i) => {
       if (f.score === null) return;
       overall.push(f.score);
       if (i > 0 && s[i - 1].rec.is_loss) afterLoss.push(f.score);
+      else others.push(f.score);
     });
   }
-  if (afterLoss.length >= 8 && overall.length) {
+  // Compared with the other games, not with a total that contains them.
+  const tiltClear =
+    afterLoss.length >= MIN_GROUP_GAMES &&
+    scoresDiffer({ games: afterLoss.length, score_pct: avg(afterLoss) * 100 }, { games: others.length, score_pct: others.length ? avg(others) * 100 : null });
+  if (tiltClear && overall.length) {
     const base = avg(overall);
     const tilt = avg(afterLoss);
     if (base - tilt >= 0.08) {
@@ -388,7 +400,7 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
   // Fatigue: accuracy in long sessions (4th game onwards) vs the first games.
   const earlyAcc = sess.flatMap((s) => s.slice(0, 3).filter((f) => f.analyzed).map((f) => f.rec.game_acc));
   const lateAcc = sess.flatMap((s) => s.slice(3).filter((f) => f.analyzed).map((f) => f.rec.game_acc));
-  if (lateAcc.length >= 6 && earlyAcc.length >= 6) {
+  if (meansDiffer(earlyAcc, lateAcc)) {
     const drop = avg(earlyAcc) - avg(lateAcc);
     if (drop >= 3) {
       out.push(
@@ -408,22 +420,29 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
 
 function opponentStrengthPattern(feats: GameFeatures[]): Pattern[] {
   const weaker: number[] = [];
+  const expected: number[] = [];
   for (const f of feats) {
     if (f.score === null || !f.user_rating || !f.opp_rating) continue;
-    if (f.opp_rating <= f.user_rating - 100) weaker.push(f.score);
+    if (f.opp_rating <= f.user_rating - 100) {
+      weaker.push(f.score);
+      expected.push(expectedScore(f.user_rating, f.opp_rating));
+    }
   }
-  if (weaker.length >= 8) {
+  if (weaker.length >= MIN_GROUP_GAMES) {
     const score = avg(weaker);
-    if (score < 0.62) {
+    // The real Elo expectation against exactly these opponents, not a fixed 64 %.
+    const exp = avg(expected);
+    const below = scoreDeviation({ games: weaker.length, score_pct: score * 100 }, exp * 100, undefined, MIN_GROUP_GAMES) < 0;
+    if (exp - score >= 0.06 && below) {
       return [
         pattern(
           "weaker_opponents",
           "Punktverluste gegen schwächere Gegner",
           "Gegen Gegner mit mindestens 100 Punkten weniger holst du nur " +
-            `${fmt(score * 100, 0)} % der Punkte (erwartet wären ca. 64 % oder mehr). ` +
+            `${fmt(score * 100, 0)} % der Punkte (erwartet wären ${fmt(exp * 100, 0)} %). ` +
             "Unterschätze niemanden – spiele auch hier jeden Zug mit voller Sorgfalt.",
           "mittel",
-          0.64 - score,
+          exp - score,
         ),
       ];
     }
@@ -436,10 +455,11 @@ function castlingPattern(feats: GameFeatures[]): Pattern[] {
   const onTime = feats.filter(
     (f) => f.score !== null && f.castle_move !== null && f.castle_move <= 10,
   );
-  if (late.length >= 6 && onTime.length >= 6) {
+  if (late.length >= MIN_GROUP_GAMES && onTime.length >= MIN_GROUP_GAMES) {
     const lateScore = avg(late.map((f) => f.score || 0));
     const okScore = avg(onTime.map((f) => f.score || 0));
-    if (okScore - lateScore >= 0.12) {
+    const clear = scoresDiffer({ games: late.length, score_pct: lateScore * 100 }, { games: onTime.length, score_pct: okScore * 100 });
+    if (okScore - lateScore >= 0.12 && clear) {
       return [
         pattern(
           "king_safety",

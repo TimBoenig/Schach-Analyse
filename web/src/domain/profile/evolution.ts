@@ -5,6 +5,7 @@
 
 import { trSpeed } from "../i18n";
 import type { GameFeatures } from "./features";
+import { MIN_GROUP_GAMES, MIN_SITUATIONS, scoresDiffer, shareAtLeast, Z_MULTI } from "./evidence";
 import { avg, pstdev, pyRound } from "./num";
 import type { PrecisionStats } from "./precision";
 import { wilsonMargin } from "./precision";
@@ -57,7 +58,7 @@ export interface Evolution {
 // Below this many analyzed games per block a block mean is mostly noise.
 const MIN_BLOCK = 5;
 const MAX_BLOCKS = 8;
-const MIN_TYPE_GAMES = 3;
+const MIN_TYPE_GAMES = MIN_GROUP_GAMES;
 
 const TYPES: { key: string; label: string; description: string; test: (f: GameFeatures) => boolean }[] = [
   {
@@ -299,7 +300,8 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
   if (solid.length >= 2) {
     const best = solid.reduce((a, b) => ((b.score_pct as number) > (a.score_pct as number) ? b : a));
     const worst = solid.reduce((a, b) => ((b.score_pct as number) < (a.score_pct as number) ? b : a));
-    if ((best.score_pct as number) - (worst.score_pct as number) >= 15) {
+    const clear = scoresDiffer(best, worst, solid.length > 2 ? Z_MULTI : undefined, MIN_TYPE_GAMES);
+    if ((best.score_pct as number) - (worst.score_pct as number) >= 15 && clear) {
       const tip =
         worst.key === "quiet"
           ? "Übe Pläne in ruhigen Stellungen."
@@ -316,12 +318,13 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     }
   }
 
-  const sp = speeds.filter((s) => s.games >= 5 && s.score_pct !== null);
+  const sp = speeds.filter((s) => s.games >= MIN_GROUP_GAMES && s.score_pct !== null);
   if (sp.length >= 2) {
     const best = sp.reduce((a, b) => ((b.score_pct as number) > (a.score_pct as number) ? b : a));
     const worst = sp.reduce((a, b) => ((b.score_pct as number) < (a.score_pct as number) ? b : a));
     const gap = (best.score_pct as number) - (worst.score_pct as number);
-    if (gap >= 12 && best.accuracy !== null && worst.accuracy !== null) {
+    const clear = scoresDiffer(best, worst, sp.length > 2 ? Z_MULTI : undefined);
+    if (gap >= 12 && clear && best.accuracy !== null && worst.accuracy !== null) {
       out.push({
         title: "Bedenkzeit",
         text: `Im ${best.label} holst du ${de(gap, 0)} Prozentpunkte mehr als im ${worst.label} (Genauigkeit ${de(best.accuracy)} gegenüber ${de(worst.accuracy)} %).`,
@@ -331,13 +334,13 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
   }
 
   const t = precision.turnarounds;
-  if (t.winning >= 5 && t.lost_from_winning / t.winning >= 0.2) {
+  if (t.winning >= MIN_SITUATIONS && t.lost_from_winning / t.winning >= 0.2 && shareAtLeast(t.lost_from_winning, t.winning, 0.1)) {
     out.push({
       title: "Nächster Schritt",
       text: `Sichere gewonnene Stellungen ab: ${t.lost_from_winning} von ${t.winning} hast du noch verloren. Frage dich vor jedem Zug, was dein Gegner droht, statt sofort weiter anzugreifen.`,
       tone: "neutral",
     });
-  } else if (precision.spread.stdev !== null && precision.spread.stdev >= 12) {
+  } else if (precision.spread.games >= MIN_GROUP_GAMES * 2 && precision.spread.stdev !== null && precision.spread.stdev >= 12) {
     out.push({ title: "Nächster Schritt", text: "Mehr Konstanz. Spiele nur ausgeruht und mache nach zwei Niederlagen eine Pause.", tone: "neutral" });
   }
   return out;

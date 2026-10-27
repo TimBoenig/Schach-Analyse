@@ -4,6 +4,7 @@
 // Results work without engine analysis; the quality columns need analyzed games.
 
 import type { GameFeatures } from "./features";
+import { MIN_ANALYZED, MIN_LINE_GAMES, scoresDiffer, Z_MULTI } from "./evidence";
 import { avg, pyRound } from "./num";
 
 export interface OpeningGameRef {
@@ -68,7 +69,7 @@ export interface OpeningInsights {
 }
 
 // Openings with fewer games than this are listed but not used for findings.
-export const MIN_FACT_GAMES = 3;
+export const MIN_FACT_GAMES = MIN_LINE_GAMES;
 const RECENT_GAMES = 8;
 
 export const openingMain = (name: string) => name.split(":")[0].split(",")[0].trim();
@@ -251,7 +252,8 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
     const byScore = [...solid].sort((a, b) => b.score_pct! - a.score_pct! || b.games - a.games);
     const best = byScore[0];
     const worst = byScore[byScore.length - 1];
-    if (best.score_pct! - worst.score_pct! >= 15) {
+    const z = solid.length > 2 ? Z_MULTI : undefined;
+    if (best.score_pct! - worst.score_pct! >= 15 && scoresDiffer(best, worst, z, MIN_FACT_GAMES)) {
       facts.push([
         best.score_pct! - 50,
         `Stärkste Eröffnung mit ${COLOR_DE[color]}: ${openingLabel(best.name)} mit ${de(best.score_pct!)} % der Punkte aus ${best.games} Partien.`,
@@ -269,7 +271,7 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
     const hi = sorted[0];
     const lo = sorted[sorted.length - 1];
     const gap = hi.score_pct! - lo.score_pct!;
-    if (gap >= 15) {
+    if (gap >= 15 && scoresDiffer(hi, lo, vs.length > 2 ? Z_MULTI : undefined, MIN_FACT_GAMES)) {
       facts.push([
         gap,
         `Mit Schwarz holst du gegen 1. ${lo.san} nur ${de(lo.score_pct!)} % der Punkte, gegen 1. ${hi.san} dagegen ${de(hi.score_pct!)} %.`,
@@ -277,7 +279,7 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
     }
   }
 
-  if (o.wp_after_opening !== null && analyzedGames >= 5) {
+  if (o.wp_after_opening !== null && analyzedGames >= MIN_ANALYZED) {
     const wp = o.wp_after_opening;
     if (wp <= 45) {
       facts.push([50 - wp, `Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance ${de(wp)} %).`]);

@@ -4,7 +4,7 @@
 //   playing style, recurring patterns, a training plan and exercises from the player's own games.
 // - buildGameReview: German post-game review for a single analyzed game.
 
-export { benchmark, currentRating, expectedScore, ratingContext, typicalSkillScores } from "./benchmarks";
+export { benchmark, currentRating, expectedScore, performanceRating, ratingContext, typicalSkillScores } from "./benchmarks";
 export { buildPlayerProfile } from "./builder";
 export {
   annotatedMoves,
@@ -45,6 +45,8 @@ export type {
   StyleProfile,
   TrainingItem,
 } from "./models";
-export { PRIOR_WEIGHT, settleSkills, SKILL_NAMES } from "./skills";
+export { PRIOR_WEIGHT, RELIABLE_MARGIN, settleSkills, SKILL_NAMES } from "./skills";
+export { STYLE_MIN_GAMES } from "./style";
+export * as evidence from "./evidence";
 export { activityCalendar, comparePeriods, dailyActivity, focusNotes, formSummary, SKILL_TREND_POINTS, trendOf } from "./dashboard";
 export type { CalendarDay, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";

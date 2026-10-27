@@ -9,6 +9,7 @@ import {
   type ScoreBucket,
   type ScoreStat,
 } from "../domain/profile";
+import { MIN_BUCKET_MOVES, MIN_GROUP_GAMES } from "../domain/profile/evidence";
 import { AiAnswer, AiChat, coachDetail } from "./AiCoach";
 import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./charts";
 import type { BarRow, Column } from "./charts";
@@ -18,9 +19,10 @@ import { navigate } from "./router";
 import { loadTrainingSummary } from "./training/useTraining";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
-// Buckets below these sizes are drawn faint: the numbers are real but thin.
-const MIN_GAMES = 4;
-const MIN_MOVES = 30;
+// Buckets below these sizes are drawn faint: the numbers are real but too thin
+// for conclusions (the same limits the findings use).
+const MIN_GAMES = MIN_GROUP_GAMES;
+const MIN_MOVES = MIN_BUCKET_MOVES;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
