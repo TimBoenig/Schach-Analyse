@@ -40,17 +40,27 @@ describe("opening insights", () => {
       { san: "e4", games: 1, score_pct: 100, replies: [{ san: "e5", games: 1, score_pct: 100 }] },
     ]);
 
-    expect(o.facts).toContain("Stärkste Eröffnung mit Weiß: Italienische Partie mit 83 % der Punkte aus 3 Partien.");
-    expect(o.facts).toContain(
-      "Schwächste Eröffnung mit Weiß: Sizilianische Verteidigung mit nur 33 % der Punkte aus 3 Partien.",
-    );
+    // Three games per opening are no evidence for a best or worst opening.
+    expect(o.facts.some((f) => f.startsWith("Stärkste") || f.startsWith("Schwächste"))).toBe(false);
+  });
+
+  it("names the best and worst opening once enough games show a clear gap", () => {
+    const rows = [];
+    for (let i = 0; i < 10; i++) {
+      const utc = `2026.07.${pad(i + 1)} 18:00:00`;
+      rows.push(gameRow(`i${i}`, CLEAN, { utc, result: i < 8 ? "1-0" : "1/2-1/2", opening: "Italian Game" }));
+      rows.push(gameRow(`s${i}`, CLEAN, { utc: utc.replace("18:", "20:"), result: i < 2 ? "1-0" : "0-1", opening: "Sicilian Defense" }));
+    }
+    const o = buildOpeningInsights(rows.map((r) => extractFeatures(r, "white")));
+    expect(o.facts).toContain("Stärkste Eröffnung mit Weiß: Italienische Partie mit 90 % der Punkte aus 10 Partien.");
+    expect(o.facts).toContain("Schwächste Eröffnung mit Weiß: Sizilianische Verteidigung mit nur 20 % der Punkte aus 10 Partien.");
   });
 
   it("measures the first error and the position after the opening", () => {
-    const rows = [0, 1, 2, 3, 4].map((i) => row(`e${i}`, EARLY_BLUNDER, { result: "0-1" }));
+    const rows = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => row(`e${i}`, EARLY_BLUNDER, { result: "0-1" }));
     const o = buildOpeningInsights(rows.map((r) => extractFeatures(r, "white")));
     const line = o.white[0];
-    expect(line.analyzed).toBe(5);
+    expect(line.analyzed).toBe(10);
     expect(line.first_error_move).toBe(4);
     expect(line.wp_after_opening).toBeCloseTo(20, 5);
     expect(o.wp_after_opening).toBeCloseTo(20, 5);

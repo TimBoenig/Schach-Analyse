@@ -74,6 +74,32 @@ export function expectedScore(own: number, opponent: number): number {
   return 1 / (1 + 10 ** ((opponent - own) / 400));
 }
 
+/**
+ * Performance rating: the rating at which the Elo expectation against the
+ * opponents actually met equals the points scored. Unlike the linear
+ * "average opponent + 400 × (W − L) / n" rule it follows the Elo curve (an extra
+ * win counts less the higher the score already is), handles a wide spread of
+ * opponents correctly and stays consistent with the expected-score figures
+ * elsewhere. One virtual draw against the average opponent keeps 100 % or 0 %
+ * scores finite and pulls very short series towards the field.
+ */
+export function performanceRating(games: { opp: number; score: number }[]): number | null {
+  if (!games.length) return null;
+  const avgOpp = games.reduce((s, g) => s + g.opp, 0) / games.length;
+  const all = [...games, { opp: avgOpp, score: 0.5 }];
+  const points = all.reduce((s, g) => s + g.score, 0);
+  const expected = (r: number) => all.reduce((s, g) => s + expectedScore(r, g.opp), 0);
+  // Expected points rise monotonically with the rating, so bisection finds the root.
+  let lo = avgOpp - 1600;
+  let hi = avgOpp + 1600;
+  for (let i = 0; i < 50; i++) {
+    const mid = (lo + hi) / 2;
+    if (expected(mid) < points) lo = mid;
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
 /** Current rating: latest rating in the time control with the most rated games. */
 export function currentRating(feats: GameFeatures[]): { rating: number; speed: string } | null {
   const bySpeed = new Map<string, GameFeatures[]>();
@@ -97,16 +123,11 @@ export function ratingContext(feats: GameFeatures[]): RatingContext | null {
   let score = 0;
   let expected = 0;
   let oppSum = 0;
-  let wins = 0;
-  let losses = 0;
   for (const f of rated) {
-    const s = f.score as number;
-    score += s;
+    score += f.score as number;
     // Each game against the rating the player had at that time.
     expected += expectedScore(f.user_rating as number, f.opp_rating as number);
     oppSum += f.opp_rating as number;
-    if (s === 1) wins++;
-    else if (s === 0) losses++;
   }
   const n = rated.length;
   const avgOpp = n ? oppSum / n : null;
@@ -115,7 +136,7 @@ export function ratingContext(feats: GameFeatures[]): RatingContext | null {
     speed: cur.speed,
     rated_games: n,
     avg_opponent: avgOpp !== null ? Math.round(avgOpp) : null,
-    performance: n && avgOpp !== null ? Math.round(avgOpp + (400 * (wins - losses)) / n) : null,
+    performance: performanceRating(rated.map((f) => ({ opp: f.opp_rating as number, score: f.score as number }))),
     score: pyRound(score, 1),
     expected_score: n ? pyRound(expected, 1) : null,
     typical_accuracy: pyRound(benchmark("accuracy", cur.rating), 1),

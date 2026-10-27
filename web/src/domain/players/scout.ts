@@ -10,6 +10,20 @@
 import { trSpeed } from "../i18n";
 import type { PlayerProfile, SkillScore } from "../profile/models";
 import { openingLabel, type FirstMoveStat, type MoveChoice, type OpeningStat } from "../profile/openings";
+import {
+  MIN_ANALYZED,
+  MIN_BUCKET_MOVES,
+  MIN_GROUP_GAMES,
+  MIN_LINE_GAMES as EVIDENCE_LINE_GAMES,
+  ratesDiffer,
+  restOf,
+  scoreDeviation,
+  scoresDiffer,
+  scoreZ,
+  shareAtLeast,
+  Z95,
+  Z_MULTI,
+} from "../profile/evidence";
 import { fmt } from "../profile/num";
 import type { HeadToHead } from "./h2h";
 
@@ -68,10 +82,10 @@ export interface ScoutReport {
   h2h: HeadToHead;
 }
 
-// Lines with fewer games say nothing about a player.
-export const MIN_LINE_GAMES = 2;
-// Pseudo-games at 50 % mixed into each line's score so a 1:0 does not read as 100 %.
-const PRIOR_GAMES = 2;
+// Lines with fewer games say nothing about a player (see evidence.ts).
+export const MIN_LINE_GAMES = EVIDENCE_LINE_GAMES;
+// Pseudo-games at 50 % mixed into each line's score so a 3:0 does not read as 100 %.
+const PRIOR_GAMES = 4;
 const MAX_PICKS = 4;
 const MAX_TIPS = 6;
 
@@ -176,6 +190,8 @@ function skillTips(name: string, p: PlayerProfile): { plan: ScoutTip[]; cautions
   for (const s of p.skills) {
     if (!s.reliable || s.grade === "Keine Uhrdaten") continue;
     const g = gap(s);
+    // A gap inside the skill's own uncertainty is no reason to change the plan.
+    if (Math.abs(g) < (s.margin ?? 0) / 2) continue;
     if ((g <= -8 || s.score < 35) && EXPLOIT[s.key]) {
       plan.push({ key: `skill_${s.key}`, ...EXPLOIT[s.key](name, s, p), weight: Math.max(-g, 35 - s.score, 8) });
     } else if ((g >= 8 || s.score >= 70) && CAUTION[s.key]) {
@@ -191,7 +207,7 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
   const st = p.statistics;
   const losses = Number(st.losses ?? 0);
   const onTime = Number(st.loss_term_counts?.Time ?? 0);
-  if (losses >= 4 && onTime / losses >= 0.25 && !p.skills.some((s) => s.key === "time" && s.reliable && gap(s) <= -8)) {
+  if (losses >= MIN_GROUP_GAMES && onTime / losses >= 0.25 && shareAtLeast(onTime, losses, 0.15) && !p.skills.some((s) => s.key === "time" && s.reliable && gap(s) <= -8)) {
     tips.push({
       key: "loses_on_time",
       kind: "Zeit",
@@ -203,10 +219,10 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
 
   type Row = { label: string; games: number; score_pct: number };
   const colors = (p.breakdowns.color ?? []) as Row[];
-  if (colors.length === 2 && colors.every((c) => c.games >= 5)) {
+  if (colors.length === 2) {
     const [w, b] = colors;
     const d = w.score_pct - b.score_pct;
-    if (Math.abs(d) >= 12) {
+    if (Math.abs(d) >= 12 && scoresDiffer(w, b)) {
       const [weak, strong] = d > 0 ? [b, w] : [w, b];
       tips.push({
         key: "color_gap",
@@ -218,12 +234,12 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
     }
   }
 
-  const speeds = ((p.breakdowns.speed ?? []) as Row[]).filter((r) => r.games >= 5);
+  const speeds = ((p.breakdowns.speed ?? []) as Row[]).filter((r) => r.games >= MIN_GROUP_GAMES);
   if (speeds.length >= 2) {
     const sorted = [...speeds].sort((a, b) => a.score_pct - b.score_pct);
     const lo = sorted[0];
     const hi = sorted[sorted.length - 1];
-    if (hi.score_pct - lo.score_pct >= 12) {
+    if (hi.score_pct - lo.score_pct >= 12 && scoresDiffer(hi, lo, speeds.length > 2 ? Z_MULTI : Z95)) {
       tips.push({
         key: "speed_gap",
         kind: "Zeit",
@@ -238,7 +254,17 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
   if (d) {
     const overall = d.precision.overall.score_pct;
     const afterLoss = d.after_result.find((b) => b.key === "loss");
-    if (afterLoss && afterLoss.games >= 4 && afterLoss.score_pct !== null && overall !== null && overall - afterLoss.score_pct >= 12) {
+    const others = afterLoss ? restOf(d.precision.overall, afterLoss) : null;
+    if (
+      afterLoss &&
+      others &&
+      afterLoss.score_pct !== null &&
+      overall !== null &&
+      overall - afterLoss.score_pct >= 12 &&
+      afterLoss.games >= MIN_GROUP_GAMES &&
+      others.games >= MIN_GROUP_GAMES &&
+      scoreZ(afterLoss, others) <= -Z95
+    ) {
       tips.push({
         key: "tilt",
         kind: "Psychologie",
@@ -247,11 +273,17 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
         weight: (overall - afterLoss.score_pct) / 2,
       });
     }
-    const buckets = d.by_move_number.filter((b) => b.moves >= 30 && b.per100 !== null);
+    const buckets = d.by_move_number.filter((b) => b.moves >= MIN_BUCKET_MOVES && b.per100 !== null);
     const totalMoves = buckets.reduce((s, b) => s + b.moves, 0);
-    const avgRate = totalMoves ? (buckets.reduce((s, b) => s + b.errors, 0) / totalMoves) * 100 : 0;
+    const totalErrors = buckets.reduce((s, b) => s + b.errors, 0);
+    const avgRate = totalMoves ? (totalErrors / totalMoves) * 100 : 0;
     const peak = [...buckets].sort((a, b) => (b.per100 as number) - (a.per100 as number))[0];
-    if (peak && avgRate > 0 && (peak.per100 as number) >= avgRate * 1.4) {
+    if (
+      peak &&
+      avgRate > 0 &&
+      (peak.per100 as number) >= avgRate * 1.4 &&
+      ratesDiffer(peak.errors, peak.moves, totalErrors - peak.errors, totalMoves - peak.moves, Z_MULTI)
+    ) {
       tips.push({
         key: "error_window",
         kind: "Strategie",
@@ -260,10 +292,17 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
         weight: ((peak.per100 as number) / avgRate - 1) * 15,
       });
     }
-    const pieces = d.by_piece.filter((b) => b.moves >= 30 && b.per100 !== null);
+    const pieces = d.by_piece.filter((b) => b.moves >= MIN_BUCKET_MOVES && b.per100 !== null);
     const worstPiece = [...pieces].sort((a, b) => (b.per100 as number) - (a.per100 as number))[0];
     const pieceAvg = pieces.length ? pieces.reduce((s, b) => s + (b.per100 as number), 0) / pieces.length : 0;
-    if (worstPiece && pieceAvg > 0 && (worstPiece.per100 as number) >= pieceAvg * 1.5) {
+    const restErrors = pieces.reduce((s, b) => s + b.errors, 0) - (worstPiece?.errors ?? 0);
+    const restMoves = pieces.reduce((s, b) => s + b.moves, 0) - (worstPiece?.moves ?? 0);
+    if (
+      worstPiece &&
+      pieceAvg > 0 &&
+      (worstPiece.per100 as number) >= pieceAvg * 1.5 &&
+      ratesDiffer(worstPiece.errors, worstPiece.moves, restErrors, restMoves, Z_MULTI)
+    ) {
       const withPiece = WITH_PIECE[worstPiece.label] ?? worstPiece.label;
       tips.push({
         key: "error_piece",
@@ -351,8 +390,8 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
 
 function linePick(name: string, l: OpeningStat, my: OpeningStat | undefined, colorDe: string): OpeningPick {
   const extra: string[] = [];
-  if (l.first_error_move !== null && l.analyzed >= MIN_LINE_GAMES) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmt(l.first_error_move, 0)}`);
-  if (l.wp_after_opening !== null && l.analyzed >= MIN_LINE_GAMES && l.wp_after_opening <= 45) {
+  if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmt(l.first_error_move, 0)}`);
+  if (l.wp_after_opening !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED) && l.wp_after_opening <= 45) {
     extra.push(`nach der Eröffnung steht ${name} meist schlechter (${p0(l.wp_after_opening)} Gewinnchance)`);
   }
   return {
@@ -371,16 +410,18 @@ function linePick(name: string, l: OpeningStat, my: OpeningStat | undefined, col
 }
 
 function rank(picks: OpeningPick[]): OpeningPick[] {
+  // Only lines where the player scores below 50 % even after shrinking: a line
+  // they win is no line to steer into.
   return picks
-    .filter((p) => p.games >= MIN_LINE_GAMES)
+    .filter((p) => p.games >= MIN_LINE_GAMES && p.value > 0)
     .sort((a, b) => b.value - a.value || b.games - a.games)
     .slice(0, MAX_PICKS);
 }
 
 function openingTip(side: "white" | "black", picks: OpeningPick[]): ScoutTip | null {
-  const best = picks[0];
-  // Only a line where the player clearly underperforms is worth steering into.
-  if (!best || best.value < 5) return null;
+  // Only a line where the player clearly underperforms (beyond chance) is worth steering into.
+  const best = picks.find((p) => p.value >= 5 && scoreDeviation({ games: p.games, score_pct: p.their_score_pct }, 50) < 0);
+  if (!best) return null;
   return {
     key: `opening_${side}`,
     kind: "Eröffnung",

@@ -5,6 +5,7 @@
 
 import { expectedScore } from "./benchmarks";
 import type { GameFeatures } from "./features";
+import { MIN_GROUP_GAMES, MIN_SITUATIONS, restOf, scoreDeviation, scoreZ, shareAtLeast, Z95 } from "./evidence";
 import { avg, pstdev, pyRound } from "./num";
 
 /** Score of a group of games with its 95 % confidence margin. */
@@ -76,7 +77,7 @@ const EVEN_GAP = 75;
 // Curve points need this many running games to be shown.
 const CURVE_MIN_GAMES = 5;
 const CURVE_MAX_MOVE = 60;
-const MIN_GAMES = 6;
+const MIN_GAMES = MIN_GROUP_GAMES;
 
 const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", ",");
 
@@ -216,9 +217,10 @@ function findings(p: Omit<PrecisionStats, "facts">): [number, string][] {
   const facts: [number, string][] = [];
 
   // Rating expectation: only with enough rated games, and only beyond the noise.
-  if (p.vs_expectation !== null && p.rated_games >= 10 && p.overall.margin !== null) {
+  if (p.vs_expectation !== null && p.rated_games >= MIN_GROUP_GAMES) {
     const gap = p.vs_expectation;
-    if (Math.abs(gap) >= Math.max(6, p.overall.margin / 2)) {
+    const expected = { games: p.rated_games, score_pct: 50 + gap };
+    if (Math.abs(gap) >= 6 && scoreDeviation(expected, 50, Z95, MIN_GROUP_GAMES) !== 0) {
       facts.push([
         Math.abs(gap) * 0.9,
         gap > 0
@@ -230,30 +232,32 @@ function findings(p: Omit<PrecisionStats, "facts">): [number, string][] {
   const stronger = p.by_rating_diff[0];
   if (stronger.games >= MIN_GAMES && stronger.score_pct !== null && stronger.expected_pct !== null) {
     const gap = stronger.score_pct - stronger.expected_pct;
-    if (gap >= 12) facts.push([gap * 0.7, `Gegen stärkere Gegner spielst du über dich hinaus: ${de(stronger.score_pct)} % statt erwarteter ${de(stronger.expected_pct)} %.`]);
+    if (gap >= 12 && scoreDeviation(stronger, stronger.expected_pct, Z95, MIN_GAMES) > 0) facts.push([gap * 0.7, `Gegen stärkere Gegner spielst du über dich hinaus: ${de(stronger.score_pct)} % statt erwarteter ${de(stronger.expected_pct)} %.`]);
   }
   const weaker = p.by_rating_diff[2];
   if (weaker.games >= MIN_GAMES && weaker.score_pct !== null && weaker.expected_pct !== null) {
     const gap = weaker.expected_pct - weaker.score_pct;
-    if (gap >= 12) facts.push([gap * 0.8, `Gegen schwächere Gegner lässt du Punkte liegen: ${de(weaker.score_pct)} % statt erwarteter ${de(weaker.expected_pct)} %.`]);
+    if (gap >= 12 && scoreDeviation(weaker, weaker.expected_pct, Z95, MIN_GAMES) < 0) facts.push([gap * 0.8, `Gegen schwächere Gegner lässt du Punkte liegen: ${de(weaker.score_pct)} % statt erwarteter ${de(weaker.expected_pct)} %.`]);
   }
 
   // Thrown wins in percent of all winning positions.
   const t = p.turnarounds;
-  if (t.winning >= MIN_GAMES) {
+  if (t.winning >= MIN_SITUATIONS) {
     const lostShare = (t.lost_from_winning / t.winning) * 100;
-    if (lostShare >= 20) {
+    // Everybody throws away a won position now and then; only a share that is
+    // high (20 %) and, with confidence, above 10 % is worth a remark.
+    if (lostShare >= 20 && shareAtLeast(t.lost_from_winning, t.winning, 0.1)) {
       facts.push([lostShare / 2, `Aus ${t.winning} klar gewonnenen Stellungen hast du ${t.lost_from_winning} noch verloren (${de(lostShare)} %).`]);
     }
   }
-  if (t.losing >= MIN_GAMES) {
+  if (t.losing >= MIN_SITUATIONS) {
     const savedShare = (t.saved / t.losing) * 100;
-    if (savedShare >= 35) facts.push([savedShare / 4, `Du gibst nicht auf: ${de(savedShare)} % deiner klar verlorenen Stellungen hast du noch gerettet.`]);
+    if (savedShare >= 35 && shareAtLeast(t.saved, t.losing, 0.2)) facts.push([savedShare / 4, `Du gibst nicht auf: ${de(savedShare)} % deiner klar verlorenen Stellungen hast du noch gerettet.`]);
   }
 
   // Consistency: a wide spread means the level depends on the day.
   const s = p.spread;
-  if (s.games >= 10 && s.stdev !== null && s.stdev >= 12) {
+  if (s.games >= MIN_GROUP_GAMES * 2 && s.stdev !== null && s.stdev >= 12) {
     facts.push([s.stdev / 2, `Deine Genauigkeit schwankt stark (±${de(s.stdev)} Punkte). Die Hälfte deiner Partien liegt zwischen ${de(s.p25 ?? 0)} und ${de(s.p75 ?? 0)} %.`]);
   }
 
@@ -262,7 +266,8 @@ function findings(p: Omit<PrecisionStats, "facts">): [number, string][] {
   if (lens.length >= 2 && p.overall.score_pct !== null) {
     const worst = lens.reduce((a, b) => ((b.score_pct as number) < (a.score_pct as number) ? b : a));
     const gap = p.overall.score_pct - (worst.score_pct as number);
-    if (gap >= 15) facts.push([gap * 0.6, `In ${worst.label.split(" (")[0].toLowerCase()}en Partien holst du nur ${de(worst.score_pct as number)} % (sonst ${de(p.overall.score_pct)} %).`]);
+    const rest = restOf(p.overall, worst);
+    if (gap >= 15 && rest.games >= MIN_GAMES && scoreZ(worst, rest) <= -Z95) facts.push([gap * 0.6, `In ${worst.label.split(" (")[0].toLowerCase()}en Partien holst du nur ${de(worst.score_pct as number)} % (sonst ${de(p.overall.score_pct)} %).`]);
   }
   return facts;
 }

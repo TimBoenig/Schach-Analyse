@@ -10,6 +10,7 @@ import {
   buildScoutReport,
   frequentOpponents,
   headToHead,
+  MIN_LINE_GAMES,
   type AccountSource,
   type HeadToHead,
   type OpeningPick,
@@ -934,7 +935,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
               <h3>Du hast Weiß</h3>
               <span class="tile-sub">{player.name} mit Schwarz</span>
             </div>
-            <PickList picks={report.as_white} empty={`Zu wenige Schwarzpartien von ${player.name} (mindestens 2 pro Eröffnung).`} />
+            <PickList picks={report.as_white} empty={`Keine Eröffnung, in der ${player.name} mit Schwarz klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Eröffnung).`} />
           </section>
 
           <section class="card tile span-6">
@@ -942,7 +943,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
               <h3>Du hast Schwarz</h3>
               <span class="tile-sub">{player.name} mit Weiß</span>
             </div>
-            <PickList picks={report.as_black} empty={`Zu wenige Weißpartien von ${player.name} (mindestens 2 pro Antwort).`} />
+            <PickList picks={report.as_black} empty={`Keine Antwort, gegen die ${player.name} mit Weiß klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Antwort).`} />
           </section>
 
           {radar.length >= 3 && (

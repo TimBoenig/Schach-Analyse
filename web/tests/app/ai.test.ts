@@ -89,7 +89,7 @@ describe("coach prompts", () => {
   });
 
   it("hands the whole profile and the newest games to the coach within the budget", () => {
-    const p = buildPlayerProfile(profileGames(9, 3), ["tim"]);
+    const p = buildPlayerProfile(profileGames(18, 3), ["tim"]);
     const full = profileContext(p, "full");
     for (const heading of ["## Überblick", "## Fähigkeiten", "## Wiederkehrende Muster", "## Einblicke", "## Eröffnungen", "## Letzte Partien"]) {
       expect(full).toContain(heading);

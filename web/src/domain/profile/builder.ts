@@ -11,6 +11,7 @@ import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./feat
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmt, pyRound } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
+import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
 import { buildOpeningInsights, openingMain } from "./openings";
 import { detectPatterns } from "./patterns";
@@ -20,7 +21,8 @@ import { buildTrainingPlan } from "./training";
 
 type Dict = Record<string, any>;
 
-export const MIN_OPENING_GAMES = 3;
+// An opening needs this many games before it is called a success or a problem.
+export const MIN_OPENING_GAMES = MIN_LINE_GAMES;
 // Games the AI coach sees one by one (newest first); older games only count in the aggregates.
 export const MAX_DIGEST_GAMES = 40;
 
@@ -195,9 +197,12 @@ function strengthsWeaknesses(skills: SkillScore[], rating: number | null): [Insi
     rating !== null
       ? [...byDelta].reverse().filter((s) => delta(s) <= -8 || s.score < 30).slice(0, 3)
       : [...ranked].reverse().filter((s) => s.score < 45 || s.score <= mean - 8).slice(0, 3);
-  // Always name at least one of each, relative to the player's own level.
-  if (!strengths.length && byDelta.length >= 3) strengths = byDelta.slice(0, 1);
-  if (!weaknesses.length && byDelta.length >= 3) weaknesses = byDelta.slice(-1);
+  // Otherwise name the most pronounced one, relative to the player's own level,
+  // but only when its gap is larger than the skill's own uncertainty.
+  const clear = (s: SkillScore) => Math.abs(delta(s)) >= Math.max(4, (s.margin ?? 0) / 2);
+  if (!strengths.length && byDelta.length >= 3 && delta(byDelta[0]) > 0 && clear(byDelta[0])) strengths = byDelta.slice(0, 1);
+  const last = byDelta[byDelta.length - 1];
+  if (!weaknesses.length && byDelta.length >= 3 && last && delta(last) < 0 && clear(last)) weaknesses = [last];
   weaknesses = weaknesses.filter((w) => !strengths.includes(w));
   const vs = (s: SkillScore) =>
     rating !== null && s.typical !== null && s.typical !== undefined
@@ -256,10 +261,12 @@ function openings(feats: GameFeatures[]): [OpeningLine[], OpeningLine[]] {
   const byScore = openingLines(feats).sort(
     (a, b) => b.score_pct - a.score_pct || b.games - a.games,
   );
-  const best = byScore.filter((o) => o.score_pct >= 50).slice(0, 5);
+  // Only lines whose score is clearly above/below 50 % (not a lucky 3:0).
+  const sample = (o: OpeningLine) => ({ games: o.games, score_pct: o.score_pct });
+  const best = byScore.filter((o) => scoreDeviation(sample(o), 50) > 0).slice(0, 5);
   const worst = [...byScore]
     .reverse()
-    .filter((o) => o.score_pct < 50)
+    .filter((o) => scoreDeviation(sample(o), 50) < 0)
     .slice(0, 5);
   return [best, worst];
 }
@@ -268,10 +275,12 @@ function openings(feats: GameFeatures[]): [OpeningLine[], OpeningLine[]] {
 function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
   const white = feats.filter((f) => f.rec.user_color === "white");
   const black = feats.filter((f) => f.rec.user_color === "black");
-  if (white.length >= 8 && black.length >= 8) {
+  const finished = (fs: GameFeatures[]) => fs.filter((f) => f.score !== null).length;
+  if (white.length >= MIN_GROUP_GAMES && black.length >= MIN_GROUP_GAMES) {
     const sw = scoreOf(white);
     const sb = scoreOf(black);
-    if (Math.abs(sw - sb) >= 10) {
+    const differ = scoresDiffer({ games: finished(white), score_pct: sw }, { games: finished(black), score_pct: sb });
+    if (Math.abs(sw - sb) >= 10 && differ) {
       const [better, worse] = sw > sb ? ["white", "black"] : ["black", "white"];
       profile.weaknesses.push({
         key: `color_${worse}`,
@@ -319,12 +328,17 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
   }
 
   const speeds = groupBy(feats, (f) => f.rec.speed);
-  const rated = [...speeds.entries()].filter(([, v]) => v.length >= 8);
+  const rated = [...speeds.entries()].filter(([, v]) => v.filter((f) => f.analyzed).length >= MIN_ANALYZED);
   if (rated.length >= 2) {
     const accBy = new Map<string, number>();
+    const accsOf = new Map<string, number[]>();
     for (const [k, v] of rated) {
-      const a = avg(v.filter((f) => f.analyzed).map((f) => f.rec.game_acc));
-      if (a > 0) accBy.set(k, a);
+      const accs = v.filter((f) => f.analyzed).map((f) => f.rec.game_acc);
+      const a = avg(accs);
+      if (a > 0) {
+        accBy.set(k, a);
+        accsOf.set(k, accs);
+      }
     }
     if (accBy.size >= 2) {
       let bestK = "";
@@ -335,7 +349,8 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
       }
       const ab = accBy.get(bestK) as number;
       const aw = accBy.get(worstK) as number;
-      if (ab - aw >= 4) {
+      const z = accBy.size > 2 ? Z_MULTI : undefined;
+      if (ab - aw >= 4 && meansDiffer(accsOf.get(bestK) as number[], accsOf.get(worstK) as number[], z, MIN_ANALYZED)) {
         profile.strengths.push({
           key: "speed_best",
           title: `Stärkste Bedenkzeit: ${trSpeed(bestK)}`,

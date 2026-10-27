@@ -24,9 +24,11 @@ describe("skill scores with little evidence", () => {
       skill("defense", 100, PRIOR_WEIGHT.defense, null),
     ]);
     expect(one.raw_score).toBe(0);
-    expect(one.score).toBe(45); // 1 situation against a prior weight of 3 at 60
-    expect(one.grade).toBe("Ausbaufähig");
-    expect(many.score).toBeLessThan(1);
+    expect(one.score).toBe(54.5); // 1 situation against a prior weight of 10 at 60
+    expect(one.grade).toBe("Solide");
+    expect(one.reliable).toBe(false);
+    expect(many.score).toBeLessThan(3);
+    expect(many.reliable).toBe(true);
     expect(many.margin as number).toBeLessThan(one.margin as number);
     expect(none).toMatchObject({ score: 0, margin: null });
     // Without a rating the prior is the middle of the scale.

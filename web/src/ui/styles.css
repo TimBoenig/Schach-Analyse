@@ -1739,6 +1739,15 @@ button.engine-line:hover {
   margin-top: 4px;
 }
 
+.style-axis .band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.22;
+}
+
 .style-axis .dot {
   position: absolute;
   top: -4px;

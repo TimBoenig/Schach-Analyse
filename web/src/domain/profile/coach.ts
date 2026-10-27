@@ -254,7 +254,9 @@ export function profileContext(p: PlayerProfile, detail: CoachDetail = "normal",
     sections.push([
       "## Spielstil",
       `${p.style.label}: ${p.style.description}`,
-      ...p.style.axes.map((a) => `- ${a.name}: ${Math.round(a.value)}/100 (0 = ${a.low_label}, 100 = ${a.high_label})`),
+      ...p.style.axes.map(
+        (a) => `- ${a.name}: ${Math.round(a.value)}/100${a.margin ? ` ±${a.margin}` : ""} (0 = ${a.low_label}, 100 = ${a.high_label})`,
+      ),
     ]);
   }
 

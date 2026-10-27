@@ -34,10 +34,10 @@ describe("player profile", () => {
   });
 
   it("detects skills, patterns, puzzles, training plan and trends", () => {
-    const profile = buildPlayerProfile(games(9, 3), ["tim"]);
+    const profile = buildPlayerProfile(games(18, 6), ["tim"]);
 
-    expect(profile.total_games).toBe(12);
-    expect(profile.analyzed_games).toBe(12);
+    expect(profile.total_games).toBe(24);
+    expect(profile.analyzed_games).toBe(24);
     expect(new Set(profile.skills.map((s) => s.key))).toEqual(new Set(Object.keys(SKILL_NAMES)));
     expect(profile.skills.every((s) => s.score >= 0 && s.score <= 100)).toBe(true);
     const strengthKeys = new Set(profile.strengths.map((i) => i.key));
@@ -52,7 +52,7 @@ describe("player profile", () => {
     // Every thrown game yields a puzzle whose solution is legal in its position;
     // the error came right after the opponent's blunder, so it trains punishing.
     const puzzles = profile.exercises.filter((e): e is PuzzleExercise => e.kind === "puzzle");
-    expect(puzzles).toHaveLength(9);
+    expect(puzzles).toHaveLength(18);
     for (const pz of puzzles) {
       const board = new Board(pz.fen);
       const mv = moveFromUci(pz.solution);
@@ -69,6 +69,20 @@ describe("player profile", () => {
       "2026-05",
       "2026-06",
     ]);
+  });
+
+  it("gives no advice from a handful of games", () => {
+    // Three thrown wins look like a clear pattern, but three games prove nothing yet.
+    const profile = buildPlayerProfile(games(3, 1), ["tim"]);
+    expect(profile.analyzed_games).toBe(4);
+    expect(profile.patterns).toEqual([]);
+    expect(profile.strengths).toEqual([]);
+    expect(profile.weaknesses).toEqual([]);
+    expect(profile.style).toBeNull();
+    expect(profile.openings_best).toEqual([]);
+    expect(profile.openings_worst).toEqual([]);
+    expect(profile.deep?.facts).toEqual([]);
+    expect(profile.skills.every((s) => !s.reliable)).toBe(true);
   });
 
   it("has no skills when nothing is analyzed", () => {

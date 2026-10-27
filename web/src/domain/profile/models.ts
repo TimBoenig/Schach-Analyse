@@ -20,6 +20,8 @@ export interface SkillScore {
   grade: string;
   detail: string;
   sample: number;
+  /** Games the evidence comes from (moves of one game are not independent). */
+  games?: number;
   reliable: boolean;
   /** Score a typical player of the user's rating reaches (null without rating). */
   typical?: number | null;
@@ -52,6 +54,8 @@ export interface StyleAxis {
   value: number; // 0..100
   low_label: string;
   high_label: string;
+  /** Rough 95 % ± uncertainty of `value` in points. */
+  margin?: number;
 }
 
 export interface StyleProfile {

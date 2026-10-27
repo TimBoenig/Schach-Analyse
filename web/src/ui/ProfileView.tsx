@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import type { GameRef, Insight, PlayerProfile, RatingContext, SkillScore } from "../domain/profile";
+import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
@@ -391,11 +391,19 @@ export function ProfileView() {
             </Card>
 
             <Card title="Stärken" span={6}>
-              <InsightList items={profile.strengths} tone="pos" empty="Noch keine klaren Stärken erkennbar." />
+              <InsightList
+                items={profile.strengths}
+                tone="pos"
+                empty="Noch keine belastbaren Stärken. Genannt wird nur, was viele Partien klar zeigen."
+              />
             </Card>
 
             <Card title="Schwächen" span={6}>
-              <InsightList items={profile.weaknesses} tone="neg" empty="Keine auffälligen Schwächen." />
+              <InsightList
+                items={profile.weaknesses}
+                tone="neg"
+                empty="Keine belastbaren Schwächen. Genannt wird nur, was viele Partien klar zeigen."
+              />
             </Card>
 
             {profile.style && (
@@ -410,7 +418,13 @@ export function ProfileView() {
                       <strong>{a.name}</strong>
                       <span>{a.high_label}</span>
                     </div>
-                    <div class="track">
+                    <div class="track" title={a.margin ? `±${a.margin} Punkte Unsicherheit` : undefined}>
+                      {a.margin ? (
+                        <div
+                          class="band"
+                          style={{ left: `${Math.max(0, a.value - a.margin)}%`, right: `${Math.max(0, 100 - a.value - a.margin)}%` }}
+                        />
+                      ) : null}
                       <div class="dot" style={{ left: `${a.value}%` }} />
                     </div>
                   </div>
@@ -437,7 +451,12 @@ export function ProfileView() {
                   ))}
                 </div>
               ) : (
-                <p class="muted small">Noch keine Muster gefunden.</p>
+                <p class="muted small">
+                  Noch keine Muster gefunden. Ein Muster wird erst genannt, wenn genug Partien es zeigen und es kein Zufall sein kann.
+                </p>
+              )}
+              {!profile.style && (
+                <p class="faint small tile-foot">Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.</p>
               )}
             </Card>
 

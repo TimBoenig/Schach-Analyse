@@ -26,6 +26,8 @@ export interface SkillChange {
   previous: number | null;
   delta: number | null;
   reliable: boolean;
+  /** 95 % uncertainty of `delta` in points (null without a previous value). */
+  noise?: number | null;
 }
 
 export interface PeriodComparison {
@@ -114,9 +116,13 @@ export function comparePeriods(cur: PlayerProfile, prev: PlayerProfile | null): 
       previous: b ? b.score : null,
       delta: b ? s.score - b.score : null,
       reliable: s.reliable && Boolean(b?.reliable),
+      // 95 % uncertainty of the change: both periods' margins combined.
+      noise: b ? Math.hypot(s.margin ?? 0, b.margin ?? 0) : null,
     };
   });
-  const trending = skills.filter((s) => s.reliable && s.delta !== null);
+  // A change counts once it is larger than the noise of both measurements.
+  const beyond = (s: SkillChange) => Math.abs(s.delta as number) >= Math.max(SKILL_TREND_POINTS, s.noise ?? 0);
+  const trending = skills.filter((s) => s.reliable && s.delta !== null && beyond(s));
   const improved = trending
     .filter((s) => (s.delta as number) >= SKILL_TREND_POINTS)
     .sort((a, b) => (b.delta as number) - (a.delta as number))

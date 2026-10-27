@@ -7,6 +7,7 @@
 // different scales (a rating of 1500, 3 blunders, 80 % accuracy) count alike,
 // and a factor only counts where at least two players have data for it.
 
+import { MIN_GROUP_GAMES } from "../profile/evidence";
 import { filterGames } from "../metrics/filters";
 import { type RawGame } from "../metrics/models";
 import { parsePlayedAt } from "../metrics/played";
@@ -70,8 +71,8 @@ export interface Ranking {
 }
 
 // Below these samples a value is too noisy to rank.
-const MIN_RATED_GAMES = 5;
-const MIN_ANALYZED = 3;
+const MIN_RATED_GAMES = MIN_GROUP_GAMES;
+const MIN_ANALYZED = 5;
 const ACTIVITY_DAYS = 30;
 
 const SKILL_FACTORS = ["opening", "middlegame", "endgame", "tactics", "safety", "conversion", "defense", "time"] as const;

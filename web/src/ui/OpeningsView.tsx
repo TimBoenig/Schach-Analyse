@@ -8,6 +8,7 @@ import {
   openingLabel,
   profileCoachMessages,
 } from "../domain/profile";
+import { MIN_LINE_GAMES, scoreDeviation } from "../domain/profile/evidence";
 import { AiChat, coachDetail } from "./AiCoach";
 import { BarList, Legend, StackBar } from "./charts";
 import type { BarRow } from "./charts";
@@ -17,7 +18,7 @@ import { navigate } from "./router";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
-const MIN_GAMES = 3;
+const MIN_GAMES = MIN_LINE_GAMES;
 const ROWS = 8;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -289,7 +290,10 @@ export function OpeningsView() {
   };
   const wpAfter = weighted((l) => l.wp_after_opening);
   const bookExit = weighted((l) => l.book_exit_move);
-  const best = lines.filter((l) => l.games >= MIN_GAMES && l.score_pct !== null).sort((a, b) => (b.score_pct as number) - (a.score_pct as number))[0];
+  // Only an opening that scores clearly above 50 % counts as the strongest.
+  const best = lines
+    .filter((l) => scoreDeviation(l, 50) > 0)
+    .sort((a, b) => (b.score_pct as number) - (a.score_pct as number))[0];
   const facts = showAllFacts ? o.facts : o.facts.slice(0, 3);
 
   return (

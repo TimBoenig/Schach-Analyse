@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { benchmark, buildPlayerProfile, expectedScore, typicalSkillScores } from "../../src/domain/profile";
+import { benchmark, buildPlayerProfile, expectedScore, performanceRating, typicalSkillScores } from "../../src/domain/profile";
 import { buildMoves, gameRow } from "./fixtures";
 
 describe("rating benchmarks", () => {
@@ -27,6 +27,22 @@ describe("rating benchmarks", () => {
   });
 });
 
+describe("performance rating", () => {
+  it("follows the Elo curve and stays finite for perfect scores", () => {
+    // 50 % against a mixed field: the rating where the expectations balance, not simply the average opponent.
+    const mixed = performanceRating([{ opp: 1900, score: 1 }, { opp: 1300, score: 0 }]) as number;
+    expect(expectedScore(mixed, 1900) + expectedScore(mixed, 1300) + expectedScore(mixed, 1600)).toBeCloseTo(1.5, 2);
+    // A 3:0 is a strong result, not "infinitely" strong, and more games of it push higher.
+    const three = performanceRating(Array(3).fill({ opp: 1500, score: 1 })) as number;
+    const ten = performanceRating(Array(10).fill({ opp: 1500, score: 1 })) as number;
+    expect(three).toBeGreaterThan(1600);
+    expect(three).toBeLessThan(2100);
+    expect(ten).toBeGreaterThan(three);
+    expect(performanceRating([{ opp: 1500, score: 0.5 }])).toBe(1500);
+    expect(performanceRating([])).toBeNull();
+  });
+});
+
 describe("rating context in the profile", () => {
   it("compares the score with the per-game Elo expectation", () => {
     const moves = buildMoves({});
@@ -44,7 +60,10 @@ describe("rating context in the profile", () => {
     const expected = 2 * expectedScore(1500, 1700) + expectedScore(1520, 1300);
     expect(rc!.expected_score).toBeCloseTo(expected, 1);
     expect(rc!.avg_opponent).toBe(1567);
-    expect(rc!.performance).toBe(Math.round(4700 / 3 + 400 / 3));
+    // The rating whose Elo expectation against 1700, 1700, 1300 (plus a virtual draw against the average) gives the points.
+    const perf = rc!.performance as number;
+    const exp = 2 * expectedScore(perf, 1700) + expectedScore(perf, 1300) + expectedScore(perf, 1567);
+    expect(exp).toBeCloseTo(2.5, 2);
     expect(rc!.typical_accuracy).toBeCloseTo(benchmark("accuracy", 1520), 1);
   });
 

@@ -56,19 +56,45 @@ describe("deep insights", () => {
     expect(d.after_result.every((b) => b.games === 0)).toBe(true);
   });
 
-  it("names tilt and the time of day as headline findings", () => {
+  const tiltRows = (days: number) => {
     const rows = [];
-    // Eight sessions of loss → loss; plus wins in single-game sessions to lift the average.
-    for (let day = 1; day <= 8; day++) {
+    // Sessions of loss → loss; plus wins in single-game sessions to lift the average.
+    for (let day = 1; day <= days; day++) {
       const d = `2026.06.${String(day).padStart(2, "0")}`;
       rows.push(gameRow(`l${day}a`, CLEAN, { result: "0-1", utc: `${d} 18:00:00` }));
       rows.push(gameRow(`l${day}b`, CLEAN, { result: "0-1", utc: `${d} 18:30:00` }));
       rows.push(gameRow(`w${day}`, CLEAN, { result: "1-0", utc: `${d} 08:00:00` }));
       rows.push(gameRow(`v${day}`, CLEAN, { result: "1-0", utc: `${d} 12:00:00` }));
     }
-    const d = buildDeepInsights(feats(rows), utcHour, utcDay);
+    return rows;
+  };
+
+  it("names tilt and the time of day as headline findings", () => {
+    const d = buildDeepInsights(feats(tiltRows(12)), utcHour, utcDay);
     expect(d.facts).toContain("Morgens spielst du am besten (100 %), abends am schwächsten (0 %).");
     expect(d.facts.some((f) => f.startsWith("Nach einer Niederlage holst du nur 0 % der Punkte (sonst 50 %)"))).toBe(true);
+  });
+
+  it("draws no conclusions from a few games, however extreme", () => {
+    // Same pattern, but only four mornings and four games after a loss: could be chance.
+    expect(buildDeepInsights(feats(tiltRows(4)), utcHour, utcDay).facts).toEqual([]);
+  });
+
+  it("compares times of day by points over the Elo expectation", () => {
+    // Mornings are won against much weaker opponents, evenings lost against much stronger ones:
+    // both are exactly what the ratings predict, so neither is a strength or weakness of the time.
+    const rows = [];
+    for (let day = 1; day <= 14; day++) {
+      const d = `2026.06.${String(day).padStart(2, "0")}`;
+      rows.push({ ...gameRow(`m${day}`, CLEAN, { result: day % 7 ? "1-0" : "0-1", utc: `${d} 08:00:00` }), white_elo: "1500", black_elo: "1100" });
+      rows.push({ ...gameRow(`e${day}`, CLEAN, { result: day % 7 ? "0-1" : "1-0", utc: `${d} 19:00:00` }), white_elo: "1500", black_elo: "1900" });
+    }
+    const d = buildDeepInsights(feats(rows), utcHour, utcDay);
+    const morning = d.by_daytime.find((b) => b.key === "morning")!;
+    expect(morning.score_pct).toBeGreaterThan(80);
+    expect(morning.vs_expectation).not.toBeNull();
+    expect(Math.abs(morning.vs_expectation as number)).toBeLessThan(10);
+    expect(d.facts.some((f) => f.includes("spielst du am besten"))).toBe(false);
   });
 
   it("is part of the profile once a game is analyzed", () => {
