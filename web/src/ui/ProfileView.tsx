@@ -7,6 +7,7 @@ import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "
 import type { BarRow, Segment } from "./charts";
 import { qualitySegments } from "./labels";
 import { navigate } from "./router";
+import { CoachTip, NeedNames } from "./Coach";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
@@ -196,6 +197,9 @@ export function ProfileView() {
     <>
       <div class="page-title">Mein Profil</div>
       <FilterBar filters={filters} onChange={setFilters} />
+      <CoachTip id="profile" title="Dein Schachprofil">
+        Das ist dein Steckbrief als Spieler. Ich bewerte deine Fähigkeiten von 0 bis 100 und vergleiche sie mit Spielern deiner Wertung. Blasse Werte haben noch wenige Daten, die werden mit mehr Partien genauer.
+      </CoachTip>
     </>
   );
 
@@ -203,12 +207,7 @@ export function ProfileView() {
     return (
       <div>
         <div class="page-title">Mein Profil</div>
-        <div class="empty">
-          <p>Trage zuerst deine Spielernamen ein, damit die App deine Partien erkennt.</p>
-          <button class="btn primary" onClick={() => navigate({ view: "settings" })}>
-            Zu den Einstellungen
-          </button>
-        </div>
+        <NeedNames what="baue ich dir hier dein Spielerprofil." />
       </div>
     );
   }

@@ -30,6 +30,7 @@ import type { Segment } from "./charts";
 import { IconPlay, IconPlayers, IconPlus, IconSync, IconTrash } from "./icons";
 import { formatDate, SPEED_DE } from "./labels";
 import { navigate } from "./router";
+import { CoachTip } from "./Coach";
 import { PeriodSelect } from "./useProfile";
 
 const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
@@ -1109,6 +1110,11 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
           Trag in den Einstellungen deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
         </div>
       )}
+      <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>
+        {tab === "rangliste"
+          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Jeder Bereich gibt Punkte nach Platz, daraus entsteht die Gesamtwertung."
+          : "Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?"}
+      </CoachTip>
       {tab === "rangliste" ? <RankingPanel players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
     </div>
   );

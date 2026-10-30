@@ -19,7 +19,8 @@ import {
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise, localDay } from "../domain/training";
 import { AreaChart, BarList, type BarRow } from "./charts";
 import { Markdown } from "./AiCoach";
-import { IconPlay, IconSpark } from "./icons";
+import { Coach, CoachAvatar, COACH_NAME, type Mood } from "./Coach";
+import { IconBoard, IconFreeBoard, IconPlay, IconSpark, IconTraining, IconUpload } from "./icons";
 import { formatDate, shortOpening } from "./labels";
 import { navigate } from "./router";
 import { loadTodayTraining, type TodayTraining } from "./training/useTraining";
@@ -208,7 +209,7 @@ export function HomeView() {
   const header = (
     <>
       <div class="page-title">
-        Start
+        {names[0] ? `Hallo ${names[0]}!` : "Start"}
         <span class="spacer" />
         <div class="segmented small-seg" role="group" aria-label="Zeitraum">
           {QUICK.map(([k, l]) => (
@@ -217,7 +218,7 @@ export function HomeView() {
             </button>
           ))}
         </div>
-        <button class="btn" disabled={exporting} onClick={() => void runExport()} title="Alles im gewählten Zeitraum als eine Datei">
+        <button class="btn small ghost" disabled={exporting} onClick={() => void runExport()} title="Alles im gewählten Zeitraum als eine Datei">
           {exporting ? "Exportiere …" : "Exportieren"}
         </button>
       </div>
@@ -227,16 +228,33 @@ export function HomeView() {
 
   if (usernames && !usernames.length) {
     return (
-      <div>
-        <div class="page-title">Start</div>
-        <div class="empty">
-          <h3>Willkommen</h3>
-          <p>Trage deine Spielernamen ein und importiere deine Partien. Hier siehst du dann jeden Tag, wo du stehst und was du heute üben solltest.</p>
+      <div class="welcome">
+        <div class="welcome-hero card">
+          <CoachAvatar size={112} mood="wow" />
+          <h1>Hi, ich bin {COACH_NAME}!</h1>
+          <p class="muted">
+            Ich bin dein Schachtrainer. Ich schaue mir deine Partien an, erkläre dir jeden Fehler in einfachen Worten und
+            stelle dir jeden Tag passende Übungen zusammen.
+          </p>
+          <ol class="welcome-steps">
+            <li>
+              <strong>Sag mir, wie du heißt</strong>
+              <span class="small muted">Deinen Namen auf chess.com oder Lichess, damit ich deine Partien erkenne.</span>
+            </li>
+            <li>
+              <strong>Lade deine Partien</strong>
+              <span class="small muted">Direkt von chess.com oder Lichess oder als PGN-Datei.</span>
+            </li>
+            <li>
+              <strong>Lass uns loslegen</strong>
+              <span class="small muted">Ich analysiere alles auf deinem Gerät und zeige dir, woran du arbeiten solltest.</span>
+            </li>
+          </ol>
           <div class="row" style={{ justifyContent: "center" }}>
-            <button class="btn primary" onClick={() => navigate({ view: "settings" })}>
-              Spielernamen eintragen
+            <button class="btn primary big" onClick={() => navigate({ view: "settings" })}>
+              Los geht's
             </button>
-            <button class="btn" onClick={() => navigate({ view: "games", import: true })}>
+            <button class="btn big" onClick={() => navigate({ view: "games", import: true })}>
               Partien importieren
             </button>
           </div>
@@ -298,77 +316,91 @@ export function HomeView() {
   const pool = comparison.current.exercises;
   const planned = today?.planned ?? 0;
   const done = today?.done ?? 0;
+  const acc = cmp.kpis.find((k) => k.key === "accuracy");
+  const accTrend = acc ? trendOf(acc) : "flat";
+  const heroMood: Mood = accTrend === "up" ? "wow" : accTrend === "down" ? "think" : "happy";
+  const heroTitle =
+    notes[0] ??
+    (today?.streak ? `Stark, ${today.streak} Tage in Folge trainiert! Weiter so.` : `Schön, dass du da bist${names[0] ? `, ${names[0]}` : ""}!`);
 
   return (
     <div class="home" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
       <div class="dash">
-        <section class="card tile span-12 facts-card">
-          <div class="tile-head">
-            <h3>Wo du gerade stehst</h3>
-            <span class="tile-sub">{vsLabel}</span>
-          </div>
-          {comparison.fallback && (
-            <p class="small muted" style={{ marginTop: 0 }}>
-              Gesamter Zeitraum gewählt: Der Vergleich zeigt deine letzten 30 Tage, damit du siehst, wie es zuletzt läuft.
-            </p>
-          )}
-          {notes.length ? (
-            <ul class="fact-list">
-              {notes.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
-          ) : (
-            <p class="muted small" style={{ margin: 0 }}>
-              {comparison.current.total_games
-                ? "Noch keine deutlichen Veränderungen. Mit mehr analysierten Partien werden die Trends belastbarer."
-                : "In diesem Zeitraum hast du noch keine Partie gespielt."}
-            </p>
-          )}
-        </section>
-
-        <KpiStrip kpis={cmp.kpis} label={comparison.label} />
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Heute</h3>
-            {today && today.streak > 0 && <span class="tile-sub">{today.streak} Tage in Folge trainiert</span>}
-          </div>
-          <div class="today-row">
-            <div>
-              <div class="kpi-label">Tagesplan</div>
-              <div class="kpi-value tnum">
-                {done}
-                {planned ? <span class="kpi-unit"> / {planned}</span> : null}
-              </div>
-              <div class="small muted">{planned ? "Übungen erledigt" : "Übungen heute"}</div>
-            </div>
-            <div>
-              <div class="kpi-label">Diese Woche</div>
-              <div class="kpi-value tnum">{today?.week.done ?? 0}</div>
-              <div class="small muted">
-                Übungen{today && today.week.done ? `, ${Math.round((today.week.correct / today.week.done) * 100)} % gelöst` : ""}
-              </div>
-            </div>
-          </div>
-          {planned > 0 && (
-            <div class="progress" style={{ margin: "10px 0" }}>
-              <div style={{ width: `${Math.min(100, (done / planned) * 100)}%` }} />
-            </div>
-          )}
-          {today?.headline && <p class="small" style={{ margin: "6px 0 10px" }}>{today.headline}</p>}
-          <div class="row tile-foot">
-            <button class="btn primary" onClick={() => navigate({ view: "training" })}>
+        <section class="card span-12 home-hero">
+          <Coach mood={heroMood} size={72} class="big" title={heroTitle}>
+            {comparison.fallback && <p class="small">Ich vergleiche deine letzten 30 Tage mit den 30 Tagen davor.</p>}
+            {notes.length > 1 ? (
+              <ul class="fact-list">
+                {notes.slice(1).map((n) => (
+                  <li key={n}>{n}</li>
+                ))}
+              </ul>
+            ) : notes.length === 0 ? (
+              <p>
+                {comparison.current.total_games
+                  ? "Noch keine deutlichen Veränderungen. Mit mehr analysierten Partien kann ich dir genauer sagen, wohin die Reise geht."
+                  : "In diesem Zeitraum hast du noch keine Partie gespielt. Spiel ein paar Partien und lade sie hoch, dann schaue ich sie mir an."}
+              </p>
+            ) : null}
+          </Coach>
+          <div class="hero-actions">
+            <button class="btn primary big" onClick={() => navigate({ view: "training" })}>
               <IconPlay /> {done && planned && done >= planned ? "Weiter üben" : "Tagesplan starten"}
             </button>
             {open.length > 0 && (
-              <button class="btn" onClick={() => enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
+              <button class="btn big" onClick={() => enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
                 {open.length} {open.length === 1 ? "Partie" : "Partien"} analysieren
               </button>
             )}
           </div>
+          <span class="tile-sub hero-sub">{vsLabel}</span>
         </section>
+
+        <div class="quick-tiles span-12">
+          <button class="quick-tile" onClick={() => navigate({ view: "training" })}>
+            <span class="quick-icon t-green">
+              <IconTraining />
+            </span>
+            <strong>Training</strong>
+            <span class="small muted">
+              {planned ? `${done} von ${planned} Übungen heute` : "Übungen aus deinen Partien"}
+            </span>
+            {planned > 0 && (
+              <span class="progress">
+                <span style={{ width: `${Math.min(100, (done / planned) * 100)}%` }} />
+              </span>
+            )}
+          </button>
+          <button
+            class="quick-tile"
+            onClick={() => navigate(profile.recent_games[0] ? { view: "analysis", gameId: profile.recent_games[0].game_id } : { view: "games" })}
+          >
+            <span class="quick-icon t-blue">
+              <IconBoard />
+            </span>
+            <strong>Letzte Partie</strong>
+            <span class="small muted">
+              {profile.recent_games[0] ? `gegen ${profile.recent_games[0].opponent} durchgehen` : "Noch keine Partie"}
+            </span>
+          </button>
+          <button class="quick-tile" onClick={() => navigate({ view: "games", import: true })}>
+            <span class="quick-icon t-orange">
+              <IconUpload />
+            </span>
+            <strong>Importieren</strong>
+            <span class="small muted">Neue Partien laden</span>
+          </button>
+          <button class="quick-tile" onClick={() => navigate({ view: "board" })}>
+            <span class="quick-icon t-purple">
+              <IconFreeBoard />
+            </span>
+            <strong>Analysebrett</strong>
+            <span class="small muted">Stellungen ausprobieren</span>
+          </button>
+        </div>
+
+        <KpiStrip kpis={cmp.kpis} label={comparison.label} />
 
         <section class="card tile span-6">
           <div class="tile-head">

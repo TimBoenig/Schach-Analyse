@@ -7,7 +7,22 @@ import { FreeBoardView } from "./FreeBoardView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
-import { IconBoard, IconFreeBoard, IconGames, IconHome, IconInsights, IconOpenings, IconPlayers, IconProfile, IconSearch, IconSettings, IconTraining } from "./icons";
+import { CoachAvatar, COACH_NAME } from "./Coach";
+import {
+  IconBoard,
+  IconClose,
+  IconFreeBoard,
+  IconGames,
+  IconHome,
+  IconInsights,
+  IconMore,
+  IconOpenings,
+  IconPlayers,
+  IconProfile,
+  IconSearch,
+  IconSettings,
+  IconTraining,
+} from "./icons";
 import { InsightsView } from "./InsightsView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
@@ -17,18 +32,41 @@ import { SettingsView } from "./SettingsView";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 
-const NAV: { view: Route["view"]; label: string; short?: string; icon: () => preact.JSX.Element }[] = [
-  { view: "home", label: "Start", icon: IconHome },
-  { view: "games", label: "Partien", icon: IconGames },
-  { view: "analysis", label: "Analyse", icon: IconBoard },
-  { view: "board", label: "Brett", icon: IconFreeBoard },
-  { view: "profile", label: "Profil", icon: IconProfile },
-  { view: "players", label: "Spieler", icon: IconPlayers },
-  { view: "insights", label: "Einblicke", icon: IconInsights },
-  { view: "openings", label: "Eröffnungen", short: "Eröffnung", icon: IconOpenings },
-  { view: "training", label: "Training", icon: IconTraining },
-  { view: "settings", label: "Einstellungen", short: "Optionen", icon: IconSettings },
+type NavItem = { view: Route["view"]; label: string; hint: string; icon: () => preact.JSX.Element };
+
+// Sidebar groups on wide screens; on phones and portrait tablets the first
+// group (plus Profil) forms the tab bar and the rest opens from "Mehr".
+const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+  {
+    title: "Spielen & Analysieren",
+    items: [
+      { view: "home", label: "Start", hint: "Dein Tag auf einen Blick", icon: IconHome },
+      { view: "games", label: "Partien", hint: "Importieren und durchsehen", icon: IconGames },
+      { view: "analysis", label: "Analyse", hint: "Zuletzt geöffnete Partie", icon: IconBoard },
+      { view: "board", label: "Analysebrett", hint: "Stellungen frei ausprobieren", icon: IconFreeBoard },
+    ],
+  },
+  {
+    title: "Verbessern",
+    items: [
+      { view: "training", label: "Training", hint: "Tagesplan und Übungen", icon: IconTraining },
+      { view: "openings", label: "Eröffnungen", hint: "Dein Repertoire", icon: IconOpenings },
+    ],
+  },
+  {
+    title: "Verstehen",
+    items: [
+      { view: "profile", label: "Profil", hint: "Stärken und Schwächen", icon: IconProfile },
+      { view: "insights", label: "Einblicke", hint: "Muster und Trainerbericht", icon: IconInsights },
+      { view: "players", label: "Spieler", hint: "Gegner und Freunde", icon: IconPlayers },
+    ],
+  },
 ];
+
+const SETTINGS_ITEM: NavItem = { view: "settings", label: "Einstellungen", hint: "Namen, Sync, Aussehen", icon: IconSettings };
+const ALL_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), SETTINGS_ITEM];
+const TAB_VIEWS: Route["view"][] = ["home", "games", "training", "profile"];
+const MORE_ITEMS = ALL_ITEMS.filter((n) => !TAB_VIEWS.includes(n.view));
 
 function useBackgroundSync(): void {
   useEffect(() => {
@@ -68,7 +106,7 @@ export function App() {
   const route = useRoute();
   const [lastGame, setLastGame] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
-  const [overlay, setOverlay] = useState<"palette" | "keys" | null>(null);
+  const [overlay, setOverlay] = useState<"palette" | "keys" | "more" | null>(null);
   useBackgroundSync();
 
   useEffect(() => {
@@ -78,6 +116,7 @@ export function App() {
         setOverlay((o) => (o === "palette" ? null : "palette"));
         return;
       }
+      if (e.key === "Escape") setOverlay((o) => (o === "more" ? null : o));
       if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector(".overlay, dialog[open]")) return;
       if (e.key === "?") {
         e.preventDefault();
@@ -106,9 +145,25 @@ export function App() {
     }
   }, [route]);
 
+  const navButton = (n: NavItem, kind: "nav-item" | "tab" = "nav-item") => (
+    <button
+      key={n.view}
+      class={`${kind}${route.view === n.view ? " active" : ""}`}
+      onClick={() => {
+        setOverlay(null);
+        go(n.view, lastGame);
+      }}
+      aria-current={route.view === n.view ? "page" : undefined}
+    >
+      {n.view === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
+      <n.icon />
+      <span class="nav-label">{n.view === "board" && kind === "tab" ? "Brett" : n.label}</span>
+    </button>
+  );
+
   return (
     <div class="app">
-      <nav class="nav">
+      <nav class="nav" aria-label="Hauptnavigation">
         <div class="nav-brand">
           <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span class="nav-title">Schach-Analyse</span>
@@ -118,22 +173,27 @@ export function App() {
           <span class="nav-search-text">Suchen</span>
           <kbd>{MOD} K</kbd>
         </button>
-        {NAV.map((n) => (
-          <button
-            key={n.view}
-            class={`nav-item${route.view === n.view ? " active" : ""}${n.short ? " has-short" : ""}${n.view === "analysis" || n.view === "board" ? " nav-wide-only" : ""}`}
-            onClick={() => go(n.view, lastGame)}
-            aria-current={route.view === n.view ? "page" : undefined}
-          >
-            {n.view === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
-            <n.icon />
-            <span class="nav-label">{n.label}</span>
-            {n.short && <span class="nav-short">{n.short}</span>}
-          </button>
+        {NAV_GROUPS.map((g) => (
+          <div class="nav-group" key={g.title}>
+            <div class="nav-group-title">{g.title}</div>
+            {g.items.map((n) => navButton(n))}
+          </div>
         ))}
         <div class="nav-spacer" />
+        {navButton(SETTINGS_ITEM)}
         <button class="nav-keys" onClick={() => setOverlay("keys")}>
           Tastenkürzel <kbd>?</kbd>
+        </button>
+      </nav>
+      <nav class="tabbar" aria-label="Hauptnavigation">
+        {TAB_VIEWS.map((v) => navButton(ALL_ITEMS.find((n) => n.view === v)!, "tab"))}
+        <button
+          class={`tab${MORE_ITEMS.some((n) => n.view === route.view) || overlay === "more" ? " active" : ""}`}
+          onClick={() => setOverlay((o) => (o === "more" ? null : "more"))}
+          aria-expanded={overlay === "more"}
+        >
+          <IconMore />
+          <span>Mehr</span>
         </button>
       </nav>
       <main class="main">
@@ -155,6 +215,43 @@ export function App() {
         <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />
       )}
       {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
+      {overlay === "more" && (
+        <div class="sheet-backdrop" onClick={() => setOverlay(null)}>
+          <div class="sheet" role="dialog" aria-label="Weitere Bereiche" onClick={(e) => e.stopPropagation()}>
+            <div class="sheet-head">
+              <CoachAvatar size={40} />
+              <div>
+                <strong>Wohin soll es gehen?</strong>
+                <div class="small muted">{COACH_NAME} zeigt dir alle Bereiche.</div>
+              </div>
+              <span class="spacer" />
+              <button class="btn icon ghost" onClick={() => setOverlay(null)} aria-label="Schließen">
+                <IconClose />
+              </button>
+            </div>
+            <div class="sheet-grid">
+              {MORE_ITEMS.map((n) => (
+                <button
+                  key={n.view}
+                  class={`sheet-item${route.view === n.view ? " active" : ""}`}
+                  onClick={() => {
+                    setOverlay(null);
+                    go(n.view, lastGame);
+                  }}
+                >
+                  <span class="sheet-icon">
+                    <n.icon />
+                  </span>
+                  <span>
+                    <strong>{n.label}</strong>
+                    <span class="small muted">{n.hint}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

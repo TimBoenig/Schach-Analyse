@@ -18,6 +18,7 @@ import {
 import { Board, type Arrow, type Promotion } from "../Board";
 import { classLabel, formatDate } from "../labels";
 import { navigate } from "../router";
+import { Coach } from "../Coach";
 
 export interface RunnerProps<T> {
   ex: T;
@@ -172,10 +173,9 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             Prozentpunkte.
           </p>
           {feedback && (
-            <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>
-              {feedback.text}
-              {feedback.detail && <span class="feedback-detail">{feedback.detail}</span>}
-            </p>
+            <Coach mood={feedback.ok ? "wow" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text}>
+              {feedback.detail}
+            </Coach>
           )}
           {(solved || reveal) && others.length > 0 && (
             <p class="small">
@@ -332,7 +332,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
               gespielt – laut Engine ein Fehler. Finde den besseren Zug.
             </p>
           )}
-          {feedback && !done && <p class={feedback.ok ? "feedback-ok" : "feedback-bad"}>{feedback.text}</p>}
+          {feedback && !done && <Coach mood={feedback.ok ? "happy" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text} />}
           {missesHere >= 2 && !done && <p class="small muted">Der Pfeil zeigt dir den Zug.</p>}
           {done && (
             <p class={errors === 0 ? "feedback-ok" : "feedback-bad"}>
@@ -485,7 +485,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
             <div style={{ width: `${(userMoves / ex.max_moves) * 100}%` }} />
           </div>
           {thinking && <p class="small muted">Die Engine denkt …</p>}
-          {verdict.done && <p class={verdict.success ? "feedback-ok" : "feedback-bad"}>{verdict.text}</p>}
+          {verdict.done && <Coach mood={verdict.success ? "wow" : "sad"} tone={verdict.success ? "var(--win)" : "var(--loss)"} title={verdict.text} />}
           {error && <p class="error small">{error}</p>}
           <div class="row">
             {verdict.done && !verdict.success && (

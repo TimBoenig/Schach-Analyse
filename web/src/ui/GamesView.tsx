@@ -8,10 +8,11 @@ import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "..
 import { storeImported } from "../storage/rows";
 import { Donut, Gauge, Legend } from "./charts";
 import type { Segment } from "./charts";
-import { IconGames, IconPlay, IconPlus, IconStop } from "./icons";
+import { IconPlay, IconPlus, IconStop } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { isTyping } from "./keys";
 import { navigate } from "./router";
+import { Coach, CoachAvatar } from "./Coach";
 import { PeriodSelect } from "./useProfile";
 
 type Source = "chesscom" | "lichess" | "pgn";
@@ -413,9 +414,9 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       </div>
 
       {justImported.length > 0 && !busy && (
-        <div class="notice" style={{ marginBottom: "12px" }}>
-          <div class="row" style={{ justifyContent: "space-between" }}>
-            <span>{justImported.length} neue Partien sind bereit.</span>
+        <Coach
+          title={`${justImported.length} neue Partien sind da!`}
+          actions={
             <button
               class="btn primary"
               onClick={() => {
@@ -425,8 +426,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             >
               Jetzt analysieren
             </button>
-          </div>
-        </div>
+          }
+        >
+          Soll ich sie mir gleich anschauen? Danach siehst du zu jedem Zug, wie gut er war.
+        </Coach>
       )}
 
       {busy && queue && (
@@ -506,12 +509,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         </div>
       ) : games.length === 0 ? (
         <div class="empty">
-          <div class="empty-icon">
-            <IconGames />
-          </div>
-          <h3>Noch keine Partien</h3>
-          <p>Importiere deine Partien von Chess.com oder Lichess, oder füge eine PGN ein. Stockfish analysiert sie dann direkt auf diesem Gerät.</p>
-          <button class="btn primary" onClick={() => setShowImport(true)}>
+          <CoachAvatar size={96} />
+          <h3>Zeig mir deine Partien!</h3>
+          <p>Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit Stockfish.</p>
+          <button class="btn primary big" onClick={() => setShowImport(true)}>
             <IconPlus /> Partien importieren
           </button>
         </div>

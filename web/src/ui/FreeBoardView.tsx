@@ -10,6 +10,7 @@ import { isTyping } from "./keys";
 import { formatEval } from "./labels";
 import { LineMoves, VerdictCard } from "./LiveLine";
 import { navigate } from "./router";
+import { CoachTip } from "./Coach";
 import { usePositionLines, useVerdicts } from "./useLive";
 
 const START = new Chess().fen();
@@ -151,6 +152,10 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
           <IconReset /> Startstellung
         </button>
       </div>
+      <CoachTip id="board" title="Probier einfach aus!">
+        Zieh die Figuren für beide Seiten. Ich sage dir nach jedem Zug, wie gut er war, und zeige dir die besten
+        Fortsetzungen der Engine.
+      </CoachTip>
       <div class="analysis">
         <div class="board-area">
           <div class="player-line" style={{ gridRow: 1 }}>
