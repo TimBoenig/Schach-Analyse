@@ -5060,3 +5060,66 @@ button.rep-row:hover {
   width: 24px;
   height: 24px;
 }
+
+.game-title {
+  font-size: 19px;
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach-text {
+  font-size: 14.5px;
+}
+
+@media (max-width: 760px) {
+  .page-title:has(.game-title) {
+    flex-wrap: nowrap;
+  }
+  .game-title {
+    font-size: 16px;
+    flex: 1 1 auto;
+  }
+  .wide-label {
+    display: none;
+  }
+  /* Filters stay one swipeable row instead of stacking. */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-left: -12px;
+    margin-right: -12px;
+    padding: 0 12px;
+  }
+  .filters::-webkit-scrollbar {
+    display: none;
+  }
+  .filters > * {
+    flex: 0 0 auto;
+  }
+  .filters .date-range {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+}
+
+.btn.ghost.small,
+.btn.ghost.icon {
+  box-shadow: none;
+}
+
+/* Portrait tablet: a slightly smaller board leaves room for Mike's comment below it. */
+@media (min-width: 761px) and (max-width: 1000px) {
+  .board-area {
+    max-width: min(780px, calc(100dvh - 470px));
+  }
+}
+
+@media (max-width: 760px) {
+  .filters select {
+    flex: 0 0 auto;
+  }
+}

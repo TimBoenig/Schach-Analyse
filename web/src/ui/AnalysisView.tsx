@@ -661,12 +661,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         <button class="btn icon" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
           <IconBack />
         </button>
-        <span style={{ fontSize: "18px", minWidth: 0 }}>
+        <span class="game-title">
           {game.metadata.white} – {game.metadata.black} <span class="muted">{resultText(game.metadata.result)}</span>
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
-          <IconFreeBoard /> Im Analysebrett
+          <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
         </button>
         <button
           class="btn icon ghost danger"
@@ -772,20 +772,6 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </div>
           ) : null}
 
-          {(acc("white") !== undefined || acc("black") !== undefined) && (
-            <div class="acc-row">
-              {(["white", "black"] as const).map((c) => (
-                <div class="acc-box" key={c}>
-                  <div class="muted small who">
-                    <span class={`side-dot ${c}`} /> Genauigkeit
-                  </div>
-                  <div class={`value ${accClass(acc(c))}`}>{acc(c) !== undefined ? `${acc(c)!.toFixed(1)}` : "–"}</div>
-                  <div class="faint small">Ø-Verlust {Math.round(game.summary[c]?.acpl ?? 0)} cp</div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div class="card">
             {explore ? (
               <>
@@ -845,7 +831,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               <div>
                 <Coach
                   mood="happy"
-                  title={review ? review.headline : "Lass uns die Partie zusammen durchgehen!"}
+                  title={review && tab === "moves" ? review.headline : "Lass uns die Partie zusammen durchgehen!"}
                 >
                   <p class="small">
                     {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
