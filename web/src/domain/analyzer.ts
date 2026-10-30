@@ -7,7 +7,7 @@
 import { Chess } from "chess.js";
 
 import { OpeningBook, type BookData } from "./book";
-import { classifyMove } from "./classifier";
+import { classifyMove, judgedLoss } from "./classifier";
 import {
   applyAccuracyFloor,
   calculateMoveAccuracy,
@@ -128,7 +128,11 @@ export function lineScoreWhite(fen: string, line: Pick<PvLine, "cp" | "mate">): 
 /** Stores the engine lines on the move; the best line's score becomes the White-perspective eval_before. */
 export function processAnalysisResults(move: MoveData, lines: PvLine[]): void {
   const whiteToMove = sideToMove(move.fen_before) === "white";
-  move.multi_pvs = lines.map((l) => ({
+  // A search stopped mid-iteration can report a stale line repeating another
+  // line's first move; the classifier needs distinct candidate moves.
+  const seen = new Set<string>();
+  const distinct = lines.filter((l) => l.pv.length > 0 && !seen.has(l.pv[0]) && seen.add(l.pv[0]));
+  move.multi_pvs = distinct.map((l) => ({
     pv: l.pv,
     cp: l.mate !== null ? null : l.cp,
     mate: l.mate,
@@ -253,7 +257,7 @@ export function classifyAndSummarize(
 
     move.win_chance_before = wpBefore;
     move.win_chance_after = wpAfter;
-    const wpl = wplFor(side, wpBefore, wpAfter);
+    const wpl = protectedRepetition ? 0 : judgedLoss(move, wplFor(side, wpBefore, wpAfter));
     classifyMove(move, wpl, side, move.multi_pvs, i > 0 ? game.moves[i - 1] : null);
 
     const s = summary[side];
@@ -284,9 +288,9 @@ export function classifyAndSummarize(
       recordedExit = true;
     }
 
+    // Accuracy uses the same loss as the classification, so an engine move is 100%.
     const pBefore = side === "white" ? wpBefore : 1 - wpBefore;
-    const pAfter = side === "white" ? wpAfter : 1 - wpAfter;
-    let acc = calculateMoveAccuracy(pBefore, pAfter);
+    let acc = calculateMoveAccuracy(pBefore, pBefore - wpl);
     const mating =
       move.eval_after_mate !== null &&
       ((side === "white" && move.eval_after_mate > 0) || (side === "black" && move.eval_after_mate < 0));
@@ -316,7 +320,8 @@ function provisionalClassify(game: GameAnalysis, i: number): void {
   move.eval_after_mate = next.eval_before_mate;
   move.win_chance_before = getWinProbability(move.eval_before_cp, move.eval_before_mate);
   move.win_chance_after = getWinProbability(move.eval_after_cp, move.eval_after_mate);
-  classifyMove(move, wplFor(side, move.win_chance_before, move.win_chance_after), side, move.multi_pvs, game.moves[i - 1] ?? null);
+  const wpl = judgedLoss(move, wplFor(side, move.win_chance_before, move.win_chance_after));
+  classifyMove(move, wpl, side, move.multi_pvs, game.moves[i - 1] ?? null);
 }
 
 /**

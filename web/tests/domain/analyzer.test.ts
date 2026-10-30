@@ -45,6 +45,24 @@ describe("White-perspective scores", () => {
   });
 });
 
+describe("engine moves and search noise", () => {
+  it("keeps distinct engine lines and rates the engine's move Best with full accuracy", () => {
+    const game = gameFromSans(["e4", "e5"]);
+    // A stopped search can repeat the first line's move in a stale second line.
+    processAnalysisResults(game.moves[0], [
+      { pv: ["e2e4", "e7e5"], cp: 40, mate: null, depth: 16 },
+      { pv: ["e2e4"], cp: 30, mate: null, depth: 15 },
+      { pv: ["d2d4"], cp: 35, mate: null, depth: 15 },
+    ]);
+    expect(game.moves[0].multi_pvs.map((l) => l.pv[0])).toEqual(["e2e4", "d2d4"]);
+    // The search after 1.e4 sees White 35 cp lower than the search before it.
+    processAnalysisResults(game.moves[1], [{ pv: ["e7e5"], cp: -5, mate: null, depth: 16 }]);
+    const summary = classifyAndSummarize(game, { cp: 5, mate: null }, undefined);
+    expect(game.moves[0].classification).toBe("Best");
+    expect(summary.white!.accuracies[0]).toBe(100);
+  });
+});
+
 describe("accuracy floor", () => {
   it("keeps one blunder from collapsing game accuracy", () => {
     const accs = [100, 100, 100, 100, 0, 100, 100, 100];

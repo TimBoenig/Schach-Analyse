@@ -1,5 +1,6 @@
-// Port of src/backend/analysis/move_classifier.py: classifies moves
-// (Brilliant, Blunder, ...) from Win Probability Loss plus special cases.
+// Classifies moves (Brilliant, Blunder, ...) from Win Probability Loss plus
+// special cases. Started as a port of src/backend/analysis/move_classifier.py;
+// the loss now comes from judgedLoss() and the tiers follow chess.com.
 import { Chess, type Color, type PieceSymbol, type Square } from "chess.js";
 
 import { getWinProbability } from "./math";
@@ -103,20 +104,53 @@ function isRecaptureOrRoutineCapture(
   return (move.piece === "n" || move.piece === "b") && (move.captured === "n" || move.captured === "b");
 }
 
-function secondBestPlayerWp(multiPvs: PvLine[] | undefined, side: Side): number | null {
+/** Mover's win chance of an engine line (lines are relative to the side to move, i.e. the mover). */
+function lineWp(line: Pick<PvLine, "cp" | "mate">): number {
+  return getWinProbability(line.cp, line.mate);
+}
+
+function secondBestPlayerWp(multiPvs: PvLine[] | undefined): number | null {
   if (!multiPvs || multiPvs.length < 2) return null;
   const { cp, mate } = multiPvs[1];
   if ((cp === null || cp === undefined) && (mate === null || mate === undefined)) return null;
-  // Multi-PV scores are relative to the side to move.
-  const normCp = side === "black" && cp !== null && cp !== undefined ? -cp : cp;
-  const normMate = side === "black" && mate !== null && mate !== undefined ? -mate : mate;
-  const wp = getWinProbability(normCp, normMate);
-  return side === "white" ? wp : 1.0 - wp;
+  return lineWp(multiPvs[1]);
 }
 
 /**
- * Classifies a move in place (classification + German explanation).
- * Priority: checkmate > missed mate > winning position > best move > miss > blunder > WPL tiers.
+ * A move whose engine line keeps all but this much win chance of the engine's
+ * first choice (same search) counts as "Best": two moves the engine rates the
+ * same are equally best, as on chess.com. One point is about 10 cp near equality.
+ */
+export const BEST_EQUIVALENT_LOSS = 0.01;
+
+/**
+ * Win chance (0..1) the mover gave away with `move`. `rawLoss` compares the
+ * position before with the separate search after the move; two searches at
+ * a fixed depth disagree by a few points, which used to turn engine moves
+ * into "Good" or worse. When the played move is one of the engine's own lines
+ * the loss is read from that one search instead: zero for its first choice,
+ * the gap to the first line for an alternative. A move outside the listed
+ * lines scored below every one of them, so it loses at least what the weakest
+ * listed line loses.
+ */
+export function judgedLoss(move: Pick<MoveData, "uci" | "best_move" | "multi_pvs">, rawLoss: number): number {
+  const lines = move.multi_pvs ?? [];
+  if (move.best_move && move.uci === move.best_move) return 0;
+  if (!lines.length || !lines[0].pv.length) return rawLoss;
+  const best = lineWp(lines[0]);
+  const k = lines.findIndex((l) => l.pv[0] === move.uci);
+  if (k === 0) return 0;
+  if (k > 0) return Math.max(0, best - lineWp(lines[k]));
+  return Math.max(rawLoss, best - lineWp(lines[lines.length - 1]));
+}
+
+/**
+ * Classifies a move in place (classification + German explanation). `wpl` is
+ * the mover's win-chance loss, ideally from judgedLoss().
+ * Priority: checkmate > missed mate > best move (Brilliant/Great/Best) > miss > blunder > WPL tiers.
+ *
+ * Thresholds follow chess.com's expected-points scale: Excellent < 2,
+ * Good < 5, Inaccuracy < 10, Mistake < 20, Blunder from 20 points lost.
  */
 export function classifyMove(
   move: MoveData,
@@ -138,8 +172,6 @@ export function classifyMove(
   const afterMate = move.eval_after_mate;
   const playerHadMate =
     beforeMate !== null && ((side === "white" && beforeMate > 0) || (side === "black" && beforeMate < 0));
-  const isBestChoice = move.uci === move.best_move;
-  const isSacrificeCandidate = isBestChoice && detectSacrifice(move.fen_before, move.uci);
 
   if (playerHadMate) {
     const missedMate =
@@ -149,34 +181,34 @@ export function classifyMove(
       move.explanation = "Erzwungenes Matt verpasst.";
       return;
     }
-    if (!(move.uci !== move.best_move && wcAfter >= 0.99) && wcAfter >= 0.99 && !isSacrificeCandidate) {
-      move.classification = "Best";
-      move.explanation = "Gewinnstellung gehalten.";
-      return;
-    }
   }
 
-  if (wcAfter >= 0.99 && !isSacrificeCandidate && !(playerHadMate && move.uci !== move.best_move)) {
-    move.classification = "Best";
-    move.explanation = "Gewinnstellung gehalten.";
-    return;
-  }
+  const engineFirst = move.uci === move.best_move;
+  const playedLine = multiPvs ? multiPvs.findIndex((l) => l.pv[0] === move.uci) : -1;
+  // An alternative the engine rates as high as its first choice is just as best.
+  const equalAlternative = !engineFirst && playedLine > 0 && wpl <= BEST_EQUIVALENT_LOSS;
 
-  if (isBestChoice) {
+  if (engineFirst || equalAlternative) {
     const isSac = detectSacrifice(move.fen_before, move.uci);
-    const competitiveAfter = wcAfter >= 0.4;
-    const soundEval = wpl <= 0.05;
     const leadsToMate =
       afterMate !== null && ((side === "white" && afterMate > 0) || (side === "black" && afterMate < 0));
+
+    // A sacrifice is checked even in won positions; everything else there is simply "Best".
+    if (wcAfter >= 0.99 && !isSac) {
+      move.classification = "Best";
+      move.explanation = equalAlternative ? "Gleich stark wie der Engine-Zug." : "Gewinnstellung gehalten.";
+      return;
+    }
+
     // In dead-won positions only a forcing sacrifice earns "Brilliant".
     const contextApproved = wcBefore < 0.95 || leadsToMate;
-
-    if (isSac && contextApproved && competitiveAfter && soundEval) {
+    if (isSac && contextApproved && wcAfter >= 0.4 && wpl <= 0.05) {
       let veto = false;
-      const sbWp = secondBestPlayerWp(multiPvs, side);
-      if (sbWp !== null) {
-        if (sbWp > wcAfter + 0.1) veto = true;
-        if (wcBefore >= 0.95 && !leadsToMate && wcAfter - sbWp < 0.05) veto = true;
+      // The strongest move the player did not choose.
+      const altWp = engineFirst ? secondBestPlayerWp(multiPvs) : multiPvs?.[0] ? lineWp(multiPvs[0]) : null;
+      if (altWp !== null) {
+        if (altWp > wcAfter + 0.1) veto = true;
+        if (wcBefore >= 0.95 && !leadsToMate && wcAfter - altWp < 0.05) veto = true;
       }
       if (!veto) {
         move.classification = "Brilliant";
@@ -185,17 +217,18 @@ export function classifyMove(
       }
     }
 
-    const isRoutine = isRecaptureOrRoutineCapture(move.fen_before, move.uci, prevMove);
-    let forcedOrTrivial = false;
-    const board = move.fen_before ? loadBoard(move.fen_before) : null;
-    if (board) {
-      const legalCount = board.moves().length;
-      forcedOrTrivial = legalCount <= 1 || (board.inCheck() && legalCount <= 2);
-    }
-    if (!isRoutine && !forcedOrTrivial) {
-      const sbWp = secondBestPlayerWp(multiPvs, side);
-      if (sbWp !== null) {
-        const diff = wcAfter - sbWp;
+    if (engineFirst && wcAfter < 0.99) {
+      const isRoutine = isRecaptureOrRoutineCapture(move.fen_before, move.uci, prevMove);
+      let forcedOrTrivial = false;
+      const board = move.fen_before ? loadBoard(move.fen_before) : null;
+      if (board) {
+        const legalCount = board.moves().length;
+        forcedOrTrivial = legalCount <= 1 || (board.inCheck() && legalCount <= 2);
+      }
+      const sbWp = secondBestPlayerWp(multiPvs);
+      if (!isRoutine && !forcedOrTrivial && sbWp !== null && multiPvs) {
+        // Both lines come from the same search, so the gap is not search noise.
+        const diff = lineWp(multiPvs[0]) - sbWp;
         if (diff >= 0.15) {
           move.classification = "Great";
           move.explanation = `Einziger guter Zug! Alternativen waren ${(diff * 100).toFixed(0)}% schlechter.`;
@@ -204,7 +237,7 @@ export function classifyMove(
       }
     }
     move.classification = "Best";
-    move.explanation = "Erste Wahl der Engine.";
+    move.explanation = equalAlternative ? "Gleich stark wie der Engine-Zug." : "Erste Wahl der Engine.";
     return;
   }
 
@@ -221,16 +254,9 @@ export function classifyMove(
     return;
   }
 
-  const isBlunder = ((wpl >= 0.25 && wcAfter < 0.6) || (wpl >= 0.2 && wcAfter < 0.35)) && !stillCrushing;
-  if (isBlunder) {
+  if (wpl >= 0.2 && !stillCrushing) {
     move.classification = "Blunder";
     move.explanation = `Patzer! ${(wpl * 100).toFixed(1)}% Gewinnchance verloren.`;
-    return;
-  }
-
-  if (wcBefore >= 0.7 && wcAfter < 0.42 && wpl >= 0.25 && !stillCrushing) {
-    move.classification = "Miss";
-    move.explanation = `Gewinn verpasst (Gewinnchance von ${(wcBefore * 100).toFixed(0)}% auf ${(wcAfter * 100).toFixed(0)}% gefallen).`;
     return;
   }
 
