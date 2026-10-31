@@ -159,6 +159,13 @@ chess engine, licensed under GPLv3. Stockfish is **not bundled** with
 this repository -- users supply their own binary, and the engine path is
 configured via the application settings.
 
+### Chessground (web app board)
+The board of the web app (`web/`) is
+[chessground](https://github.com/lichess-org/chessground) by the lichess.org
+team, used unmodified from npm (`@lichess-org/chessground`), licensed under
+**GPL-3.0-or-later**. The web app also serves Stockfish's WASM build (GPLv3).
+See [web/THIRD_PARTY.md](web/THIRD_PARTY.md) for what that means for the web app.
+
 ---
 
 ## API Providers

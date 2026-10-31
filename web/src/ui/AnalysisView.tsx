@@ -33,6 +33,26 @@ import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
 import { Coach, COACH_NAME, moodFor } from "./Coach";
+import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
+
+const ENGINE_PREF_KEY = "schach.analysis.engine";
+
+function readEnginePref(): { live: boolean; threat: boolean } {
+  try {
+    const v = JSON.parse(localStorage.getItem(ENGINE_PREF_KEY) ?? "{}");
+    return { live: Boolean(v.live), threat: Boolean(v.threat) };
+  } catch {
+    return { live: false, threat: false };
+  }
+}
+
+function writeEnginePref(v: { live: boolean; threat: boolean }): void {
+  try {
+    localStorage.setItem(ENGINE_PREF_KEY, JSON.stringify(v));
+  } catch {
+    // Private mode: the toggle still works for this visit.
+  }
+}
 
 type Side = "white" | "black";
 
@@ -43,17 +63,6 @@ function fenAfter(move: MoveData): string {
     return b.fen();
   } catch {
     return move.fen_before;
-  }
-}
-
-/** Plays `uci` at the end of a side line; returns the line unchanged if the move is illegal. */
-function extendLine(line: Explore, uci: string, pending: string[]): Explore {
-  try {
-    const b = new Chess(line.fens[line.fens.length - 1]);
-    const m = b.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
-    return { ...line, fens: [...line.fens, b.fen()], sans: [...line.sans, m.san], ucis: [...line.ucis, uci], lastUci: uci, pending };
-  } catch {
-    return line;
   }
 }
 
@@ -233,7 +242,37 @@ function ClassTable({ game }: { game: GameAnalysis }) {
   );
 }
 
-function MoveList({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPick: (i: number) => void }) {
+interface VariationProps {
+  lines: Explore[];
+  active: { line: Explore; ply: number } | null;
+  onPick: (line: Explore, ply: number) => void;
+  onDrop: (line: Explore) => void;
+}
+
+/** One kept side line, shown under the game move it replaces (lichess move tree style). */
+function VariationRow({ line, active, onPick, onDrop }: { line: Explore } & Omit<VariationProps, "lines">) {
+  const isActive = active?.line === line;
+  return (
+    <div class={`variation${isActive ? " current" : ""}`}>
+      <span class="var-moves">
+        {line.sans.map((san, k) => {
+          const num = lineMoveNumber(line, k);
+          return (
+            <button key={k} class={isActive && active!.ply === k ? "active" : ""} onClick={() => onPick(line, k)} data-var-ply={isActive ? k : undefined}>
+              {num && <span class="faint">{num}</span>}
+              {san}
+            </button>
+          );
+        })}
+      </span>
+      <button class="var-drop" onClick={() => onDrop(line)} aria-label="Variante entfernen" title="Variante entfernen">
+        ×
+      </button>
+    </div>
+  );
+}
+
+function MoveList({ moves, idx, onPick, variations }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; variations: VariationProps }) {
   const ref = useRef<HTMLDivElement>(null);
   const rows = [];
   const startBlack = moves[0] && moves[0].fen_before.split(" ")[1] === "b";
@@ -265,17 +304,24 @@ function MoveList({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onPi
         </button>,
       );
     }
+    // Side lines branch off before a game move: list them under that move's row.
+    for (const k of [r, r + 1]) {
+      const base = startBlack ? k - 1 : k;
+      for (const line of variations.lines.filter((l) => l.base === base && items[k])) {
+        rows.push(<VariationRow key={`v${base}-${line.ucis.join("")}`} line={line} active={variations.active} onPick={variations.onPick} onDrop={variations.onDrop} />);
+      }
+    }
   }
   useEffect(() => {
     // Scroll inside the list only; scrollIntoView would also scroll the page on phones.
     const list = ref.current;
-    const el = list?.querySelector<HTMLElement>(`[data-ply="${idx}"]`);
+    const el = list?.querySelector<HTMLElement>(".variation.current button.active") ?? list?.querySelector<HTMLElement>(`[data-ply="${idx}"]`);
     if (!list || !el) return;
     const top = el.offsetTop - list.offsetTop;
     if (top < list.scrollTop || top + el.offsetHeight > list.scrollTop + list.clientHeight) {
       list.scrollTop = top - list.clientHeight / 2;
     }
-  }, [idx]);
+  }, [idx, variations.active?.ply, variations.active?.line]);
   return (
     <div class="movelist" ref={ref}>
       {rows}
@@ -289,17 +335,21 @@ export function EngineLines({
   label,
   onPlay,
   max = 2,
+  head,
 }: {
   fen: string;
   lines: PvLine[];
   label?: string;
   onPlay?: (pv: string[]) => void;
   max?: number;
+  /** Replaces the default heading (used for the live engine switches). */
+  head?: preact.ComponentChildren;
 }) {
-  if (!lines.length) return null;
+  if (!lines.length && !head) return null;
   return (
     <div class="engine-lines">
-      {label && (
+      {head}
+      {!head && label && (
         <div class="faint small engine-head">
           <span>{label}</span>
           {onPlay && <span>Antippen zum Nachspielen</span>}
@@ -362,39 +412,6 @@ function MoveStrip({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onP
   );
 }
 
-interface Explore {
-  /** Moves of the game played before the side line starts. */
-  base: number;
-  fens: string[];
-  sans: string[];
-  /** UCI of each tried move; ucis[k] leads from fens[k] to fens[k + 1]. */
-  ucis: string[];
-  lastUci: string | null;
-  /** Engine moves (UCI) still to be played when stepping forward through a picked line. */
-  pending: string[];
-}
-
-function useSwipe(onLeft: () => void, onRight: () => void) {
-  const start = useRef<{ x: number; y: number } | null>(null);
-  return {
-    onTouchStart: (e: TouchEvent) => {
-      const t = e.touches[0];
-      // A touch on a piece picks it up for dragging; only empty squares swipe.
-      const onPiece = (e.target as Element | null)?.closest?.(".piece");
-      start.current = t && !onPiece ? { x: t.clientX, y: t.clientY } : null;
-    },
-    onTouchEnd: (e: TouchEvent) => {
-      const s = start.current;
-      const t = e.changedTouches[0];
-      start.current = null;
-      if (!s || !t) return;
-      const dx = t.clientX - s.x;
-      const dy = t.clientY - s.y;
-      if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) (dx < 0 ? onLeft : onRight)();
-    },
-  };
-}
-
 export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number }) {
   const [row, setRow] = useState<StoredGame | null | undefined>(undefined);
   const [queue, setQueue] = useState<QueueState | null>(null);
@@ -404,6 +421,13 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const [tab, setTab] = useState<"moves" | "report">("moves");
   const [explore, setExplore] = useState<Explore | null>(null);
   const [showArrows, setShowArrows] = useState(true);
+  // Side lines the player tried in this game, kept in the move list like lichess variations.
+  const [sideLines, setSideLines] = useState<Explore[]>([]);
+  const [engine, setEngineState] = useState(readEnginePref);
+  const setEngine = (next: { live: boolean; threat: boolean }) => {
+    setEngineState(next);
+    writeEnginePref(next);
+  };
 
   useEffect(() => subscribeQueue(setQueue), []);
   useEffect(() => {
@@ -439,11 +463,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     if (ply !== undefined) setIdx(ply);
     setExplore(null);
   }, [ply, gameId]);
+  useEffect(() => setSideLines([]), [gameId, row?.id]);
+
+  /** Leaves the side line; it stays in the move list to come back to. */
+  const leaveLine = () => {
+    if (explore) setSideLines((lines) => mergeLine(lines, explore));
+    setExplore(null);
+  };
+  const pickSideLine = (line: Explore, k: number) => {
+    if (explore) setSideLines((lines) => mergeLine(lines, explore));
+    setIdx(line.base);
+    setExplore(resumeLine(line, k));
+  };
+  const dropSideLine = (line: Explore) => {
+    setSideLines((lines) => lines.filter((l) => l !== line));
+    if (explore && activeIn([line], explore)) setExplore(null);
+  };
 
   const n = game?.moves.length ?? 0;
   const clamp = (i: number) => Math.max(0, Math.min(n, i));
   const goTo = (i: number) => {
-    setExplore(null);
+    leaveLine();
     setIdx(clamp(i));
   };
   const step = (d: 1 | -1) => {
@@ -451,7 +491,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       // Inside a side line: back steps undo tried moves, then return to the game;
       // forward steps play the rest of a picked engine line.
       if (d === -1) {
-        if (explore.sans.length <= 1) setExplore(null);
+        if (explore.sans.length <= 1) leaveLine();
         else
           setExplore({
             ...explore,
@@ -490,7 +530,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       else if (e.key === "ArrowRight") step(1);
       else if (e.key === "Home") goTo(0);
       else if (e.key === "End") goTo(n);
-      else if (e.key === "Escape") setExplore(null);
+      else if (e.key === "Escape") leaveLine();
+      else if (e.key === "ArrowUp") goTo(0);
+      else if (e.key === "ArrowDown") goTo(n);
+      else if (e.key === "l") setEngine({ ...engine, live: !engine.live });
+      else if (e.key === "x") setEngine({ ...engine, threat: !engine.threat });
+      else if (e.key === " " && bestPv.current.length) playBest.current();
       else if (e.key === "f") setFlipped((f) => !f);
       else if (e.key === "n") jumpError(1);
       else if (e.key === "N" || e.key === "p") jumpError(-1);
@@ -516,15 +561,19 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   }, [review]);
 
   const exploreFen = explore ? explore.fens[explore.fens.length - 1] : null;
-  const live = usePositionLines(exploreFen);
+  const live = usePositionLines(exploreFen, engine.live ? 3 : 2);
+  // The game position, known before the page renders so the engine hooks can run.
+  const shownMove = game && clamp(idx) > 0 ? game.moves[clamp(idx) - 1] : null;
+  const gameFenNow = game ? (shownMove ? fenAfter(shownMove) : (game.moves[0]?.fen_before ?? game.metadata.starting_fen ?? new Chess().fen())) : null;
+  const liveGame = usePositionLines(engine.live && !explore ? gameFenNow : null, 3);
+  const threat = usePositionLines(engine.threat ? threatFen(exploreFen ?? gameFenNow ?? "") : null, 1);
+  // First move of the best known line, for the space key (lichess: play best move).
+  const bestPv = useRef<string[]>([]);
+  const playBest = useRef<() => void>(() => undefined);
   const verdicts = useVerdicts(
     explore ? explore.ucis.map((uci, k) => ({ fenBefore: explore.fens[k], uci, fenAfter: explore.fens[k + 1] })) : [],
   );
   const lastVerdict = verdicts.length ? verdicts[verdicts.length - 1] : null;
-  const swipe = useSwipe(
-    () => step(1),
-    () => step(-1),
-  );
 
   if (row === undefined) return <div class="skeleton" style={{ height: "60vh" }} />;
   if (!row || !game) {
@@ -541,15 +590,28 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
   const i = clamp(idx);
   const move = i > 0 ? game.moves[i - 1] : null;
-  const gameFen = move ? fenAfter(move) : (game.moves[0]?.fen_before ?? game.metadata.starting_fen ?? new Chess().fen());
+  const gameFen = gameFenNow!;
   const fen = exploreFen ?? gameFen;
 
   const arrows: Arrow[] = [];
-  if (showArrows && !explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book" && !TOP_CLASSES.has(move.classification)) {
+  // Live engine: arrows for its two best moves in the shown position, the second fainter.
+  const liveLines = explore ? live.lines : liveGame.lines;
+  const engineArrows = engine.live && showArrows && !(explore && explore.pending.length);
+  if (engineArrows) {
+    liveLines.slice(0, 2).forEach((l, k) => {
+      const a = sq(l.pv[0]);
+      if (a) arrows.push({ ...a, kind: k === 0 ? "hint" : "engine2" });
+    });
+  }
+  if (engine.threat && threat.lines[0]?.pv[0]) {
+    const a = sq(threat.lines[0].pv[0]);
+    if (a) arrows.push({ ...a, kind: "threat" });
+  }
+  if (!engineArrows && showArrows && !explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book" && !TOP_CLASSES.has(move.classification)) {
     const b = sq(move.best_move);
     if (b) arrows.push({ ...b, kind: "best" });
   }
-  if (showArrows && explore && !explore.pending.length && live.lines[0]?.pv[0]) {
+  if (!engineArrows && showArrows && explore && !explore.pending.length && live.lines[0]?.pv[0]) {
     const b = sq(live.lines[0].pv[0]);
     if (b) arrows.push({ ...b, kind: "hint" });
   }
@@ -557,6 +619,41 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   // Lines for the shown position: stored with the next game move, or live in a side line.
   const nextMove = game.moves[i];
   const storedLines = !explore && nextMove?.multi_pvs?.length ? nextMove.multi_pvs : [];
+  const gameLines = engine.live && liveGame.lines.length ? liveGame.lines : storedLines;
+  bestPv.current = (explore ? live.lines[0]?.pv : gameLines[0]?.pv) ?? [];
+  const depthOf = (lines: PvLine[]) => Math.max(0, ...lines.map((l) => Number(l.depth) || 0));
+  const threatLine = threat.lines[0];
+  const engineHead = (lines: PvLine[], busy: boolean) => (
+    <div class="engine-switches">
+      <label class="switch-pill" title="Stockfish rechnet live mit, drei beste Züge als Pfeile (L)">
+        <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
+        <span>Stockfish live</span>
+      </label>
+      <label class="switch-pill" title="Zeigt, was der Gegner droht, wenn du jetzt nichts tust (X)">
+        <input type="checkbox" checked={engine.threat} onChange={() => setEngine({ ...engine, threat: !engine.threat })} />
+        <span>Drohung</span>
+      </label>
+      <span class="faint small engine-depth">
+        {engine.live && busy ? "rechnet …" : lines.length && depthOf(lines) ? `Tiefe ${depthOf(lines)}` : ""}
+      </span>
+    </div>
+  );
+  const threatInfo =
+    engine.threat && (exploreFen ?? gameFen) ? (
+      <div class="threat-line small">
+        {threatFen(exploreFen ?? gameFen) === null ? (
+          <span class="faint">Drohung: im Schach nicht verfügbar</span>
+        ) : threatLine ? (
+          <>
+            <span class="threat-tag">Drohung</span>
+            <strong>{threatLine.pv_san?.split(" ").slice(0, 4).join(" ")}</strong>
+            <span class="faint"> {formatEval(lineScoreWhite(threatFen(exploreFen ?? gameFen)!, threatLine).cp, lineScoreWhite(threatFen(exploreFen ?? gameFen)!, threatLine).mate)}</span>
+          </>
+        ) : (
+          <span class="faint">Drohung wird berechnet …</span>
+        )}
+      </div>
+    ) : null;
 
   let wc = winChanceAt(game.moves, i);
   let evalLabel = move
@@ -609,18 +706,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       setIdx(i + 1);
       return true;
     }
-    const base = explore ?? { base: i, fens: [gameFen], sans: [], ucis: [], lastUci: null, pending: [] };
+    const base = explore ?? startLine(i, gameFen);
     setExplore({ ...base, fens: [...base.fens, board.fen()], sans: [...base.sans, san], ucis: [...base.ucis, uci], lastUci: uci, pending: [] });
     return true;
   };
   // Plays the first move of an engine line; forward steps play the rest.
   const playLine = (pv: string[]) => {
-    const base: Explore = explore ?? { base: i, fens: [gameFen], sans: [], ucis: [], lastUci: null, pending: [] };
+    const base: Explore = explore ?? startLine(i, gameFen);
     const next = extendLine(base, pv[0], pv.slice(1, 12));
     if (next !== base) setExplore(next);
   };
 
+  // Space plays the engine's move; when that is the game move, the game simply goes on.
+  playBest.current = () => {
+    const uci = bestPv.current[0];
+    if (!uci) return;
+    if (!explore && nextMove && nextMove.uci.slice(0, 4) === uci.slice(0, 4)) setIdx(i + 1);
+    else playLine([uci]);
+  };
   const lastMove = explore ? sq(explore.lastUci) : move ? sq(move.uci) : null;
+  // The current side line shows in the move list while it is being played.
+  const shownSideLines = explore ? mergeLine(sideLines, explore) : sideLines;
   // Concrete reasons for an error: the opponent's refutation and the better move.
   const reasons =
     move && !explore && ERROR_CLASSES.has(move.classification)
@@ -684,7 +790,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         <div class="board-area">
           {playerLine(top, 1)}
           <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
-          <div style={{ gridRow: 2, gridColumn: 2 }} {...swipe}>
+          <div style={{ gridRow: 2, gridColumn: 2 }}>
             <Board
               fen={fen}
               flipped={flipped}
@@ -694,6 +800,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               onMove={tryMove}
               legalTargets={legalTargets}
               annotate
+              onSwipe={(dir) => step(dir === "left" ? 1 : -1)}
             />
           </div>
           {playerLine(bottom, 3)}
@@ -778,7 +885,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 <div class="explore-bar">
                   <span class="pill accent">Eigene Variante</span>
                   <span class="spacer" />
-                  <button class="btn small" onClick={() => setExplore(null)}>
+                  <button class="btn small" onClick={leaveLine}>
                     Zurück zur Partie
                   </button>
                 </div>
@@ -789,7 +896,13 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     Stockfish rechnet …
                   </p>
                 ) : (
-                  <EngineLines fen={exploreFen!} lines={live.lines} label="Beste Fortsetzungen" onPlay={explore.pending.length ? undefined : playLine} />
+                  <EngineLines
+                    fen={exploreFen!}
+                    lines={live.lines}
+                    max={engine.live ? 3 : 2}
+                    head={<>{engineHead(live.lines, live.busy)}{threatInfo}</>}
+                    onPlay={explore.pending.length ? undefined : playLine}
+                  />
                 )}
               </>
             ) : move ? (
@@ -825,7 +938,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     </div>
                   )}
                 </Coach>
-                <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
+                <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             ) : (
               <div>
@@ -841,7 +954,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     besser gewesen wäre. Ziehe selbst eine Figur, um eine eigene Variante auszuprobieren.
                   </p>
                 </Coach>
-                <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
+                <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             )}
           </div>
@@ -860,7 +973,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           {tab === "moves" || !review ? (
             <>
               <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} />
-              <MoveList moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
+              <MoveList
+                moves={game.moves}
+                idx={explore ? -1 : i}
+                onPick={goTo}
+                variations={{ lines: shownSideLines, active: activeIn(shownSideLines, explore), onPick: pickSideLine, onDrop: dropSideLine }}
+              />
             </>
           ) : (
             <>

@@ -1,29 +1,28 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+// Chessboard built on Lichess' chessground (GPL-3.0-or-later, see web/THIRD_PARTY.md).
+// The wrapper keeps the small props interface the app used before, so every page
+// (analysis, free board, training) gets chessground's dragging, animation and
+// arrow drawing without knowing about its API.
+import { Chess } from "chess.js";
+import { Chessground } from "@lichess-org/chessground";
+import type { Api } from "@lichess-org/chessground/api";
+import type { DrawBrushes, DrawShape } from "@lichess-org/chessground/draw";
+import type { Dests, Key } from "@lichess-org/chessground/types";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 
 import { badgeFor } from "./labels";
 import type { Classification } from "../domain/types";
 
+import "@lichess-org/chessground/assets/chessground.base.css";
+
 const FILES = "abcdefgh";
-const PIECE_FILE: Record<string, string> = {
-  p: "pawn",
-  n: "knight",
-  b: "bishop",
-  r: "rook",
-  q: "queen",
-  k: "king",
-};
 const PROMOTIONS = ["q", "r", "b", "n"] as const;
 export type Promotion = (typeof PROMOTIONS)[number];
-
-// A pointer has to travel this far (in squares) before a press becomes a drag,
-// so a slightly shaky tap on a tablet still counts as a tap.
-const DRAG_START = 0.18;
-const MOVE_ANIMATION_MS = 170;
+const PIECE_NAME: Record<string, string> = { q: "queen", r: "rook", b: "bishop", n: "knight" };
 
 export interface Arrow {
   from: string;
   to: string;
-  kind: "best" | "played" | "hint" | "user" | "wrong";
+  kind: "best" | "played" | "hint" | "user" | "wrong" | "engine2" | "threat";
 }
 
 interface Props {
@@ -40,319 +39,259 @@ interface Props {
   highlight?: string[];
   /** Lets the player draw arrows and circles with the right mouse button (desktop). */
   annotate?: boolean;
+  /** Horizontal swipe that starts on an empty square (a piece is picked up instead). */
+  onSwipe?: (direction: "left" | "right") => void;
 }
 
-function parseBoard(fen: string): (string | null)[][] {
+// Arrow colours come from CSS custom properties, so board themes and light/dark
+// mode stay in styles.css; chessground needs them as plain values for SVG attributes.
+const BRUSH_VARS: Record<Arrow["kind"], { cssVar: string; opacity: number; lineWidth: number }> = {
+  best: { cssVar: "--arrow-best", opacity: 0.85, lineWidth: 12 },
+  hint: { cssVar: "--arrow-hint", opacity: 0.85, lineWidth: 12 },
+  played: { cssVar: "--arrow-played", opacity: 0.85, lineWidth: 12 },
+  user: { cssVar: "--arrow-user", opacity: 0.85, lineWidth: 12 },
+  wrong: { cssVar: "--blunder", opacity: 0.85, lineWidth: 12 },
+  // Second engine line: thinner and fainter, like the lichess analysis board.
+  engine2: { cssVar: "--arrow-hint", opacity: 0.45, lineWidth: 7 },
+  threat: { cssVar: "--blunder", opacity: 0.7, lineWidth: 9 },
+};
+
+function readBrushes(el: Element): DrawBrushes {
+  const css = getComputedStyle(el);
+  const color = (v: string, fallback: string) => css.getPropertyValue(v).trim() || fallback;
+  const brushes: Record<string, { key: string; color: string; opacity: number; lineWidth: number }> = {
+    // Brushes for the player's own drawings (right mouse button; Shift/Alt pick other colours).
+    green: { key: "g", color: color("--arrow-best", "green"), opacity: 0.9, lineWidth: 10 },
+    red: { key: "r", color: color("--blunder", "red"), opacity: 0.9, lineWidth: 10 },
+    blue: { key: "b", color: color("--arrow-hint", "blue"), opacity: 0.9, lineWidth: 10 },
+    yellow: { key: "y", color: color("--arrow-user", "orange"), opacity: 0.9, lineWidth: 10 },
+  };
+  for (const [kind, b] of Object.entries(BRUSH_VARS)) {
+    brushes[kind] = { key: kind, color: color(b.cssVar, "gray"), opacity: b.opacity, lineWidth: b.lineWidth };
+  }
+  return brushes as DrawBrushes;
+}
+
+function turnOf(fen: string): "white" | "black" {
+  return fen.split(" ")[1] === "b" ? "black" : "white";
+}
+
+function inCheck(fen: string): boolean {
+  try {
+    return new Chess(fen).inCheck();
+  } catch {
+    return false;
+  }
+}
+
+/** Piece letter (FEN case) on `sq`, read straight from the placement field. */
+function pieceOn(fen: string, sq: string): string | null {
   const rows = fen.split(" ")[0].split("/");
-  if (rows.length !== 8) return Array.from({ length: 8 }, () => Array<string | null>(8).fill(null));
-  return rows.map((row) => {
-    const out: (string | null)[] = [];
-    for (const ch of row) {
-      if (/\d/.test(ch)) for (let i = 0; i < Number(ch); i++) out.push(null);
-      else out.push(ch);
+  const row = rows[8 - Number(sq[1])];
+  if (!row) return null;
+  let file = 0;
+  for (const ch of row) {
+    if (/\d/.test(ch)) file += Number(ch);
+    else {
+      if (FILES[file] === sq[0]) return ch;
+      file++;
     }
-    return out;
-  });
+    if (file > FILES.indexOf(sq[0])) break;
+  }
+  return null;
 }
 
-function squareXY(square: string, flipped: boolean): [number, number] {
-  const file = FILES.indexOf(square[0]);
-  const rank = Number(square[1]) - 1;
-  return flipped ? [7 - file, rank] : [file, 7 - rank];
+function destsFor(fen: string, legalTargets?: (from: string) => string[]): Dests {
+  const dests: Dests = new Map();
+  if (!legalTargets) return dests;
+  const white = turnOf(fen) === "white";
+  for (const f of FILES) {
+    for (let r = 1; r <= 8; r++) {
+      const sq = f + r;
+      const p = pieceOn(fen, sq);
+      // Only the side to move has legal moves; skipping the rest keeps this cheap.
+      if (!p || (p === p.toUpperCase()) !== white) continue;
+      const to = legalTargets(sq);
+      if (to.length) dests.set(sq as Key, to as Key[]);
+    }
+  }
+  return dests;
 }
 
-function squareAt(x: number, y: number, flipped: boolean): string | null {
-  const col = Math.floor(x);
-  const row = Math.floor(y);
-  if (col < 0 || col > 7 || row < 0 || row > 7) return null;
-  return flipped ? FILES[7 - col] + (row + 1) : FILES[col] + (8 - row);
+function badgeShape(badge: Classification | undefined, lastMove: Props["lastMove"]): DrawShape[] {
+  const href = badge ? badgeFor(badge) : null;
+  if (!href || !lastMove) return [];
+  // Drawn in the destination square's 100×100 box, overlapping its top-right corner.
+  return [
+    {
+      orig: lastMove.to as Key,
+      customSvg: { html: `<image href="${href}" x="58" y="-14" width="56" height="56" class="badge" />`, center: "orig" },
+    },
+  ];
 }
 
-function pieceAt(grid: (string | null)[][], sq: string): string | null {
-  return grid[8 - Number(sq[1])]?.[FILES.indexOf(sq[0])] ?? null;
-}
-
-const pieceHref = (piece: string) =>
-  `${import.meta.env.BASE_URL}pieces/${piece === piece.toUpperCase() ? "white" : "black"}-${PIECE_FILE[piece.toLowerCase()]}.svg`;
-
-function arrowLine(a: Arrow, flipped: boolean, key: string | number) {
-  const [x1, y1] = squareXY(a.from, flipped);
-  const [x2, y2] = squareXY(a.to, flipped);
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  const len = Math.hypot(dx, dy) || 1;
-  // Stop short so the arrow head sits inside the target square.
-  const ex = x2 + 0.5 - (dx / len) * 0.3;
-  const ey = y2 + 0.5 - (dy / len) * 0.3;
-  return <line key={key} x1={x1 + 0.5} y1={y1 + 0.5} x2={ex} y2={ey} class={`arrow arrow-${a.kind}`} marker-end={`url(#ah-${a.kind})`} />;
-}
-
-interface Drag {
-  from: string;
-  piece: string;
-  pointerId: number;
-  startX: number;
-  startY: number;
-  x: number;
-  y: number;
-  moved: boolean;
-  /** The piece was already selected when pressed: a plain tap deselects it. */
-  wasSelected: boolean;
-}
-
-export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], annotate = false }: Props) {
-  const grid = useMemo(() => parseBoard(fen), [fen]);
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [drag, setDrag] = useState<Drag | null>(null);
+export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], annotate = false, onSwipe }: Props) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const cgRef = useRef<Api | null>(null);
   const [promo, setPromo] = useState<{ from: string; to: string; white: boolean } | null>(null);
-  const [marks, setMarks] = useState<{ arrows: Arrow[]; circles: string[] }>({ arrows: [], circles: [] });
-  const drawFrom = useRef<string | null>(null);
-  const prevGrid = useRef(grid);
-  const dropped = useRef(false);
+  // Latest props for chessground's callbacks, which are bound once at mount.
+  const props = useRef({ fen, onMove, onSwipe });
+  props.current = { fen, onMove, onSwipe };
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+
+  // Puts the board back on the position the page says it shows (after a rejected
+  // or replaced move, chessground would otherwise keep the piece where it was dropped).
+  const resync = () => {
+    const cg = cgRef.current;
+    if (cg && cg.getFen() !== props.current.fen.split(" ")[0]) cg.set({ fen: props.current.fen });
+  };
+
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const cg = Chessground(el, {
+      fen,
+      coordinates: true,
+      ranksPosition: "left",
+      animation: { enabled: true, duration: 180 },
+      highlight: { lastMove: true, check: true },
+      movable: {
+        free: false,
+        color: "both",
+        showDests: true,
+        events: {
+          after: (orig, dest) => {
+            const current = props.current;
+            const piece = pieceOn(current.fen, orig);
+            if (piece?.toLowerCase() === "p" && (dest[1] === "8" || dest[1] === "1")) {
+              setPromo({ from: orig, to: dest, white: piece === "P" });
+              return;
+            }
+            const ok = current.onMove?.(orig, dest) ?? false;
+            if (!ok) resync();
+            // A page may accept a move but keep showing the old position (wrong puzzle
+            // answer); check again once it has re-rendered.
+            else requestAnimationFrame(resync);
+          },
+        },
+      },
+      premovable: { enabled: false },
+      draggable: { enabled: true, showGhost: true },
+      drawable: { enabled: annotate, brushes: readBrushes(el), defaultSnapToValidMove: true },
+    });
+    cgRef.current = cg;
+    return () => {
+      cg.destroy();
+      cgRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
-    setSelected(null);
     setPromo(null);
-    setMarks({ arrows: [], circles: [] });
   }, [fen]);
 
-  // Slide the moved piece from its origin, so stepping through a game reads like a replay.
-  useLayoutEffect(() => {
-    const before = prevGrid.current;
-    prevGrid.current = grid;
-    if (dropped.current) {
-      dropped.current = false;
-      return;
-    }
-    if (!lastMove || before === grid || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const moved = pieceAt(grid, lastMove.to);
-    if (!moved || pieceAt(before, lastMove.from) === null || pieceAt(grid, lastMove.from) !== null) return;
-    const el = svgRef.current?.querySelector<SVGImageElement>(`[data-sq="${lastMove.to}"]`);
-    if (!el?.animate) return;
-    const [fx, fy] = squareXY(lastMove.from, flipped);
-    const [tx, ty] = squareXY(lastMove.to, flipped);
-    el.animate([{ transform: `translate(${fx - tx}px, ${fy - ty}px)` }, { transform: "translate(0px, 0px)" }], {
-      duration: MOVE_ANIMATION_MS,
-      easing: "cubic-bezier(.2,.7,.3,1)",
+  // Brush colours follow the board and colour theme.
+  useEffect(() => {
+    const update = () => {
+      const cg = cgRef.current;
+      const el = wrapRef.current;
+      if (cg && el) cg.set({ drawable: { brushes: readBrushes(el) } });
+    };
+    const obs = new MutationObserver(update);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-board"] });
+    return () => obs.disconnect();
+  }, []);
+
+  const dests = destsFor(fen, onMove ? legalTargets : undefined);
+  const destKey = [...dests.entries()].map(([k, v]) => k + v.join("")).join(",");
+  const shapes: DrawShape[] = [
+    ...arrows.map((a) => ({ orig: a.from as Key, dest: a.to as Key, brush: a.kind })),
+    ...badgeShape(promo ? undefined : badge, lastMove),
+  ];
+  const shapeKey = JSON.stringify(shapes);
+
+  useEffect(() => {
+    const cg = cgRef.current;
+    if (!cg) return;
+    const custom = new Map<Key, string>(highlight.map((s) => [s as Key, "hl"]));
+    // set() ignores an undefined lastMove, so clear it by hand (start position).
+    if (!lastMove) cg.state.lastMove = undefined;
+    cg.set({
+      fen,
+      orientation: flipped ? "black" : "white",
+      turnColor: turnOf(fen),
+      check: inCheck(fen),
+      lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
+      highlight: { custom },
+      movable: { dests, color: onMove ? "both" : undefined },
+      drawable: { enabled: annotate },
     });
-  }, [grid]);
+  }, [fen, flipped, lastMove?.from, lastMove?.to, destKey, highlight.join(","), annotate, Boolean(onMove)]);
 
-  const targets = selected && legalTargets ? legalTargets(selected) : [];
-
-  const toBoard = (e: PointerEvent): [number, number] => {
-    const rect = svgRef.current!.getBoundingClientRect();
-    return [((e.clientX - rect.left) / rect.width) * 8, ((e.clientY - rect.top) / rect.height) * 8];
-  };
-
-  const movable = (sq: string) => Boolean(onMove && pieceAt(grid, sq) && (legalTargets?.(sq).length ?? 0) > 0);
-
-  const attempt = (from: string, to: string): boolean => {
-    if (!onMove) return false;
-    const piece = pieceAt(grid, from);
-    if (piece?.toLowerCase() === "p" && (to[1] === "8" || to[1] === "1")) {
-      setPromo({ from, to, white: piece === "P" });
-      return true;
-    }
-    return onMove(from, to);
-  };
-
-  const tap = (sq: string) => {
-    if (!onMove) return;
-    if (selected && selected !== sq && targets.includes(sq)) {
-      attempt(selected, sq);
-      setSelected(null);
-      return;
-    }
-    setSelected(selected === sq ? null : movable(sq) ? sq : null);
-  };
-
-  const onPointerDown = (e: PointerEvent) => {
-    if (promo) return;
-    const [x, y] = toBoard(e);
-    const sq = squareAt(x, y, flipped);
-    if (!sq) return;
-    if (e.button === 2) {
-      if (annotate) drawFrom.current = sq;
-      return;
-    }
-    if (e.button !== 0) return;
-    if (marks.arrows.length || marks.circles.length) setMarks({ arrows: [], circles: [] });
-    if (!onMove) return;
-    const piece = pieceAt(grid, sq);
-    if (piece && movable(sq)) {
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-      setDrag({ from: sq, piece, pointerId: e.pointerId, startX: x, startY: y, x, y, moved: false, wasSelected: selected === sq });
-      setSelected(sq);
-      // Keep the page from scrolling while a piece is held.
-      e.preventDefault();
-    }
-  };
-
-  const onPointerMove = (e: PointerEvent) => {
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    const [x, y] = toBoard(e);
-    const moved = drag.moved || Math.hypot(x - drag.startX, y - drag.startY) > DRAG_START;
-    setDrag({ ...drag, x, y, moved });
-  };
-
-  const onPointerUp = (e: PointerEvent) => {
-    const [x, y] = toBoard(e);
-    const sq = squareAt(x, y, flipped);
-    if (e.button === 2) {
-      const from = drawFrom.current;
-      drawFrom.current = null;
-      if (!annotate || !from || !sq) return;
-      setMarks((m) => {
-        if (from === sq) {
-          const has = m.circles.includes(sq);
-          return { ...m, circles: has ? m.circles.filter((c) => c !== sq) : [...m.circles, sq] };
-        }
-        const has = m.arrows.some((a) => a.from === from && a.to === sq);
-        return { ...m, arrows: has ? m.arrows.filter((a) => !(a.from === from && a.to === sq)) : [...m.arrows, { from, to: sq, kind: "user" }] };
-      });
-      return;
-    }
-    if (drag && e.pointerId === drag.pointerId) {
-      const d = drag;
-      setDrag(null);
-      if (d.moved) {
-        if (sq && sq !== d.from && legalTargets?.(d.from).includes(sq)) {
-          dropped.current = true;
-          attempt(d.from, sq);
-          setSelected(null);
-        }
-        return;
-      }
-      if (d.wasSelected) setSelected(null);
-      return;
-    }
-    if (sq) tap(sq);
-  };
-
-  const squares = [];
-  const pieces = [];
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const file = flipped ? 7 - x : x;
-      const rank = flipped ? y + 1 : 8 - y;
-      const sq = FILES[file] + rank;
-      const light = (file + rank) % 2 === 1;
-      const isLast = lastMove && (lastMove.from === sq || lastMove.to === sq);
-      const piece = grid[8 - rank][file];
-      squares.push(
-        <g key={sq}>
-          <rect x={x} y={y} width={1} height={1} class={light ? "sq-light" : "sq-dark"} />
-          {isLast && <rect x={x} y={y} width={1} height={1} class="sq-last" />}
-          {highlight.includes(sq) && <rect x={x} y={y} width={1} height={1} class="sq-hl" />}
-          {selected === sq && <rect x={x} y={y} width={1} height={1} class="sq-sel" />}
-          {drag?.moved && squareAt(drag.x, drag.y, flipped) === sq && targets.includes(sq) && (
-            <rect x={x + 0.03} y={y + 0.03} width={0.94} height={0.94} class="sq-drop" />
-          )}
-          {x === 0 && (
-            <text x={0.04} y={y + 0.2} class={light ? "coord-dark" : "coord-light"}>
-              {rank}
-            </text>
-          )}
-          {y === 7 && (
-            <text x={x + 0.82} y={7.95} class={light ? "coord-dark" : "coord-light"}>
-              {FILES[file]}
-            </text>
-          )}
-        </g>,
-      );
-      if (piece) {
-        const lifted = drag?.moved && drag.from === sq;
-        pieces.push(
-          <image
-            key={sq + piece}
-            data-sq={sq}
-            href={pieceHref(piece)}
-            x={x}
-            y={y}
-            width={1}
-            height={1}
-            class={`piece${lifted ? " lifted" : ""}${promo?.from === sq ? " lifted" : ""}`}
-          />,
-        );
-      }
-      if (targets.includes(sq)) {
-        pieces.push(
-          <circle key={`t${sq}`} cx={x + 0.5} cy={y + 0.5} r={piece ? 0.45 : 0.15} class={piece ? "target-capture" : "target-dot"} />,
-        );
-      }
-    }
-  }
-
-  const badgeIcon = badge ? badgeFor(badge) : null;
-  let badgeEl = null;
-  if (badgeIcon && lastMove && !drag?.moved) {
-    const [bx, by] = squareXY(lastMove.to, flipped);
-    badgeEl = <image href={badgeIcon} x={Math.min(7.5, bx + 0.62)} y={Math.max(0, by - 0.12)} width={0.5} height={0.5} class="badge" />;
-  }
+  useEffect(() => {
+    cgRef.current?.setAutoShapes(shapes);
+  }, [shapeKey]);
 
   let promoEl = null;
   if (promo) {
-    const [px, py] = squareXY(promo.to, flipped);
+    const file = FILES.indexOf(promo.to[0]);
+    const col = flipped ? 7 - file : file;
     // The picker grows from the promotion square towards the board centre.
-    const down = py === 0;
+    const atTop = (promo.to[1] === "8") !== flipped;
     promoEl = (
-      <g class="promo">
-        <rect x={0} y={0} width={8} height={8} class="promo-shade" onPointerUp={() => setPromo(null)} />
-        {PROMOTIONS.map((p, i) => {
-          const yy = down ? py + i : py - i;
-          return (
-            <g
-              key={p}
-              class="promo-choice"
-              onPointerUp={(e) => {
-                e.stopPropagation();
-                setPromo(null);
-                onMove?.(promo.from, promo.to, p);
-              }}
-            >
-              <rect x={px + 0.04} y={yy + 0.04} width={0.92} height={0.92} rx={0.46} />
-              <image href={pieceHref(promo.white ? p.toUpperCase() : p)} x={px + 0.08} y={yy + 0.08} width={0.84} height={0.84} />
-            </g>
-          );
-        })}
-      </g>
+      <div
+        class="promo-overlay"
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          setPromo(null);
+          resync();
+        }}
+      >
+        {PROMOTIONS.map((p, k) => (
+          <button
+            key={p}
+            class="promo-choice"
+            style={{ left: `${col * 12.5}%`, top: `${(atTop ? k : 7 - k) * 12.5}%` }}
+            aria-label={`Umwandeln in ${PIECE_NAME[p]}`}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              const chosen = promo;
+              setPromo(null);
+              const ok = props.current.onMove?.(chosen.from, chosen.to, p) ?? false;
+              if (!ok) resync();
+              else requestAnimationFrame(resync);
+            }}
+          >
+            <span class={`promo-piece ${promo.white ? "white" : "black"} ${PIECE_NAME[p]}`} />
+          </button>
+        ))}
+      </div>
     );
   }
 
   return (
-    <svg
-      ref={svgRef}
-      class={`board${drag?.moved ? " dragging" : ""}${onMove ? " interactive" : ""}`}
-      viewBox="0 0 8 8"
+    <div
+      class={`board cg-board-wrap${onMove ? " interactive" : ""}`}
       role="img"
       aria-label="Schachbrett"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={promo ? undefined : onPointerUp}
-      onPointerCancel={() => setDrag(null)}
-      onContextMenu={(e) => annotate && e.preventDefault()}
+      onTouchStart={(e) => {
+        const t = e.touches[0];
+        const cg = cgRef.current;
+        const key = t && cg ? cg.getKeyAtDomPos([t.clientX, t.clientY]) : undefined;
+        swipeStart.current = t && !(key && cg?.state.pieces.has(key)) ? { x: t.clientX, y: t.clientY } : null;
+      }}
+      onTouchEnd={(e) => {
+        const s = swipeStart.current;
+        const t = e.changedTouches[0];
+        swipeStart.current = null;
+        if (!s || !t || !props.current.onSwipe) return;
+        const dx = t.clientX - s.x;
+        const dy = t.clientY - s.y;
+        if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) props.current.onSwipe(dx < 0 ? "left" : "right");
+      }}
     >
-      <defs>
-        {(["best", "played", "hint", "user", "wrong"] as const).map((k) => (
-          <marker key={k} id={`ah-${k}`} viewBox="0 0 10 10" refX="5" refY="5" markerWidth="2.6" markerHeight="2.6" orient="auto">
-            <path d="M0,0 L10,5 L0,10 z" class={`arrow-head-${k}`} />
-          </marker>
-        ))}
-      </defs>
-      {squares}
-      {marks.circles.map((c) => {
-        const [cx, cy] = squareXY(c, flipped);
-        return <circle key={`c${c}`} cx={cx + 0.5} cy={cy + 0.5} r={0.44} class="mark-circle" />;
-      })}
-      {pieces}
-      {arrows.map((a, i) => arrowLine(a, flipped, i))}
-      {marks.arrows.map((a, i) => arrowLine(a, flipped, `u${i}`))}
-      {badgeEl}
-      {drag?.moved && (
-        <image href={pieceHref(drag.piece)} x={drag.x - 0.55} y={drag.y - 0.6} width={1.1} height={1.1} class="piece drag-ghost" />
-      )}
+      <div ref={wrapRef} class="cg-wrap" />
       {promoEl}
-    </svg>
+    </div>
   );
 }

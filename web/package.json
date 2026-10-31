@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@lichess-org/chessground": "10.4.2",
     "@supabase/supabase-js": "^2.118.0",
     "chess.js": "^1.4.0",
     "preact": "^10.29.8"
