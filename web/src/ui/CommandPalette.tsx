@@ -199,11 +199,15 @@ const SHORTCUTS: [string, [string, string][]][] = [
     "Analyse",
     [
       ["← →", "Zug zurück / vor"],
-      ["Pos1 / Ende", "Anfang / Ende der Partie"],
+      ["Pos1 / Ende, ↑ ↓", "Anfang / Ende der Partie"],
+      ["Leertaste", "Besten Engine-Zug spielen"],
+      ["L", "Stockfish live ein / aus"],
+      ["X", "Drohung zeigen"],
+      ["A", "Pfeile ein / aus"],
       ["N / ⇧ N", "Nächster / vorheriger eigener Fehler"],
       ["F", "Brett drehen"],
       ["B", "Bericht ein- und ausblenden"],
-      ["Esc", "Eigene Variante verlassen"],
+      ["Esc", "Eigene Variante verlassen (bleibt in der Zugliste)"],
     ],
   ],
 ];

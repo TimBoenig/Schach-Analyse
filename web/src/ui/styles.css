@@ -36,6 +36,9 @@
   --eval-light: #ffffff;
   --eval-dark: #403d39;
   --arrow-user: #e8710a;
+  --arrow-best: #4caf50;
+  --arrow-hint: #3d8bfd;
+  --arrow-played: #e6913a;
   --glow: transparent;
   --bubble: #3a3835;
   --radius: 14px;
@@ -907,13 +910,14 @@ dialog::backdrop {
   backdrop-filter: blur(3px);
 }
 
-/* ---------- board ---------- */
+/* ---------- board (chessground) ---------- */
 
 .board {
   width: 100%;
   aspect-ratio: 1;
-  display: block;
+  position: relative;
   border-radius: 10px;
+  overflow: hidden;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
@@ -924,128 +928,139 @@ dialog::backdrop {
 /* Pieces can be dragged: the board must not scroll the page while one is held. */
 .board.interactive {
   touch-action: none;
-  cursor: pointer;
 }
 
-.board.dragging {
-  cursor: grabbing;
+.board > .cg-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.piece.lifted {
-  opacity: 0.3;
+/* Squares as one gradient: a8 (top left) is light, from either side. */
+.board cg-board {
+  background: repeating-conic-gradient(var(--sq-dark) 0 25%, var(--sq-light) 0 50%) 0 0 / 25% 25%;
 }
 
-.drag-ghost {
-  pointer-events: none;
-  filter: drop-shadow(0 0.08px 0.1px rgba(0, 0, 0, 0.45));
+.board cg-board square.last-move {
+  background-color: var(--sq-last);
+}
+.board cg-board square.selected {
+  background-color: rgba(80, 160, 255, 0.45);
+}
+.board cg-board square.hl {
+  background-color: rgba(229, 82, 75, 0.45);
+}
+.board cg-board square.check {
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 1) 0%, rgba(231, 0, 0, 1) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%);
+}
+.board cg-board square.move-dest {
+  background: radial-gradient(rgba(0, 0, 0, 0.22) 19%, transparent 20%);
+}
+.board cg-board square.move-dest.oc {
+  background: radial-gradient(transparent 0%, transparent 79%, rgba(0, 0, 0, 0.28) 80%);
+}
+.board cg-board square.move-dest:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.sq-drop {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.75);
-  stroke-width: 0.06;
+.board .cg-wrap piece.white.pawn { background-image: url("/pieces/white-pawn.svg"); }
+.board .cg-wrap piece.white.knight { background-image: url("/pieces/white-knight.svg"); }
+.board .cg-wrap piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
+.board .cg-wrap piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
+.board .cg-wrap piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
+.board .cg-wrap piece.white.king { background-image: url("/pieces/white-king.svg"); }
+.board .cg-wrap piece.black.pawn { background-image: url("/pieces/black-pawn.svg"); }
+.board .cg-wrap piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
+.board .cg-wrap piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
+.board .cg-wrap piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
+.board .cg-wrap piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
+.board .cg-wrap piece.black.king { background-image: url("/pieces/black-king.svg"); }
+
+.board cg-board piece.dragging {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 
-.mark-circle {
-  fill: none;
-  stroke: var(--arrow-user);
-  stroke-width: 0.07;
-  opacity: 0.85;
-  pointer-events: none;
-}
-
-.promo-shade {
-  fill: rgba(0, 0, 0, 0.45);
-}
-
-.promo-choice {
-  cursor: pointer;
-}
-
-.promo-choice rect {
-  fill: #f6f6f6;
-  stroke: rgba(0, 0, 0, 0.25);
-  stroke-width: 0.03;
-  transition: fill 0.12s;
-}
-
-.promo-choice:hover rect {
-  fill: var(--accent-2);
-}
-
-.sq-light {
-  fill: var(--sq-light);
-}
-.sq-dark {
-  fill: var(--sq-dark);
-}
-.sq-last {
-  fill: var(--sq-last);
-}
-.sq-sel {
-  fill: rgba(80, 160, 255, 0.45);
-}
-.sq-hl {
-  fill: rgba(229, 82, 75, 0.45);
-}
-.target-dot {
-  fill: rgba(0, 0, 0, 0.22);
-}
-.target-capture {
-  fill: none;
-  stroke: rgba(0, 0, 0, 0.28);
-  stroke-width: 0.08;
-}
-.coord-light,
-.coord-dark {
-  font-size: 0.17px;
+/* Coordinates inside the edge squares, in the opposite square colour (chess.com style). */
+.board .cg-wrap coords {
+  font-family: inherit;
   font-weight: 700;
+  font-size: clamp(8px, 1.7cqw, 13px);
+  opacity: 1;
 }
-.coord-light {
-  fill: var(--sq-light);
+.board .cg-wrap coords.ranks,
+.board .cg-wrap coords.ranks.left {
+  left: 3px;
+  align-items: flex-start;
+  top: 2px;
+  height: 100%;
 }
-.coord-dark {
-  fill: var(--sq-dark);
+.board .cg-wrap coords.ranks coord {
+  transform: none;
 }
-.arrow {
-  stroke-width: 0.17;
-  stroke-linecap: round;
-  opacity: 0.85;
-  pointer-events: none;
+.board .cg-wrap coords.files {
+  left: 0;
+  bottom: 2px;
+  height: auto;
+  text-transform: none;
+  text-align: right;
 }
-.arrow-user {
-  stroke: var(--arrow-user);
+.board .cg-wrap coords.files coord {
+  padding-right: 4px;
 }
-.arrow-wrong {
-  stroke: var(--blunder);
+.board .cg-wrap coords coord.coord-dark {
+  color: var(--sq-light);
 }
-.arrow-head-wrong {
-  fill: var(--blunder);
+.board .cg-wrap coords coord.coord-light {
+  color: var(--sq-dark);
 }
-.arrow-head-user {
-  fill: var(--arrow-user);
+.board {
+  container-type: inline-size;
 }
-.arrow-best {
-  stroke: #4caf50;
+
+.board .cg-wrap .cg-shapes {
+  opacity: 1;
 }
-.arrow-played {
-  stroke: #e6913a;
+.board .badge {
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
 }
-.arrow-hint {
-  stroke: #3d8bfd;
+
+/* Promotion picker: four pieces in the promotion file, the rest of the board dimmed. */
+.promo-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.45);
 }
-.arrow-head-best {
-  fill: #4caf50;
+.promo-choice {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+  padding: 3%;
+  border: none;
+  border-radius: 50%;
+  background: #f6f6f6;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.2);
+  transition: background 0.12s;
 }
-.arrow-head-played {
-  fill: #e6913a;
+.promo-choice:hover {
+  background: var(--accent-2);
 }
-.arrow-head-hint {
-  fill: #3d8bfd;
+.promo-piece {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
 }
-.badge {
-  filter: drop-shadow(0 0 0.04px rgba(0, 0, 0, 0.6));
-}
+.promo-piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
+.promo-piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
+.promo-piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
+.promo-piece.white.knight { background-image: url("/pieces/white-knight.svg"); }
+.promo-piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
+.promo-piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
+.promo-piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
+.promo-piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
 
 /* ---------- analysis view ---------- */
 
@@ -1122,6 +1137,15 @@ dialog::backdrop {
   transition: height 0.45s cubic-bezier(0.2, 0.7, 0.3, 1);
 }
 
+.evalbar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 calc(12.5% - 1px), rgba(128, 128, 128, 0.35) calc(12.5% - 1px) 12.5%);
+  z-index: 1;
+}
+
 .evalbar > .mid {
   position: absolute;
   left: 0;
@@ -1152,7 +1176,7 @@ dialog::backdrop {
   text-align: center;
   font-size: 10px;
   font-weight: 800;
-  z-index: 1;
+  z-index: 2;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1489,6 +1513,112 @@ button.engine-line:hover {
 .movelist img {
   width: 16px;
   height: 16px;
+}
+
+/* Side lines under the game move they replace, like the lichess move tree. */
+.movelist .variation {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 2px 0 4px 30px;
+  padding: 2px 4px 2px 8px;
+  border-left: 2px solid var(--border-strong);
+  font-size: 13px;
+  color: var(--text-2);
+}
+.movelist .variation.current {
+  border-left-color: var(--accent);
+}
+.movelist .variation .var-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2px;
+  flex: 1;
+  min-width: 0;
+}
+.movelist .variation button {
+  min-height: 28px;
+  padding: 3px 5px;
+  gap: 3px;
+}
+.movelist .variation button.var-drop {
+  flex-shrink: 0;
+  color: var(--text-3);
+  font-size: 16px;
+  line-height: 1;
+  padding: 3px 7px;
+}
+
+/* Live engine switches above the engine lines. */
+.engine-switches {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.engine-switches .engine-depth {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.switch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  user-select: none;
+}
+.switch-pill input {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 26px;
+  height: 15px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.switch-pill input::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--surface);
+  transition: transform 0.15s;
+}
+.switch-pill input:checked {
+  background: var(--accent);
+}
+.switch-pill input:checked::after {
+  transform: translateX(11px);
+}
+.switch-pill input:focus-visible {
+  outline: 2px solid var(--accent-2);
+  outline-offset: 2px;
+}
+
+.threat-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.threat-tag {
+  color: var(--blunder);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
 }
 
 .eval-graph-wrap {
