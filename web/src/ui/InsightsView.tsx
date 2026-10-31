@@ -16,6 +16,7 @@ import type { BarRow, Column } from "./charts";
 import { trClassification, trFilter } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
+import { CoachTip, NeedNames } from "./Coach";
 import { loadTrainingSummary } from "./training/useTraining";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
@@ -281,6 +282,9 @@ export function InsightsView() {
     <>
       <div class="page-title">Einblicke</div>
       <FilterBar filters={filters} onChange={setFilters} />
+      <CoachTip id="insights" title="Was du hier findest">
+        Ich suche in all deinen Partien nach Mustern: Wann passieren deine Fehler, in welchen Stellungen spielst du stark, und wie entwickelst du dich? Unten kann ich dir auch einen ausführlichen Bericht schreiben.
+      </CoachTip>
     </>
   );
 
@@ -288,12 +292,7 @@ export function InsightsView() {
     return (
       <div>
         <div class="page-title">Einblicke</div>
-        <div class="empty">
-          <p>Trage zuerst deine Spielernamen ein, damit die App deine Partien erkennt.</p>
-          <button class="btn primary" onClick={() => navigate({ view: "settings" })}>
-            Zu den Einstellungen
-          </button>
-        </div>
+        <NeedNames what="zeige ich dir hier Muster aus deinen Partien." />
       </div>
     );
   }

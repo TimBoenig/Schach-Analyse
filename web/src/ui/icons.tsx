@@ -47,3 +47,8 @@ export const IconFreeBoard = () => (
 export const IconReset = () => (
   <svg {...base}><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" /></svg>
 );
+export const IconClose = () => (<svg {...base}><path d="M6 6l12 12M18 6L6 18" /></svg>);
+export const IconMore = () => (<svg {...base}><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>);
+export const IconChevron = () => (<svg {...base}><path d="M9 6l6 6-6 6" /></svg>);
+export const IconUpload = () => (<svg {...base}><path d="M12 15V4M7 9l5-5 5 5M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></svg>);
+export const IconFilter = () => (<svg {...base}><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z" /></svg>);

@@ -19,6 +19,7 @@ import { AiChat, coachDetail } from "./AiCoach";
 import { ColumnChart, type Column } from "./charts";
 import { IconPlay, IconSpark } from "./icons";
 import { navigate, type TrainingTab } from "./router";
+import { Coach, NeedNames } from "./Coach";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
 import { type TrainingState, useTraining } from "./training/useTraining";
 
@@ -58,16 +59,24 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
       <div>
         {header}
         <div class="card session-done">
-          <h3>{done ? "Geschafft!" : "Nichts zu tun"}</h3>
-          {done > 0 && (
-            <p>
-              {solved} von {done} {done === 1 ? "Übung" : "Übungen"} auf Anhieb gelöst.{" "}
-              {solved < done ? "Die anderen kommen morgen zur Wiederholung." : "Sauber!"}
-            </p>
-          )}
-          <button class="btn primary" onClick={onExit}>
-            Zurück zur Übersicht
-          </button>
+          <Coach
+            mood={done && solved / done >= 0.7 ? "wow" : done ? "happy" : "think"}
+            size={72}
+            class="big"
+            title={done ? (solved === done ? "Perfekt, alles gelöst!" : "Geschafft, gut gemacht!") : "Hier gibt es gerade nichts zu tun."}
+            actions={
+              <button class="btn primary big" onClick={onExit}>
+                Zurück zur Übersicht
+              </button>
+            }
+          >
+            {done > 0 && (
+              <p>
+                Du hast {solved} von {done} {done === 1 ? "Übung" : "Übungen"} auf Anhieb gelöst.{" "}
+                {solved < done ? "Die anderen schauen wir uns morgen noch einmal an, so bleibt es hängen." : "Sauber!"}
+              </p>
+            )}
+          </Coach>
         </div>
       </div>
     );
@@ -129,8 +138,9 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
     <div class="dash">
       <section class="card tile span-12 plan-hero">
         <div class="plan-hero-main">
-          <div class="kpi-label">Dein Plan für heute · {plan.minutes} Minuten</div>
-          <h2 class="plan-headline">{plan.headline}</h2>
+          <Coach mood={open.length ? "happy" : "wow"} size={64} class="big" title={open.length ? plan.headline : "Plan für heute erledigt. Stark!"}>
+            <span class="small">Dein Plan für heute · {plan.minutes} Minuten. Ich habe die Übungen aus deinen eigenen Partien ausgesucht.</span>
+          </Coach>
           <div class="progress plan-progress">
             <div style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
           </div>
@@ -140,11 +150,11 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
           </div>
           <div class="row" style={{ marginTop: "12px" }}>
             {open.length > 0 ? (
-              <button class="btn primary" onClick={() => start({ title: "Training von heute", ids: open })}>
+              <button class="btn primary big" onClick={() => start({ title: "Training von heute", ids: open })}>
                 <IconPlay /> {done ? "Weiter trainieren" : "Training starten"}
               </button>
             ) : (
-              <span class="feedback-ok">Plan für heute erledigt. Stark!</span>
+              <span class="feedback-ok">Komm morgen wieder, dann habe ich neue Aufgaben für dich.</span>
             )}
             <button class="btn ghost small" onClick={t.rebuild}>
               Plan neu erstellen
@@ -467,12 +477,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
     return (
       <div>
         <div class="page-title">Training</div>
-        <div class="empty">
-          <p>Trage zuerst deine Spielernamen ein. Dann baut die App aus deinen Partien Übungen und einen Trainingsplan.</p>
-          <button class="btn primary" onClick={() => navigate({ view: "settings" })}>
-            Zu den Einstellungen
-          </button>
-        </div>
+        <NeedNames what="baue ich dir aus deinen Partien Übungen und einen Trainingsplan." />
       </div>
     );
   }

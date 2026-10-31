@@ -27,9 +27,10 @@ import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { Donut, Legend, RadarChart, StackBar } from "./charts";
 import type { Segment } from "./charts";
-import { IconPlay, IconPlayers, IconPlus, IconSync, IconTrash } from "./icons";
+import { IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { formatDate, SPEED_DE } from "./labels";
 import { navigate } from "./router";
+import { CoachAvatar, CoachTip } from "./Coach";
 import { PeriodSelect } from "./useProfile";
 
 const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
@@ -304,9 +305,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
     <>
       {players.length === 0 ? (
         <div class="empty">
-          <div class="empty-icon">
-            <IconPlayers />
-          </div>
+          <CoachAvatar size={88} mood="think" />
           <h3>Noch keine Spieler</h3>
           <p>
             Füge Freunde oder Gegner mit ihrem Lichess- oder Chess.com-Namen hinzu. Die App lädt ihre Partien, zeigt dir,
@@ -570,9 +569,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   if (!friends.length) {
     return (
       <div class="empty">
-        <div class="empty-icon">
-          <IconPlayers />
-        </div>
+        <CoachAvatar size={88} mood="think" />
         <h3>Noch keine Freunde in der Rangliste</h3>
         <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann vergleicht die App euch nach Wertung, Genauigkeit, Patzern, Fähigkeiten und Direktvergleich.</p>
         <button class="btn primary" onClick={() => navigate({ view: "players" })}>
@@ -1109,6 +1106,11 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
           Trag in den Einstellungen deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
         </div>
       )}
+      <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>
+        {tab === "rangliste"
+          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Jeder Bereich gibt Punkte nach Platz, daraus entsteht die Gesamtwertung."
+          : "Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?"}
+      </CoachTip>
       {tab === "rangliste" ? <RankingPanel players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
     </div>
   );

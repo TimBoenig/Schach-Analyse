@@ -23,6 +23,7 @@ import {
   classLabel,
   formatDate,
   formatEval,
+  moveVerdict,
   qualitySegments,
   resultText,
   shortOpening,
@@ -31,6 +32,7 @@ import { isTyping } from "./keys";
 import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
+import { Coach, COACH_NAME, moodFor } from "./Coach";
 
 type Side = "white" | "black";
 
@@ -103,6 +105,22 @@ function formatClock(s: number | null): string {
 }
 
 const ERROR_CLASSES = new Set(["Blunder", "Mistake", "Miss", "Inaccuracy"]);
+// Moves at least as good as the engine's choice: no "better was" hint, no best-move arrow.
+const TOP_CLASSES = new Set(["Best", "Great", "Brilliant"]);
+
+const CLASS_TONE: Partial<Record<string, string>> = {
+  Brilliant: "var(--brilliant)",
+  Great: "var(--great)",
+  Best: "var(--best)",
+  Excellent: "var(--best)",
+  Good: "var(--good)",
+  Book: "var(--book)",
+  Inaccuracy: "var(--inacc)",
+  Mistake: "var(--mistake)",
+  Miss: "var(--blunder)",
+  Blunder: "var(--blunder)",
+};
+
 
 function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null }) {
   const dragging = useRef(false);
@@ -196,7 +214,7 @@ function ClassTable({ game }: { game: GameAnalysis }) {
   const b = game.summary.black;
   if (!w || !b) return null;
   return (
-    <div class="card">
+    <div class="class-wrap">
       <div class="class-table">
         <span class="muted small">Zugbewertung</span>
         <span class="w muted small">Weiß</span>
@@ -205,9 +223,9 @@ function ClassTable({ game }: { game: GameAnalysis }) {
         {CLASSIFICATION_ORDER.map((c) => (
           <>
             <span>{classLabel(c)}</span>
-            <span class="w">{w[c] ?? 0}</span>
+            <span class="w" style={{ color: CLASS_TONE[c] }}>{w[c] ?? 0}</span>
             <img src={badgeFor(c) ?? ""} alt="" />
-            <span class="b">{b[c] ?? 0}</span>
+            <span class="b" style={{ color: CLASS_TONE[c] }}>{b[c] ?? 0}</span>
           </>
         ))}
       </div>
@@ -527,7 +545,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const fen = exploreFen ?? gameFen;
 
   const arrows: Arrow[] = [];
-  if (showArrows && !explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book") {
+  if (showArrows && !explore && move && move.best_move && move.best_move !== move.uci && move.classification && move.classification !== "Book" && !TOP_CLASSES.has(move.classification)) {
     const b = sq(move.best_move);
     if (b) arrows.push({ ...b, kind: "best" });
   }
@@ -643,12 +661,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         <button class="btn icon" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
           <IconBack />
         </button>
-        <span style={{ fontSize: "18px", minWidth: 0 }}>
+        <span class="game-title">
           {game.metadata.white} – {game.metadata.black} <span class="muted">{resultText(game.metadata.result)}</span>
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
-          <IconFreeBoard /> Im Analysebrett
+          <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
         </button>
         <button
           class="btn icon ghost danger"
@@ -754,20 +772,6 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </div>
           ) : null}
 
-          {(acc("white") !== undefined || acc("black") !== undefined) && (
-            <div class="acc-row">
-              {(["white", "black"] as const).map((c) => (
-                <div class="acc-box" key={c}>
-                  <div class="muted small who">
-                    <span class={`side-dot ${c}`} /> Genauigkeit
-                  </div>
-                  <div class={`value ${accClass(acc(c))}`}>{acc(c) !== undefined ? `${acc(c)!.toFixed(1)}` : "–"}</div>
-                  <div class="faint small">Ø-Verlust {Math.round(game.summary[c]?.acpl ?? 0)} cp</div>
-                </div>
-              ))}
-            </div>
-          )}
-
           <div class="card">
             {explore ? (
               <>
@@ -790,18 +794,21 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </>
             ) : move ? (
               <div class="move-explain">
-                {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" />}
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <strong>
-                    {move.move_number}
-                    {move.fen_before.split(" ")[1] === "w" ? "." : "..."} {move.san}
-                  </strong>{" "}
-                  {move.classification && <span class="muted">· {classLabel(move.classification)}</span>}
+                <Coach
+                  mood={moodFor(move.classification)}
+                  tone={CLASS_TONE[move.classification]}
+                  title={
+                    <>
+                      {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" />}
+                      <span style={{ color: CLASS_TONE[move.classification] }}>{moveVerdict(move)}</span>
+                    </>
+                  }
+                >
                   {!reasons.length && (
-                    <div class="small">
+                    <div>
                       {move.classification === "Book" && move.opening_name
                         ? move.opening_name
-                        : move.explanation || (analyzing ? "Wird analysiert …" : "Noch nicht bewertet.")}
+                        : move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}
                     </div>
                   )}
                   {reasons.length > 0 && (
@@ -812,23 +819,29 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     </ul>
                   )}
                   {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
-                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
-                    <div class="small muted" style={{ marginTop: "4px" }}>
-                      Besser war: {move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ")}
+                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
+                    <div class="small" style={{ marginTop: "4px" }}>
+                      Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ")}</strong>
                     </div>
                   )}
-                  <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
-                </div>
+                </Coach>
+                <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
               </div>
             ) : (
               <div>
-                <div class="small muted">
-                  {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
-                </div>
+                <Coach
+                  mood="happy"
+                  title={review && tab === "moves" ? review.headline : "Lass uns die Partie zusammen durchgehen!"}
+                >
+                  <p class="small">
+                    {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
+                  </p>
+                  <p class="small">
+                    Blättere mit den Pfeilen oder wische über das Brett. Ich sage dir zu jedem Zug, wie gut er war und was
+                    besser gewesen wäre. Ziehe selbst eine Figur, um eine eigene Variante auszuprobieren.
+                  </p>
+                </Coach>
                 <EngineLines fen={gameFen} lines={storedLines} label="Engine in dieser Stellung" onPlay={playLine} />
-                <p class="faint small" style={{ marginBottom: 0 }}>
-                  Tipp: Wische über ein leeres Feld zum Blättern, ziehe eine Figur für eine eigene Variante oder tippe eine Engine-Zeile an, um sie nachzuspielen. Mit der rechten Maustaste zeichnest du Pfeile.
-                </p>
               </div>
             )}
           </div>
@@ -851,13 +864,22 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </>
           ) : (
             <>
-              <div class="card">
-                <h3>
-                  Partie-Bericht <span class="pill accent">Note {review.grade}</span>
-                </h3>
-                <p style={{ marginTop: 0 }}>
-                  <strong>{review.headline}</strong>
-                </p>
+              <div class="card review-card">
+                <Coach mood={review.grade.startsWith("1") || review.grade.startsWith("2") ? "wow" : review.grade.startsWith("5") || review.grade.startsWith("6") ? "sad" : "happy"} title={review.headline}>
+                  <p class="small">
+                    {COACH_NAME} gibt dir für diese Partie die Note <strong>{review.grade}</strong>.
+                  </p>
+                </Coach>
+                <div class="review-duel">
+                  {(["white", "black"] as const).map((c) => (
+                    <div class={`duel-side${userColor === c ? " me" : ""}`} key={c}>
+                      <span class="small muted">{nameOf(c)}</span>
+                      <span class={`duel-acc ${c}`}>{acc(c) !== undefined ? acc(c)!.toFixed(1) : "–"}</span>
+                      <span class="faint small">Genauigkeit</span>
+                    </div>
+                  ))}
+                </div>
+                <ClassTable game={game} />
                 {review.phases.length > 0 && (
                   <>
                     <h4>Genauigkeit nach Phase</h4>
@@ -945,7 +967,6 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   </ul>
                 </div>
               )}
-              <ClassTable game={game} />
             </>
           )}
         </div>

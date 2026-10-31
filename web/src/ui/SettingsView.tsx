@@ -8,14 +8,16 @@ import { getSetting, setSetting } from "../storage/db";
 import { currentUser, signIn, signOut, signUp, syncAvailable, syncNow } from "../storage/sync";
 import { IconSync } from "./icons";
 import { PeriodSelect } from "./useProfile";
+import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 
 function AppearanceCard() {
   const [theme, setThemeState] = useState<ThemeMode>("system");
-  const [board, setBoard] = useState<BoardTheme>("holz");
+  const [board, setBoard] = useState<BoardTheme>("gruen");
+  const [tipsBack, setTipsBack] = useState(false);
   useEffect(() => {
     void getSetting<ThemeMode>("ui.theme", "system").then(setThemeState);
-    void getSetting<BoardTheme>("ui.board", "holz").then(setBoard);
+    void getSetting<BoardTheme>("ui.board", "gruen").then(setBoard);
   }, []);
   return (
     <div class="card">
@@ -60,6 +62,17 @@ function AppearanceCard() {
             </button>
           );
         })}
+      </div>
+      <div class="row" style={{ marginTop: "14px" }}>
+        <button
+          class="btn small"
+          onClick={() => {
+            resetTips();
+            setTipsBack(true);
+          }}
+        >
+          {tipsBack ? "Mikes Tipps sind wieder da ✓" : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
+        </button>
       </div>
     </div>
   );
@@ -421,10 +434,10 @@ export function SettingsView() {
         <div>
           <div class="card">
             <h3>Deine Spielernamen</h3>
-            <p class="muted small" style={{ marginTop: 0 }}>
-              Namen auf Chess.com, Lichess oder in deinen PGN-Dateien. Daran erkennt die App, welche Seite du gespielt
-              hast, und baut dein Profil.
-            </p>
+            <Coach size={44} title="Wie heißt du beim Schach?">
+              Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du
+              gespielt hast, und baue dein Profil.
+            </Coach>
             <label class="field">
               <span>Namen, mit Komma getrennt</span>
               <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. TimBoenig, tim_b" />

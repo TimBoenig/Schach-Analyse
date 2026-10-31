@@ -15,6 +15,7 @@ import type { BarRow } from "./charts";
 import { IconSpark } from "./icons";
 import { formatDate } from "./labels";
 import { navigate } from "./router";
+import { CoachTip, NeedNames } from "./Coach";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
@@ -227,6 +228,9 @@ export function OpeningsView() {
     <>
       <div class="page-title">Eröffnungen</div>
       <FilterBar filters={filters} onChange={setFilters} />
+      <CoachTip id="openings" title="Dein Eröffnungsrepertoire">
+        Hier siehst du, welche Eröffnungen du spielst und wie gut sie für dich laufen. Grün heißt: Läuft. Rot heißt: Da lohnt sich ein genauer Blick. Tippe eine Zeile an, um die Partien und Fehler dazu zu sehen.
+      </CoachTip>
     </>
   );
 
@@ -234,12 +238,7 @@ export function OpeningsView() {
     return (
       <div>
         <div class="page-title">Eröffnungen</div>
-        <div class="empty">
-          <p>Trage zuerst deine Spielernamen ein, damit die App deine Partien erkennt.</p>
-          <button class="btn primary" onClick={() => navigate({ view: "settings" })}>
-            Zu den Einstellungen
-          </button>
-        </div>
+        <NeedNames what="zeige ich dir, welche Eröffnungen dir liegen." />
       </div>
     );
   }

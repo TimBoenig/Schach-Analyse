@@ -40,16 +40,16 @@ export function initAppearance(): void {
   } catch {
     cached = {};
   }
-  apply(cached.theme ?? "system", cached.board ?? "holz");
+  apply(cached.theme ?? "system", cached.board ?? "gruen");
   const load = async () =>
-    apply(await getSetting<ThemeMode>("ui.theme", "system"), await getSetting<BoardTheme>("ui.board", "holz"));
+    apply(await getSetting<ThemeMode>("ui.theme", "system"), await getSetting<BoardTheme>("ui.board", "gruen"));
   void load();
   // A synced change from another device applies right away.
   onDataChanged(() => void load());
 }
 
 export async function setTheme(theme: ThemeMode): Promise<void> {
-  apply(theme, (document.documentElement.dataset.board as BoardTheme) ?? "holz");
+  apply(theme, (document.documentElement.dataset.board as BoardTheme) ?? "gruen");
   await setSetting("ui.theme", theme);
 }
 

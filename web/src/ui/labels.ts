@@ -1,4 +1,4 @@
-import type { Classification } from "../domain/types";
+import type { Classification, MoveData } from "../domain/types";
 
 const BADGE_FILE: Partial<Record<Classification, string>> = {
   Brilliant: "brilliant.svg",
@@ -126,4 +126,33 @@ export function qualitySegments(counts: Partial<Record<string, number>>): { labe
     value: g.keys.reduce((s, k) => s + Number(counts[k] ?? 0), 0),
     color: g.color,
   }));
+}
+
+/** Mike's one-line verdict for a move, chess.com review style. */
+export function moveVerdict(move: Pick<MoveData, "move_number" | "fen_before" | "san" | "classification">): string {
+  const m = `${move.move_number}${move.fen_before.split(" ")[1] === "w" ? "." : "..."} ${move.san}`;
+  switch (move.classification) {
+    case "Brilliant":
+      return `Wow, ${m} ist brillant!`;
+    case "Great":
+      return `${m} ist ein großartiger Zug!`;
+    case "Best":
+      return `${m} ist der beste Zug.`;
+    case "Excellent":
+      return `${m} ist exzellent.`;
+    case "Good":
+      return `${m} ist ein guter Zug.`;
+    case "Book":
+      return `${m} ist ein Theoriezug.`;
+    case "Inaccuracy":
+      return `${m} ist ungenau.`;
+    case "Mistake":
+      return `${m} ist ein Fehler.`;
+    case "Miss":
+      return `${m} verpasst eine Chance.`;
+    case "Blunder":
+      return `Autsch, ${m} ist ein Patzer.`;
+    default:
+      return m;
+  }
 }
