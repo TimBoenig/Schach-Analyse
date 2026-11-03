@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
-import { getUserColor, inDateFilter } from "../domain/metrics";
+import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
@@ -13,6 +13,7 @@ import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, sho
 import { isTyping } from "./keys";
 import { navigate } from "./router";
 import { Coach, CoachAvatar } from "./Coach";
+import { useBulletPrefs } from "./useAnalysisPrefs";
 import { PeriodSelect } from "./useProfile";
 
 type Source = "chesscom" | "lichess" | "pgn";
@@ -352,6 +353,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
 
   const speeds = useMemo(() => [...new Set((games ?? []).map((g) => g.speed_category).filter((v): v is string => Boolean(v)))], [games]);
 
+  const { skipBullet } = useBulletPrefs();
   const scoped = useMemo(
     () => (scope === "mine" && usernames.length ? (games ?? []).filter((g) => getUserColor(g, usernames)) : (games ?? [])),
     [games, usernames, scope],
@@ -372,7 +374,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
 
   const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
 
-  const open = scoped.filter((g) => status(g) !== "completed").map((g) => g.id);
+  const open = scoped.filter((g) => status(g) !== "completed" && !(skipBullet && isBulletGame(g))).map((g) => g.id);
   const busy = Boolean(queue?.current) || (queue?.queued.length ?? 0) > 0;
   const remaining = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
 

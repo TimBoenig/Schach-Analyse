@@ -2,6 +2,7 @@ import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { enqueue, cancelCurrent, subscribeQueue, type QueueState } from "../app/analysisService";
+import { DEPTH_PRESETS, deeperPreset, settingsLabel, type DepthPreset } from "../domain/analysisDepth";
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
 import { explainMove } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
@@ -1017,6 +1018,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     {t}
                   </div>
                 ))}
+                <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
               </div>
               <div class="card">
                 <AiAnswer
@@ -1078,6 +1080,25 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Which depth the game was analysed with, and a deeper re-run for close calls. */
+function DepthNote({ game, queued, onDeeper }: { game: GameAnalysis; queued: boolean; onDeeper: (p: DepthPreset) => void }) {
+  const depth = Number(game.summary.analysis_depth) || null;
+  const movetimeMs = Number(game.summary.analysis_movetime_ms) || null;
+  // Games analysed before the depth was stored count as "Normal".
+  const next = deeperPreset({ depth: depth ?? DEPTH_PRESETS.normal.settings.depth });
+  if (!depth && !next) return null;
+  return (
+    <div class="analysis-depth-note small">
+      <span class="faint">{depth && movetimeMs ? `Analysiert mit ${settingsLabel({ depth, movetimeMs })}` : "Analysetiefe nicht gespeichert"}</span>
+      {next && (
+        <button class="btn small" disabled={queued} onClick={() => onDeeper(next)}>
+          {queued ? "In der Warteschlange" : `Genauer: ${DEPTH_PRESETS[next].name} (Tiefe ${DEPTH_PRESETS[next].settings.depth})`}
+        </button>
+      )}
     </div>
   );
 }

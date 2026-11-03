@@ -1,19 +1,48 @@
 // One Stockfish worker for the whole app plus a queue, so batch analysis and
 // the open game never compete for the CPU (and the device stays cool).
-import { analyzeGame, DEFAULT_SETTINGS, type AnalysisSettings } from "../domain/analyzer";
+import {
+  DEFAULT_CHOICES,
+  DEPTH_KEYS,
+  isBulletGame,
+  normalizeChoice,
+  recordSpeed,
+  resolveSettings,
+  scopeOf,
+  SKIP_BULLET_KEY,
+  type DepthChoice,
+  type DepthScope,
+  type SpeedLog,
+} from "../domain/analysisDepth";
+import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
 import { loadBookData } from "../domain/book";
 import type { GameAnalysis } from "../domain/types";
 import { createStockfishWorker, UciEngine } from "../engine/uci";
 import { evalCache, getGame, getSetting, putGames } from "../storage/db";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
 
-export type AnalysisStrength = "fast" | "normal" | "deep";
+/** Depth choice for own games or friends' games (older versions stored a bare preset name). */
+export async function loadDepthChoice(scope: DepthScope): Promise<DepthChoice> {
+  return normalizeChoice(await getSetting<unknown>(DEPTH_KEYS[scope], DEFAULT_CHOICES[scope]), scope);
+}
 
-export const STRENGTHS: Record<AnalysisStrength, { label: string; settings: AnalysisSettings }> = {
-  fast: { label: "Schnell (Tiefe 12)", settings: { depth: 12, movetimeMs: 400, multiPv: 2 } },
-  normal: { label: "Normal (Tiefe 16)", settings: DEFAULT_SETTINGS },
-  deep: { label: "Gründlich (Tiefe 20)", settings: { depth: 20, movetimeMs: 3000, multiPv: 2 } },
-};
+// Measured speed stays on this device: a phone and a PC differ a lot.
+const SPEED_KEY = "schach.analysis.speed";
+
+export function loadSpeedLog(): SpeedLog {
+  try {
+    return JSON.parse(localStorage.getItem(SPEED_KEY) || "{}") as SpeedLog;
+  } catch {
+    return {};
+  }
+}
+
+function saveSpeed(s: AnalysisSettings, positions: number, ms: number): void {
+  try {
+    localStorage.setItem(SPEED_KEY, JSON.stringify(recordSpeed(loadSpeedLog(), s, positions, ms)));
+  } catch {
+    // Private mode or full storage: the estimate falls back to the upper bound.
+  }
+}
 
 export interface QueueState {
   /** Game currently being analysed. */
@@ -55,15 +84,37 @@ export function getEngine(): UciEngine {
 /** Setting key: analyse freshly imported games without asking (on by default). */
 export const AUTO_ANALYZE_KEY = "analysis.auto";
 
-/** Queues freshly imported games when automatic analysis is on; returns whether it did. */
+/**
+ * Queues freshly imported games when automatic analysis is on; returns whether it did.
+ * Bullet games stay out when the user chose to skip them.
+ */
 export async function autoAnalyze(ids: string[]): Promise<boolean> {
   if (!ids.length || !(await getSetting<boolean>(AUTO_ANALYZE_KEY, true))) return false;
-  enqueue(ids);
+  let pick = ids;
+  if (await getSetting<boolean>(SKIP_BULLET_KEY, false)) {
+    const rows = await Promise.all(ids.map((id) => getGame(id)));
+    pick = ids.filter((_, i) => rows[i] && !isBulletGame(rows[i]!));
+  }
+  if (!pick.length) return false;
+  enqueue(pick);
   return true;
 }
 
+export interface EnqueueOptions {
+  /** Analyse next instead of last. */
+  front?: boolean;
+  /** Engine limits for these games instead of the own/friends setting. */
+  settings?: AnalysisSettings;
+  /** Start over instead of resuming (e.g. to re-analyse deeper). */
+  restart?: boolean;
+}
+
+// Per-game overrides (re-analysis with other limits), used once.
+const overrides = new Map<string, { settings?: AnalysisSettings; restart?: boolean }>();
+
 /** Adds games to the queue (front = analyse next). */
-export function enqueue(ids: string[], { front = false } = {}): void {
+export function enqueue(ids: string[], { front = false, settings, restart }: EnqueueOptions = {}): void {
+  if (settings || restart) for (const id of ids) overrides.set(id, { settings, restart });
   const rest = state.queued.filter((id) => !ids.includes(id) && id !== state.current);
   const add = ids.filter((id) => id !== state.current);
   emit({ queued: front ? [...add, ...rest] : [...rest, ...add] });
@@ -127,17 +178,30 @@ async function pump(): Promise<void> {
   }
 }
 
+/** Limits for one game: an override, else the own or friends setting. */
+async function settingsFor(row: { white: string; black: string }, override?: AnalysisSettings): Promise<AnalysisSettings> {
+  if (override) return override;
+  const names = await getSetting<string[]>("usernames", []);
+  return resolveSettings(await loadDepthChoice(scopeOf(row, names)));
+}
+
 async function analyseOne(id: string): Promise<void> {
   const row = await getGame(id);
+  const override = overrides.get(id);
+  overrides.delete(id);
   if (!row) return;
   const game = fromStoredGame(row);
-  const strength = await getSetting<AnalysisStrength>("analysis.strength", "normal");
+  const settings = await settingsFor(row, override?.settings);
+  const restart = Boolean(override?.restart);
   const book = await loadBookData();
   abort = new AbortController();
   emit({ live: game, total: game.moves.length });
+  const from = restart ? 0 : firstUnanalyzedIndex(game);
+  const started = Date.now();
   let lastSave = Date.now();
-  await analyzeGame(game, getEngine(), {
-    settings: STRENGTHS[strength]?.settings ?? DEFAULT_SETTINGS,
+  const summary = await analyzeGame(game, getEngine(), {
+    settings,
+    restart,
     book,
     cache: evalCache,
     signal: abort.signal,
@@ -150,6 +214,10 @@ async function analyseOne(id: string): Promise<void> {
       }
     },
   });
+  saveSpeed(settings, (summary.analyzed_moves ?? 0) - from, Date.now() - started);
+  // Remembered so the game can show its depth and offer a deeper re-run.
+  game.summary.analysis_depth = settings.depth;
+  game.summary.analysis_movetime_ms = settings.movetimeMs;
   await putGames([toStoredGame(game, row.timestamp)]);
   emit({ live: { ...game } });
 }
