@@ -9,7 +9,7 @@ import {
   playerId,
   type RankInput,
 } from "../../src/domain/players";
-import { buildPlayerProfile, type PlayerProfile } from "../../src/domain/profile";
+import { buildOpeningInsights, buildPlayerProfile, type PlayerProfile } from "../../src/domain/profile";
 import type { OpeningInsights } from "../../src/domain/profile/openings";
 import type { RawGame } from "../../src/domain/metrics";
 import { buildMoves, gameRow, PUNISHED, THROWN_WIN } from "../profile/fixtures";
@@ -113,6 +113,7 @@ describe("scouting report", () => {
     black_vs: [],
     white_vs: [],
     wp_after_opening: null,
+    tree: buildOpeningInsights([]).tree,
     facts: [],
     ...o,
   });
