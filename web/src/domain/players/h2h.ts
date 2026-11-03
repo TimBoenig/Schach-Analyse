@@ -15,6 +15,10 @@ export interface H2HGame {
   score: number;
   opening: string;
   speed: string;
+  /** Ratings at the time of the game (null when the PGN has none). */
+  rating_a: number | null;
+  rating_b: number | null;
+  source: string;
 }
 
 export interface HeadToHead {
@@ -29,6 +33,10 @@ export interface HeadToHead {
 }
 
 const POINTS = { win: 1, draw: 0.5, loss: 0 } as const;
+const elo = (v: unknown): number | null => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
 const lowerSet = (names: Iterable<string>) => new Set([...names].map((n) => n.toLowerCase()));
 
 /** Finished games between `a` and `b` from a's perspective, within the filters. */
@@ -58,6 +66,9 @@ export function headToHead(
       score: POINTS[o],
       opening: String(g.opening ?? ""),
       speed: String(g.speed_category ?? ""),
+      rating_a: elo(color === "white" ? g.white_elo : g.black_elo),
+      rating_b: elo(color === "white" ? g.black_elo : g.white_elo),
+      source: String(g.source ?? "file"),
     });
   }
   if (out.games) out.score_pct = ((out.wins + out.draws / 2) / out.games) * 100;
@@ -101,4 +112,16 @@ export function frequentOpponents(games: RawGame[], mine: Iterable<string>, excl
       last_played: e.last,
     }))
     .sort((x, y) => y.games - x.games || (y.last_played ?? 0) - (x.last_played ?? 0));
+}
+
+/** Platform most of a player's games come from ("lichess", "chesscom" or "file"). */
+export function mainSource(games: RawGame[], names: Iterable<string>): string {
+  const by = new Map<string, number>();
+  for (const [g] of filterGames(games, names)) {
+    const s = String(g.source ?? "file");
+    by.set(s, (by.get(s) ?? 0) + 1);
+  }
+  let best = "";
+  for (const [s, n] of by) if (!best || n > (by.get(best) as number)) best = s;
+  return best;
 }

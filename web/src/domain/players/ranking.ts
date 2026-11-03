@@ -3,17 +3,32 @@
 // skill, activity and the direct encounters inside the group) and combines
 // the places into one overall score.
 //
-// Ranks instead of raw values go into the overall score so that factors on
-// different scales (a rating of 1500, 3 blunders, 80 % accuracy) count alike,
-// and a factor only counts where at least two players have data for it.
+// Each factor hands out points by the chance of being truly better than each
+// other player (see compare.ts), not by bare places: 84,9 % against 85,0 %
+// accuracy is a coin flip worth about 50 points each, while a clear gap from
+// many games is worth nearly 100. So factors on different scales (a rating of
+// 1500, 3 blunders, 80 % accuracy) count alike, a lucky streak over five games
+// cannot buy a top spot, and a factor only counts where at least two players
+// have data for it.
 
-import { MIN_GROUP_GAMES } from "../profile/evidence";
 import { filterGames } from "../metrics/filters";
 import { type RawGame } from "../metrics/models";
 import { parsePlayedAt } from "../metrics/played";
 import type { PlayerProfile } from "../profile/models";
 import { SKILL_NAMES } from "../profile/skills";
-import { headToHead } from "./h2h";
+import {
+  accuracyEstimate,
+  blunderEstimate,
+  type Estimate,
+  expectationEstimate,
+  MIN_COMPARE_ANALYZED,
+  probBetter,
+  RATING_SE,
+  scoreEstimate,
+  scoreSe,
+  skillEstimate,
+} from "./compare";
+import { headToHead, mainSource } from "./h2h";
 
 export interface RankInput {
   id: string;
@@ -40,8 +55,10 @@ export interface RankCell {
   value: number | null;
   /** 1 = best; ties share the better place. */
   rank: number | null;
-  /** 0..100 position inside the group (100 = best), null when not ranked. */
+  /** 0..100: average chance of being better than each other player (null when not ranked). */
   points: number | null;
+  /** Standard error of `value` (0 for exact counts). */
+  se: number | null;
   /** Short evidence note, e.g. "12 Partien". */
   note: string;
 }
@@ -70,17 +87,16 @@ export interface Ranking {
   notes: string[];
 }
 
-// Below these samples a value is too noisy to rank.
-const MIN_RATED_GAMES = MIN_GROUP_GAMES;
-const MIN_ANALYZED = 5;
+const MIN_ANALYZED = MIN_COMPARE_ANALYZED;
 const ACTIVITY_DAYS = 30;
 
 const SKILL_FACTORS = ["opening", "middlegame", "endgame", "tactics", "safety", "conversion", "defense", "time"] as const;
 
 export const RANK_FACTORS: RankFactor[] = [
   { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, weight: 1, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit" },
-  { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, weight: 1, hint: "Punkte über oder unter der Elo-Erwartung, in Prozentpunkten" },
-  { key: "score", label: "Punkte-Quote", group: "Ergebnisse", higher_is_better: true, weight: 1, hint: "Anteil der geholten Punkte" },
+  { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, weight: 1.5, hint: "Punkte über oder unter der Elo-Erwartung, in Prozentpunkten (fair, auch bei unterschiedlich starken Gegnern)" },
+  // Raw points depend on who someone plays; "Über Erwartung" measures the same thing fairly.
+  { key: "score", label: "Punkte-Quote", group: "Ergebnisse", higher_is_better: true, weight: 0.5, hint: "Anteil der geholten Punkte (hängt stark von der Gegnerwahl ab)" },
   { key: "h2h", label: "Direktvergleich", group: "Ergebnisse", higher_is_better: true, weight: 1.5, hint: "Punkte in Partien gegeneinander (innerhalb der Gruppe)" },
   { key: "accuracy", label: "Genauigkeit", group: "Spielqualität", higher_is_better: true, weight: 1.5, hint: "Ø Genauigkeit der analysierten Partien" },
   { key: "blunders", label: "Patzer pro Partie", group: "Spielqualität", higher_is_better: false, weight: 1, hint: "Weniger ist besser" },
@@ -108,27 +124,26 @@ function commonSpeed(inputs: RankInput[]): string | null {
   return best;
 }
 
-function mainSource(games: RawGame[], names: string[]): string {
-  const by = new Map<string, number>();
-  for (const [g] of filterGames(games, names)) by.set(String(g.source ?? "file"), (by.get(String(g.source ?? "file")) ?? 0) + 1);
-  let best = "";
-  for (const [s, n] of by) if (!best || n > (by.get(best) as number)) best = s;
-  return best;
+/** Ranks with ties sharing the better place; null values stay unranked. */
+function assignRanks(values: (number | null)[], higher: boolean): (number | null)[] {
+  const present = values.filter((v): v is number => v !== null);
+  return values.map((v) => (v === null || present.length < 2 ? null : present.filter((x) => (higher ? x > v : x < v)).length + 1));
 }
 
-/** Ranks with ties sharing the better place; null values stay unranked. */
-function assignRanks(values: (number | null)[], higher: boolean): { rank: number | null; points: number | null }[] {
-  const present = values.filter((v): v is number => v !== null);
-  const n = present.length;
-  return values.map((v) => {
-    if (v === null || n < 2) return { rank: null, points: null };
-    const better = present.filter((x) => (higher ? x > v : x < v)).length;
-    const equal = present.filter((x) => x === v).length;
-    // Average position of the tied group, so a tie does not hand out full points twice.
-    const avgPos = better + (equal - 1) / 2;
-    return { rank: better + 1, points: ((n - 1 - avgPos) / (n - 1)) * 100 };
+/** Points 0..100: average chance of being better than each other player with data. */
+function chancePoints(est: (Estimate | null)[], higher: boolean): (number | null)[] {
+  const n = est.filter(Boolean).length;
+  return est.map((a, i) => {
+    if (!a || n < 2) return null;
+    let sum = 0;
+    est.forEach((b, j) => {
+      if (b && j !== i) sum += probBetter(a, b, higher);
+    });
+    return (sum / (n - 1)) * 100;
   });
 }
+
+const analyses = (n: number) => plural(n, "Analyse", "Analysen");
 
 export function buildRanking(
   inputs: RankInput[],
@@ -137,38 +152,40 @@ export function buildRanking(
 ): Ranking {
   const speed = commonSpeed(inputs);
   const notes: string[] = [];
-  const raw: Record<string, { value: number | null; note: string }[]> = {};
-  const put = (key: string, i: number, value: number | null, note = "") => {
-    (raw[key] ??= [])[i] = { value, note };
+  const sources = inputs.map((inp) => mainSource(games, inp.usernames));
+  const raw: Record<string, { est: Estimate | null; note: string }[]> = {};
+  const put = (key: string, i: number, est: Estimate | null, note = "") => {
+    (raw[key] ??= [])[i] = { est, note };
   };
+
+  // Ratings only compare within one platform: the one most rated players are on.
+  const ratingOf = (i: number) => (speed ? Number(((inputs[i].profile.overview.ratings ?? {}) as Record<string, number>)[speed]) || null : null);
+  const bySource = new Map<string, number>();
+  inputs.forEach((_, i) => ratingOf(i) !== null && bySource.set(sources[i], (bySource.get(sources[i]) ?? 0) + 1));
+  const ratingSource = [...bySource.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  let ratingDropped = false;
 
   inputs.forEach((inp, i) => {
     const p = inp.profile;
-    const o = p.overview;
-    const rc = p.rating;
-    const ratings = (o.ratings ?? {}) as Record<string, number>;
-    put("rating", i, speed && ratings[speed] ? ratings[speed] : null, speed && ratings[speed] ? speed : "");
-    put(
-      "expectation",
-      i,
-      rc && rc.expected_score !== null && rc.rated_games >= MIN_RATED_GAMES ? ((rc.score - rc.expected_score) / rc.rated_games) * 100 : null,
-      rc ? plural(rc.rated_games, "Partie", "Partien") : "",
-    );
-    put("score", i, p.total_games ? o.score_pct : null, plural(p.total_games, "Partie", "Partien"));
+    const rating = ratingOf(i);
+    const sameSite = rating !== null && sources[i] === ratingSource;
+    if (rating !== null && !sameSite) ratingDropped = true;
+    put("rating", i, sameSite ? { value: rating as number, se: RATING_SE } : null, sameSite ? (speed as string) : "");
+    put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, "Partie", "Partien") : "");
+    put("score", i, scoreEstimate(p), plural(p.total_games, "Partie", "Partien"));
+    put("accuracy", i, accuracyEstimate(p), analyses(p.analyzed_games));
+    put("blunders", i, blunderEstimate(p), analyses(p.analyzed_games));
     const enough = p.analyzed_games >= MIN_ANALYZED;
-    put("accuracy", i, enough ? o.avg_accuracy : null, plural(p.analyzed_games, "Analyse", "Analysen"));
-    const blunders = Number((o.quality_counts ?? {}).Blunder ?? 0);
-    put("blunders", i, enough ? blunders / p.analyzed_games : null, plural(p.analyzed_games, "Analyse", "Analysen"));
     for (const k of SKILL_FACTORS) {
       const s = p.skills.find((x) => x.key === k);
-      const usable = enough && s && s.sample > 0 && !(k === "time" && s.grade === "Keine Uhrdaten");
-      put(k, i, usable ? s.score : null, usable && s.margin ? `±${s.margin}` : "");
+      const est = enough ? skillEstimate(s) : null;
+      put(k, i, est, est && s?.margin ? `±${s.margin}` : "");
     }
     const recent = filterGames(games, inp.usernames).filter(([g]) => {
       const at = parsePlayedAt(g);
       return at !== null && at >= now - ACTIVITY_DAYS * 86400;
     }).length;
-    put("activity", i, recent, "");
+    put("activity", i, { value: recent, se: 0 });
 
     // Points against everyone else in the group.
     let pts = 0;
@@ -179,10 +196,11 @@ export function buildRanking(
       n += h.games;
       pts += h.wins + h.draws / 2;
     });
-    put("h2h", i, n ? (pts / n) * 100 : null, n ? `${String(pts).replace(".", ",")}/${n}` : "");
+    const pct = n ? (pts / n) * 100 : 0;
+    put("h2h", i, n ? { value: pct, se: scoreSe(pct, n) } : null, n ? `${String(pts).replace(".", ",")}/${n}` : "");
   });
 
-  const rows: RankRow[] = inputs.map((inp) => ({
+  const rows: RankRow[] = inputs.map((inp, i) => ({
     id: inp.id,
     name: inp.name,
     is_me: inp.is_me,
@@ -191,19 +209,24 @@ export function buildRanking(
     cells: {},
     games: inp.profile.total_games,
     analyzed: inp.profile.analyzed_games,
-    source: mainSource(games, inp.usernames),
+    source: sources[i],
   }));
 
   const weightSum = new Array(inputs.length).fill(0);
   const pointSum = new Array(inputs.length).fill(0);
   for (const f of RANK_FACTORS) {
-    const cells = raw[f.key] ?? [];
-    const ranks = assignRanks(inputs.map((_, i) => cells[i]?.value ?? null), f.higher_is_better);
-    ranks.forEach((r, i) => {
-      rows[i].cells[f.key] = { value: cells[i]?.value ?? null, rank: r.rank, points: r.points, note: cells[i]?.note ?? "" };
-      if (r.points !== null) {
+    const cells = inputs.map((_, i) => raw[f.key]?.[i] ?? { est: null, note: "" });
+    const est = cells.map((c) => c.est);
+    const ranks = assignRanks(
+      est.map((e) => e?.value ?? null),
+      f.higher_is_better,
+    );
+    const points = chancePoints(est, f.higher_is_better);
+    cells.forEach((c, i) => {
+      rows[i].cells[f.key] = { value: c.est?.value ?? null, se: c.est?.se ?? null, rank: ranks[i], points: points[i], note: c.note };
+      if (points[i] !== null) {
         weightSum[i] += f.weight;
-        pointSum[i] += f.weight * r.points;
+        pointSum[i] += f.weight * (points[i] as number);
       }
     });
   }
@@ -215,11 +238,12 @@ export function buildRanking(
     rows.map((r) => r.overall),
     true,
   );
-  rows.forEach((r, i) => (r.rank = overall[i].rank));
+  rows.forEach((r, i) => (r.rank = overall[i]));
   rows.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || b.games - a.games || a.name.localeCompare(b.name));
 
-  const sources = new Set(rows.map((r) => r.source).filter((s) => s === "lichess" || s === "chesscom"));
-  if (sources.size > 1) notes.push("Wertungen von Lichess und Chess.com sind nicht direkt vergleichbar – „Über Erwartung“ und die Genauigkeit sind fairer.");
+  if (ratingDropped) {
+    notes.push("Wertungen von Lichess und Chess.com sind nicht vergleichbar: die Wertung zählt nur für Spieler derselben Plattform. „Über Erwartung“ und die Genauigkeit vergleichen fair.");
+  }
   if (rows.some((r) => r.analyzed < MIN_ANALYZED)) {
     notes.push(`Genauigkeit, Patzer und Fähigkeiten zählen erst ab ${MIN_ANALYZED} analysierten Partien eines Spielers.`);
   }

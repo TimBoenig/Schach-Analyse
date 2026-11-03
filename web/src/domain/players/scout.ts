@@ -3,6 +3,11 @@
 // user's profile, so recommendations combine "where they score badly" with
 // "what you play well".
 //
+// Lines are judged against the player's own level: a 70 % player who scores
+// 50 % in a line is weak there, a 40 % player who scores 45 % is not. Skill
+// tips weigh in the user's own skills, so "steer into the endgame" comes first
+// when the user is clearly better there.
+//
 // Opening advice needs no engine analysis (results and first moves only);
 // tactical and strategic advice comes from the analyzed games' skills and
 // error map and is skipped while too little is analyzed.
@@ -25,6 +30,7 @@ import {
   Z_MULTI,
 } from "../profile/evidence";
 import { fmt } from "../profile/num";
+import { edgeOf, MIN_COMPARE_ANALYZED, probBetter, skillEstimate } from "./compare";
 import type { HeadToHead } from "./h2h";
 
 export type TipKind = "Eröffnung" | "Taktik" | "Strategie" | "Zeit" | "Psychologie";
@@ -49,6 +55,8 @@ export interface OpeningPick {
   /** The user's own record in it (null when the user never played it). */
   my_games: number;
   my_score_pct: number | null;
+  /** The player's score outside this line: the yardstick it is judged against. */
+  usual_pct: number;
   value: number;
 }
 
@@ -84,12 +92,12 @@ export interface ScoutReport {
 
 // Lines with fewer games say nothing about a player (see evidence.ts).
 export const MIN_LINE_GAMES = EVIDENCE_LINE_GAMES;
-// Pseudo-games at 50 % mixed into each line's score so a 3:0 does not read as 100 %.
+// Pseudo-games at the player's usual score mixed into each line's score so a 3:0 does not read as 100 %.
 const PRIOR_GAMES = 4;
 const MAX_PICKS = 4;
 const MAX_TIPS = 6;
 
-const shrunk = (pct: number | null, n: number) => (pct === null ? 50 : (pct * n + 50 * PRIOR_GAMES) / (n + PRIOR_GAMES));
+const shrunk = (pct: number | null, n: number, base: number) => (pct === null ? base : (pct * n + base * PRIOR_GAMES) / (n + PRIOR_GAMES));
 const p0 = (v: number) => `${fmt(v, 0)} %`;
 const games = (n: number) => `${n} ${n === 1 ? "Partie" : "Partien"}`;
 
@@ -184,18 +192,56 @@ const CAUTION: Record<string, (name: string, s: SkillScore) => string> = {
   time: (n) => `${n} teilt die Bedenkzeit gut ein. Hoffe nicht auf Zeitnot, sondern spiel auf die Stellung.`,
 };
 
-function skillTips(name: string, p: PlayerProfile): { plan: ScoutTip[]; cautions: ScoutTip[] } {
+// What to steer towards when the user is clearly better in a skill, even if
+// the player is not weak there by the standard of the rating.
+const STEER: Record<string, (name: string) => { title: string; text: string; kind: TipKind }> = {
+  opening: (n) => ({ kind: "Eröffnung", title: "Eröffnung zuspitzen", text: `Hol dir den Vorteil früh: Spiel deine Hauptvarianten und zwing ${n} in Theorie, die du besser kennst.` }),
+  middlegame: (n) => ({ kind: "Strategie", title: "Mittelspiel ausspielen", text: `Halte die Figuren auf dem Brett und tausch nicht vorschnell ab, im Mittelspiel liegt dein Plus gegen ${n}.` }),
+  endgame: (n) => ({ kind: "Strategie", title: "Ins Endspiel abwickeln", text: `Bei ausgeglichener Stellung abtauschen, vor allem die Damen: Im Endspiel bist du ${n} überlegen.` }),
+  tactics: (n) => ({ kind: "Taktik", title: "Scharf spielen", text: `Such offene, taktische Stellungen: Du siehst Taktik klar besser als ${n}.` }),
+  safety: (n) => ({ kind: "Taktik", title: "Stellung spannend halten", text: `Du stellst seltener etwas ein als ${n}. Halte die Stellung lange voller Spannung, dann passiert ${n} eher der Fehler.` }),
+  conversion: (n) => ({ kind: "Psychologie", title: "Kleine Vorteile reichen", text: `Du verwertest Vorteile sicherer als ${n}. Nimm auch einen kleinen Vorteil mit und spiel ihn ruhig aus.` }),
+  defense: (n) => ({ kind: "Psychologie", title: "Schlechte Stellungen halten", text: `Du verteidigst zäher als ${n}. Gib schlechtere Stellungen nicht auf, ${n} lässt oft noch etwas zu.` }),
+  time: (n) => ({ kind: "Zeit", title: "Tempo machen", text: `Du teilst die Zeit besser ein als ${n}. Spiel zügig und lass ${n} die Uhr spüren.` }),
+};
+
+const n0 = (v: number) => fmt(v, 0);
+
+function skillTips(name: string, p: PlayerProfile, me: PlayerProfile | null): { plan: ScoutTip[]; cautions: ScoutTip[] } {
   const plan: ScoutTip[] = [];
   const cautions: ScoutTip[] = [];
+  const compareMe = me !== null && me.analyzed_games >= MIN_COMPARE_ANALYZED && p.analyzed_games >= MIN_COMPARE_ANALYZED;
   for (const s of p.skills) {
-    if (!s.reliable || s.grade === "Keine Uhrdaten") continue;
+    if (s.grade === "Keine Uhrdaten") continue;
+    const mine = compareMe ? me.skills.find((x) => x.key === s.key) : undefined;
+    const a = skillEstimate(mine);
+    const b = skillEstimate(s);
+    // Chance that the user is truly better here (null when either side lacks data).
+    const pMe = a && b && mine?.reliable ? probBetter(a, b) : null;
+    const { edge, sure } = edgeOf(pMe);
+    const vs = mine ? ` (du ${n0(mine.score)}, ${name} ${n0(s.score)})` : "";
     const g = gap(s);
     // A gap inside the skill's own uncertainty is no reason to change the plan.
-    if (Math.abs(g) < (s.margin ?? 0) / 2) continue;
-    if ((g <= -8 || s.score < 35) && EXPLOIT[s.key]) {
-      plan.push({ key: `skill_${s.key}`, ...EXPLOIT[s.key](name, s, p), weight: Math.max(-g, 35 - s.score, 8) });
-    } else if ((g >= 8 || s.score >= 70) && CAUTION[s.key]) {
-      cautions.push({ key: `strong_${s.key}`, kind: "Strategie", title: s.name, text: CAUTION[s.key](name, s), weight: Math.max(g, s.score - 70, 8) });
+    const clearGap = s.reliable && Math.abs(g) >= (s.margin ?? 0) / 2;
+    if (clearGap && (g <= -8 || s.score < 35) && EXPLOIT[s.key]) {
+      const tip = EXPLOIT[s.key](name, s, p);
+      const bonus = edge === "me" ? 10 : edge === "them" ? -5 : 0;
+      const extra = edge === "me" ? ` Hier bist du selbst klar stärker${vs}.` : "";
+      plan.push({ key: `skill_${s.key}`, ...tip, text: tip.text + extra, weight: Math.max(-g, 35 - s.score, 8) + bonus });
+    } else if (edge === "me" && sure && mine && STEER[s.key] && mine.score - s.score >= 10) {
+      const tip = STEER[s.key](name);
+      plan.push({ key: `edge_${s.key}`, ...tip, text: `${tip.text} ${s.name}${vs}.`, weight: 6 + (mine.score - s.score) / 2 });
+    } else if (clearGap && (g >= 8 || s.score >= 70) && CAUTION[s.key]) {
+      const extra = edge === "them" ? ` ${name} ist hier klar stärker als du${vs}.` : "";
+      cautions.push({ key: `strong_${s.key}`, kind: "Strategie", title: s.name, text: CAUTION[s.key](name, s) + extra, weight: Math.max(g, s.score - 70, 8) + (edge === "them" ? 10 : 0) });
+    } else if (edge === "them" && sure && mine && CAUTION[s.key] && s.score - mine.score >= 10) {
+      cautions.push({
+        key: `strong_${s.key}`,
+        kind: "Strategie",
+        title: s.name,
+        text: `${CAUTION[s.key](name, s)} ${name} ist hier klar stärker als du${vs}.`,
+        weight: 6 + (s.score - mine.score) / 2,
+      });
     }
   }
   return { plan, cautions };
@@ -324,10 +370,28 @@ function mine(stat: { games: number; score_pct: number | null } | undefined): st
   return stat && stat.games >= MIN_LINE_GAMES && stat.score_pct !== null ? ` Du selbst holst damit ${p0(stat.score_pct)} (${games(stat.games)}).` : "";
 }
 
-function value(theirPct: number | null, n: number, my?: { games: number; score_pct: number | null }): number {
-  const base = 50 - shrunk(theirPct, n);
-  const own = my && my.games >= MIN_LINE_GAMES ? 0.4 * (shrunk(my.score_pct, my.games) - 50) : 0;
-  return base + own;
+/**
+ * The player's usual score outside a line: the yardstick for that line. Falls
+ * back to the overall score (and 50 %) when too few other games are left.
+ */
+function usual(them: PlayerProfile, games: number, pct: number | null): number {
+  const total = { games: them.total_games, score_pct: (them.overview.score_pct as number | null) ?? null };
+  const rest = pct === null ? total : restOf(total, { games, score_pct: pct });
+  if (rest.games >= MIN_GROUP_GAMES && rest.score_pct !== null) return rest.score_pct;
+  return total.score_pct ?? 50;
+}
+
+/** " Sonst holt Max 62 %." when the line is clearly below the player's usual level. */
+function vsUsual(name: string, them: PlayerProfile, n: number, pct: number | null): string {
+  const u = usual(them, n, pct);
+  return pct !== null && u - pct >= 5 ? ` Sonst holt ${name} ${p0(u)}.` : "";
+}
+
+/** How much worse the player does in a line than usual, plus a bonus when the user scores well in it. */
+function value(them: PlayerProfile, theirPct: number | null, n: number, my?: { games: number; score_pct: number | null }): number {
+  const base = usual(them, n, theirPct);
+  const own = my && my.games >= MIN_LINE_GAMES ? 0.4 * (shrunk(my.score_pct, my.games, 50) - 50) : 0;
+  return base - shrunk(theirPct, n, base) + own;
 }
 
 const reply = (moveNo: string, san: string) => `${moveNo} ${san}`;
@@ -340,22 +404,24 @@ function whitePicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
   for (const v of o.black_vs) {
     if (v.games < MIN_LINE_GAMES || v.score_pct === null) continue;
     const my = me?.openings?.white_first.find((m) => m.san === v.san);
-    const usual = v.replies[0];
+    const top = v.replies[0];
     picks.push({
       key: `w1_${v.san}`,
       title: `1. ${v.san}`,
       text:
         `Gegen 1. ${v.san} holt ${name} mit Schwarz ${p0(v.score_pct)} (${games(v.games)})` +
-        (usual ? ` und antwortet meist ${reply("1…", usual.san)}.` : ".") +
+        (top ? ` und antwortet meist ${reply("1…", top.san)}.` : ".") +
+        vsUsual(name, them, v.games, v.score_pct) +
         mine(my),
       games: v.games,
       their_score_pct: v.score_pct,
       my_games: my?.games ?? 0,
       my_score_pct: my?.score_pct ?? null,
-      value: value(v.score_pct, v.games, my),
+      value: value(them, v.score_pct, v.games, my),
+      usual_pct: usual(them, v.games, v.score_pct),
     });
   }
-  for (const l of o.black) picks.push(linePick(name, l, myLine(me, "white", l.name), "Schwarz"));
+  for (const l of o.black) picks.push(linePick(name, them, l, myLine(me, "white", l.name), "Schwarz"));
   return rank(picks);
 }
 
@@ -374,21 +440,22 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
       picks.push({
         key: `b1_${first.san}_${r.san}`,
         title: `1. ${first.san} ${r.san}`,
-        text: `Auf 1. ${first.san} mit ${reply("1…", r.san)} antworten: dagegen holt ${name} ${only}${p0(r.score_pct)} (${games(r.games)}).${mine(my)}`,
+        text: `Auf 1. ${first.san} mit ${reply("1…", r.san)} antworten: dagegen holt ${name} ${only}${p0(r.score_pct)} (${games(r.games)}).${vsUsual(name, them, r.games, r.score_pct)}${mine(my)}`,
         games: r.games,
         their_score_pct: r.score_pct,
         my_games: my?.games ?? 0,
         my_score_pct: my?.score_pct ?? null,
         // Answers to a move the player rarely plays are worth less.
-        value: value(r.score_pct, r.games, my) * (total ? 0.5 + first.games / total / 2 : 1),
+        value: value(them, r.score_pct, r.games, my) * (total ? 0.5 + first.games / total / 2 : 1),
+        usual_pct: usual(them, r.games, r.score_pct),
       });
     }
   }
-  for (const l of o.white) picks.push(linePick(name, l, myLine(me, "black", l.name), "Weiß"));
+  for (const l of o.white) picks.push(linePick(name, them, l, myLine(me, "black", l.name), "Weiß"));
   return rank(picks);
 }
 
-function linePick(name: string, l: OpeningStat, my: OpeningStat | undefined, colorDe: string): OpeningPick {
+function linePick(name: string, them: PlayerProfile, l: OpeningStat, my: OpeningStat | undefined, colorDe: string): OpeningPick {
   const extra: string[] = [];
   if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmt(l.first_error_move, 0)}`);
   if (l.wp_after_opening !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED) && l.wp_after_opening <= 45) {
@@ -400,18 +467,20 @@ function linePick(name: string, l: OpeningStat, my: OpeningStat | undefined, col
     text:
       `Mit ${colorDe} in dieser Eröffnung holt ${name} ${p0(l.score_pct ?? 0)} (${games(l.games)})` +
       (extra.length ? `; ${extra.join(", ")}.` : ".") +
+      vsUsual(name, them, l.games, l.score_pct) +
       mine(my),
     games: l.games,
     their_score_pct: l.score_pct,
     my_games: my?.games ?? 0,
     my_score_pct: my?.score_pct ?? null,
-    value: value(l.score_pct, l.games, my),
+    value: value(them, l.score_pct, l.games, my),
+    usual_pct: usual(them, l.games, l.score_pct),
   };
 }
 
 function rank(picks: OpeningPick[]): OpeningPick[] {
-  // Only lines where the player scores below 50 % even after shrinking: a line
-  // they win is no line to steer into.
+  // Only lines where the player scores below the usual level even after
+  // shrinking: a line they handle as well as any other is no line to steer into.
   return picks
     .filter((p) => p.games >= MIN_LINE_GAMES && p.value > 0)
     .sort((a, b) => b.value - a.value || b.games - a.games)
@@ -419,8 +488,9 @@ function rank(picks: OpeningPick[]): OpeningPick[] {
 }
 
 function openingTip(side: "white" | "black", picks: OpeningPick[]): ScoutTip | null {
-  // Only a line where the player clearly underperforms (beyond chance) is worth steering into.
-  const best = picks.find((p) => p.value >= 5 && scoreDeviation({ games: p.games, score_pct: p.their_score_pct }, 50) < 0);
+  // Only a line where the player clearly underperforms the usual level (beyond
+  // chance, and the best of several lines is picked, hence two-sided 95 %) is worth steering into.
+  const best = picks.find((p) => p.value >= 5 && scoreDeviation({ games: p.games, score_pct: p.their_score_pct }, p.usual_pct, Z95) < 0);
   if (!best) return null;
   return {
     key: `opening_${side}`,
@@ -434,7 +504,7 @@ function openingTip(side: "white" | "black", picks: OpeningPick[]): ScoutTip | n
 export function buildScoutReport(name: string, them: PlayerProfile, me: PlayerProfile | null, h2h: HeadToHead): ScoutReport {
   const as_white = whitePicks(name, them, me);
   const as_black = blackPicks(name, them, me);
-  const { plan, cautions } = skillTips(name, them);
+  const { plan, cautions } = skillTips(name, them, me);
   plan.push(...resultTips(name, them));
   for (const t of [openingTip("white", as_white), openingTip("black", as_black)]) if (t) plan.push(t);
   plan.sort((a, b) => b.weight - a.weight);

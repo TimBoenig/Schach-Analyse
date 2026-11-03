@@ -9,7 +9,7 @@ import { GameRecord, type RawGame } from "../metrics/models";
 import { buildExercisePool } from "../training/exercises";
 import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
-import { avg, fmt, pyRound } from "./num";
+import { avg, fmt, pyRound, stdev } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
@@ -167,6 +167,8 @@ function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]):
     win_rate: stats.win_rate ?? 0,
     score_pct: scoreOf(feats),
     avg_accuracy: stats.avg_accuracy ?? 0,
+    // Spread of single-game accuracy: how sure the average is when players are compared.
+    accuracy_sd: analyzed.length >= 2 ? stdev(analyzed.map((f) => f.rec.game_acc)) : null,
     analyzed: analyzed.length,
     clean_games_pct: stats.clean_games_pct ?? 0,
     ratings: Object.fromEntries(

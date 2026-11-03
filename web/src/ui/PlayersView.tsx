@@ -6,10 +6,14 @@ import { addPlayer, importPlayerGames, loadPlayers, removePlayer, updatePlayer }
 import { trFilter } from "../domain/i18n";
 import { getUserColor } from "../domain/metrics";
 import {
+  buildMatchup,
   buildRanking,
   buildScoutReport,
   frequentOpponents,
   headToHead,
+  mainSource,
+  type Matchup,
+  type MatchupRow,
   MIN_LINE_GAMES,
   type AccountSource,
   type HeadToHead,
@@ -623,7 +627,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             </div>
             <p class="small muted" style={{ marginTop: 0 }}>
               {factor === "overall"
-                ? "Jeder Faktor vergibt Punkte nach Platz (Bester 100, Letzter 0); die Gesamtwertung ist der gewichtete Schnitt. Genauigkeit und Direktvergleich zählen am stärksten."
+                ? "Jeder Faktor vergibt Punkte nach der Wahrscheinlichkeit, wirklich besser als die anderen zu sein (Messunsicherheit eingerechnet): ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als die Hälfte, ein klarer fast 100. Die Gesamtwertung ist der gewichtete Schnitt; Genauigkeit, Über Erwartung und Direktvergleich zählen am stärksten."
                 : ranking.factors.find((f) => f.key === factor)?.hint}
             </p>
             <RankingTable ranking={ranking} factor={factor} />
@@ -648,6 +652,105 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       )}
     </div>
+  );
+}
+
+// ---------- duel ----------
+
+function duelValue(key: string, v: number | null): string {
+  if (v === null) return "–";
+  if (key === "accuracy") return `${de(v, 1)} %`;
+  return formatFactor(key, v);
+}
+
+function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
+  if (r.p_me === null) return { text: "zu wenig Daten", cls: "" };
+  if (r.edge === "me") return { text: r.sure ? "klar du" : "eher du", cls: "duel-me" };
+  if (r.edge === "them") return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "duel-them" };
+  return { text: "offen", cls: "" };
+}
+
+/** You against the player: forecast for the next game and who leads where, with how sure that is. */
+function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
+  const p = matchup.prediction;
+  const rows = matchup.rows.filter((r) => r.p_me !== null);
+  const missing = matchup.rows.filter((r) => r.p_me === null).length;
+  return (
+    <section class="card tile span-12 duel">
+      <div class="tile-head">
+        <h3>Du gegen {name}</h3>
+        <span class="tile-sub">
+          {rows.length ? `Du vorn: ${matchup.ahead} · ${name} vorn: ${matchup.behind} · offen: ${matchup.even}` : "Vergleich"}
+        </span>
+      </div>
+      <div class="duel-grid">
+        <div class="duel-forecast">
+          <div class="kpi-label">Prognose für eure nächste Partie</div>
+          {p ? (
+            <>
+              <div class="kpi-big tnum">{pct0(p.pct)}</div>
+              <div class="small muted">
+                erwartete Punkte für dich · wahrscheinlich {Math.round(p.low)}–{Math.round(p.high)} %
+              </div>
+              <div class="duel-band" role="img" aria-label={`Prognose ${Math.round(p.pct)} Prozent, Bereich ${Math.round(p.low)} bis ${Math.round(p.high)} Prozent`}>
+                <div class="duel-band-range" style={{ left: `${p.low}%`, width: `${Math.max(1, p.high - p.low)}%` }} />
+                <div class="duel-band-mid" />
+                <div class="duel-band-mark" style={{ left: `${p.pct}%` }} />
+              </div>
+              <div class="duel-band-labels faint small">
+                <span>{name} gewinnt</span>
+                <span>ausgeglichen</span>
+                <span>du gewinnst</span>
+              </div>
+              <p class="faint small" style={{ margin: "8px 0 0" }}>
+                {p.basis}
+                {p.elo_pct !== null && p.h2h_games > 0 ? ` Die Wertung allein sagt ${pct0(p.elo_pct)}.` : ""}
+              </p>
+            </>
+          ) : (
+            <p class="muted small">
+              Für eine Prognose fehlen vergleichbare Wertungen (gleiche Plattform) oder Partien gegeneinander.
+            </p>
+          )}
+        </div>
+        <div class="duel-rows">
+          {rows.length ? (
+            rows.map((r) => {
+              const v = verdict(r, name);
+              const pMe = (r.p_me as number) * 100;
+              return (
+                <div class="duel-row" key={r.key} title={`Wahrscheinlichkeit, dass du hier besser bist: ${Math.round(pMe)} %`}>
+                  <span class={`duel-val tnum${r.edge === "me" ? " lead" : ""}`}>{duelValue(r.key, r.me)}</span>
+                  <div class="duel-mid">
+                    <div class="duel-label">
+                      <span>{r.label}</span>
+                      <span class={`duel-verdict ${v.cls}`}>{v.text}</span>
+                    </div>
+                    <div class="duel-tug">
+                      <div class="duel-tug-me" style={{ width: `${pMe}%` }} />
+                    </div>
+                  </div>
+                  <span class={`duel-val tnum them${r.edge === "them" ? " lead" : ""}`}>{duelValue(r.key, r.them)}</span>
+                </div>
+              );
+            })
+          ) : (
+            <p class="muted small">Analysiere Partien von dir und {name} (je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.</p>
+          )}
+          {rows.length > 0 && (
+            <div class="duel-legend faint small">
+              <span>
+                <span class="vs-key duel-me-key" /> du (links)
+              </span>
+              <span>
+                <span class="vs-key duel-them-key" /> {name} (rechts)
+              </span>
+              <span>Balken = Wahrscheinlichkeit, wer wirklich besser ist{missing ? ` · ${plural(missing, "Wert", "Werte")} ohne genug Daten` : ""}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -765,6 +868,20 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     () => (data && player ? buildScoutReport(player.name, data.them, data.mine, h2h) : null),
     [data, player, h2h],
   );
+  // Lichess and Chess.com ratings only compare when both mostly play on the same site.
+  const sameSite = useMemo(() => {
+    const a = mainSource(games, me);
+    return Boolean(a) && a !== "file" && a === mainSource(games, names);
+  }, [games, me, player]);
+  const matchup = useMemo(() => (data ? buildMatchup(data.mine, data.them, h2h, sameSite) : null), [data, h2h, sameSite]);
+  // The time control the two mostly play each other in, to offer tips just for it.
+  const duelSpeed = useMemo(() => {
+    const all = headToHead(games, me, names);
+    const by = new Map<string, number>();
+    for (const g of all.recent) if (g.speed) by.set(g.speed, (by.get(g.speed) ?? 0) + 1);
+    const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
+    return top && all.games >= 3 && top[1] / all.games >= 0.6 && FORMATS.includes(top[0]) ? top[0] : null;
+  }, [games, me, player]);
 
   if (!player) {
     return (
@@ -843,6 +960,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       {busy && <p class="small muted">{busy}</p>}
 
       <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
+      {duelSpeed && format !== duelSpeed && (
+        <p class="small muted duel-speed-hint">
+          Ihr spielt meist {trFilter(duelSpeed)} gegeneinander.{" "}
+          <button class="btn small" onClick={() => setFormat(duelSpeed)}>
+            Tipps nur für {trFilter(duelSpeed)}
+          </button>
+        </p>
+      )}
       {error && <p class="error">{error}</p>}
 
       {!data || !report || !them ? (
@@ -903,6 +1028,8 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
               </div>
             </div>
           </section>
+
+          {matchup && <Duel name={player.name} matchup={matchup} />}
 
           <section class="card tile span-12">
             <div class="tile-head">
@@ -1246,7 +1373,7 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
       )}
       <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>
         {tab === "rangliste"
-          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Jeder Bereich gibt Punkte nach Platz, daraus entsteht die Gesamtwertung."
+          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum, klare Vorsprünge voll. Daraus entsteht die Gesamtwertung."
           : "Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?"}
       </CoachTip>
       {tab === "rangliste" ? <RankingPanel players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
