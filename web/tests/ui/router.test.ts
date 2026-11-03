@@ -13,6 +13,7 @@ describe("router", () => {
       { view: "settings" },
       { view: "board" },
       { view: "players" },
+      { view: "moves" },
       { view: "players", tab: "rangliste" },
       { view: "players", playerId: "max-2" },
       // FENs contain slashes and spaces; they must survive the hash round trip.

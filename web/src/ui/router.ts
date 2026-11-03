@@ -10,6 +10,7 @@ export type Route =
   | { view: "games"; import?: boolean }
   | { view: "insights" }
   | { view: "openings" }
+  | { view: "moves" }
   | { view: "analysis"; gameId?: string; ply?: number }
   | { view: "board"; fen?: string }
   | { view: "profile" }
@@ -33,6 +34,8 @@ export function parseHash(hash: string): Route {
       return parts[1] ? { view: "players", playerId: decodeURIComponent(parts[1]) } : { view: "players" };
     case "eroeffnungen":
       return { view: "openings" };
+    case "zuege":
+      return { view: "moves" };
     case "partien":
       return { view: "games" };
     case "import":
@@ -63,6 +66,8 @@ export function toHash(r: Route): string {
       return r.playerId ? `#/spieler/${encodeURIComponent(r.playerId)}` : "#/spieler";
     case "openings":
       return "#/eroeffnungen";
+    case "moves":
+      return "#/zuege";
     case "training":
       if (!r.tab || r.tab === "heute") return "#/training";
       return `#/training/${r.tab}${r.category ? `/${r.category}` : ""}`;

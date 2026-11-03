@@ -20,6 +20,7 @@ import {
   CLASSIFICATION_ORDER,
   accClass,
   badgeFor,
+  CLASS_COLOR,
   classLabel,
   formatDate,
   formatEval,
@@ -117,18 +118,6 @@ const ERROR_CLASSES = new Set(["Blunder", "Mistake", "Miss", "Inaccuracy"]);
 // Moves at least as good as the engine's choice: no "better was" hint, no best-move arrow.
 const TOP_CLASSES = new Set(["Best", "Great", "Brilliant"]);
 
-const CLASS_TONE: Partial<Record<string, string>> = {
-  Brilliant: "var(--brilliant)",
-  Great: "var(--great)",
-  Best: "var(--best)",
-  Excellent: "var(--best)",
-  Good: "var(--good)",
-  Book: "var(--book)",
-  Inaccuracy: "var(--inacc)",
-  Mistake: "var(--mistake)",
-  Miss: "var(--blunder)",
-  Blunder: "var(--blunder)",
-};
 
 
 function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null }) {
@@ -232,9 +221,9 @@ function ClassTable({ game }: { game: GameAnalysis }) {
         {CLASSIFICATION_ORDER.map((c) => (
           <>
             <span>{classLabel(c)}</span>
-            <span class="w" style={{ color: CLASS_TONE[c] }}>{w[c] ?? 0}</span>
+            <span class="w" style={{ color: CLASS_COLOR[c] }}>{w[c] ?? 0}</span>
             <img src={badgeFor(c) ?? ""} alt="" />
-            <span class="b" style={{ color: CLASS_TONE[c] }}>{b[c] ?? 0}</span>
+            <span class="b" style={{ color: CLASS_COLOR[c] }}>{b[c] ?? 0}</span>
           </>
         ))}
       </div>
@@ -909,11 +898,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               <div class="move-explain">
                 <Coach
                   mood={moodFor(move.classification)}
-                  tone={CLASS_TONE[move.classification]}
+                  tone={CLASS_COLOR[move.classification]}
                   title={
                     <>
                       {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" />}
-                      <span style={{ color: CLASS_TONE[move.classification] }}>{moveVerdict(move)}</span>
+                      <span style={{ color: CLASS_COLOR[move.classification] }}>{moveVerdict(move)}</span>
                     </>
                   }
                 >

@@ -22,11 +22,15 @@ import {
   SOURCE_LABELS,
   type TrackedPlayer,
 } from "../domain/players";
-import type { PlayerProfile } from "../domain/profile";
+import { activityCalendar, dailyActivity, type PlayerProfile } from "../domain/profile";
+import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
-import { Donut, Legend, RadarChart, StackBar } from "./charts";
-import type { Segment } from "./charts";
+import { AreaChart, BarList, Donut, Legend, RadarChart, StackBar } from "./charts";
+import type { BarRow, Segment } from "./charts";
+import { Calendar, FormStats, RecentGames } from "./HomeView";
+import { ClassTiles, VersusBars } from "./MoveTally";
+import { StyleAxes } from "./ProfileView";
 import { IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { formatDate, SPEED_DE } from "./labels";
 import { navigate } from "./router";
@@ -995,6 +999,8 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             )}
           </section>
 
+          <FriendDetails name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />
+
           {h2h.recent.length > 0 && (
             <section class="card tile span-6">
               <div class="tile-head">
@@ -1023,6 +1029,138 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
       <PlayerSettings player={player} />
     </div>
+  );
+}
+
+const PHASES: [string, string][] = [
+  ["opening", "Eröffnung"],
+  ["middlegame", "Mittelspiel"],
+  ["endgame", "Endspiel"],
+];
+
+/** More about a friend: move tally, rating and accuracy history, activity, style and newest games. */
+function FriendDetails({
+  name,
+  them,
+  mine,
+  games,
+  names,
+}: {
+  name: string;
+  them: PlayerProfile;
+  mine: PlayerProfile | null;
+  games: StoredGame[];
+  names: string[];
+}) {
+  const [speed, setSpeed] = useState<string | null>(null);
+  const calendar = useMemo(() => activityCalendar(dailyActivity(games, names), localDay(), 16), [games, names.join("|")]);
+  const t = them.moves;
+  const m = mine?.moves ?? null;
+
+  const ratingSeries = (them.trends.ratings ?? {}) as Record<string, [number, number][]>;
+  const speeds = Object.keys(ratingSeries).sort((a, b) => ratingSeries[b].length - ratingSeries[a].length);
+  const shown = speed && ratingSeries[speed] ? speed : speeds[0];
+  const ratingPoints = (ratingSeries[shown] ?? []).map(([ts, r]) => {
+    const d = new Date(ts * 1000);
+    return { label: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }), value: r, detail: d.toLocaleDateString("de-DE") };
+  });
+
+  const theirPhase = (them.overview.phase_accuracy ?? {}) as Record<string, number>;
+  const myPhase = (mine?.analyzed_games ? mine.overview.phase_accuracy ?? {} : {}) as Record<string, number>;
+  // Accuracy has a 10 % floor per move, so 0 only means "no moves in this phase".
+  const known = (v: number | undefined) => (v ? v : null);
+  const phaseRows: BarRow[] = PHASES.map(([k, label]) => ({
+    label,
+    value: known(theirPhase[k]),
+    reference: known(myPhase[k]),
+    valueText: theirPhase[k] ? `${de(theirPhase[k], 1)} %` : "–",
+  }));
+  const weekly = (them.trends.weekly ?? []) as { week: string; avg_accuracy: number | null }[];
+
+  return (
+    <>
+      <section class="card tile span-6">
+        <div class="tile-head">
+          <h3>Zugbilanz von {name}</h3>
+          <span class="tile-sub">{t ? `aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}` : ""}</span>
+        </div>
+        {t ? (
+          <ClassTiles tally={t} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
+        ) : (
+          <p class="muted small">Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.</p>
+        )}
+      </section>
+
+      <section class="card tile span-6">
+        <div class="tile-head">
+          <h3>{name} und du</h3>
+          <span class="tile-sub">Zugbewertungen im Vergleich</span>
+        </div>
+        {t && m ? (
+          <VersusBars
+            a={{ label: name, moves: t.moves, counts: t.counts }}
+            b={{ label: "Du", moves: m.moves, counts: m.counts }}
+            keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
+          />
+        ) : (
+          <p class="muted small">Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.</p>
+        )}
+      </section>
+
+      {ratingPoints.length > 1 && (
+        <section class="card tile span-6">
+          <div class="tile-head">
+            <h3>Wertungsverlauf</h3>
+            <span class="tile-sub">{shown}</span>
+          </div>
+          {speeds.length > 1 && (
+            <div class="segmented small-seg">
+              {speeds.map((sp) => (
+                <button key={sp} class={sp === shown ? "active" : ""} onClick={() => setSpeed(sp)}>
+                  {sp}
+                </button>
+              ))}
+            </div>
+          )}
+          <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
+        </section>
+      )}
+
+      {them.analyzed_games > 0 && (
+        <section class="card tile span-6">
+          <div class="tile-head">
+            <h3>Genauigkeit nach Phase</h3>
+            <span class="tile-sub">{mine?.analyzed_games ? "Strich: deine Werte" : ""}</span>
+          </div>
+          <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? "Du" : undefined} />
+          <FormStats weekly={weekly} />
+        </section>
+      )}
+
+      <section class="card tile span-6">
+        <div class="tile-head">
+          <h3>Aktivität von {name}</h3>
+          <span class="tile-sub">letzte 16 Wochen</span>
+        </div>
+        <Calendar days={calendar} note="Nur Partien, die in der App gespeichert sind." />
+      </section>
+
+      {them.style && (
+        <section class="card tile span-6">
+          <div class="tile-head">
+            <h3>Spielstil: {them.style.label}</h3>
+          </div>
+          <StyleAxes axes={them.style.axes} />
+        </section>
+      )}
+
+      <section class="card tile span-6">
+        <div class="tile-head">
+          <h3>Neueste Partien von {name}</h3>
+        </div>
+        <RecentGames profile={them} />
+      </section>
+    </>
   );
 }
 

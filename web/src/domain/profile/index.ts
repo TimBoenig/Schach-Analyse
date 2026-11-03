@@ -27,6 +27,8 @@ export { buildPrecision, wilsonMargin } from "./precision";
 export { buildEvolution, bySpeed, gameTypes, personalFeedback } from "./evolution";
 export type { Evolution, EvolutionBlock, FeedbackItem, GameTypeStat, MetricChange } from "./evolution";
 export type { AccuracySpread, CurvePoint, PrecisionStats, RatingBucket, ScoreStat, Turnarounds } from "./precision";
+export { buildMoveTally, HIGHLIGHT_CLASSES, SERIOUS_CLASSES, sumOf, TALLY_CLASSES, TOP_CLASSES, totalOf } from "./moves";
+export type { ClassTally, Counts, MoveHighlight, MoveTally, TallyBlock, TallyClass, TallyFinding, TallyGame } from "./moves";
 export { buildOpeningInsights, openingLabel, openingMain } from "./openings";
 export type { FirstMoveStat, MoveChoice, OpeningGameRef, OpeningInsights, OpeningStat } from "./openings";
 export type {

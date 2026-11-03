@@ -3,6 +3,7 @@
 
 import type { Exercise } from "../training/exercises";
 import type { DeepInsights } from "./insights";
+import type { MoveTally } from "./moves";
 import type { OpeningInsights } from "./openings";
 
 /** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */
@@ -131,6 +132,8 @@ export interface PlayerProfile {
   deep: DeepInsights | null;
   /** Repertoire and opening quality (null only for an empty profile). */
   openings: OpeningInsights | null;
+  /** Every kind of move (Brilliant … Blunder) over all analyzed games (null until one is analyzed). */
+  moves: MoveTally | null;
   /** Full aggregated statistics (phases, terminations, clock, tactics) behind the overview. */
   statistics: Record<string, any>;
 }

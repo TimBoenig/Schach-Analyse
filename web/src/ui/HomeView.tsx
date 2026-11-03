@@ -94,7 +94,7 @@ function KpiStrip({ kpis, label }: { kpis: KpiChange[]; label: string }) {
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
 
-function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: number | null }[] }) {
+export function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: number | null }[] }) {
   const f = formSummary(weekly);
   if (f.weeks < 2) return null;
   const diff = f.recent !== null && f.previous !== null ? f.recent - f.previous : null;
@@ -122,7 +122,7 @@ function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: number | 
   );
 }
 
-function Calendar({ days }: { days: ReturnType<typeof activityCalendar> }) {
+export function Calendar({ days, note }: { days: ReturnType<typeof activityCalendar>; note?: string }) {
   const total = days.flat().reduce((s, d) => s + d.games, 0);
   const active = days.flat().filter((d) => d.games > 0).length;
   const level = (n: number) => (n === 0 ? 0 : n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4);
@@ -142,13 +142,14 @@ function Calendar({ days }: { days: ReturnType<typeof activityCalendar> }) {
         ))}
       </div>
       <p class="small muted tile-foot">
-        {total} Partien an {active} Tagen. Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien.
+        {total} Partien an {active} Tagen.{" "}
+        {note ?? "Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien."}
       </p>
     </>
   );
 }
 
-function RecentGames({ profile }: { profile: PlayerProfile }) {
+export function RecentGames({ profile }: { profile: PlayerProfile }) {
   const games = profile.recent_games.slice(0, 6);
   if (!games.length) return <p class="muted small">Keine Partien in diesem Zeitraum.</p>;
   return (
