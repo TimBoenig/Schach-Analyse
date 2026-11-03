@@ -39,6 +39,20 @@ export const CLASSIFICATION_ORDER: Exclude<Classification, "">[] = [
   "Blunder",
 ];
 
+/** Text and mark colour per classification (chess.com colours). */
+export const CLASS_COLOR: Partial<Record<string, string>> = {
+  Brilliant: "var(--brilliant)",
+  Great: "var(--great)",
+  Best: "var(--best)",
+  Excellent: "var(--best)",
+  Good: "var(--good)",
+  Book: "var(--book)",
+  Inaccuracy: "var(--inacc)",
+  Mistake: "var(--mistake)",
+  Miss: "var(--blunder)",
+  Blunder: "var(--blunder)",
+};
+
 export function badgeFor(c: Classification): string | null {
   const f = BADGE_FILE[c];
   return f ? `${import.meta.env.BASE_URL}badges/${f}` : null;
@@ -122,6 +136,28 @@ const QUALITY_GROUPS: { label: string; keys: Classification[]; color: string }[]
 /** Classification counts grouped for the quality distribution bar. */
 export function qualitySegments(counts: Partial<Record<string, number>>): { label: string; value: number; color: string }[] {
   return QUALITY_GROUPS.map((g) => ({
+    label: g.label,
+    value: g.keys.reduce((s, k) => s + Number(counts[k] ?? 0), 0),
+    color: g.color,
+  }));
+}
+
+// Finer split for the move tally: every class with its own colour; the two
+// pairs that share a colour in the move list are folded together.
+const DETAIL_GROUPS: { label: string; keys: Classification[]; color: string }[] = [
+  { label: "Brillant", keys: ["Brilliant"], color: "var(--brilliant)" },
+  { label: "Großartig", keys: ["Great"], color: "var(--great)" },
+  { label: "Bester Zug & exzellent", keys: ["Best", "Excellent"], color: "var(--best)" },
+  { label: "Gut", keys: ["Good"], color: "var(--good)" },
+  { label: "Buchzug", keys: ["Book"], color: "var(--book)" },
+  { label: "Ungenauigkeit", keys: ["Inaccuracy"], color: "var(--inacc)" },
+  { label: "Fehler", keys: ["Mistake"], color: "var(--mistake)" },
+  { label: "Patzer & verpasst", keys: ["Blunder", "Miss"], color: "var(--blunder)" },
+];
+
+/** Classification counts in eight colour groups (donut of the move tally). */
+export function detailSegments(counts: Partial<Record<string, number>>): { label: string; value: number; color: string }[] {
+  return DETAIL_GROUPS.map((g) => ({
     label: g.label,
     value: g.keys.reduce((s, k) => s + Number(counts[k] ?? 0), 0),
     color: g.color,

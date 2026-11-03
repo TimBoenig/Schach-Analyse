@@ -13,6 +13,7 @@ import { avg, fmt, pyRound } from "./num";
 import { expectedScore, ratingContext, withTypical } from "./benchmarks";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
+import { buildMoveTally, monthKey } from "./moves";
 import { buildOpeningInsights, openingMain } from "./openings";
 import { detectPatterns } from "./patterns";
 import { computeSkills, settleSkills } from "./skills";
@@ -111,6 +112,7 @@ export function buildPlayerProfile(
     rating: ratingContext(feats),
     deep: null,
     openings: null,
+    moves: null,
     statistics: stats,
   };
   profile.overview.phase_accuracy = stats.phase_stats?.accuracies ?? {};
@@ -129,6 +131,7 @@ export function buildPlayerProfile(
   profile.style = buildStyle(analyzed, profile.skills);
   profile.patterns = detectPatterns(feats);
   profile.deep = buildDeepInsights(feats);
+  profile.moves = buildMoveTally(feats);
   profile.training_plan = buildTrainingPlan(
     profile.skills,
     profile.patterns,
@@ -363,11 +366,6 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
       }
     }
   }
-}
-
-function monthKey(ts: number): string {
-  const d = new Date(ts * 1000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");

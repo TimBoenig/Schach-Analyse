@@ -330,11 +330,14 @@ export function BarList({
   max = 100,
   min = 0,
   referenceLabel,
+  ownLabel = "Du",
 }: {
   rows: BarRow[];
   max?: number;
   min?: number;
   referenceLabel?: string;
+  /** Legend name of the bars when a reference is shown (another player's page). */
+  ownLabel?: string;
 }) {
   const pos = (v: number) => `${Math.max(0, Math.min(100, ((v - min) / (max - min || 1)) * 100))}%`;
   const hasRef = rows.some((r) => r.reference !== null && r.reference !== undefined);
@@ -363,7 +366,7 @@ export function BarList({
       {hasRef && referenceLabel && (
         <Legend
           items={[
-            { label: "Du", color: rows[0]?.color ?? "var(--accent)" },
+            { label: ownLabel, color: rows[0]?.color ?? "var(--accent)" },
             { label: referenceLabel, color: "var(--text-3)", dashed: true },
           ]}
         />

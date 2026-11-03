@@ -1,11 +1,12 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore } from "../domain/profile";
+import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { qualitySegments } from "./labels";
+import { ClassTiles } from "./MoveTally";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
@@ -90,6 +91,32 @@ function InsightList({ items, tone, empty }: { items: Insight[]; tone: "pos" | "
         </div>
       ))}
     </div>
+  );
+}
+
+/** Style axes as dots on a track with their ± band. */
+export function StyleAxes({ axes }: { axes: StyleAxis[] }) {
+  return (
+    <>
+      {axes.map((a) => (
+        <div class="style-axis" key={a.key}>
+          <div class="labels">
+            <span>{a.low_label}</span>
+            <strong>{a.name}</strong>
+            <span>{a.high_label}</span>
+          </div>
+          <div class="track" title={a.margin ? `±${a.margin} Punkte Unsicherheit` : undefined}>
+            {a.margin ? (
+              <div
+                class="band"
+                style={{ left: `${Math.max(0, a.value - a.margin)}%`, right: `${Math.max(0, 100 - a.value - a.margin)}%` }}
+              />
+            ) : null}
+            <div class="dot" style={{ left: `${a.value}%` }} />
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -357,6 +384,10 @@ export function ProfileView() {
 
             <Card title="Zugqualität" sub="alle deine Züge" span={4}>
               <StackBar segments={quality} />
+              {profile.moves && <ClassTiles tally={profile.moves} keys={["Brilliant", "Great", "Blunder"]} compact />}
+              <button class="btn small tile-foot-btn" onClick={() => navigate({ view: "moves" })}>
+                Ganze Zugbilanz ansehen
+              </button>
             </Card>
 
             <Card title="Nach Gegnerstärke" sub="Punkte gegen Erwartung" span={4}>
@@ -410,24 +441,7 @@ export function ProfileView() {
                 <p class="small" style={{ marginTop: 0 }}>
                   {profile.style.description}
                 </p>
-                {profile.style.axes.map((a) => (
-                  <div class="style-axis" key={a.key}>
-                    <div class="labels">
-                      <span>{a.low_label}</span>
-                      <strong>{a.name}</strong>
-                      <span>{a.high_label}</span>
-                    </div>
-                    <div class="track" title={a.margin ? `±${a.margin} Punkte Unsicherheit` : undefined}>
-                      {a.margin ? (
-                        <div
-                          class="band"
-                          style={{ left: `${Math.max(0, a.value - a.margin)}%`, right: `${Math.max(0, 100 - a.value - a.margin)}%` }}
-                        />
-                      ) : null}
-                      <div class="dot" style={{ left: `${a.value}%` }} />
-                    </div>
-                  </div>
-                ))}
+                <StyleAxes axes={profile.style.axes} />
                 {profile.style.facts.length > 0 && (
                   <ul class="facts">
                     {profile.style.facts.map((f) => (

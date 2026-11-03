@@ -16,6 +16,7 @@ import {
   IconHome,
   IconInsights,
   IconMore,
+  IconMoves,
   IconOpenings,
   IconPlayers,
   IconProfile,
@@ -24,6 +25,7 @@ import {
   IconTraining,
 } from "./icons";
 import { InsightsView } from "./InsightsView";
+import { MovesView } from "./MovesView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
 import { PlayersView } from "./PlayersView";
@@ -57,6 +59,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     title: "Verstehen",
     items: [
       { view: "profile", label: "Profil", hint: "Stärken und Schwächen", icon: IconProfile },
+      { view: "moves", label: "Zugbilanz", hint: "Brillant bis Patzer, alle Partien", icon: IconMoves },
       { view: "insights", label: "Einblicke", hint: "Muster und Trainerbericht", icon: IconInsights },
       { view: "players", label: "Spieler", hint: "Gegner und Freunde", icon: IconPlayers },
     ],
@@ -205,6 +208,7 @@ export function App() {
         {route.view === "players" && <PlayersView key={route.playerId ?? route.tab ?? ""} playerId={route.playerId} tab={route.tab} />}
         {route.view === "insights" && <InsightsView />}
         {route.view === "openings" && <OpeningsView />}
+        {route.view === "moves" && <MovesView />}
         {route.view === "training" && (
           // A new tab or deep link starts fresh (and leaves a running session).
           <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />

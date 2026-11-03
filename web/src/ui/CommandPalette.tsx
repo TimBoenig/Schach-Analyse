@@ -74,6 +74,13 @@ export function CommandPalette({
         hint: p.key,
         run: go(p.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view: p.view } as Route)),
       })),
+      {
+        id: "page-moves",
+        group: "Seiten",
+        label: "Zugbilanz",
+        keywords: "brillant großartig patzer fehler zugbewertungen statistik",
+        run: go({ view: "moves" }),
+      },
       { id: "import", group: "Aktionen", label: "Partien importieren", keywords: "chess.com lichess pgn laden", run: go({ view: "games", import: true }) },
       {
         id: "export",
