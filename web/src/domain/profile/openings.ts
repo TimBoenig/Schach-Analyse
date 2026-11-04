@@ -6,6 +6,7 @@
 import type { GameFeatures } from "./features";
 import { MIN_ANALYZED, MIN_LINE_GAMES, scoresDiffer, Z_MULTI } from "./evidence";
 import { avg, pyRound } from "./num";
+import { buildOpeningTree, fenAfter, mainLine, type OpeningLeak, type OpeningTree } from "./openingTree";
 
 export interface OpeningGameRef {
   id: string;
@@ -40,6 +41,10 @@ export interface OpeningStat {
   variations: { name: string; games: number }[];
   /** Newest first. */
   recent: OpeningGameRef[];
+  /** Typical moves of this opening in the player's games (SAN from the start). */
+  line: string[];
+  /** Position after `line`, for the opening's picture. */
+  fen: string;
 }
 
 export interface MoveChoice {
@@ -64,6 +69,8 @@ export interface OpeningInsights {
   white_vs: FirstMoveStat[];
   /** Average winning chance after the opening over all analyzed games, in percent. */
   wp_after_opening: number | null;
+  /** The player's own opening tree per colour, with the moves that keep going wrong. */
+  tree: OpeningTree;
   /** Headline findings in German, strongest first. */
   facts: string[];
 }
@@ -143,6 +150,7 @@ function newestFirst(a: GameFeatures, b: GameFeatures): number {
 }
 
 function stat(name: string, color: "white" | "black", fs: GameFeatures[]): OpeningStat {
+  const line = mainLine(fs);
   const accs = fs.map(openingAccuracy).filter((v): v is number => v !== null);
   const wps = fs.map(wpAfterOpening).filter((v): v is number => v !== null);
   const exits = fs.map(bookExit).filter((v): v is number => v !== null);
@@ -182,6 +190,8 @@ function stat(name: string, color: "white" | "black", fs: GameFeatures[]): Openi
         score: f.score,
         accuracy: f.rec.game_acc > 0 ? f.rec.game_acc : null,
       })),
+    line,
+    fen: fenAfter(line),
   };
 }
 
@@ -238,6 +248,7 @@ export function buildOpeningInsights(feats: GameFeatures[]): OpeningInsights {
     black_vs: withReplies(blackVs),
     white_vs: withReplies(whiteVs),
     wp_after_opening: allWp.length ? avg(allWp) * 100 : null,
+    tree: buildOpeningTree(feats),
     facts: [],
   };
   out.facts = openingFacts(out, allWp.length);
@@ -304,9 +315,33 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
     }
   }
 
+  // A headline needs as many judged games as any other opening finding.
+  const leak = o.tree.leaks.find((l) => l.judged >= MIN_FACT_GAMES);
+  if (leak) facts.push([(leak.errors / leak.judged) * 40, leakFact(leak)]);
+
   return facts
     .sort((a, b) => b[0] - a[0])
     .map(([, t]) => t)
     .filter((t, i, all) => all.indexOf(t) === i)
     .slice(0, 6);
+}
+
+/** "1. e4 e5 2. Nf3 Nc6" style move list; a Black move alone gets "1… e5". */
+export function movesText(sans: string[], startPly = 0): string {
+  return sans
+    .map((san, i) => {
+      const ply = startPly + i;
+      const no = Math.floor(ply / 2) + 1;
+      if (ply % 2 === 0) return `${no}. ${san}`;
+      return i === 0 ? `${no}… ${san}` : san;
+    })
+    .join(" ");
+}
+
+function leakFact(l: OpeningLeak): string {
+  const ply = l.path.length - 1;
+  const where = ply > 0 ? `Nach ${movesText(l.path.slice(0, -1))} ` : "Als ersten Zug ";
+  const move = movesText([l.san], ply);
+  const better = l.better ? ` Besser ist ${movesText([l.better], ply)}.` : "";
+  return `${where}spielst du oft ${move}, das war in ${l.errors} von ${l.judged} Partien ein Fehler.${better}`;
 }

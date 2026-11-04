@@ -1,26 +1,32 @@
-import { useState } from "preact/hooks";
+import { Chess } from "chess.js";
+import { useRef, useState } from "preact/hooks";
 
 import {
   type FirstMoveStat,
+  LEAK_MIN_JUDGED,
   type MoveChoice,
+  movesText,
   OPENING_QUESTIONS,
+  type OpeningLeak,
   type OpeningStat,
   openingLabel,
   profileCoachMessages,
 } from "../domain/profile";
 import { MIN_LINE_GAMES, scoreDeviation } from "../domain/profile/evidence";
 import { AiChat, coachDetail } from "./AiCoach";
-import { BarList, Legend, StackBar } from "./charts";
+import { BarList, Legend } from "./charts";
 import type { BarRow } from "./charts";
 import { IconSpark } from "./icons";
 import { formatDate } from "./labels";
 import { navigate } from "./router";
-import { CoachTip, NeedNames } from "./Coach";
+import { Coach, CoachTip, NeedNames } from "./Coach";
+import { Explorer } from "./openings/Explorer";
+import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
+import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
 const MIN_GAMES = MIN_LINE_GAMES;
-const ROWS = 8;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const pctText = (v: number | null) => (v === null ? "–" : `${Math.round(v)} %`);
@@ -37,9 +43,28 @@ function scoreClass(v: number | null): string {
   return v >= 55 ? "good" : v < 45 ? "bad" : "";
 }
 
-function OpeningDetail({ o, overallWp }: { o: OpeningStat; overallWp: number | null }) {
+function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: number | null; onClose: () => void }) {
+  const [games, setGames] = useState(false);
   return (
     <div class="op-detail">
+      <div class="op-detail-head">
+        <strong>
+          {openingLabel(o.name)}
+          {o.eco && <span class="op-eco">{o.eco}</span>}
+        </strong>
+        <span class="small faint">
+          {plural(o.games, "Partie", "Partien")} · {pctText(o.score_pct)} Punkte
+        </span>
+        <span class="spacer" />
+        <span class="op-detail-actions">
+          <button class="btn small ghost" onClick={() => setGames(!games)}>
+            {games ? "Partien ausblenden" : "Partien zeigen"}
+          </button>
+          <button class="btn small ghost" onClick={onClose} aria-label="Eröffnung abwählen">
+            ✕
+          </button>
+        </span>
+      </div>
       <div class="op-kpis">
         <div>
           <span class="faint small">Theorie verlassen</span>
@@ -74,6 +99,7 @@ function OpeningDetail({ o, overallWp }: { o: OpeningStat; overallWp: number | n
           Analysiere diese Partien, um Genauigkeit, Gewinnchance und Fehler zu sehen.
         </p>
       )}
+      {games && (
       <div class="op-games">
         {o.recent.map((g) => (
           <button key={g.id} class="op-game" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
@@ -89,81 +115,7 @@ function OpeningDetail({ o, overallWp }: { o: OpeningStat; overallWp: number | n
           </button>
         ))}
       </div>
-    </div>
-  );
-}
-
-type SortKey = "games" | "score" | "wp" | "error";
-
-const SORTS: { key: SortKey; label: string }[] = [
-  { key: "games", label: "Partien" },
-  { key: "score", label: "Punkte" },
-  { key: "wp", label: "Nach Eröffnung" },
-  { key: "error", label: "1. Fehler" },
-];
-
-function sortValue(o: OpeningStat, key: SortKey): number {
-  if (key === "games") return o.games;
-  if (key === "score") return o.score_pct ?? -1;
-  if (key === "wp") return o.wp_after_opening ?? -1;
-  // Earliest first error is the most urgent, so it sorts to the top.
-  return o.first_error_move === null ? -999 : -o.first_error_move;
-}
-
-/** One table per colour: every opening on one line, sortable, details on tap. */
-function OpeningTable({ lines, overallWp }: { lines: OpeningStat[]; overallWp: number | null }) {
-  const [open, setOpen] = useState<string | null>(null);
-  const [all, setAll] = useState(false);
-  const [sort, setSort] = useState<SortKey>("games");
-  if (!lines.length) return <p class="muted small">Noch keine Partien mit dieser Farbe.</p>;
-  const sorted = [...lines].sort((a, b) => sortValue(b, sort) - sortValue(a, sort) || b.games - a.games);
-  const shown = all ? sorted : sorted.slice(0, ROWS);
-  return (
-    <div class="rep-table" role="table">
-      <div class="rep-row rep-header" role="row">
-        <span>Eröffnung</span>
-        {SORTS.map((c) => (
-          <button key={c.key} class={`rep-sort${sort === c.key ? " on" : ""} col-${c.key}`} onClick={() => setSort(c.key)} aria-pressed={sort === c.key}>
-            {c.label}
-            {sort === c.key ? " ↓" : ""}
-          </button>
-        ))}
-      </div>
-      {shown.map((o) => {
-        const isOpen = open === o.name;
-        return (
-          <div key={o.name} class={`rep-item${isOpen ? " open" : ""}${o.games < MIN_GAMES ? " thin" : ""}`}>
-            <button class="rep-row" role="row" onClick={() => setOpen(isOpen ? null : o.name)} aria-expanded={isOpen}>
-              <span class="rep-name">
-                <span class="op-name">
-                  {openingLabel(o.name)}
-                  {o.eco && <span class="op-eco">{o.eco}</span>}
-                </span>
-                <StackBar
-                  height={6}
-                  legend={false}
-                  segments={[
-                    { label: "Siege", value: o.wins, color: "var(--win)" },
-                    { label: "Remis", value: o.draws, color: "var(--draw)" },
-                    { label: "Niederlagen", value: o.losses, color: "var(--loss)" },
-                  ]}
-                />
-              </span>
-              <span class="tnum col-games">{o.games}</span>
-              <span class={`tnum col-score strong ${scoreClass(o.score_pct)}`}>{pctText(o.score_pct)}</span>
-              <span class={`tnum col-wp ${scoreClass(o.wp_after_opening)}`}>{pctText(o.wp_after_opening)}</span>
-              <span class="tnum col-error faint">{o.first_error_move !== null ? `Zug ${Math.round(o.first_error_move)}` : "–"}</span>
-            </button>
-            {isOpen && <OpeningDetail o={o} overallWp={overallWp} />}
-          </div>
-        );
-      })}
-      {lines.length > ROWS && (
-        <button class="btn small ghost" onClick={() => setAll(!all)}>
-          {all ? "Weniger anzeigen" : `Alle ${lines.length} anzeigen`}
-        </button>
       )}
-      <Legend items={RESULT_LEGEND} />
     </div>
   );
 }
@@ -207,15 +159,103 @@ function savedColor(): "white" | "black" {
   }
 }
 
+
+type SortKey = "games" | "best" | "worst" | "error";
+
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "games", label: "Häufigste" },
+  { key: "best", label: "Beste" },
+  { key: "worst", label: "Schwächste" },
+  { key: "error", label: "Früher Fehler" },
+];
+
+function sortLines(lines: OpeningStat[], key: SortKey): OpeningStat[] {
+  // Thin openings sort behind solid ones for best/worst: a 1:0 is no "best opening".
+  const solid = (o: OpeningStat) => (o.games >= MIN_GAMES ? 1 : 0);
+  const v = (o: OpeningStat): number => {
+    if (key === "games") return o.games;
+    if (key === "best") return solid(o) * 1000 + (o.score_pct ?? -1);
+    if (key === "worst") return solid(o) * 1000 - (o.score_pct ?? 101);
+    return o.first_error_move === null ? -999 : -o.first_error_move;
+  };
+  return [...lines].sort((a, b) => v(b) - v(a) || b.games - a.games || a.name.localeCompare(b.name));
+}
+
+const CARDS = 6;
+
+function squares(fen: string, san: string | null): { from: string; to: string } | null {
+  if (!san) return null;
+  try {
+    const m = new Chess(fen).move(san);
+    return { from: m.from, to: m.to };
+  } catch {
+    return null;
+  }
+}
+
+function Leaks({ leaks, color, onShow }: { leaks: OpeningLeak[]; color: "white" | "black"; onShow: (path: string[]) => void }) {
+  if (!leaks.length) {
+    return (
+      <Coach mood="happy" size={44} title="Keine wiederkehrenden Fehlzüge">
+        Ich melde mich hier, sobald du denselben Zug in mindestens {LEAK_MIN_JUDGED} analysierten Partien spielst und er deutlich oft ein Fehler ist.
+      </Coach>
+    );
+  }
+  return (
+    <div class="leaks">
+      {leaks.map((l) => {
+        const ply = l.path.length - 1;
+        const played = squares(l.fen, l.san);
+        const better = squares(l.fen, l.better);
+        const arrows: MiniArrow[] = [];
+        if (played) arrows.push({ ...played, color: "var(--blunder)" });
+        if (better) arrows.push({ ...better, color: "var(--arrow-best)" });
+        return (
+          <button key={l.path.join(" ")} class="leak" onClick={() => onShow(l.path)}>
+            <span class="leak-board">
+              <MiniBoard fen={l.fen} flipped={color === "black"} arrows={arrows} />
+            </span>
+            <span class="leak-body">
+              <span class="small faint leak-path">{ply ? `Nach ${movesText(l.path.slice(0, -1))}` : "Erster Zug"}</span>
+              <strong>
+                <span class="bad">{movesText([l.san], ply)}</span>
+                {l.better && (
+                  <>
+                    {" "}
+                    statt <span class="good">{movesText([l.better], ply)}</span>
+                  </>
+                )}
+              </strong>
+              <span class="small muted">
+                Fehler in {l.errors} von {l.judged} Partien · danach {pctText(l.score_pct)} Punkte
+              </span>
+            </span>
+          </button>
+        );
+      })}
+      <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: "repertoire" })}>
+        Repertoire trainieren
+      </button>
+    </div>
+  );
+}
+
 export function OpeningsView() {
   const { profile, usernames, loading, error, filters, setFilters } = useProfile();
   const [savedPick, setColor] = useState<"white" | "black">(savedColor);
   const [showAllFacts, setShowAllFacts] = useState(false);
+  const [sort, setSort] = useState<SortKey>("games");
+  const [allCards, setAllCards] = useState(false);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [path, setPath] = useState<string[]>([]);
+  const explorerRef = useRef<HTMLElement>(null);
   // A colour chosen in the shared filter bar wins, so switch and filter never disagree.
   const filterColor = filters.color === "White" ? "white" : filters.color === "Black" ? "black" : null;
   const color = filterColor ?? savedPick;
   const pickColor = (c: "white" | "black") => {
     setColor(c);
+    setSelected(null);
+    setPath([]);
     if (filterColor) setFilters({ ...filters, color: c === "white" ? "White" : "Black" });
     try {
       localStorage.setItem(COLOR_KEY, c);
@@ -223,13 +263,19 @@ export function OpeningsView() {
       // Remembering the tab is a convenience only.
     }
   };
+  const showInTree = (p: string[], name: string | null = null) => {
+    setSelected(name);
+    setPath(p);
+    explorerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const header = (
     <>
       <div class="page-title">Eröffnungen</div>
       <FilterBar filters={filters} onChange={setFilters} />
-      <CoachTip id="openings" title="Dein Eröffnungsrepertoire">
-        Hier siehst du, welche Eröffnungen du spielst und wie gut sie für dich laufen. Grün heißt: Läuft. Rot heißt: Da lohnt sich ein genauer Blick. Tippe eine Zeile an, um die Partien und Fehler dazu zu sehen.
+      <CoachTip id="openings2" title="Dein Eröffnungsrepertoire">
+        Oben siehst du deine Eröffnungen als Karten mit ihrer typischen Stellung. Tippe eine an, dann springt der Eröffnungsbaum
+        dorthin: Zug für Zug siehst du, was du spielst, was deine Gegner antworten und wo es schiefgeht.
       </CoachTip>
     </>
   );
@@ -247,10 +293,9 @@ export function OpeningsView() {
       <div>
         {header}
         <div class="dash">
-          <div class="skeleton span-12" style={{ height: "120px" }} />
-          {[0, 1].map((k) => (
-            <div key={k} class="skeleton span-6" style={{ height: "420px" }} />
-          ))}
+          <div class="skeleton span-12" style={{ height: "160px" }} />
+          <div class="skeleton span-12" style={{ height: "300px" }} />
+          <div class="skeleton span-12" style={{ height: "480px" }} />
         </div>
       </div>
     );
@@ -279,9 +324,11 @@ export function OpeningsView() {
   }
 
   const overall = (profile.overview.score_pct as number | undefined) ?? null;
+  const colorDe = color === "white" ? "Weiß" : "Schwarz";
   const lines = color === "white" ? o.white : o.black;
   const games = lines.reduce((n, l) => n + l.games, 0);
   const points = lines.reduce((n, l) => n + l.wins + l.draws / 2, 0);
+  const scorePct = games ? (points / games) * 100 : null;
   const weighted = (pick: (l: OpeningStat) => number | null) => {
     const withValue = lines.filter((l) => pick(l) !== null && l.analyzed > 0);
     const w = withValue.reduce((n, l) => n + l.analyzed, 0);
@@ -294,79 +341,139 @@ export function OpeningsView() {
     .filter((l) => scoreDeviation(l, 50) > 0)
     .sort((a, b) => (b.score_pct as number) - (a.score_pct as number))[0];
   const facts = showAllFacts ? o.facts : o.facts.slice(0, 3);
+  const sorted = sortLines(lines, sort);
+  const cards = allCards ? sorted : sorted.slice(0, CARDS);
+  const chosen = lines.find((l) => l.name === selected) ?? null;
+  const leaks = o.tree.leaks.filter((l) => l.color === color).slice(0, 4);
+  const mood = scorePct === null ? "think" : scorePct >= 55 ? "wow" : scorePct < 45 ? "think" : "happy";
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
       <div class="dash">
-        <section class="card tile span-12 facts-card">
-          <div class="tile-head">
-            <h3>Das Wichtigste zu deinen Eröffnungen</h3>
-            <span class="tile-sub">aus {plural(profile.total_games, "Partie", "Partien")}</span>
-            <span class="spacer" />
+        <section class="card op-hero span-12">
+          <div class="op-hero-main">
+            <div class="segmented color-switch" role="tablist" aria-label="Farbe">
+              {(["white", "black"] as const).map((c) => (
+                <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => pickColor(c)}>
+                  <span class={`side-dot ${c}`} /> Mit {c === "white" ? "Weiß" : "Schwarz"}
+                  <span class="faint small"> {(c === "white" ? o.white : o.black).reduce((n, l) => n + l.games, 0)}</span>
+                </button>
+              ))}
+            </div>
+            <div class="op-hero-kpis">
+              <div>
+                <span class="kpi-label">Punkte-Quote</span>
+                <strong class={`tnum ${scoreClass(scorePct)}`}>{pctText(scorePct)}</strong>
+                <span class="small faint">
+                  aus {plural(games, "Partie", "Partien")} mit {colorDe}
+                </span>
+              </div>
+              <div>
+                <span class="kpi-label">Eröffnungen</span>
+                <strong class="tnum">{lines.length}</strong>
+                <span class="small faint">{best ? `Stärkste: ${openingLabel(best.name)}` : `${lines.filter((l) => l.games >= MIN_GAMES).length} mit genug Partien`}</span>
+              </div>
+              <div>
+                <span class="kpi-label">Nach der Eröffnung</span>
+                <strong class={`tnum ${scoreClass(wpAfter)}`}>{pctText(wpAfter)}</strong>
+                <span class="small faint">deine Ø Gewinnchance</span>
+              </div>
+              <div>
+                <span class="kpi-label">Theorie verlassen</span>
+                <strong class="tnum">{bookExit !== null ? `Zug ${Math.round(bookExit)}` : "–"}</strong>
+                <span class="small faint">im Schnitt</span>
+              </div>
+            </div>
+          </div>
+          <div class="op-hero-coach">
+            <Coach mood={mood} size={56} title="Das Wichtigste zu deinen Eröffnungen">
+              {facts.length ? (
+                <ol class="fact-list compact">
+                  {facts.map((f) => (
+                    <li key={f}>{f}</li>
+                  ))}
+                </ol>
+              ) : (
+                <span>
+                  Noch keine deutlichen Unterschiede zwischen deinen Eröffnungen. Ab etwa {MIN_GAMES} Partien je Eröffnung werden die
+                  Befunde belastbar.
+                </span>
+              )}
+            </Coach>
             {o.facts.length > 3 && (
               <button class="btn small ghost" onClick={() => setShowAllFacts(!showAllFacts)}>
                 {showAllFacts ? "Weniger" : `Alle ${o.facts.length} Befunde`}
               </button>
             )}
           </div>
-          {facts.length ? (
-            <ol class="fact-list">
-              {facts.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ol>
-          ) : (
-            <p class="muted small" style={{ margin: 0 }}>
-              Noch keine deutlichen Unterschiede zwischen deinen Eröffnungen. Ab etwa drei Partien je Eröffnung werden die
-              Befunde belastbar.
-            </p>
-          )}
         </section>
 
-        <div class="span-12 color-switch-row">
-          <div class="segmented color-switch" role="tablist" aria-label="Farbe">
-            {(["white", "black"] as const).map((c) => (
-              <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => pickColor(c)}>
-                <span class={`side-dot ${c}`} /> Mit {c === "white" ? "Weiß" : "Schwarz"}
-                <span class="faint small"> {(c === "white" ? o.white : o.black).reduce((n, l) => n + l.games, 0)}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <section class="card kpi-strip op-strip span-12" aria-label="Kennzahlen dieser Farbe">
-          <div class="kpi-cell">
-            <div class="kpi-label">Partien</div>
-            <div class="kpi-value tnum">{games}</div>
-            <div class="small faint">{plural(lines.length, "Eröffnung", "Eröffnungen")}</div>
-          </div>
-          <div class="kpi-cell">
-            <div class="kpi-label">Punkte-Quote</div>
-            <div class={`kpi-value tnum ${scoreClass(games ? (points / games) * 100 : null)}`}>{games ? `${Math.round((points / games) * 100)} %` : "–"}</div>
-            <div class="small faint">mit {color === "white" ? "Weiß" : "Schwarz"}</div>
-          </div>
-          <div class="kpi-cell">
-            <div class="kpi-label">Nach der Eröffnung</div>
-            <div class={`kpi-value tnum ${scoreClass(wpAfter)}`}>{pctText(wpAfter)}</div>
-            <div class="small faint">deine Ø Gewinnchance</div>
-          </div>
-          <div class="kpi-cell">
-            <div class="kpi-label">Theorie verlassen</div>
-            <div class="kpi-value tnum">{bookExit !== null ? `Zug ${Math.round(bookExit)}` : "–"}</div>
-            <div class="small faint">{best ? `Stärkste: ${openingLabel(best.name)}` : "im Schnitt"}</div>
-          </div>
-        </section>
-
-        <section class="card tile span-8">
+        <section class="card tile span-12">
           <div class="tile-head">
-            <h3>Dein Repertoire mit {color === "white" ? "Weiß" : "Schwarz"}</h3>
-            <span class="tile-sub">Spalten antippen zum Sortieren · Zeile für Details</span>
+            <h3>Dein Repertoire mit {colorDe}</h3>
+            <span class="spacer" />
+            <div class="segmented small-seg rep-sort-seg" role="tablist" aria-label="Sortierung">
+              {SORTS.map((s) => (
+                <button key={s.key} role="tab" aria-selected={sort === s.key} class={sort === s.key ? "active" : ""} onClick={() => setSort(s.key)}>
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <OpeningTable key={color} lines={lines} overallWp={o.wp_after_opening} />
+          {lines.length ? (
+            <div class="rep-cards">
+              {cards.map((l) => (
+                <OpeningCard key={l.name} o={l} selected={selected === l.name} onSelect={() => showInTree(l.line, l.name)} />
+              ))}
+            </div>
+          ) : (
+            <p class="muted small">Noch keine Partien mit dieser Farbe.</p>
+          )}
+          <div class="rep-cards-foot">
+            <Legend items={RESULT_LEGEND} />
+            {lines.length > CARDS && (
+              <button class="btn small ghost" onClick={() => setAllCards(!allCards)}>
+                {allCards ? "Weniger anzeigen" : `Alle ${lines.length} Eröffnungen`}
+              </button>
+            )}
+          </div>
         </section>
 
-        <section class="card tile span-4">
+        <section class="card tile span-12" ref={explorerRef} id="eroeffnungsbaum">
+          <div class="tile-head">
+            <h3>Dein Eröffnungsbaum</h3>
+            <span class="tile-sub">Zug antippen oder am Brett ziehen · nur deine eigenen Partien</span>
+          </div>
+          {chosen && <OpeningDetail o={chosen} overallWp={o.wp_after_opening} onClose={() => setSelected(null)} />}
+          <Explorer root={o.tree[color]} color={color} path={path} onPath={setPath} />
+        </section>
+
+        <section class="card tile span-7">
+          <div class="tile-head">
+            <h3>Repertoire-Landkarte</h3>
+            <span class="tile-sub">Wie oft und wie gut · Punkt antippen</span>
+          </div>
+          <RepertoireMap lines={lines} average={scorePct} selected={selected} onSelect={(n) => showInTree(lines.find((l) => l.name === n)?.line ?? [], n)} />
+        </section>
+
+        <section class="card tile span-5">
+          <div class="tile-head">
+            <h3>Deine Baustellen</h3>
+            <span class="tile-sub">Züge, die immer wieder schiefgehen</span>
+          </div>
+          <Leaks leaks={leaks} color={color} onShow={(p) => showInTree(p)} />
+        </section>
+
+        <section class="card tile span-7">
+          <div class="tile-head">
+            <h3>Theorie und erster Fehler</h3>
+            <span class="tile-sub">Zug, in dem du die Theorie verlässt / Ø erster schwerer Fehler</span>
+          </div>
+          <TheoryTimeline lines={sortLines(lines, "games")} onSelect={(n) => showInTree(lines.find((l) => l.name === n)?.line ?? [], n)} />
+        </section>
+
+        <section class="card tile span-5">
           <div class="tile-head">
             <h3>{color === "white" ? "Dein erster Zug" : "Deine Antworten"}</h3>
             <span class="tile-sub">Punkte-Quote</span>
