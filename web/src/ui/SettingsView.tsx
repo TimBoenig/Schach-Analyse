@@ -2,12 +2,12 @@ import { useEffect, useState } from "preact/hooks";
 
 import { AI_PROVIDERS, type AiConfig, aiReady, defaultDetail, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
 import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile";
-import { AUTO_ANALYZE_KEY, STRENGTHS, type AnalysisStrength } from "../app/analysisService";
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
 import { getSetting, setSetting } from "../storage/db";
 import { currentUser, signIn, signOut, signUp, syncAvailable, syncNow } from "../storage/sync";
 import { IconSync } from "./icons";
 import { PeriodSelect } from "./useProfile";
+import { AnalysisSettingsCard } from "./AnalysisSettingsCard";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 
@@ -407,14 +407,10 @@ function BackupCard() {
 
 export function SettingsView() {
   const [names, setNames] = useState("");
-  const [strength, setStrength] = useState<AnalysisStrength>("normal");
-  const [auto, setAuto] = useState(true);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     void getSetting<string[]>("usernames", []).then((u) => setNames(u.join(", ")));
-    void getSetting<AnalysisStrength>("analysis.strength", "normal").then(setStrength);
-    void getSetting<boolean>(AUTO_ANALYZE_KEY, true).then(setAuto);
   }, []);
 
   const saveNames = async () => {
@@ -446,45 +442,7 @@ export function SettingsView() {
               {saved ? "Gespeichert ✓" : "Speichern"}
             </button>
           </div>
-          <div class="card">
-            <h3>Analyse-Stärke</h3>
-            <p class="muted small" style={{ marginTop: 0 }}>
-              Höhere Stärke ist genauer, braucht aber mehr Zeit und Akku. „Normal“ ist für Tablets und Handys ein guter
-              Kompromiss.
-            </p>
-            <div class="segmented full stacked">
-              {(Object.keys(STRENGTHS) as AnalysisStrength[]).map((k) => {
-                const [name, depth] = STRENGTHS[k].label.split(" (");
-                return (
-                  <button
-                    key={k}
-                    class={strength === k ? "active" : ""}
-                    onClick={() => {
-                      setStrength(k);
-                      void setSetting("analysis.strength", k);
-                    }}
-                  >
-                    {name}
-                    {depth && <small>{depth.replace(")", "")}</small>}
-                  </button>
-                );
-              })}
-            </div>
-            <label class="toggle-row">
-              <input
-                type="checkbox"
-                checked={auto}
-                onChange={(e) => {
-                  setAuto(e.currentTarget.checked);
-                  void setSetting(AUTO_ANALYZE_KEY, e.currentTarget.checked);
-                }}
-              />
-              <span>
-                <strong>Importierte Partien automatisch analysieren</strong>
-                <small class="faint">Neue Partien kommen direkt in die Warteschlange, die neuesten zuerst.</small>
-              </span>
-            </label>
-          </div>
+          <AnalysisSettingsCard />
           <AccountCard />
           <BackupCard />
         </div>

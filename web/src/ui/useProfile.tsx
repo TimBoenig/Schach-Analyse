@@ -1,13 +1,20 @@
 import { useEffect, useState } from "preact/hooks";
 
 import { buildProfileInWorker } from "../app/profileClient";
+import { statsFormat } from "../domain/analysisDepth";
 import { trFilter } from "../domain/i18n";
 import { dateWindow, isRangeFilter, previousDateFilter, rangeFilter } from "../domain/metrics";
 import type { PlayerProfile } from "../domain/profile";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
+import { useBulletPrefs } from "./useAnalysisPrefs";
 
-const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
+export const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
+
+/** Label of a format option; "Alle Formate" says when Bullet is left out. */
+export function formatOptionLabel(format: string, excludeBullet: boolean): string {
+  return excludeBullet && format === "All Formats" ? "Alle außer Bullet" : trFilter(format);
+}
 export const DATES = [
   "All Time",
   "Last 7 Days",
@@ -71,6 +78,7 @@ export function useProfile({ compare = false }: { compare?: boolean } = {}) {
   const [error, setError] = useState("");
   const [filters, setFiltersState] = useState<ProfileFilters>(lastFilters);
   const [version, setVersion] = useState(0);
+  const { excludeBullet, ready } = useBulletPrefs();
 
   const setFilters = (f: ProfileFilters) => {
     lastFilters = f;
@@ -85,6 +93,7 @@ export function useProfile({ compare = false }: { compare?: boolean } = {}) {
 
   useEffect(() => {
     let alive = true;
+    if (!ready) return;
     (async () => {
       setLoading(true);
       await restoreFilters();
@@ -97,7 +106,8 @@ export function useProfile({ compare = false }: { compare?: boolean } = {}) {
       }
       try {
         const all = await listGames();
-        const build = (date: string) => buildProfileInWorker({ games: all, usernames: names, ...filters, date });
+        const format = statsFormat(filters.format, excludeBullet);
+        const build = (date: string) => buildProfileInWorker({ games: all, usernames: names, ...filters, format, date });
         const p = await build(filters.date);
         let cmp: Comparison | null = null;
         if (compare) {
@@ -125,17 +135,29 @@ export function useProfile({ compare = false }: { compare?: boolean } = {}) {
     return () => {
       alive = false;
     };
-  }, [filters, version, compare]);
+  }, [filters, version, compare, excludeBullet, ready]);
 
-  return { profile, comparison, games, usernames, loading, error, filters, setFilters };
+  return { profile, comparison, games, usernames, loading, error, filters, setFilters, excludeBullet };
 }
 
-function Select({ value, options, onChange, label }: { value: string; options: string[]; onChange: (v: string) => void; label: string }) {
+function Select({
+  value,
+  options,
+  onChange,
+  label,
+  optionLabel = trFilter,
+}: {
+  value: string;
+  options: string[];
+  onChange: (v: string) => void;
+  label: string;
+  optionLabel?: (o: string) => string;
+}) {
   return (
     <select value={value} onChange={(e) => onChange(e.currentTarget.value)} aria-label={label}>
       {options.map((o) => (
         <option key={o} value={o}>
-          {trFilter(o)}
+          {optionLabel(o)}
         </option>
       ))}
     </select>
@@ -205,9 +227,16 @@ export function PeriodSelect({ value, onChange }: { value: string; onChange: (da
 }
 
 export function FilterBar({ filters, onChange }: { filters: ProfileFilters; onChange: (f: ProfileFilters) => void }) {
+  const { excludeBullet } = useBulletPrefs();
   return (
     <div class="filters">
-      <Select value={filters.format} options={FORMATS} onChange={(format) => onChange({ ...filters, format })} label="Bedenkzeit" />
+      <Select
+        value={filters.format}
+        options={FORMATS}
+        onChange={(format) => onChange({ ...filters, format })}
+        label="Bedenkzeit"
+        optionLabel={(o) => formatOptionLabel(o, excludeBullet)}
+      />
       <PeriodSelect value={filters.date} onChange={(date) => onChange({ ...filters, date })} />
       <Select value={filters.color} options={COLORS} onChange={(color) => onChange({ ...filters, color })} label="Farbe" />
     </div>

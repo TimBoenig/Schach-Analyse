@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { buildProfileInWorker } from "../app/profileClient";
+import { isBulletGame, statsFormat } from "../domain/analysisDepth";
 import { addPlayer, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
-import { trFilter } from "../domain/i18n";
 import { getUserColor } from "../domain/metrics";
 import {
   buildMatchup,
@@ -39,9 +39,9 @@ import { IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { formatDate, SPEED_DE } from "./labels";
 import { navigate } from "./router";
 import { CoachAvatar, CoachTip } from "./Coach";
-import { PeriodSelect } from "./useProfile";
+import { useBulletPrefs } from "./useAnalysisPrefs";
+import { FORMATS, formatOptionLabel, PeriodSelect } from "./useProfile";
 
-const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
 // Analysing on a tablet takes a while per game; the newest games say the most.
 const ANALYZE_BATCH = 20;
 
@@ -112,12 +112,13 @@ function PlayerFilters({
   onFormat: (v: string) => void;
   onDate: (v: string) => void;
 }) {
+  const { excludeBullet } = useBulletPrefs();
   return (
     <div class="filters">
       <select value={format} onChange={(e) => onFormat(e.currentTarget.value)} aria-label="Bedenkzeit">
         {FORMATS.map((f) => (
           <option key={f} value={f}>
-            {trFilter(f)}
+            {formatOptionLabel(f, excludeBullet)}
           </option>
         ))}
       </select>
@@ -552,19 +553,21 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const friends = players.filter((p) => p.friend);
+  const { excludeBullet, ready } = useBulletPrefs();
+  const fmt = statsFormat(format, excludeBullet);
 
   useEffect(() => {
-    if (!friends.length) return;
+    if (!friends.length || !ready) return;
     let alive = true;
     setLoading(true);
     const group = [
       ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
       ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
     ];
-    Promise.all(group.map((g) => profileFor(games, g.usernames, format, date)))
+    Promise.all(group.map((g) => profileFor(games, g.usernames, fmt, date)))
       .then((profiles) => {
         if (!alive) return;
-        setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format, date }));
+        setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date }));
         setError("");
       })
       .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)))
@@ -572,7 +575,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
     return () => {
       alive = false;
     };
-  }, [players, games, me, format, date]);
+  }, [players, games, me, fmt, date, ready]);
 
   if (!friends.length) {
     return (
@@ -845,12 +848,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const [loading, setLoading] = useState(false);
   const queue = useQueue();
   const names = player ? playerUsernames(player) : [];
+  const { excludeBullet, skipBullet, ready } = useBulletPrefs();
+  const fmt = statsFormat(format, excludeBullet);
 
   useEffect(() => {
-    if (!player) return;
+    if (!player || !ready) return;
     let alive = true;
     setLoading(true);
-    Promise.all([profileFor(games, names, format, date), me.length ? profileFor(games, me, format, date) : Promise.resolve(null)])
+    Promise.all([profileFor(games, names, fmt, date), me.length ? profileFor(games, me, fmt, date) : Promise.resolve(null)])
       .then(([them, mine]) => {
         if (!alive) return;
         setData({ them, mine });
@@ -861,9 +866,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     return () => {
       alive = false;
     };
-  }, [player, games, me, format, date]);
+  }, [player, games, me, fmt, date, ready]);
 
-  const h2h = useMemo(() => headToHead(games, me, names, format, date), [games, me, player, format, date]);
+  const h2h = useMemo(() => headToHead(games, me, names, fmt, date), [games, me, player, fmt, date]);
   const report = useMemo(
     () => (data && player ? buildScoutReport(player.name, data.them, data.mine, h2h) : null),
     [data, player, h2h],
@@ -880,8 +885,8 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     const by = new Map<string, number>();
     for (const g of all.recent) if (g.speed) by.set(g.speed, (by.get(g.speed) ?? 0) + 1);
     const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
-    return top && all.games >= 3 && top[1] / all.games >= 0.6 && FORMATS.includes(top[0]) ? top[0] : null;
-  }, [games, me, player]);
+    return top && all.games >= 3 && top[1] / all.games >= 0.6 && FORMATS.includes(top[0]) && !(excludeBullet && top[0] === "Bullet") ? top[0] : null;
+  }, [games, me, player, excludeBullet]);
 
   if (!player) {
     return (
@@ -895,7 +900,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   }
 
   const theirGames = gamesOf(games, names);
-  const open = theirGames.filter((g) => g.summary_json?.analysis_status !== "completed").map((g) => g.id);
+  const open = theirGames
+    .filter((g) => g.summary_json?.analysis_status !== "completed" && !(skipBullet && isBulletGame(g)))
+    .map((g) => g.id);
   const queued = new Set([...(queue?.queued ?? []), ...(queue?.current ? [queue.current] : [])]);
   const running = open.filter((g) => queued.has(g)).length;
   const online = player.accounts.some((a) => a.source !== "other");
@@ -962,9 +969,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
       {duelSpeed && format !== duelSpeed && (
         <p class="small muted duel-speed-hint">
-          Ihr spielt meist {trFilter(duelSpeed)} gegeneinander.{" "}
+          Ihr spielt meist {formatOptionLabel(duelSpeed, false)} gegeneinander.{" "}
           <button class="btn small" onClick={() => setFormat(duelSpeed)}>
-            Tipps nur für {trFilter(duelSpeed)}
+            Tipps nur für {formatOptionLabel(duelSpeed, false)}
           </button>
         </p>
       )}
