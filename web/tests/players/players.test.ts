@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildMatchup,
   buildRanking,
   buildScoutReport,
   frequentOpponents,
@@ -137,7 +138,7 @@ describe("scouting report", () => {
             score_pct: 60,
             replies: [
               { san: "e5", games: 8, score_pct: 75 },
-              { san: "c6", games: 10, score_pct: 25 },
+              { san: "c6", games: 14, score_pct: 20 },
               { san: "d5", games: 2, score_pct: 0 },
             ],
           },
@@ -150,7 +151,7 @@ describe("scouting report", () => {
     expect(r.as_white.map((p) => p.title)).not.toContain("1. c4");
     expect(r.as_black.map((p) => p.title)).not.toContain("1. e4 d5");
     expect(r.as_white[0].text).toContain("Du selbst holst damit 80 %");
-    expect(r.as_black[0]).toMatchObject({ title: "1. e4 c6", their_score_pct: 25 });
+    expect(r.as_black[0]).toMatchObject({ title: "1. e4 c6", their_score_pct: 20 });
     expect(r.plan.map((t) => t.key)).toEqual(expect.arrayContaining(["opening_white", "opening_black"]));
   });
 
@@ -178,6 +179,101 @@ describe("scouting report", () => {
     const few = { ...them, statistics: { ...them.statistics, losses: 4, loss_term_counts: { Checkmate: 1, Resignation: 1, Time: 2, Abandon: 0 } } };
     expect(buildScoutReport("Max", few, null, headToHead([], [], [])).plan.map((t) => t.key)).not.toContain("loses_on_time");
     // Advice talks about the player by name, never with a guessed pronoun.
+    for (const t of [...r.plan, ...r.cautions]) expect(t.text).not.toMatch(/\b(er|sie|ihn|ihm|ihr)\b/);
+  });
+});
+
+describe("fair comparison", () => {
+  const games = [...match("A", "X", 4, 4, "a"), ...match("B", "Y", 4, 4, "b"), ...match("C", "Z", 4, 4, "c")].map((g) =>
+    String(g.id).startsWith("c") ? { ...g, source: "lichess" } : g,
+  );
+  const withAcc = (inp: RankInput, acc: number): RankInput => ({
+    ...inp,
+    profile: { ...inp.profile, analyzed_games: 30, overview: { ...inp.profile.overview, avg_accuracy: acc, accuracy_sd: 8 } },
+  });
+
+  it("gives near-equal values near-equal points and keeps ratings to one platform", () => {
+    const ranking = buildRanking(
+      [withAcc(input("A", ["A"], games), 80), withAcc(input("B", ["B"], games), 80.2), withAcc(input("C", ["C"], games), 70)],
+      games,
+    );
+    const acc = (id: string) => ranking.rows.find((r) => r.id === id)!.cells.accuracy;
+    // B is ahead by 0,2 points: still first, but that is nearly a coin flip, not 100 against 50 points.
+    expect(acc("B").rank).toBe(1);
+    expect(Math.abs((acc("A").points as number) - (acc("B").points as number))).toBeLessThan(10);
+    expect(acc("C").points).toBeLessThan(5);
+    // C plays on Lichess, A and B on Chess.com: C's rating is left out instead of compared.
+    const rating = (id: string) => ranking.rows.find((r) => r.id === id)!.cells.rating;
+    expect([rating("A").value, rating("C").value]).toEqual([1500, null]);
+    expect(ranking.notes.join(" ")).toContain("nicht vergleichbar");
+  });
+
+  it("forecasts the duel from comparable ratings and the direct games", () => {
+    const base = buildPlayerProfile(match("Tim", "Max", 4, 4, "t"), ["Tim"]);
+    const rated = (rapid: number, skills: Record<string, [number, number]>): PlayerProfile => ({
+      ...base,
+      overview: { ...base.overview, ratings: { Schnellschach: rapid } },
+      skills: base.skills.map((s) => (skills[s.key] ? { ...s, score: skills[s.key][0], margin: skills[s.key][1], sample: 200, reliable: true } : s)),
+    });
+    const me = rated(1600, { endgame: [78, 6], tactics: [50, 6] });
+    const them = rated(1400, { endgame: [45, 6], tactics: [52, 25] });
+    const none = headToHead([], [], []);
+    const solo = buildMatchup(me, them, none, true);
+    expect(solo.prediction?.pct).toBeCloseTo(75.97, 1);
+    expect(solo.prediction?.elo).toMatchObject({ me: 1600, them: 1400, from: "Wertung" });
+    // Six lost direct games pull the forecast down, but the rating still counts like ten games.
+    const lost = { ...none, games: 6, losses: 6, score_pct: 0 };
+    const p = buildMatchup(me, them, lost, true).prediction!;
+    expect(p.pct).toBeCloseTo((0.7597 * 10) / 16 * 100, 0);
+    expect(p.low).toBeLessThan(p.pct);
+    expect(p.high).toBeGreaterThan(p.pct);
+    expect(p.basis).toContain("6 direkten Partien");
+    // Different platforms: no rating row, and without direct games no forecast at all.
+    expect(buildMatchup(me, them, none, false).prediction).toBeNull();
+    const endgame = solo.rows.find((r) => r.key === "endgame")!;
+    expect(endgame).toMatchObject({ edge: "me", sure: true });
+    // A 2-point gap with a ±25 margin on one side decides nothing.
+    expect(solo.rows.find((r) => r.key === "tactics")).toMatchObject({ edge: "even" });
+  });
+});
+
+describe("scouting against the player's own level", () => {
+  const base = buildPlayerProfile(match("Max", "Tim", 2, 6, "m"), ["Max"]);
+  const withLine = (overall: number, line: number): PlayerProfile => ({
+    ...base,
+    total_games: 60,
+    overview: { ...base.overview, score_pct: overall },
+    openings: {
+      white: [],
+      black: [],
+      white_first: [],
+      white_vs: [],
+      black_vs: [{ san: "e4", games: 20, score_pct: line, replies: [] }],
+      wp_after_opening: null,
+      tree: buildOpeningInsights([]).tree,
+      facts: [],
+    },
+  });
+
+  it("flags a line that is weak for this player, not just below 50 %", () => {
+    const strong = buildScoutReport("Max", withLine(70, 45), null, headToHead([], [], []));
+    expect(strong.plan.map((t) => t.key)).toContain("opening_white");
+    expect(strong.as_white[0].text).toContain("Sonst holt Max");
+    // 40 % in the line of a player who scores 40 % everywhere is no weak spot.
+    expect(buildScoutReport("Max", withLine(40, 40), null, headToHead([], [], [])).as_white).toEqual([]);
+  });
+
+  it("steers into skills where you are clearly better and warns where the player is", () => {
+    const set = (p: PlayerProfile, v: Record<string, number>): PlayerProfile => ({
+      ...p,
+      skills: p.skills.map((s) => ({ ...s, score: v[s.key] ?? 50, typical: v[s.key] ?? 50, margin: 6, sample: 200, reliable: true })),
+    });
+    const them = set(base, { endgame: 50, tactics: 72 });
+    const me = set(buildPlayerProfile(match("Tim", "Max", 6, 2, "t"), ["Tim"]), { endgame: 75, tactics: 50 });
+    const r = buildScoutReport("Max", them, me, headToHead([], [], []));
+    const edge = r.plan.find((t) => t.key === "edge_endgame");
+    expect(edge?.text).toContain("du 75, Max 50");
+    expect(r.cautions.find((c) => c.key === "strong_tactics")?.text).toContain("klar stärker als du");
     for (const t of [...r.plan, ...r.cautions]) expect(t.text).not.toMatch(/\b(er|sie|ihn|ihm|ihr)\b/);
   });
 });
