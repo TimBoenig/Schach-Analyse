@@ -19,8 +19,10 @@ export {
   filterGames,
   getUserColor,
   inDateFilter,
+  isBulletGame,
   isRangeFilter,
   matchesFilters,
+  NO_BULLET,
   previousDateFilter,
   rangeFilter,
 } from "./filters";

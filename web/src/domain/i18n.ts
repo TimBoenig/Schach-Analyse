@@ -106,6 +106,7 @@ export const FILTER_LABELS: Record<string, string> = {
   White: "Weiß",
   Black: "Schwarz",
   "All Formats": "Alle Formate",
+  "No Bullet": "Ohne Bullet",
   "Freestyle (Chess960)": "Freestyle (Chess960)",
   "All Sources": "Alle Quellen",
   "Chess.com": "Chess.com",

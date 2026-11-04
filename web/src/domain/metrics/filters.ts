@@ -135,6 +135,19 @@ export function getUserColor(
   return null;
 }
 
+/** Format filter value: every format except Bullet and UltraBullet. */
+export const NO_BULLET = "No Bullet";
+
+function speedOf(game: FilterableGame): string {
+  return (game.speed_category || "").trim() || detectSpeedCategory(game.time_control, game.event);
+}
+
+/** Bullet and UltraBullet: under three minutes per side, decided mostly by the clock. */
+export function isBulletGame(game: FilterableGame): boolean {
+  const s = speedOf(game).toLowerCase();
+  return s === "bullet" || s === "ultrabullet";
+}
+
 export function matchesFilters(
   game: FilterableGame,
   userColor: string | null,
@@ -153,11 +166,11 @@ export function matchesFilters(
   if (formatFilter === "Freestyle (Chess960)") {
     if (!is960) return false;
   } else {
-    if (is960 && formatFilter !== "All Formats") return false;
-    if (formatFilter !== "All Formats") {
-      let speed = (game.speed_category || "").trim();
-      if (!speed) speed = detectSpeedCategory(game.time_control, game.event);
-      if (speed.toLowerCase() !== formatFilter.toLowerCase()) return false;
+    if (formatFilter === NO_BULLET) {
+      if (isBulletGame(game)) return false;
+    } else if (formatFilter !== "All Formats") {
+      if (is960) return false;
+      if (speedOf(game).toLowerCase() !== formatFilter.toLowerCase()) return false;
     }
   }
 

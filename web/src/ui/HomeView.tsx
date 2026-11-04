@@ -5,7 +5,7 @@ import { listCoachAnswers } from "../app/coachAnswers";
 import { exportData } from "../app/exporter";
 import type { SavedCoachAnswer } from "../domain/export";
 import { trFilter, trSpeed } from "../domain/i18n";
-import { getUserColor, inDateFilter } from "../domain/metrics";
+import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import {
   activityCalendar,
   comparePeriods,
@@ -24,6 +24,7 @@ import { IconBoard, IconFreeBoard, IconPlay, IconSpark, IconTraining, IconUpload
 import { formatDate, shortOpening } from "./labels";
 import { navigate } from "./router";
 import { loadTodayTraining, type TodayTraining } from "./training/useTraining";
+import { useBulletPrefs } from "./useAnalysisPrefs";
 import { FilterBar, useProfile } from "./useProfile";
 
 // One tap for the periods that matter day to day; the filter bar below has the rest.
@@ -189,13 +190,20 @@ export function HomeView() {
   }, []);
 
   const names = usernames ?? [];
+  const { skipBullet } = useBulletPrefs();
   const calendar = useMemo(() => activityCalendar(dailyActivity(games, names), localDay(), 16), [games, usernames]);
   const open = useMemo(
     () =>
       games
-        .filter((g) => getUserColor(g, names) && g.summary_json?.analysis_status !== "completed" && inDateFilter(g, filters.date))
+        .filter(
+          (g) =>
+            getUserColor(g, names) &&
+            g.summary_json?.analysis_status !== "completed" &&
+            inDateFilter(g, filters.date) &&
+            !(skipBullet && isBulletGame(g)),
+        )
         .map((g) => g.id),
-    [games, usernames, filters.date],
+    [games, usernames, filters.date, skipBullet],
   );
 
   const runExport = async () => {

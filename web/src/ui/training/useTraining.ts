@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { buildProfileInWorker } from "../../app/profileClient";
+import { EXCLUDE_BULLET_KEY, statsFormat } from "../../domain/analysisDepth";
 import type { PlayerProfile } from "../../domain/profile";
 import {
   buildDailyPlan,
@@ -35,7 +36,8 @@ const ALL = { format: "All Formats", date: "All Time", color: "All Colors" };
 export async function loadFullProfile(): Promise<PlayerProfile | null> {
   const names = await getSetting<string[]>("usernames", []);
   if (!names.length) return null;
-  return buildProfileInWorker({ games: await listGames(), usernames: names, ...ALL });
+  const format = statsFormat(ALL.format, await getSetting<boolean>(EXCLUDE_BULLET_KEY, false));
+  return buildProfileInWorker({ games: await listGames(), usernames: names, ...ALL, format });
 }
 
 /** Training state for the AI coach on other pages. */
