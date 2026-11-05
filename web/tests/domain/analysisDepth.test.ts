@@ -12,6 +12,7 @@ import {
   scopeOf,
   statsFormat,
   TYPICAL_POSITIONS,
+  TYPICAL_VERIFY_POSITIONS,
 } from "../../src/domain/analysisDepth";
 import { filterGames } from "../../src/domain/metrics";
 import { buildPlayerProfile } from "../../src/domain/profile";
@@ -47,7 +48,9 @@ describe("analysis time estimate", () => {
 
   it("is the time-limit upper bound until enough positions were measured", () => {
     const few = recordSpeed({}, s, 10, 1000);
-    expect(estimateGame(s, few)).toEqual({ seconds: 0.4 * TYPICAL_POSITIONS, measured: false });
+    // The deeper re-check of critical moves (1.2 s each at "Schnell") is part of the bound.
+    expect(estimateGame(s, few)).toEqual({ seconds: 0.4 * TYPICAL_POSITIONS + 1.2 * TYPICAL_VERIFY_POSITIONS, measured: false });
+    expect(estimateGame({ ...s, verify: false }, few)).toEqual({ seconds: 0.4 * TYPICAL_POSITIONS, measured: false });
   });
 
   it("uses the measured device speed and lets newer runs count", () => {

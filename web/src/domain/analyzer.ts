@@ -22,6 +22,8 @@ export interface AnalysisSettings {
   movetimeMs: number;
   /** 2 lets the classifier compare against the second-best line (Great/Brilliant). */
   multiPv: number;
+  /** Re-search critical moves at deeper limits after the first pass (on unless false). */
+  verify?: boolean;
 }
 
 export const DEFAULT_SETTINGS: AnalysisSettings = { depth: 16, movetimeMs: 1000, multiPv: 2 };
@@ -40,6 +42,8 @@ export interface ProgressEvent {
   total: number;
   index: number;
   move: MoveData;
+  /** "scan" walks every position once; "verify" re-checks critical moves deeper (done/total count those positions). */
+  phase: "scan" | "verify";
 }
 
 export interface AnalyzeOptions {
@@ -95,6 +99,7 @@ function resetMove(m: MoveData): void {
   m.book_move_count = 0;
   m.book_exit_move = false;
   m.candidate_continuations = [];
+  m.deep_checked = false;
 }
 
 export function firstUnanalyzedIndex(game: GameAnalysis): number {
@@ -151,6 +156,15 @@ export function processAnalysisResults(move: MoveData, lines: PvLine[]): void {
   move.eval_before_mate = mate;
   move.best_move = best?.pv[0] ?? null;
   move.pv = best?.pv ?? [];
+}
+
+async function searchCached(fen: string, engine: PositionEngine, settings: AnalysisSettings, cache?: EvalCache): Promise<PvLine[]> {
+  const key = cacheKey(fen, settings);
+  const hit = cache ? await cache.get(key) : undefined;
+  if (hit && hit.length) return hit;
+  const lines = await engine.analyse(fen, settings);
+  if (cache && lines.length) await cache.set(key, lines);
+  return lines;
 }
 
 /** White-perspective score of the final position (mate/stalemate resolved without the engine). */
@@ -231,6 +245,9 @@ export function classifyAndSummarize(
   const fenCounts = new Map<string, number>();
   for (const f of cleanFens) if (f) fenCounts.set(f, (fenCounts.get(f) ?? 0) + 1);
 
+  // Recomputed on every pass (resume, verification), so a stale flag must not
+  // stop the real exit move from being marked or leave a second one behind.
+  for (const m of game.moves) m.book_exit_move = false;
   let recordedExit = false;
   game.moves.forEach((move, i) => {
     if (move.eval_before_cp === null && move.eval_before_mate === null) return;
@@ -283,7 +300,7 @@ export function classifyAndSummarize(
       s.Book += 1;
       if (br.current_opening) game.metadata.opening = br.current_opening;
       if (br.current_eco) game.metadata.eco = br.current_eco;
-    } else if (!recordedExit && !move.book_exit_move) {
+    } else if (!recordedExit) {
       move.book_exit_move = true;
       recordedExit = true;
     }
@@ -342,16 +359,10 @@ export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, op
       break;
     }
     const move = game.moves[i];
-    const key = cacheKey(move.fen_before, settings);
-    let lines = opts.cache ? await opts.cache.get(key) : undefined;
-    if (!lines || !lines.length) {
-      lines = await engine.analyse(move.fen_before, settings);
-      if (opts.cache && lines.length) await opts.cache.set(key, lines);
-    }
-    processAnalysisResults(move, lines);
+    processAnalysisResults(move, await searchCached(move.fen_before, engine, settings, opts.cache));
     if (i > 0) {
       provisionalClassify(game, i - 1);
-      opts.onProgress?.({ done: i, total, index: i - 1, move: game.moves[i - 1] });
+      opts.onProgress?.({ done: i, total, index: i - 1, move: game.moves[i - 1], phase: "scan" });
     }
   }
 
@@ -361,12 +372,108 @@ export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, op
     else final = await finalPositionScore(game, engine, settings);
   }
 
+  const deep = verifySettings(settings);
+  if (!interrupted && deep && total > 0) {
+    const r = await verifyCritical(game, engine, deep, final, opts);
+    final = r.final;
+    interrupted = r.interrupted;
+  }
+
   const summary = classifyAndSummarize(game, final, opts.book);
   const analyzed = game.moves.filter((m) => m.classification).length;
   summary.analysis_status = interrupted ? "paused" : "completed";
   summary.analyzed_moves = interrupted ? analyzed : total;
   summary.total_moves = total;
   game.summary = summary;
-  if (total > 0) opts.onProgress?.({ done: total, total, index: total - 1, move: game.moves[total - 1] });
+  summary.deep_checked = game.moves.filter((m) => m.deep_checked).length;
+  if (deep) summary.verify_depth = deep.depth;
+  if (total > 0) opts.onProgress?.({ done: total, total, index: total - 1, move: game.moves[total - 1], phase: "scan" });
   return summary;
+}
+
+// ---- verification of critical moves ----
+//
+// A fixed short search per position is reliable for blunders but rough for
+// small losses, and "only move" praise depends on the gap between two lines
+// at that depth. So after the first pass the moves whose rating matters most
+// are searched again, deeper: the position before (engine lines, best move)
+// and the position after (the score the move is judged by). A move that only
+// turns critical with the deeper scores is checked in the next round.
+
+/** Ratings worth a deeper look: errors and "only move" praise. */
+const CRITICAL: ReadonlySet<string> = new Set(["Inaccuracy", "Mistake", "Blunder", "Miss", "Great", "Brilliant"]);
+const PRAISE: ReadonlySet<string> = new Set(["Great", "Brilliant"]);
+/** A "Good" move this close to an inaccuracy is checked too: the short search may have underrated the loss. */
+export const BORDERLINE_LOSS = 0.03;
+/** At most this many deeper searches per game, so the extra time stays bounded (thermal safety on phones). */
+export const VERIFY_MAX_POSITIONS = 24;
+const VERIFY_ROUNDS = 3;
+const VERIFY_DEPTH_CAP = 26;
+
+/** Deeper limits for the verification pass, or null when it is switched off or cannot go deeper. */
+export function verifySettings(s: AnalysisSettings): AnalysisSettings | null {
+  if (s.verify === false) return null;
+  const depth = Math.min(s.depth + 6, VERIFY_DEPTH_CAP);
+  if (depth <= s.depth) return null;
+  // Three times the time, but at most 6 s unless the base limit already allows more.
+  const movetimeMs = Math.round(Math.min(s.movetimeMs * 3, Math.max(s.movetimeMs, 6000)));
+  return { depth, movetimeMs, multiPv: Math.max(2, s.multiPv), verify: false };
+}
+
+/** Indices of classified moves that deserve a deeper look, most important first. */
+export function criticalMoves(game: GameAnalysis): number[] {
+  const picks: { i: number; loss: number; praise: boolean }[] = [];
+  game.moves.forEach((m, i) => {
+    if (!m.classification || m.classification === "Book") return;
+    const side = sideToMove(m.fen_before);
+    const loss = judgedLoss(m, wplFor(side, m.win_chance_before, m.win_chance_after));
+    if (CRITICAL.has(m.classification) || (m.classification === "Good" && loss >= BORDERLINE_LOSS)) {
+      picks.push({ i, loss, praise: PRAISE.has(m.classification) });
+    }
+  });
+  // Errors by size first: a wrong blunder label hurts more than a wrong "Great".
+  picks.sort((a, b) => Number(a.praise) - Number(b.praise) || b.loss - a.loss || a.i - b.i);
+  return picks.map((p) => p.i);
+}
+
+async function verifyCritical(
+  game: GameAnalysis,
+  engine: PositionEngine,
+  deep: AnalysisSettings,
+  final: { cp: number | null; mate: number | null } | null,
+  opts: AnalyzeOptions,
+): Promise<{ final: { cp: number | null; mate: number | null } | null; interrupted: boolean }> {
+  const total = game.moves.length;
+  let finalDeep = false;
+  let budget = VERIFY_MAX_POSITIONS;
+  let done = 0;
+  for (let round = 0; round < VERIFY_ROUNDS && budget > 0; round++) {
+    classifyAndSummarize(game, final, opts.book);
+    // Position p is the one before move p; p === total is the final position.
+    const todo = new Set<number>();
+    for (const i of criticalMoves(game)) {
+      const need = [i, i + 1].filter((p) => !todo.has(p) && (p < total ? !game.moves[p].deep_checked : !finalDeep));
+      if (todo.size + need.length > budget) break;
+      for (const p of need) todo.add(p);
+    }
+    if (!todo.size) break;
+    const target = done + todo.size;
+    for (const p of [...todo].sort((a, b) => a - b)) {
+      if (opts.signal?.aborted) return { final, interrupted: true };
+      if (p === total) {
+        final = (await finalPositionScore(game, engine, deep)) ?? final;
+        finalDeep = true;
+      } else {
+        const move = game.moves[p];
+        const lines = await searchCached(move.fen_before, engine, deep, opts.cache);
+        if (lines.length) processAnalysisResults(move, lines);
+        move.deep_checked = true;
+      }
+      budget--;
+      done++;
+      const index = Math.min(p, total - 1);
+      opts.onProgress?.({ done, total: target, index, move: game.moves[index], phase: "verify" });
+    }
+  }
+  return { final, interrupted: false };
 }

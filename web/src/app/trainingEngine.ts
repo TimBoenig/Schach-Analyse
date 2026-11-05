@@ -6,9 +6,14 @@ import { createStockfishWorker, UciEngine } from "../engine/uci";
 let engine: UciEngine | null = null;
 
 export function getTrainingEngine(): UciEngine {
+  // A crashed worker (e.g. iOS reclaiming memory) is replaced on the next request.
+  if (engine?.failed) {
+    engine.quit();
+    engine = null;
+  }
   if (!engine) {
     engine = new UciEngine(createStockfishWorker());
-    void engine.setOption("Hash", 16);
+    engine.setOption("Hash", 16).catch(() => undefined);
   }
   return engine;
 }

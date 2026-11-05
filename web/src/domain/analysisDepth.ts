@@ -1,7 +1,7 @@
 // How deep Stockfish looks at each position, chosen separately for the user's
 // own games and for friends' games, plus the Bullet exclusion rules.
 // Headless: the app layer stores the choices as settings.
-import { DEFAULT_SETTINGS, type AnalysisSettings } from "./analyzer";
+import { DEFAULT_SETTINGS, verifySettings, type AnalysisSettings } from "./analyzer";
 import { getUserColor, isBulletGame, NO_BULLET, type FilterableGame } from "./metrics/filters";
 
 export { isBulletGame, NO_BULLET };
@@ -44,6 +44,8 @@ export const DEPTH_KEYS: Record<DepthScope, string> = {
 };
 /** Bulk and automatic analysis leave Bullet games out (a single game can still be analysed). */
 export const SKIP_BULLET_KEY = "analysis.skipBullet";
+/** Critical moves are re-searched deeper after the first pass (on by default). */
+export const VERIFY_KEY = "analysis.verify";
 /** Statistics, profile, friends and training leave Bullet games out. */
 export const EXCLUDE_BULLET_KEY = "stats.excludeBullet";
 
@@ -125,10 +127,16 @@ export type SpeedLog = Record<string, SpeedSample>;
 /** Positions in a typical game of 40 moves, plus the start position. */
 export const TYPICAL_POSITIONS = 81;
 
-export const speedKey = (s: Pick<AnalysisSettings, "depth" | "movetimeMs">) => `d${s.depth}t${s.movetimeMs}`;
+/** Deeper re-checks in a typical game: about five critical moves, two positions each. */
+export const TYPICAL_VERIFY_POSITIONS = 10;
+
+type SpeedSettings = Pick<AnalysisSettings, "depth" | "movetimeMs" | "verify">;
+
+// Runs with and without the deeper re-check take different times, so they are logged apart.
+export const speedKey = (s: SpeedSettings) => `d${s.depth}t${s.movetimeMs}${s.verify === false ? "" : "v"}`;
 
 /** Adds one run to the log; the sample is capped so newer runs keep counting. */
-export function recordSpeed(log: SpeedLog, s: Pick<AnalysisSettings, "depth" | "movetimeMs">, positions: number, ms: number): SpeedLog {
+export function recordSpeed(log: SpeedLog, s: SpeedSettings, positions: number, ms: number): SpeedLog {
   if (positions <= 0 || ms <= 0) return log;
   const key = speedKey(s);
   const prev = log[key] ?? { positions: 0, ms: 0 };
@@ -150,13 +158,15 @@ export interface GameEstimate {
 const MIN_MEASURED_POSITIONS = 30;
 
 /** How long one typical game takes at these limits. */
-export function estimateGame(s: Pick<AnalysisSettings, "depth" | "movetimeMs">, log: SpeedLog = {}): GameEstimate {
+export function estimateGame(s: SpeedSettings, log: SpeedLog = {}): GameEstimate {
   const sample = log[speedKey(s)];
   if (sample && sample.positions >= MIN_MEASURED_POSITIONS) {
     return { seconds: (sample.ms / sample.positions / 1000) * TYPICAL_POSITIONS, measured: true };
   }
   // Without a measurement only the time limit is known: an upper bound.
-  return { seconds: (s.movetimeMs / 1000) * TYPICAL_POSITIONS, measured: false };
+  const deep = verifySettings({ multiPv: 2, ...s });
+  const verifyMs = deep ? deep.movetimeMs * TYPICAL_VERIFY_POSITIONS : 0;
+  return { seconds: (s.movetimeMs * TYPICAL_POSITIONS + verifyMs) / 1000, measured: false };
 }
 
 /** "45 s", "3 min", "1 h 10 min". */

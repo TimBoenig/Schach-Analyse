@@ -57,6 +57,8 @@ export interface MoveData {
   time_left: number | null;
   time_spent: number | null;
   raw_clk: string | null;
+  /** The position before this move was re-searched at the deeper verification limits. */
+  deep_checked?: boolean;
 }
 
 export interface GameMetadata {

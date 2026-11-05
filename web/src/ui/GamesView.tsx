@@ -441,7 +441,13 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
               <strong>Analyse läuft</strong>
               <span class="muted">
                 {" "}
-                · {queue.current ? `${queue.done}/${queue.total} Züge · ` : ""}noch {remaining}{" "}
+                ·{" "}
+                {queue.current
+                  ? queue.phase === "verify"
+                    ? `Nachprüfung ${queue.done}/${queue.total} · `
+                    : `${queue.done}/${queue.total} Züge · `
+                  : ""}
+                noch {remaining}{" "}
                 {remaining === 1 ? "Partie" : "Partien"}
               </span>
             </span>
@@ -455,6 +461,13 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             <div style={{ width: `${Math.round((queue.done / Math.max(1, queue.total)) * 100)}%` }} />
           </div>
           {queue.error && <p class="error small">{queue.error}</p>}
+        </div>
+      )}
+      {!busy && queue?.error && (
+        <div class="card">
+          <p class="error small" style={{ margin: 0 }}>
+            Die Analyse wurde gestoppt: {queue.error} Lade die Seite neu und starte sie noch einmal.
+          </p>
         </div>
       )}
 

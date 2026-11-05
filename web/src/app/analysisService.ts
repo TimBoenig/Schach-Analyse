@@ -9,6 +9,7 @@ import {
   resolveSettings,
   scopeOf,
   SKIP_BULLET_KEY,
+  VERIFY_KEY,
   type DepthChoice,
   type DepthScope,
   type SpeedLog,
@@ -16,7 +17,7 @@ import {
 import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
 import { loadBookData } from "../domain/book";
 import type { GameAnalysis } from "../domain/types";
-import { createStockfishWorker, UciEngine } from "../engine/uci";
+import { createStockfishWorker, EngineFailure, UciEngine } from "../engine/uci";
 import { evalCache, getGame, getSetting, putGames } from "../storage/db";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
 
@@ -53,10 +54,12 @@ export interface QueueState {
   /** Live copy of the game in analysis, for the analysis view. */
   live: GameAnalysis | null;
   error: string | null;
+  /** "verify" while critical moves are re-checked deeper; done/total then count those positions. */
+  phase: "scan" | "verify";
 }
 
 let engine: UciEngine | null = null;
-let state: QueueState = { current: null, done: 0, total: 0, queued: [], live: null, error: null };
+let state: QueueState = { current: null, done: 0, total: 0, queued: [], live: null, error: null, phase: "scan" };
 let abort: AbortController | null = null;
 let running = false;
 const listeners = new Set<(s: QueueState) => void>();
@@ -73,10 +76,15 @@ export function subscribeQueue(cb: (s: QueueState) => void): () => void {
 }
 
 export function getEngine(): UciEngine {
+  // A crashed worker (e.g. iOS reclaiming memory) is replaced on the next request.
+  if (engine?.failed) {
+    engine.quit();
+    engine = null;
+  }
   if (!engine) {
     engine = new UciEngine(createStockfishWorker());
     // Small hash keeps memory low on phones (thermal/memory safety like the desktop defaults).
-    void engine.setOption("Hash", 32);
+    engine.setOption("Hash", 32).catch(() => undefined);
   }
   return engine;
 }
@@ -164,11 +172,14 @@ async function pump(): Promise<void> {
   try {
     while (state.queued.length) {
       const [id, ...rest] = state.queued;
-      emit({ queued: rest, current: id, done: 0, total: 0, error: null });
+      emit({ queued: rest, current: id, done: 0, total: 0, error: null, phase: "scan" });
       try {
         await analyseOne(id);
       } catch (e) {
         emit({ error: e instanceof Error ? e.message : String(e) });
+        // Without a working engine every other game would fail the same way;
+        // they stay unanalysed and can be started again.
+        if (e instanceof EngineFailure) emit({ queued: [] });
       }
     }
   } finally {
@@ -180,9 +191,10 @@ async function pump(): Promise<void> {
 
 /** Limits for one game: an override, else the own or friends setting. */
 async function settingsFor(row: { white: string; black: string }, override?: AnalysisSettings): Promise<AnalysisSettings> {
-  if (override) return override;
+  const verify = await getSetting<boolean>(VERIFY_KEY, true);
+  if (override) return { ...override, verify };
   const names = await getSetting<string[]>("usernames", []);
-  return resolveSettings(await loadDepthChoice(scopeOf(row, names)));
+  return { ...resolveSettings(await loadDepthChoice(scopeOf(row, names))), verify };
 }
 
 async function analyseOne(id: string): Promise<void> {
@@ -206,7 +218,7 @@ async function analyseOne(id: string): Promise<void> {
     cache: evalCache,
     signal: abort.signal,
     onProgress: (e) => {
-      emit({ done: e.done, total: e.total, live: { ...game } });
+      emit({ done: e.done, total: e.total, phase: e.phase, live: { ...game } });
       // Persist partial progress now and then so a closed tab resumes later.
       if (Date.now() - lastSave > 15000) {
         lastSave = Date.now();

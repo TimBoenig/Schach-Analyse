@@ -844,7 +844,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               {analyzing ? (
                 <>
                   <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
-                    <strong>Analyse läuft … {progress} %</strong>
+                    <strong>
+                      {queue?.phase === "verify" ? "Kritische Züge werden nachgeprüft" : "Analyse läuft"} … {progress} %
+                    </strong>
                     <button class="btn small" onClick={cancelCurrent}>
                       <IconStop /> Pause
                     </button>
@@ -861,6 +863,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <p style={{ marginTop: 0 }}>
                     {status === "paused" ? "Die Analyse wurde unterbrochen." : "Diese Partie ist noch nicht analysiert."}
                   </p>
+                  {queue?.error && !queue.current && <p class="error small">{queue.error}</p>}
                   <button class="btn primary" disabled={queued} onClick={() => enqueue([row.id], { front: true })}>
                     <IconPlay /> {queued ? "In der Warteschlange" : status === "paused" ? "Analyse fortsetzen" : "Partie analysieren"}
                   </button>
@@ -1088,12 +1091,17 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 function DepthNote({ game, queued, onDeeper }: { game: GameAnalysis; queued: boolean; onDeeper: (p: DepthPreset) => void }) {
   const depth = Number(game.summary.analysis_depth) || null;
   const movetimeMs = Number(game.summary.analysis_movetime_ms) || null;
+  const checked = Number(game.summary.deep_checked) || 0;
+  const verifyDepth = Number(game.summary.verify_depth) || null;
   // Games analysed before the depth was stored count as "Normal".
   const next = deeperPreset({ depth: depth ?? DEPTH_PRESETS.normal.settings.depth });
   if (!depth && !next) return null;
   return (
     <div class="analysis-depth-note small">
-      <span class="faint">{depth && movetimeMs ? `Analysiert mit ${settingsLabel({ depth, movetimeMs })}` : "Analysetiefe nicht gespeichert"}</span>
+      <span class="faint">
+        {depth && movetimeMs ? `Analysiert mit ${settingsLabel({ depth, movetimeMs })}` : "Analysetiefe nicht gespeichert"}
+        {checked > 0 && verifyDepth ? ` · ${checked} kritische ${checked === 1 ? "Stellung" : "Stellungen"} mit Tiefe ${verifyDepth} nachgeprüft` : ""}
+      </span>
       {next && (
         <button class="btn small" disabled={queued} onClick={() => onDeeper(next)}>
           {queued ? "In der Warteschlange" : `Genauer: ${DEPTH_PRESETS[next].name} (Tiefe ${DEPTH_PRESETS[next].settings.depth})`}

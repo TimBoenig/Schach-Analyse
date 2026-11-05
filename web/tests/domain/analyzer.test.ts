@@ -8,7 +8,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { analyzeGame, classifyAndSummarize, processAnalysisResults } from "../../src/domain/analyzer";
 import { gameAccuracy, MIN_MOVE_ACCURACY } from "../../src/domain/math";
 import { emptyMetadata, emptyMove, type GameAnalysis } from "../../src/domain/types";
-import { UciEngine, parseInfoLine } from "../../src/engine/uci";
+import { EngineFailure, UciEngine, parseInfoLine, type UciTransport } from "../../src/engine/uci";
 import { ENGINE_JS, nodeTransport } from "../engine";
 
 function gameFromSans(sans: string[]): GameAnalysis {
@@ -29,6 +29,29 @@ describe("UCI parsing", () => {
     expect(parseInfoLine("info depth 9 multipv 1 score mate -3 pv h7h6")?.mate).toBe(-3);
     expect(parseInfoLine("info depth 9 multipv 1 score cp 20 lowerbound pv e2e4")).toBeNull();
     expect(parseInfoLine("info string NNUE evaluation")).toBeNull();
+  });
+});
+
+describe("broken engine", () => {
+  // A worker that never answers, as when its script fails to load.
+  const silent = (): UciTransport & { crash: (e: Error) => void } => {
+    let onErr: (e: Error) => void = () => undefined;
+    return { send: () => undefined, onLine: () => undefined, terminate: () => undefined, onError: (cb) => (onErr = cb), crash: (e) => onErr(e) };
+  };
+
+  it("fails waiting and later requests instead of hanging when the worker dies", async () => {
+    const t = silent();
+    const engine = new UciEngine(t);
+    const pending = engine.analyse("8/8/8/8/8/8/8/K6k w - - 0 1", { depth: 4 });
+    t.crash(new Error("Unexpected token '<'"));
+    await expect(pending).rejects.toBeInstanceOf(EngineFailure);
+    await expect(engine.analyse("8/8/8/8/8/8/8/K6k w - - 0 1", { depth: 4 })).rejects.toBeInstanceOf(EngineFailure);
+    expect(engine.failed).toBe(true);
+  });
+
+  it("gives up when the engine never starts", async () => {
+    const engine = new UciEngine(silent(), 20);
+    await expect(engine.analyse("8/8/8/8/8/8/8/K6k w - - 0 1", { depth: 4 })).rejects.toThrow("Stockfish antwortet nicht");
   });
 });
 
@@ -60,6 +83,16 @@ describe("engine moves and search noise", () => {
     const summary = classifyAndSummarize(game, { cp: 5, mate: null }, undefined);
     expect(game.moves[0].classification).toBe("Best");
     expect(summary.white!.accuracies[0]).toBe(100);
+  });
+});
+
+describe("book exit", () => {
+  it("marks exactly one move when the game is classified again (resume, re-check)", () => {
+    const game = gameFromSans(["e4", "e5", "Nf3"]);
+    game.moves.forEach((m) => processAnalysisResults(m, [{ pv: [m.uci], cp: 20, mate: null, depth: 10 }]));
+    classifyAndSummarize(game, { cp: 20, mate: null }, undefined);
+    classifyAndSummarize(game, { cp: 20, mate: null }, undefined);
+    expect(game.moves.map((m) => m.book_exit_move)).toEqual([true, false, false]);
   });
 });
 

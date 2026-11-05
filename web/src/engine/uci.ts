@@ -6,7 +6,20 @@ export interface UciTransport {
   send(cmd: string): void;
   onLine(cb: (line: string) => void): void;
   terminate(): void;
+  /** The engine died or could not load (e.g. the worker script is missing offline). */
+  onError?(cb: (err: Error) => void): void;
 }
+
+/** Stockfish is not usable; every waiting and later request fails with this. */
+export class EngineFailure extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EngineFailure";
+  }
+}
+
+/** How long the engine may take to answer "uci" before it counts as broken. */
+export const ENGINE_START_TIMEOUT_MS = 30000;
 
 export interface SearchLimits {
   depth?: number;
@@ -46,29 +59,59 @@ export function parseInfoLine(line: string): (PvLine & { multipv: number }) | nu
 
 export class UciEngine {
   private listeners = new Set<(line: string) => void>();
+  private rejectors = new Set<(err: Error) => void>();
   private queue: Promise<unknown> = Promise.resolve();
   private ready: Promise<void>;
   private multiPv = 0;
+  private failure: Error | null = null;
 
-  constructor(private transport: UciTransport) {
+  constructor(private transport: UciTransport, startTimeoutMs = ENGINE_START_TIMEOUT_MS) {
     transport.onLine((line) => {
       for (const l of [...this.listeners]) l(line);
     });
+    // Without this a broken worker left every analysis waiting forever at 0 %.
+    transport.onError?.((err) => this.fail(err));
+    const timer = setTimeout(() => this.fail(new EngineFailure("Stockfish antwortet nicht.")), startTimeoutMs);
     this.ready = (async () => {
-      await this.command("uci", (l) => l === "uciok");
-      await this.isReady();
+      try {
+        await this.command("uci", (l) => l === "uciok");
+        await this.isReady();
+      } finally {
+        clearTimeout(timer);
+      }
     })();
+    // Callers see the failure through their own request; this only keeps it from being "unhandled".
+    this.ready.catch(() => undefined);
+  }
+
+  /** True once the engine died; a fresh instance is needed. */
+  get failed(): boolean {
+    return this.failure !== null;
+  }
+
+  private fail(err: Error): void {
+    if (this.failure) return;
+    this.failure = err instanceof EngineFailure ? err : new EngineFailure(err.message || "Stockfish ist abgestürzt.");
+    for (const reject of [...this.rejectors]) reject(this.failure);
+    this.rejectors.clear();
+    this.listeners.clear();
   }
 
   private command(cmd: string, done: (line: string) => boolean): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      if (this.failure) {
+        reject(this.failure);
+        return;
+      }
       const listener = (line: string) => {
         if (done(line)) {
           this.listeners.delete(listener);
+          this.rejectors.delete(reject);
           resolve();
         }
       };
       this.listeners.add(listener);
+      this.rejectors.add(reject);
       this.transport.send(cmd);
     });
   }
@@ -145,5 +188,11 @@ export function createStockfishWorker(): UciTransport {
       };
     },
     terminate: () => worker.terminate(),
+    onError: (cb) => {
+      worker.onerror = (e: ErrorEvent) => {
+        e.preventDefault?.();
+        cb(new EngineFailure(`Stockfish konnte nicht starten${e.message ? ` (${e.message})` : ""}.`));
+      };
+    },
   };
 }

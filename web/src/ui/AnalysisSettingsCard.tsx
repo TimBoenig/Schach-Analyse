@@ -14,6 +14,7 @@ import {
   resolveSettings,
   settingsLabel,
   SKIP_BULLET_KEY,
+  VERIFY_KEY,
   type DepthChoice,
   type DepthScope,
 } from "../domain/analysisDepth";
@@ -34,7 +35,7 @@ const SCOPE_TEXT: Record<DepthScope, string> = {
 
 const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
 
-function DepthPicker({ scope }: { scope: DepthScope }) {
+function DepthPicker({ scope, verify }: { scope: DepthScope; verify: boolean }) {
   const [choice, setChoice] = useState<DepthChoice | null>(null);
   const speedLog = useMemo(loadSpeedLog, [scope]);
 
@@ -51,7 +52,7 @@ function DepthPicker({ scope }: { scope: DepthScope }) {
     void setSetting(DEPTH_KEYS[scope], n);
   };
   const settings = resolveSettings(choice);
-  const est = estimateGame(settings, speedLog);
+  const est = estimateGame({ ...settings, verify }, speedLog);
   // Position of the choice between quickest and most thorough, for the meter.
   const level = Math.min(1, Math.max(0, (settings.depth - CUSTOM_LIMITS.depthMin) / (CUSTOM_LIMITS.depthMax - CUSTOM_LIMITS.depthMin)));
 
@@ -163,10 +164,12 @@ function BulletStats() {
 export function AnalysisSettingsCard() {
   const [scope, setScope] = useState<DepthScope>("own");
   const [auto, setAuto] = useState(true);
+  const [verify, setVerify] = useState(true);
   const bullet = useBulletPrefs();
 
   useEffect(() => {
     void getSetting<boolean>(AUTO_ANALYZE_KEY, true).then(setAuto);
+    void getSetting<boolean>(VERIFY_KEY, true).then(setVerify);
   }, []);
 
   return (
@@ -179,7 +182,24 @@ export function AnalysisSettingsCard() {
           </button>
         ))}
       </div>
-      <DepthPicker scope={scope} />
+      <DepthPicker scope={scope} verify={verify} />
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          checked={verify}
+          onChange={(e) => {
+            setVerify(e.currentTarget.checked);
+            void setSetting(VERIFY_KEY, e.currentTarget.checked);
+          }}
+        />
+        <span>
+          <strong>Kritische Züge genauer nachprüfen</strong>
+          <small class="faint">
+            Fehler, knappe Fälle und „einzige gute Züge“ rechnet Stockfish nach dem ersten Durchgang noch einmal tiefer
+            nach. So stimmen die Bewertungen auch bei schneller Einstellung, und es kostet nur wenig Zeit pro Partie.
+          </small>
+        </span>
+      </label>
 
       <h4 style={{ margin: "18px 0 0" }}>Bullet</h4>
       <BulletStats />
