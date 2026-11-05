@@ -4,8 +4,9 @@ import { AI_PROVIDERS, type AiConfig, aiReady, defaultDetail, loadAiConfig, save
 import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile";
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
 import { getSetting, setSetting } from "../storage/db";
-import { currentUser, signIn, signOut, signUp, syncAvailable, syncNow } from "../storage/sync";
-import { IconSync } from "./icons";
+import { refreshSyncStatus } from "../storage/sync";
+import { useSyncStatus } from "./AccountView";
+import { navigate } from "./router";
 import { PeriodSelect } from "./useProfile";
 import { AnalysisSettingsCard } from "./AnalysisSettingsCard";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
@@ -205,123 +206,21 @@ function AiCard() {
 }
 
 function AccountCard() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [user, setUser] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ text: string; error?: boolean } | null>(null);
-  const [lastSync, setLastSync] = useState(0);
-
-  const refresh = async () => {
-    const u = await currentUser();
-    setUser(u?.email ?? null);
-    setLastSync(await getSetting<number>("sync.lastSyncAt", 0));
-  };
-  useEffect(() => {
-    void refresh();
-  }, []);
-
-  if (!syncAvailable()) {
-    return (
-      <div class="card">
-        <h3>Konto &amp; Synchronisierung</h3>
-        <p class="muted small" style={{ margin: 0 }}>
-          In dieser Version ist kein Sync-Server hinterlegt. Deine Daten bleiben auf diesem Gerät.
-        </p>
-      </div>
-    );
-  }
-
-  const run = async (fn: () => Promise<void>) => {
-    setBusy(true);
-    setMsg(null);
-    try {
-      await fn();
-    } catch (e) {
-      setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
-    } finally {
-      setBusy(false);
-      void refresh();
-    }
-  };
-
+  const s = useSyncStatus();
+  useEffect(() => void refreshSyncStatus(), []);
+  if (s.phase === "off") return null;
+  const signedIn = Boolean(s.email) && s.phase !== "signed-out";
   return (
     <div class="card">
       <h3>Konto &amp; Synchronisierung</h3>
-      {user ? (
-        <>
-          <p style={{ marginTop: 0 }}>
-            Angemeldet als <strong>{user}</strong>. Partien, Analysen und Einstellungen werden automatisch zwischen
-            deinen Geräten abgeglichen.
-          </p>
-          <p class="muted small">
-            Letzter Abgleich: {lastSync ? new Date(lastSync).toLocaleString("de-DE") : "noch nie"}
-          </p>
-          <div class="row">
-            <button
-              class="btn primary"
-              disabled={busy}
-              onClick={() =>
-                run(async () => {
-                  const r = await syncNow();
-                  setMsg({ text: `Abgeglichen: ${r.pulled} empfangen, ${r.pushed} gesendet.` });
-                })
-              }
-            >
-              <IconSync /> Jetzt abgleichen
-            </button>
-            <button class="btn" disabled={busy} onClick={() => run(signOut)}>
-              Abmelden
-            </button>
-          </div>
-        </>
-      ) : (
-        <>
-          <p class="muted small" style={{ marginTop: 0 }}>
-            Melde dich an, damit iPad, Handy und weitere Geräte dieselben Partien und Analysen haben. Ohne Konto
-            funktioniert alles lokal auf diesem Gerät.
-          </p>
-          <label class="field">
-            <span>E-Mail</span>
-            <input type="email" autocomplete="email" value={email} onInput={(e) => setEmail(e.currentTarget.value)} />
-          </label>
-          <label class="field">
-            <span>Passwort</span>
-            <input
-              type="password"
-              autocomplete="current-password"
-              value={password}
-              onInput={(e) => setPassword(e.currentTarget.value)}
-            />
-          </label>
-          <div class="row">
-            <button class="btn primary" disabled={busy || !email || !password} onClick={() => run(() => signIn(email, password))}>
-              Anmelden
-            </button>
-            <button
-              class="btn"
-              disabled={busy || !email || password.length < 6}
-              onClick={() =>
-                run(async () => {
-                  const needsConfirm = await signUp(email, password);
-                  setMsg({
-                    text: needsConfirm
-                      ? "Konto erstellt. Bitte bestätige die E-Mail über den Link und melde dich dann hier an."
-                      : "Konto erstellt und angemeldet.",
-                  });
-                })
-              }
-            >
-              Konto erstellen
-            </button>
-          </div>
-        </>
-      )}
-      {msg && (
-        <p class={msg.error ? "error small" : "small"} style={{ marginBottom: 0 }}>
-          {msg.text}
-        </p>
-      )}
+      <p class="muted small" style={{ marginTop: 0 }}>
+        {signedIn
+          ? `Angemeldet als ${s.email}. Profil, Statistiken und Partien sind auf allen deinen Geräten.`
+          : "Mit einem Konto siehst du deine Analysen auf PC, iPad und Handy. Ohne Konto bleibt alles auf diesem Gerät."}
+      </p>
+      <button class={`btn${signedIn ? "" : " primary"}`} onClick={() => navigate({ view: "account" })}>
+        {signedIn ? "Konto verwalten" : "Anmelden oder registrieren"}
+      </button>
     </div>
   );
 }

@@ -6,7 +6,18 @@ export interface UciTransport {
   send(cmd: string): void;
   onLine(cb: (line: string) => void): void;
   terminate(): void;
+  /** Called when the engine crashed (e.g. the WASM worker ran out of memory). */
+  onError?(cb: (err: Error) => void): void;
 }
+
+/** Thrown when Stockfish crashed or stopped answering; the engine must be replaced. */
+export class EngineFailure extends Error {}
+
+// A search may overrun its limit a little (slow phones, throttled tabs); after
+// this grace the engine is told to stop, and after STOP_GRACE_MS it counts as hung.
+const SEARCH_GRACE_MS = 20_000;
+const DEPTH_ONLY_BUDGET_MS = 120_000;
+const STOP_GRACE_MS = 5_000;
 
 export interface SearchLimits {
   depth?: number;
@@ -49,26 +60,65 @@ export class UciEngine {
   private queue: Promise<unknown> = Promise.resolve();
   private ready: Promise<void>;
   private multiPv = 0;
+  private failure: EngineFailure | null = null;
+  private failListeners = new Set<(e: EngineFailure) => void>();
 
   constructor(private transport: UciTransport) {
     transport.onLine((line) => {
       for (const l of [...this.listeners]) l(line);
     });
+    transport.onError?.((err) => this.fail(new EngineFailure(`Stockfish ist abgestürzt: ${err.message}`)));
     this.ready = (async () => {
       await this.command("uci", (l) => l === "uciok");
       await this.isReady();
     })();
+    // A crash during start-up surfaces on the first real command instead.
+    this.ready.catch(() => undefined);
   }
 
-  private command(cmd: string, done: (line: string) => boolean): Promise<void> {
-    return new Promise((resolve) => {
+  /** True once the engine crashed or hung; create a new one then. */
+  get broken(): boolean {
+    return this.failure !== null;
+  }
+
+  private fail(err: EngineFailure): void {
+    if (this.failure) return;
+    this.failure = err;
+    for (const f of [...this.failListeners]) f(err);
+    this.failListeners.clear();
+    this.listeners.clear();
+  }
+
+  private command(cmd: string, done: (line: string) => boolean, timeoutMs = 0): Promise<void> {
+    if (this.failure) return Promise.reject(this.failure);
+    return new Promise((resolve, reject) => {
+      let stopTimer: ReturnType<typeof setTimeout> | undefined;
+      let deadTimer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        clearTimeout(stopTimer);
+        clearTimeout(deadTimer);
+        this.listeners.delete(listener);
+        this.failListeners.delete(onFail);
+      };
       const listener = (line: string) => {
         if (done(line)) {
-          this.listeners.delete(listener);
+          finish();
           resolve();
         }
       };
+      const onFail = (e: EngineFailure) => {
+        finish();
+        reject(e);
+      };
       this.listeners.add(listener);
+      this.failListeners.add(onFail);
+      if (timeoutMs > 0) {
+        // Overdue: ask for the result now; no answer after that means the worker hangs.
+        stopTimer = setTimeout(() => {
+          this.transport.send("stop");
+          deadTimer = setTimeout(() => this.fail(new EngineFailure("Stockfish antwortet nicht mehr.")), STOP_GRACE_MS);
+        }, timeoutMs);
+      }
       this.transport.send(cmd);
     });
   }
@@ -104,14 +154,19 @@ export class UciEngine {
       if (limits.depth) go.push("depth", String(limits.depth));
       if (limits.movetimeMs) go.push("movetime", String(Math.round(limits.movetimeMs)));
       if (go.length === 1) go.push("depth", "12");
-      await this.command(go.join(" "), (line) => {
-        const info = parseInfoLine(line);
-        if (info) {
-          const { multipv, ...rest } = info;
-          lines.set(multipv, rest);
-        }
-        return line.startsWith("bestmove");
-      });
+      const budget = (limits.movetimeMs ?? 0) + (limits.depth || !limits.movetimeMs ? DEPTH_ONLY_BUDGET_MS : 0) + SEARCH_GRACE_MS;
+      await this.command(
+        go.join(" "),
+        (line) => {
+          const info = parseInfoLine(line);
+          if (info) {
+            const { multipv, ...rest } = info;
+            lines.set(multipv, rest);
+          }
+          return line.startsWith("bestmove");
+        },
+        budget,
+      );
       return [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     };
     const result = this.queue.then(run, run);
@@ -125,6 +180,7 @@ export class UciEngine {
   }
 
   quit(): void {
+    this.fail(new EngineFailure("Engine beendet."));
     try {
       this.transport.send("quit");
     } finally {
@@ -145,5 +201,12 @@ export function createStockfishWorker(): UciTransport {
       };
     },
     terminate: () => worker.terminate(),
+    onError: (cb) => {
+      worker.onerror = (e: ErrorEvent) => {
+        e.preventDefault?.();
+        cb(new Error(e.message || "Worker-Fehler"));
+      };
+      worker.onmessageerror = () => cb(new Error("Ungültige Nachricht"));
+    },
   };
 }
