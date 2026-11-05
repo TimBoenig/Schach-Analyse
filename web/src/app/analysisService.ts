@@ -16,7 +16,7 @@ import {
 import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
 import { loadBookData } from "../domain/book";
 import type { GameAnalysis } from "../domain/types";
-import { createStockfishWorker, UciEngine } from "../engine/uci";
+import { createStockfishWorker, EngineFailure, UciEngine } from "../engine/uci";
 import { evalCache, getGame, getSetting, putGames } from "../storage/db";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
 
@@ -61,9 +61,40 @@ let abort: AbortController | null = null;
 let running = false;
 const listeners = new Set<(s: QueueState) => void>();
 
+// The queue outlives a reload or a closed tab (iOS discards background PWAs
+// often): open games are remembered on this device and resumed on the next start.
+const QUEUE_KEY = "schach.analysis.queue";
+
+function rememberQueue(): void {
+  try {
+    const ids = [...(state.current ? [state.current] : []), ...state.queued];
+    if (ids.length) localStorage.setItem(QUEUE_KEY, JSON.stringify(ids));
+    else localStorage.removeItem(QUEUE_KEY);
+  } catch {
+    // Private mode: nothing to resume later, analysis still runs now.
+  }
+}
+
 function emit(patch: Partial<QueueState>): void {
   state = { ...state, ...patch };
+  if ("queued" in patch || "current" in patch) rememberQueue();
   for (const l of listeners) l(state);
+}
+
+/** Re-queues games whose analysis was still open when the app was closed. */
+export async function resumeQueue(): Promise<number> {
+  let ids: string[] = [];
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
+    if (Array.isArray(raw)) ids = raw.filter((x): x is string => typeof x === "string");
+  } catch {
+    return 0;
+  }
+  const rows = await Promise.all(ids.map((id) => getGame(id)));
+  const open = ids.filter((_, i) => rows[i] && rows[i]!.summary_json?.analysis_status !== "completed");
+  if (open.length) enqueue(open);
+  else rememberQueue();
+  return open.length;
 }
 
 export function subscribeQueue(cb: (s: QueueState) => void): () => void {
@@ -73,6 +104,11 @@ export function subscribeQueue(cb: (s: QueueState) => void): () => void {
 }
 
 export function getEngine(): UciEngine {
+  // A crashed or hung worker is replaced by a fresh one.
+  if (engine?.broken) {
+    engine.quit();
+    engine = null;
+  }
   if (!engine) {
     engine = new UciEngine(createStockfishWorker());
     // Small hash keeps memory low on phones (thermal/memory safety like the desktop defaults).
@@ -168,6 +204,17 @@ async function pump(): Promise<void> {
       try {
         await analyseOne(id);
       } catch (e) {
+        if (e instanceof EngineFailure) {
+          // Typical on phones: the WASM worker dies (memory) or stalls in a
+          // background tab. Start a new engine and resume the game once;
+          // finished moves were saved, so it continues where it stopped.
+          try {
+            await analyseOne(id);
+            continue;
+          } catch (again) {
+            e = again;
+          }
+        }
         emit({ error: e instanceof Error ? e.message : String(e) });
       }
     }
@@ -199,21 +246,30 @@ async function analyseOne(id: string): Promise<void> {
   const from = restart ? 0 : firstUnanalyzedIndex(game);
   const started = Date.now();
   let lastSave = Date.now();
-  const summary = await analyzeGame(game, getEngine(), {
-    settings,
-    restart,
-    book,
-    cache: evalCache,
-    signal: abort.signal,
-    onProgress: (e) => {
-      emit({ done: e.done, total: e.total, live: { ...game } });
-      // Persist partial progress now and then so a closed tab resumes later.
-      if (Date.now() - lastSave > 15000) {
-        lastSave = Date.now();
-        void putGames([toStoredGame({ ...game, summary: { analysis_status: "paused" } }, row.timestamp)], { silent: true });
-      }
-    },
-  });
+  const savePartial = () =>
+    putGames([toStoredGame({ ...game, summary: { analysis_status: "paused" } }, row.timestamp)], { silent: true });
+  let summary;
+  try {
+    summary = await analyzeGame(game, getEngine(), {
+      settings,
+      restart,
+      book,
+      cache: evalCache,
+      signal: abort.signal,
+      onProgress: (e) => {
+        emit({ done: e.done, total: e.total, live: { ...game } });
+        // Persist partial progress now and then so a closed tab resumes later.
+        if (Date.now() - lastSave > 15000) {
+          lastSave = Date.now();
+          void savePartial();
+        }
+      },
+    });
+  } catch (e) {
+    // Keep what was analysed so a retry (or the next visit) resumes from here.
+    if (game.moves.some((m) => m.classification)) await savePartial().catch(() => undefined);
+    throw e;
+  }
   saveSpeed(settings, (summary.analyzed_moves ?? 0) - from, Date.now() - started);
   // Remembered so the game can show its depth and offer a deeper re-run.
   game.summary.analysis_depth = settings.depth;

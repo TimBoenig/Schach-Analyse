@@ -6,7 +6,8 @@ import { createStockfishWorker, UciEngine } from "../engine/uci";
 let engine: UciEngine | null = null;
 
 export function getTrainingEngine(): UciEngine {
-  if (!engine) {
+  if (engine?.broken) engine.quit();
+  if (!engine || engine.broken) {
     engine = new UciEngine(createStockfishWorker());
     void engine.setOption("Hash", 16);
   }
