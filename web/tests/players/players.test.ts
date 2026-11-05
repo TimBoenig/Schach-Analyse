@@ -8,6 +8,7 @@ import {
   headToHead,
   parsePlayers,
   playerId,
+  rankedFriends,
   type RankInput,
 } from "../../src/domain/players";
 import { buildOpeningInsights, buildPlayerProfile, type PlayerProfile } from "../../src/domain/profile";
@@ -48,10 +49,20 @@ describe("tracked players", () => {
       { id: "max", accounts: [{ source: "lichess", username: " Max " }], friend: 1, added_at: 5 },
       { id: "leer", accounts: [{ source: "lichess", username: "  " }] },
       "kaputt",
+      { id: "ida", accounts: [{ source: "chesscom", username: "Ida" }], friend: true, hidden_in_ranking: true },
+      { id: "opp", accounts: [{ source: "lichess", username: "Opp" }], friend: false },
     ]);
-    expect(parsed).toEqual([
-      { id: "max", name: "Max", accounts: [{ source: "lichess", username: "Max" }], friend: true, added_at: 5, imported_at: null },
-    ]);
+    expect(parsed[0]).toEqual({
+      id: "max",
+      name: "Max",
+      accounts: [{ source: "lichess", username: "Max" }],
+      friend: true,
+      hidden_in_ranking: false,
+      added_at: 5,
+      imported_at: null,
+    });
+    // Hidden friends and plain opponents stay out of the ranking.
+    expect(rankedFriends(parsed).map((p) => p.id)).toEqual(["max"]);
   });
 
   it("counts the head-to-head from the first player's side and suggests frequent opponents", () => {

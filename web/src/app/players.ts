@@ -26,7 +26,12 @@ export async function addPlayer(input: { name?: string; accounts: PlayerAccount[
   const existing = list.find((p) => playerUsernames(p).some((u) => lower.has(u.toLowerCase())));
   if (existing) {
     // Same person again: merge accounts and keep the stronger relationship.
-    const merged = { ...existing, friend: existing.friend || input.friend, accounts: mergeAccounts(existing.accounts, accounts) };
+    const merged = {
+      ...existing,
+      friend: existing.friend || input.friend,
+      // Adding someone as a friend again brings them back into the ranking.
+      hidden_in_ranking: input.friend ? false : existing.hidden_in_ranking,
+      accounts: mergeAccounts(existing.accounts, accounts) };
     await save(list.map((p) => (p.id === existing.id ? merged : p)));
     return merged;
   }
@@ -35,6 +40,7 @@ export async function addPlayer(input: { name?: string; accounts: PlayerAccount[
     name: input.name?.trim() || accounts[0].username,
     accounts,
     friend: input.friend,
+    hidden_in_ranking: false,
     added_at: Date.now(),
     imported_at: null,
   };

@@ -19,6 +19,7 @@ import {
   type HeadToHead,
   type OpeningPick,
   playerUsernames,
+  rankedFriends,
   type Ranking,
   type RankRow,
   type ScoutReport,
@@ -35,7 +36,7 @@ import type { BarRow, Segment } from "./charts";
 import { Calendar, FormStats, RecentGames } from "./HomeView";
 import { ClassTiles, VersusBars } from "./MoveTally";
 import { StyleAxes } from "./ProfileView";
-import { IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
+import { IconEye, IconEyeOff, IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { formatDate, SPEED_DE } from "./labels";
 import { navigate } from "./router";
 import { CoachAvatar, CoachTip } from "./Coach";
@@ -338,7 +339,11 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                     {c.player.accounts.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(" · ")}
                   </span>
                 </span>
-                {c.player.friend && <span class="pill accent">Freund</span>}
+                {c.player.friend && (
+                  <span class={`pill${c.player.hidden_in_ranking ? "" : " accent"}`} title={c.player.hidden_in_ranking ? "In der Rangliste ausgeblendet" : undefined}>
+                    {c.player.hidden_in_ranking ? "Freund · ausgeblendet" : "Freund"}
+                  </span>
+                )}
               </div>
               <div class="player-card-stats">
                 <span>
@@ -552,12 +557,16 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const friends = players.filter((p) => p.friend);
+  const allFriends = players.filter((p) => p.friend);
+  const friends = rankedFriends(players);
   const { excludeBullet, ready } = useBulletPrefs();
   const fmt = statsFormat(format, excludeBullet);
 
   useEffect(() => {
-    if (!friends.length || !ready) return;
+    if (!friends.length || !ready) {
+      setRanking(null);
+      return;
+    }
     let alive = true;
     setLoading(true);
     const group = [
@@ -577,7 +586,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
     };
   }, [players, games, me, fmt, date, ready]);
 
-  if (!friends.length) {
+  if (!allFriends.length) {
     return (
       <div class="empty">
         <CoachAvatar size={88} mood="think" />
@@ -593,8 +602,15 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
+      <RankMembers friends={allFriends} hasMe={me.length > 0} />
       {error && <p class="error">{error}</p>}
-      {!ranking ? (
+      {!friends.length ? (
+        <div class="empty">
+          <CoachAvatar size={72} mood="think" />
+          <h3>Alle Freunde sind ausgeblendet</h3>
+          <p>Tippe oben auf einen Namen, damit er wieder in der Rangliste und im Vergleich auftaucht.</p>
+        </div>
+      ) : !ranking ? (
         <div class="dash">
           <div class="skeleton span-12" style={{ height: "220px" }} />
           <div class="skeleton span-12" style={{ height: "300px" }} />
@@ -655,6 +671,41 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Who is compared: tap a friend to hide or show them. Hidden friends stay
+ * friends (scouting report, duel) but leave the ranking and its factors.
+ */
+function RankMembers({ friends, hasMe }: { friends: TrackedPlayer[]; hasMe: boolean }) {
+  const hidden = friends.filter((f) => f.hidden_in_ranking).length;
+  return (
+    <section class="card tile rank-members-card" style={{ marginBottom: "16px" }}>
+      <div class="tile-head">
+        <h3>Wer wird verglichen?</h3>
+        <span class="tile-sub">{hidden ? `${hidden} ausgeblendet` : "Tippen zum Ausblenden"}</span>
+      </div>
+      <div class="rank-members">
+        {hasMe && (
+          <button class="rank-member" disabled title="Du bist immer dabei">
+            Du
+          </button>
+        )}
+        {friends.map((f) => (
+          <button
+            key={f.id}
+            class={`rank-member${f.hidden_in_ranking ? " off" : ""}`}
+            aria-pressed={!f.hidden_in_ranking}
+            title={f.hidden_in_ranking ? `${f.name} wieder anzeigen` : `${f.name} ausblenden`}
+            onClick={() => void updatePlayer(f.id, { hidden_in_ranking: !f.hidden_in_ranking })}
+          >
+            {f.hidden_in_ranking ? <IconEyeOff /> : <IconEye />}
+            {f.name}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1312,6 +1363,19 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
           <small class="faint">Freunde werden in der Rangliste mit dir verglichen.</small>
         </span>
       </label>
+      {player.friend && (
+        <label class="toggle-row">
+          <input
+            type="checkbox"
+            checked={player.hidden_in_ranking}
+            onChange={(e) => void updatePlayer(player.id, { hidden_in_ranking: e.currentTarget.checked })}
+          />
+          <span>
+            <strong>In Rangliste und Vergleich ausblenden</strong>
+            <small class="faint">Bleibt dein Freund, taucht aber vorerst nicht in der Rangliste auf.</small>
+          </span>
+        </label>
+      )}
       <div class="row" style={{ marginTop: "10px", flexWrap: "wrap", gap: "8px" }}>
         {confirm ? (
           <>
