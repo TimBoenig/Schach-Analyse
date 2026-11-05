@@ -35,8 +35,8 @@ Einstellungen zwischen Geräten ab.
   Schwarz (wo der Gegner schlecht punktet, verrechnet mit dem eigenen Ergebnis), Taktik- und Strategietipps aus den
   Fähigkeiten, Zeitverlusten, Farb- und Bedenkzeitlücken, Tilt und Fehlerphasen, Warnungen vor Stärken, Fähigkeiten-Netz
   im Vergleich und Direktvergleich. Eröffnungstipps brauchen keine Analyse, der Rest analysierte Partien.
-- **Rangliste** (`#/spieler/rangliste`, `ranking.ts`): du und deine Freunde (einzelne Freunde lassen sich oben unter
-  „Wer wird verglichen?“ oder auf ihrer Seite ausblenden, ohne sie zu entfernen) nach 15 Faktoren (Wertung, Punkte über
+- **Rangliste** (`#/spieler/rangliste`, `ranking.ts`): du und deine Freunde (einzelne Freunde lassen sich oben über
+  die Chips „Im Vergleich“ oder auf ihrer Seite ausblenden, ohne sie zu entfernen) nach 15 Faktoren (Wertung, Punkte über
   Elo-Erwartung, Punkte-Quote, Direktvergleich, Genauigkeit, Patzer, acht Fähigkeiten, Aktivität). Jeder Faktor vergibt
   Punkte nach Platz, die Gesamtwertung ist der gewichtete Schnitt.
 - **Fähigkeitswerte** werden mit wenig Daten zum Richtwert der Wertung (sonst 50) hin ausgeglichen

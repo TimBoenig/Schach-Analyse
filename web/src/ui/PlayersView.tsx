@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { buildProfileInWorker } from "../app/profileClient";
 import { isBulletGame, statsFormat } from "../domain/analysisDepth";
-import { addPlayer, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
+import { addPlayer, importAllPlayers, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
 import { getUserColor } from "../domain/metrics";
 import {
   buildMatchup,
@@ -18,6 +18,7 @@ import {
   type AccountSource,
   type HeadToHead,
   type OpeningPick,
+  orderPlayers,
   playerUsernames,
   rankedFriends,
   type Ranking,
@@ -37,8 +38,8 @@ import { Calendar, FormStats, RecentGames } from "./HomeView";
 import { ClassTiles, VersusBars } from "./MoveTally";
 import { StyleAxes } from "./ProfileView";
 import { IconEye, IconEyeOff, IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
-import { formatDate, SPEED_DE } from "./labels";
-import { navigate } from "./router";
+import { formatDate, loadedAgo, SPEED_DE } from "./labels";
+import { navigate, toHash } from "./router";
 import { CoachAvatar, CoachTip } from "./Coach";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { FORMATS, formatOptionLabel, PeriodSelect } from "./useProfile";
@@ -72,18 +73,28 @@ function profileFor(all: StoredGame[], names: string[], format: string, date: st
   return buildProfileInWorker({ games: gamesOf(all, names), usernames: names, format, date, color: "All Colors" });
 }
 
+/** Changes only when a game is added, removed or re-analysed. */
+const gamesSignature = (games: StoredGame[]) => games.map((g) => `${g.id}:${g.updated_at}`).join("|");
+
 function useData() {
   const [players, setPlayers] = useState<TrackedPlayer[] | null>(null);
   const [games, setGames] = useState<StoredGame[]>([]);
   const [me, setMe] = useState<string[]>([]);
+  const signature = useRef("");
   useEffect(() => {
     let alive = true;
     const load = async () => {
       const [p, g, u] = await Promise.all([loadPlayers(), listGames(), getSetting<string[]>("usernames", [])]);
       if (!alive) return;
       setPlayers(p);
-      setGames(g);
-      setMe(u);
+      // Settings changes (like hiding a friend) also fire a data change. Keeping
+      // the same games array then spares every profile from being rebuilt.
+      const sig = gamesSignature(g);
+      if (sig !== signature.current) {
+        signature.current = sig;
+        setGames(g);
+      }
+      setMe((prev) => (prev.join("\n") === u.join("\n") ? prev : u));
     };
     void load();
     const off = onDataChanged(() => void load());
@@ -289,6 +300,29 @@ function cardData(p: TrackedPlayer, all: StoredGame[], me: string[]): PlayerCard
   };
 }
 
+/** Loads new games for all given players in one go. */
+function RefreshAll({ players, label = "Alle aktualisieren" }: { players: TrackedPlayer[]; label?: string }) {
+  const [busy, setBusy] = useState("");
+  const online = players.filter((p) => p.accounts.some((a) => a.source !== "other"));
+  if (online.length < 2) return null;
+  const run = async () => {
+    setBusy("Lade Partien …");
+    const { imported, failed } = await importAllPlayers(online, { onProgress: setBusy });
+    setBusy(
+      `${plural(imported, "neue Partie", "neue Partien")} geladen${failed.length ? `, nicht erreichbar: ${failed.join(", ")}` : ""}.`,
+    );
+    window.setTimeout(() => setBusy(""), failed.length ? 6000 : 3000);
+  };
+  return (
+    <span class="refresh-all">
+      <button class="btn" disabled={Boolean(busy)} onClick={() => void run()} title="Neue Partien aller Spieler von Lichess und Chess.com laden">
+        <IconSync /> {label}
+      </button>
+      {busy && <span class="small muted" role="status">{busy}</span>}
+    </span>
+  );
+}
+
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
   if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
   return (
@@ -301,7 +335,7 @@ function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
 
 function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const [adding, setAdding] = useState<{ username: string; source: AddSource } | null | undefined>(undefined);
-  const cards = useMemo(() => players.map((p) => cardData(p, games, me)), [players, games, me]);
+  const cards = useMemo(() => orderPlayers(players.map((p) => cardData(p, games, me))), [players, games, me]);
   const suggestions = useMemo(
     () => frequentOpponents(games, me, players.flatMap(playerUsernames)).slice(0, 6),
     [games, me, players],
@@ -327,7 +361,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
         </div>
       ) : (
         <div class="player-grid">
-          {cards.map((c) => (
+          {cards.shown.map((c) => (
             <button key={c.player.id} class="card player-card" onClick={() => navigate({ view: "players", playerId: c.player.id })}>
               <div class="player-card-head">
                 <span class="player-avatar" aria-hidden="true">
@@ -339,11 +373,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                     {c.player.accounts.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(" · ")}
                   </span>
                 </span>
-                {c.player.friend && (
-                  <span class={`pill${c.player.hidden_in_ranking ? "" : " accent"}`} title={c.player.hidden_in_ranking ? "In der Rangliste ausgeblendet" : undefined}>
-                    {c.player.hidden_in_ranking ? "Freund · ausgeblendet" : "Freund"}
-                  </span>
-                )}
+                {c.player.friend && <span class="pill accent">Freund</span>}
               </div>
               <div class="player-card-stats">
                 <span>
@@ -361,9 +391,39 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                 )}
               </div>
               <H2HLine h={c.h2h} name={c.player.name} />
+              {c.player.accounts.some((a) => a.source !== "other") && (
+                <span class="faint small">{loadedAgo(c.player.imported_at)}</span>
+              )}
             </button>
           ))}
+          {cards.shown.length === 0 && <p class="muted small">Alle Spieler sind ausgeblendet.</p>}
         </div>
+      )}
+
+      {cards.hidden.length > 0 && (
+        <details class="card tile hidden-players">
+          <summary>
+            <strong>Ausgeblendet</strong>
+            <span class="faint small"> · {plural(cards.hidden.length, "Spieler", "Spieler")}, nicht in Rangliste und Vergleich</span>
+          </summary>
+          <div class="suggest-list">
+            {cards.hidden.map((c) => (
+              <div class="suggest-row" key={c.player.id}>
+                <a href={toHash({ view: "players", playerId: c.player.id })}>
+                  <strong>{c.player.name}</strong>
+                  <span class="faint small">
+                    {" "}
+                    · {plural(c.games, "Partie", "Partien")}
+                    {c.player.friend ? " · Freund" : ""}
+                  </span>
+                </a>
+                <button class="btn small" onClick={() => void updatePlayer(c.player.id, { hidden: false })}>
+                  <IconEye /> Einblenden
+                </button>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       {suggestions.length > 0 && (
@@ -392,10 +452,11 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
       )}
 
       {players.length > 0 && (
-        <div class="row" style={{ justifyContent: "center", marginTop: "6px" }}>
+        <div class="row" style={{ justifyContent: "center", marginTop: "6px", flexWrap: "wrap", gap: "8px" }}>
           <button class="btn primary" onClick={() => setAdding(null)}>
             <IconPlus /> Spieler hinzufügen
           </button>
+          <RefreshAll players={players.filter((p) => !p.hidden)} />
         </div>
       )}
 
@@ -550,6 +611,37 @@ function Podium({ rows }: { rows: RankRow[] }) {
   );
 }
 
+/** Who takes part in the ranking: one tap hides or shows a friend, and it stays that way. */
+function RankingMembers({ friends }: { friends: TrackedPlayer[] }) {
+  const hidden = friends.filter((p) => p.hidden);
+  return (
+    <div class="rank-members">
+      <span class="small muted">Im Vergleich:</span>
+      <div class="chips">
+        <span class="chip member on me" title="Du bist immer dabei">
+          Du
+        </span>
+        {friends.map((p) => (
+          <button
+            key={p.id}
+            class={`chip member${p.hidden ? "" : " on"}`}
+            aria-pressed={!p.hidden}
+            title={p.hidden ? `${p.name} wieder in die Rangliste aufnehmen` : `${p.name} in Rangliste und Vergleich ausblenden`}
+            onClick={() => void updatePlayer(p.id, { hidden: !p.hidden })}
+          >
+            {p.hidden ? <IconEyeOff /> : <IconEye />} {p.name}
+          </button>
+        ))}
+        {hidden.length > 1 && (
+          <button class="chip" onClick={() => void Promise.all(hidden.map((p) => updatePlayer(p.id, { hidden: false })))}>
+            Alle einblenden
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const [format, setFormat] = useState("All Formats");
   const [date, setDate] = useState("All Time");
@@ -561,19 +653,32 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   const friends = rankedFriends(players);
   const { excludeBullet, ready } = useBulletPrefs();
   const fmt = statsFormat(format, excludeBullet);
+  // Profiles per player and filter, so hiding or showing a friend only re-ranks
+  // and needs no new profile from the worker. Cleared when the games change.
+  const cache = useRef<{ games: StoredGame[]; map: Map<string, Promise<PlayerProfile>> }>({ games, map: new Map() });
+  const groupKey = friends.map((p) => `${p.id}=${playerUsernames(p).join(",")}=${p.name}`).join("|");
 
   useEffect(() => {
-    if (!friends.length || !ready) {
-      setRanking(null);
-      return;
-    }
+    if (!friends.length || !ready) return;
     let alive = true;
     setLoading(true);
+    if (cache.current.games !== games) cache.current = { games, map: new Map() };
+    const map = cache.current.map;
+    const profileOf = (names: string[]) => {
+      const key = `${names.join(",")}|${fmt}|${date}`;
+      let p = map.get(key);
+      if (!p) {
+        p = profileFor(games, names, fmt, date);
+        p.catch(() => map.delete(key));
+        map.set(key, p);
+      }
+      return p;
+    };
     const group = [
       ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
       ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
     ];
-    Promise.all(group.map((g) => profileFor(games, g.usernames, fmt, date)))
+    Promise.all(group.map((g) => profileOf(g.usernames)))
       .then((profiles) => {
         if (!alive) return;
         setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date }));
@@ -584,7 +689,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
     return () => {
       alive = false;
     };
-  }, [players, games, me, fmt, date, ready]);
+  }, [groupKey, games, me, fmt, date, ready]);
 
   if (!allFriends.length) {
     return (
@@ -601,14 +706,17 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
-      <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
-      <RankMembers friends={allFriends} hasMe={me.length > 0} />
+      <div class="rank-toolbar">
+        <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
+        <RefreshAll players={friends} label="Freunde aktualisieren" />
+      </div>
+      <RankingMembers friends={allFriends} />
       {error && <p class="error">{error}</p>}
       {!friends.length ? (
         <div class="empty">
           <CoachAvatar size={72} mood="think" />
           <h3>Alle Freunde sind ausgeblendet</h3>
-          <p>Tippe oben auf einen Namen, damit er wieder in der Rangliste und im Vergleich auftaucht.</p>
+          <p>Tippe oben auf einen Namen, um ihn wieder in die Rangliste aufzunehmen.</p>
         </div>
       ) : !ranking ? (
         <div class="dash">
@@ -671,41 +779,6 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Who is compared: tap a friend to hide or show them. Hidden friends stay
- * friends (scouting report, duel) but leave the ranking and its factors.
- */
-function RankMembers({ friends, hasMe }: { friends: TrackedPlayer[]; hasMe: boolean }) {
-  const hidden = friends.filter((f) => f.hidden_in_ranking).length;
-  return (
-    <section class="card tile rank-members-card" style={{ marginBottom: "16px" }}>
-      <div class="tile-head">
-        <h3>Wer wird verglichen?</h3>
-        <span class="tile-sub">{hidden ? `${hidden} ausgeblendet` : "Tippen zum Ausblenden"}</span>
-      </div>
-      <div class="rank-members">
-        {hasMe && (
-          <button class="rank-member" disabled title="Du bist immer dabei">
-            Du
-          </button>
-        )}
-        {friends.map((f) => (
-          <button
-            key={f.id}
-            class={`rank-member${f.hidden_in_ranking ? " off" : ""}`}
-            aria-pressed={!f.hidden_in_ranking}
-            title={f.hidden_in_ranking ? `${f.name} wieder anzeigen` : `${f.name} ausblenden`}
-            onClick={() => void updatePlayer(f.id, { hidden_in_ranking: !f.hidden_in_ranking })}
-          >
-            {f.hidden_in_ranking ? <IconEyeOff /> : <IconEye />}
-            {f.name}
-          </button>
-        ))}
-      </div>
-    </section>
   );
 }
 
@@ -899,6 +972,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const [loading, setLoading] = useState(false);
   const queue = useQueue();
   const names = player ? playerUsernames(player) : [];
+  // Settings such as hiding the player hand over a new object; only a change of
+  // usernames needs new profiles.
+  const namesKey = names.join("\n");
   const { excludeBullet, skipBullet, ready } = useBulletPrefs();
   const fmt = statsFormat(format, excludeBullet);
 
@@ -917,18 +993,18 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     return () => {
       alive = false;
     };
-  }, [player, games, me, fmt, date, ready]);
+  }, [namesKey, games, me, fmt, date, ready]);
 
-  const h2h = useMemo(() => headToHead(games, me, names, fmt, date), [games, me, player, fmt, date]);
+  const h2h = useMemo(() => headToHead(games, me, names, fmt, date), [games, me, namesKey, fmt, date]);
   const report = useMemo(
     () => (data && player ? buildScoutReport(player.name, data.them, data.mine, h2h) : null),
-    [data, player, h2h],
+    [data, player?.name, h2h],
   );
   // Lichess and Chess.com ratings only compare when both mostly play on the same site.
   const sameSite = useMemo(() => {
     const a = mainSource(games, me);
     return Boolean(a) && a !== "file" && a === mainSource(games, names);
-  }, [games, me, player]);
+  }, [games, me, namesKey]);
   const matchup = useMemo(() => (data ? buildMatchup(data.mine, data.them, h2h, sameSite) : null), [data, h2h, sameSite]);
   // The time control the two mostly play each other in, to offer tips just for it.
   const duelSpeed = useMemo(() => {
@@ -937,7 +1013,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     for (const g of all.recent) if (g.speed) by.set(g.speed, (by.get(g.speed) ?? 0) + 1);
     const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
     return top && all.games >= 3 && top[1] / all.games >= 0.6 && FORMATS.includes(top[0]) && !(excludeBullet && top[0] === "Bullet") ? top[0] : null;
-  }, [games, me, player, excludeBullet]);
+  }, [games, me, namesKey, excludeBullet]);
 
   if (!player) {
     return (
@@ -961,9 +1037,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const refresh = async () => {
     setBusy("Lade Partien …");
     try {
-      const { result } = await importPlayerGames(player, { onProgress: setBusy });
-      setBusy(`${result.imported} neue Partien geladen.`);
-      window.setTimeout(() => setBusy(""), 2500);
+      const { result, failed } = await importPlayerGames(player, { onProgress: setBusy });
+      const missed = failed.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(", ");
+      setBusy(`${plural(result.imported, "neue Partie", "neue Partien")} geladen.${missed ? ` Nicht erreichbar: ${missed}.` : ""}`);
+      window.setTimeout(() => setBusy(""), missed ? 6000 : 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setBusy("");
@@ -998,6 +1075,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         </button>
         {player.name}
         {player.friend && <span class="pill accent">Freund</span>}
+        {player.hidden && <span class="pill">Ausgeblendet</span>}
         <span class="spacer" />
         {online && (
           <button class="btn" disabled={Boolean(busy)} onClick={refresh}>
@@ -1016,6 +1094,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         )}
       </div>
       {busy && <p class="small muted">{busy}</p>}
+      {player.hidden && (
+        <div class="notice row" style={{ marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
+          <span>{player.name} ist ausgeblendet und zählt nicht in der Rangliste.</span>
+          <button class="btn small" onClick={() => void updatePlayer(player.id, { hidden: false })}>
+            <IconEye /> Wieder einblenden
+          </button>
+        </div>
+      )}
 
       <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
       {duelSpeed && format !== duelSpeed && (
@@ -1359,23 +1445,20 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
       <label class="toggle-row">
         <input type="checkbox" checked={player.friend} onChange={(e) => void updatePlayer(player.id, { friend: e.currentTarget.checked })} />
         <span>
-          <strong>In der Freundes-Rangliste</strong>
-          <small class="faint">Freunde werden in der Rangliste mit dir verglichen.</small>
+          <strong>Freund</strong>
+          <small class="faint">Freunde werden in der Rangliste mit dir verglichen und bekommen eine ausführlichere Seite.</small>
         </span>
       </label>
-      {player.friend && (
-        <label class="toggle-row">
-          <input
-            type="checkbox"
-            checked={player.hidden_in_ranking}
-            onChange={(e) => void updatePlayer(player.id, { hidden_in_ranking: e.currentTarget.checked })}
-          />
-          <span>
-            <strong>In Rangliste und Vergleich ausblenden</strong>
-            <small class="faint">Bleibt dein Freund, taucht aber vorerst nicht in der Rangliste auf.</small>
-          </span>
-        </label>
-      )}
+      <label class="toggle-row">
+        <input type="checkbox" checked={player.hidden} onChange={(e) => void updatePlayer(player.id, { hidden: e.currentTarget.checked })} />
+        <span>
+          <strong>In Rangliste und Vergleich ausblenden</strong>
+          <small class="faint">
+            {player.name} bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“.
+            Diese Seite bleibt erreichbar.
+          </small>
+        </span>
+      </label>
       <div class="row" style={{ marginTop: "10px", flexWrap: "wrap", gap: "8px" }}>
         {confirm ? (
           <>

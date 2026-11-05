@@ -17,8 +17,12 @@ export interface TrackedPlayer {
   accounts: PlayerAccount[];
   /** Friends take part in the ranking; every player gets a scouting report. */
   friend: boolean;
-  /** Friend kept out of the ranking and its comparisons for now (stays a friend). */
-  hidden_in_ranking: boolean;
+  /**
+   * Hidden players stay tracked (friend status, games and report are kept) but
+   * drop out of the ranking and every group comparison, and the player list
+   * tucks them away until they are shown again.
+   */
+  hidden: boolean;
   /** Milliseconds since epoch. */
   added_at: number;
   /** When games were last loaded from Lichess/Chess.com (ms), null if never. */
@@ -30,10 +34,6 @@ export const SOURCE_LABELS: Record<AccountSource, string> = {
   chesscom: "Chess.com",
   other: "PGN",
 };
-
-/** Friends that are compared in the ranking (hidden ones stay out). */
-export const rankedFriends = (players: TrackedPlayer[]): TrackedPlayer[] =>
-  players.filter((p) => p.friend && !p.hidden_in_ranking);
 
 export const playerUsernames = (p: Pick<TrackedPlayer, "accounts">): string[] =>
   [...new Set(p.accounts.map((a) => a.username.trim()).filter(Boolean))];
@@ -66,10 +66,24 @@ export function parsePlayers(raw: unknown): TrackedPlayer[] {
       name: typeof p.name === "string" && p.name.trim() ? p.name.trim() : accounts[0].username,
       accounts,
       friend: Boolean(p.friend),
-      hidden_in_ranking: Boolean(p.hidden_in_ranking),
+      hidden: Boolean(p.hidden),
       added_at: Number(p.added_at) || 0,
       imported_at: typeof p.imported_at === "number" ? p.imported_at : null,
     });
   }
   return out;
+}
+
+/** Friends that are compared in the ranking: hidden ones sit it out. */
+export const rankedFriends = (players: TrackedPlayer[]): TrackedPlayer[] => players.filter((p) => p.friend && !p.hidden);
+
+/**
+ * Order of the player list: friends first, then opponents; within each, the
+ * players with the most games. Hidden players come back separately.
+ */
+export function orderPlayers<T extends { player: TrackedPlayer; games: number }>(cards: T[]): { shown: T[]; hidden: T[] } {
+  const sorted = [...cards].sort(
+    (a, b) => Number(b.player.friend) - Number(a.player.friend) || b.games - a.games || a.player.name.localeCompare(b.player.name, "de"),
+  );
+  return { shown: sorted.filter((c) => !c.player.hidden), hidden: sorted.filter((c) => c.player.hidden) };
 }
