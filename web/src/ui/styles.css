@@ -6411,3 +6411,84 @@ button.line-move:hover {
   gap: 4px;
   margin-left: auto;
 }
+
+/* ---------- hiding friends from the ranking ---------- */
+
+.rank-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.rank-toolbar > .filters {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.refresh-all {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rank-members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 4px 0 14px;
+}
+
+.chip.member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.chip.member svg {
+  width: 15px;
+  height: 15px;
+}
+
+.chip.member.on {
+  color: var(--text);
+  text-decoration: none;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.chip.member.me {
+  cursor: default;
+}
+
+.hidden-players {
+  margin-top: 14px;
+}
+
+.hidden-players summary {
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+.hidden-players .suggest-list {
+  margin-top: 10px;
+}
+
+.hidden-players a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (max-width: 520px) {
+  .rank-toolbar > .filters select {
+    flex: 1 1 140px;
+  }
+}

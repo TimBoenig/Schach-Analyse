@@ -6,9 +6,12 @@ import {
   buildScoutReport,
   frequentOpponents,
   headToHead,
+  orderPlayers,
   parsePlayers,
   playerId,
+  rankedFriends,
   type RankInput,
+  type TrackedPlayer,
 } from "../../src/domain/players";
 import { buildOpeningInsights, buildPlayerProfile, type PlayerProfile } from "../../src/domain/profile";
 import type { OpeningInsights } from "../../src/domain/profile/openings";
@@ -50,8 +53,22 @@ describe("tracked players", () => {
       "kaputt",
     ]);
     expect(parsed).toEqual([
-      { id: "max", name: "Max", accounts: [{ source: "lichess", username: "Max" }], friend: true, added_at: 5, imported_at: null },
+      { id: "max", name: "Max", accounts: [{ source: "lichess", username: "Max" }], friend: true, hidden: false, added_at: 5, imported_at: null },
     ]);
+  });
+
+  it("keeps hidden friends out of the ranking and lists them last, friends before opponents", () => {
+    const p = (id: string, friend: boolean, hidden: boolean): TrackedPlayer =>
+      parsePlayers([{ id, accounts: [{ source: "lichess", username: id }], friend, hidden }])[0];
+    const players = [p("ida", false, false), p("max", true, true), p("lena", true, false), p("ole", true, false)];
+    expect(players.map((x) => x.hidden)).toEqual([false, true, false, false]);
+    expect(rankedFriends(players).map((x) => x.id)).toEqual(["lena", "ole"]);
+
+    const games: Record<string, number> = { ida: 50, max: 40, lena: 3, ole: 12 };
+    const { shown, hidden } = orderPlayers(players.map((player) => ({ player, games: games[player.id] })));
+    // Friends first even with fewer games; the opponent with most games trails them.
+    expect(shown.map((c) => c.player.id)).toEqual(["ole", "lena", "ida"]);
+    expect(hidden.map((c) => c.player.id)).toEqual(["max"]);
   });
 
   it("counts the head-to-head from the first player's side and suggests frequent opponents", () => {
