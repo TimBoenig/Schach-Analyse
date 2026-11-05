@@ -29,6 +29,7 @@ export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
   { view: "openings", label: "Eröffnungen", key: "6" },
   { view: "training", label: "Training", key: "7" },
   { view: "settings", label: "Einstellungen", key: "8" },
+  { view: "account", label: "Konto & Sync", key: "k" },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

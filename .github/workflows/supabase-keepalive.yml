@@ -1,0 +1,34 @@
+# Free Supabase projects pause after a week without traffic, which breaks
+# sign-in and sync in the web app. One tiny read every three days keeps the
+# project awake. Needs the repository secrets SUPABASE_URL and
+# SUPABASE_PUBLISHABLE_KEY (the same public values the web build uses);
+# without them the job does nothing.
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "17 6 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Query the sync table once
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "Secrets not set, skipping."
+            exit 0
+          fi
+          status=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/sync_records?select=id&limit=1")
+          echo "HTTP $status"
+          test "$status" -lt 500

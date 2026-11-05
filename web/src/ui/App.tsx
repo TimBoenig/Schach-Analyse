@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import { subscribeQueue } from "../app/analysisService";
-import { syncAvailable, syncNow, supabase } from "../storage/sync";
+import { resumeQueue, subscribeQueue } from "../app/analysisService";
+import { onDataChanged } from "../storage/db";
+import { currentUser, hasAuthCallback, onAuthEvent, refreshSyncStatus, syncAvailable, syncNow } from "../storage/sync";
+import { AccountView, useSyncStatus } from "./AccountView";
 import { AnalysisView } from "./AnalysisView";
 import { FreeBoardView } from "./FreeBoardView";
 import { GamesView } from "./GamesView";
@@ -9,6 +11,7 @@ import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
 import { CoachAvatar, COACH_NAME } from "./Coach";
 import {
+  IconAccount,
   IconBoard,
   IconClose,
   IconFreeBoard,
@@ -66,25 +69,42 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   },
 ];
 
-const SETTINGS_ITEM: NavItem = { view: "settings", label: "Einstellungen", hint: "Namen, Sync, Aussehen", icon: IconSettings };
-const ALL_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), SETTINGS_ITEM];
+const SETTINGS_ITEM: NavItem = { view: "settings", label: "Einstellungen", hint: "Namen, Analyse, Aussehen", icon: IconSettings };
+const ACCOUNT_ITEM: NavItem = { view: "account", label: "Konto", hint: "Anmelden, auf allen Geräten", icon: IconAccount };
+const ALL_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ACCOUNT_ITEM, SETTINGS_ITEM];
 const TAB_VIEWS: Route["view"][] = ["home", "games", "training", "profile"];
 const MORE_ITEMS = ALL_ITEMS.filter((n) => !TAB_VIEWS.includes(n.view));
+
+// Local changes reach the cloud this long after the last edit (batch imports
+// and analysis write many records in a row).
+const PUSH_DELAY_MS = 20_000;
 
 function useBackgroundSync(): void {
   useEffect(() => {
     if (!syncAvailable()) return;
     const run = () => void syncNow().catch(() => undefined);
-    // Let the first screen render before the sync client loads.
-    const first = window.setTimeout(run, 1200);
-    let unsubscribe: (() => void) | null = null;
     let alive = true;
-    void supabase()?.then((sb) => {
-      if (!alive) return;
-      const sub = sb.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_IN") run();
-      });
-      unsubscribe = () => sub.data.subscription.unsubscribe();
+    let unsubscribe: (() => void) | null = null;
+    // Opened from an account e-mail: start the client at once so it can read
+    // the link, then show the account page (the client clears the URL).
+    const fromMail = hasAuthCallback();
+    const first = window.setTimeout(
+      () => {
+        void onAuthEvent((event) => {
+          if (event === "SIGNED_IN") run();
+          if (event === "PASSWORD_RECOVERY") navigate({ view: "account" }, true);
+        }).then((off) => (alive ? (unsubscribe = off) : off()));
+        if (fromMail) void currentUser().finally(() => navigate({ view: "account" }, true));
+        void refreshSyncStatus();
+        run();
+      },
+      // Let the first screen render before the sync client loads.
+      fromMail ? 0 : 1200,
+    );
+    let pushTimer = 0;
+    const offData = onDataChanged(() => {
+      window.clearTimeout(pushTimer);
+      pushTimer = window.setTimeout(run, PUSH_DELAY_MS);
     });
     const onVisible = () => document.visibilityState === "visible" && run();
     document.addEventListener("visibilitychange", onVisible);
@@ -93,12 +113,44 @@ function useBackgroundSync(): void {
     return () => {
       alive = false;
       unsubscribe?.();
+      offData();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", run);
       window.clearInterval(timer);
       window.clearTimeout(first);
+      window.clearTimeout(pushTimer);
     };
   }, []);
+}
+
+/** Sidebar entry: who is signed in and whether the last sync worked. */
+function AccountChip({ active, onClick }: { active: boolean; onClick: () => void }) {
+  const s = useSyncStatus();
+  if (s.phase === "off") return null;
+  const signedIn = Boolean(s.email) && s.phase !== "signed-out";
+  return (
+    <button class={`nav-item account-chip${active ? " active" : ""}`} onClick={onClick} aria-current={active ? "page" : undefined}>
+      <span class={`account-avatar small${signedIn ? "" : " empty"}`}>
+        {signedIn ? (s.email ?? "?").slice(0, 1).toUpperCase() : <IconAccount />}
+        {signedIn && <span class={`sync-dot ${s.phase}`} />}
+      </span>
+      <span class="nav-label">
+        {signedIn ? (
+          <>
+            <span class="account-chip-mail">{s.email}</span>
+            <span class="account-chip-state">
+              {s.phase === "running" ? "Gleicht ab …" : s.phase === "error" ? "Abgleich gestört" : "Online gesichert"}
+            </span>
+          </>
+        ) : (
+          <>
+            Anmelden
+            <span class="account-chip-state">Analysen auf allen Geräten</span>
+          </>
+        )}
+      </span>
+    </button>
+  );
 }
 
 function go(view: Route["view"], lastGame: string | null): void {
@@ -136,6 +188,11 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
+  // Continue analyses that were still running when the app was last closed.
+  useEffect(() => {
+    const t = window.setTimeout(() => void resumeQueue().catch(() => undefined), 2500);
+    return () => window.clearTimeout(t);
+  }, []);
 
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.
   useEffect(() => window.scrollTo(0, 0), [route.view]);
@@ -183,6 +240,13 @@ export function App() {
           </div>
         ))}
         <div class="nav-spacer" />
+        <AccountChip
+          active={route.view === "account"}
+          onClick={() => {
+            setOverlay(null);
+            go("account", lastGame);
+          }}
+        />
         {navButton(SETTINGS_ITEM)}
         <button class="nav-keys" onClick={() => setOverlay("keys")}>
           Tastenkürzel <kbd>?</kbd>
@@ -214,6 +278,7 @@ export function App() {
           <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />
         )}
         {route.view === "settings" && <SettingsView />}
+        {route.view === "account" && <AccountView />}
       </main>
       {overlay === "palette" && (
         <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />

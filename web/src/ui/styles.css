@@ -6411,3 +6411,193 @@ button.line-move:hover {
   gap: 4px;
   margin-left: auto;
 }
+
+/* ---------- account & sync ---------- */
+.account-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 800;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.account-avatar.small {
+  width: 30px;
+  height: 30px;
+  font-size: 14px;
+}
+.account-avatar.empty {
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.account-avatar.empty svg {
+  width: 20px;
+  height: 20px;
+}
+.account-avatar .sync-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid var(--bg-elev);
+}
+.sync-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.sync-dot.running,
+.sync-state.running .sync-dot {
+  background: var(--great);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.sync-dot.error,
+.sync-state.error .sync-dot {
+  background: var(--mistake);
+}
+.nav button.account-chip {
+  min-height: 52px;
+  margin-bottom: 4px;
+}
+.account-chip .nav-label {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+.account-chip-mail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 170px;
+}
+.account-chip-state {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+.account-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.account-mail {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 17px;
+}
+.sync-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 14px;
+  margin-bottom: 14px;
+}
+.synced-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.synced-list li {
+  display: grid;
+  gap: 2px;
+  padding-left: 22px;
+  position: relative;
+}
+.synced-list li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 4px;
+  width: 6px;
+  height: 11px;
+  border: solid var(--accent);
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+.account-form.narrow {
+  max-width: 420px;
+}
+.pw-field {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.pw-field input {
+  flex: 1;
+  min-width: 0;
+}
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.page-title > svg {
+  width: 26px;
+  height: 26px;
+  color: var(--accent);
+}
+
+/* ---------- ranking: who takes part ---------- */
+.rank-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rank-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rank-member svg {
+  width: 16px;
+  height: 16px;
+}
+.rank-member.off {
+  background: none;
+  color: var(--text-3);
+  text-decoration: line-through;
+  border-style: dashed;
+}
+.rank-member:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+.dash > .account-hero {
+  align-self: start;
+}
+@media (max-width: 1023px) {
+  /* Phones: the sign-in form comes before the explanation. */
+  .dash > .account-pitch {
+    order: 2;
+  }
+}

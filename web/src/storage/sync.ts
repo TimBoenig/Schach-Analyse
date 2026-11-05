@@ -1,8 +1,10 @@
 // Optional cloud sync through Supabase. The app is fully usable without it;
 // when signed in, games and settings are merged across devices
-// last-writer-wins on `updated_at`. Engine evaluations stay device-local.
+// last-writer-wins on `updated_at`. Games travel in a compact form (see
+// compact.ts): metadata, PGN, summary and packed move ratings, never the full
+// engine lines. Engine evaluations stay device-local.
 // supabase-js is loaded on demand so it stays out of the startup bundle.
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoredGame } from "../domain/types";
 import {
@@ -14,6 +16,7 @@ import {
   setSetting,
   type SettingRecord,
 } from "./db";
+import { COMPACT_VERSION, fromCloudGame, keepRicherMoves, toCloudGame, type CloudGame } from "./compact";
 
 type Kind = "game" | "setting";
 
@@ -27,7 +30,7 @@ interface RemoteRow {
 }
 
 /** Local settings that describe sync state itself must not sync. */
-const LOCAL_ONLY_SETTINGS = new Set(["sync.lastSeq", "sync.lastPushAt", "sync.lastSyncAt"]);
+const LOCAL_ONLY_SETTINGS = new Set(["sync.lastSeq", "sync.lastPushAt", "sync.lastSyncAt", "sync.compact"]);
 const PAGE = 200;
 // Rows committed concurrently can land with a lower sequence number than one
 // already pulled; re-reading a small window is harmless because merging is idempotent.
@@ -37,6 +40,40 @@ const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
 
 let client: Promise<SupabaseClient> | null = null;
+
+export interface AuthCallback {
+  /** "signup" (address confirmed), "recovery" (reset link), "email_change", … */
+  type: string;
+  error: string | null;
+}
+
+// supabase-js reads and then clears the tokens in the URL while it starts, so
+// what the e-mail link was for is captured before that.
+let authCallback: AuthCallback | null = (() => {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  if (!params.has("access_token") && !params.has("error")) return null;
+  const error = params.get("error_description") || params.get("error");
+  return { type: params.get("type") ?? "signup", error: error ? translateLinkError(error) : null };
+})();
+
+/** The e-mail link this page was opened from (kept until handled). */
+export function getAuthCallback(): AuthCallback | null {
+  return authCallback;
+}
+
+export function clearAuthCallback(): void {
+  authCallback = null;
+}
+
+export function hasAuthCallback(): boolean {
+  return authCallback !== null;
+}
+
+function translateLinkError(msg: string): string {
+  if (/expired|invalid/i.test(msg)) return "Der Link ist abgelaufen oder wurde schon benutzt. Fordere bitte einen neuen an.";
+  return msg;
+}
 
 export function syncAvailable(): boolean {
   return Boolean(url && key);
@@ -124,6 +161,43 @@ export interface SyncReport {
   pushed: number;
 }
 
+export type SyncPhase = "off" | "signed-out" | "idle" | "running" | "error";
+
+export interface SyncStatus {
+  phase: SyncPhase;
+  email: string | null;
+  /** ms since epoch of the last successful round on this device. */
+  lastAt: number;
+  error: string | null;
+}
+
+let status: SyncStatus = { phase: syncAvailable() ? "signed-out" : "off", email: null, lastAt: 0, error: null };
+const statusListeners = new Set<(s: SyncStatus) => void>();
+
+function setStatus(patch: Partial<SyncStatus>): void {
+  status = { ...status, ...patch };
+  for (const l of statusListeners) l(status);
+}
+
+/** Live sync state for the account chip and the account page. */
+export function subscribeSyncStatus(cb: (s: SyncStatus) => void): () => void {
+  statusListeners.add(cb);
+  cb(status);
+  return () => statusListeners.delete(cb);
+}
+
+/** Reads the stored session (no network) so the UI knows who is signed in. */
+export async function refreshSyncStatus(): Promise<SyncStatus> {
+  if (!syncAvailable()) return status;
+  const user = await currentUser().catch(() => null);
+  if (!user) setStatus({ phase: "signed-out", email: null });
+  else {
+    const lastAt = await getSetting<number>("sync.lastSyncAt", 0);
+    setStatus({ email: user.email ?? null, lastAt, phase: status.phase === "signed-out" || status.phase === "off" ? "idle" : status.phase });
+  }
+  return status;
+}
+
 let running: Promise<SyncReport> | null = null;
 
 /** Pull remote changes, merge, push local changes. Concurrent calls share one run. */
@@ -132,11 +206,33 @@ export function syncNow(): Promise<SyncReport> {
     running = (async () => {
       const sb = await supabase();
       const user = await currentUser();
-      if (!sb || !user) return { pulled: 0, pushed: 0 };
-      return syncWith(sb, user.id);
+      if (!sb || !user) {
+        setStatus({ phase: sb ? "signed-out" : "off", email: null, error: null });
+        return { pulled: 0, pushed: 0 };
+      }
+      setStatus({ phase: "running", email: user.email ?? null, error: null });
+      try {
+        const report = await syncWith(sb, user.id);
+        setStatus({ phase: "idle", lastAt: Date.now() });
+        return report;
+      } catch (e) {
+        setStatus({ phase: "error", error: describeSyncError(e) });
+        throw e;
+      }
     })().finally(() => (running = null));
   }
   return running;
+}
+
+/** German message for a failed round; a paused or unreachable server is the usual cause. */
+export function describeSyncError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return "Offline. Der Abgleich läuft weiter, sobald du wieder Internet hast.";
+  if (/failed to fetch|network|load failed|timeout|503|504|522|540/i.test(msg)) {
+    return "Der Sync-Server antwortet nicht. Deine Daten bleiben sicher auf diesem Gerät und werden später abgeglichen.";
+  }
+  if (/jwt|token|session/i.test(msg)) return "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.";
+  return `Abgleich fehlgeschlagen: ${msg}`;
 }
 
 /** One pull-merge-push round for `userId` (exported for tests with a fake client). */
@@ -167,19 +263,32 @@ export async function syncWith(sb: SupabaseClient, userId: string): Promise<Sync
   const games = mergeRecords(localGames, remoteGames, lastPushAt);
   const settings = mergeRecords(localSettings, remoteSettings, lastPushAt);
 
-  await putGames(games.toLocal, { touch: false });
+  // Only games that win the merge are unpacked (rebuilding moves from the PGN costs time).
+  const incoming: StoredGame[] = [];
+  for (const g of games.toLocal) {
+    const { id, updated_at, deleted, ...data } = g;
+    const decoded = await fromCloudGame(data as unknown as CloudGame, { id, updated_at, deleted: Boolean(deleted) });
+    const { game, repush } = keepRicherMoves(localGames.get(id), decoded);
+    incoming.push(game);
+    if (repush) games.toRemote.push(game);
+  }
+  await putGames(incoming, { touch: false });
   if (settings.toLocal.length) await putSettingRecords(settings.toLocal);
 
+  // Records uploaded by an older version carry the full analysis; re-upload
+  // everything once in the compact form to shrink the online copy.
+  const compactDone = owner === user.id && (await getSetting<number>("sync.compact", 0)) >= COMPACT_VERSION;
+  if (!compactDone) {
+    const skip = new Set([...games.toRemote, ...games.toLocal].map((g) => g.id));
+    for (const g of localGames.values()) if (!skip.has(g.id)) games.toRemote.push(g);
+  }
+
   const pushStarted = Date.now();
-  await push(
-    sb,
-    user.id,
-    "game",
-    games.toRemote.map((g) => {
-      const { updated_at, deleted, ...data } = g;
-      return { id: g.id, data, updated_at, deleted: Boolean(deleted) };
-    }),
-  );
+  const gameItems = [];
+  for (const g of games.toRemote) {
+    gameItems.push({ id: g.id, data: await toCloudGame(g), updated_at: g.updated_at, deleted: Boolean(g.deleted) });
+  }
+  await push(sb, user.id, "game", gameItems);
   await push(
     sb,
     user.id,
@@ -193,42 +302,113 @@ export async function syncWith(sb: SupabaseClient, userId: string): Promise<Sync
       { key: "sync.lastSeq", value: maxSeq, updated_at: 0 },
       { key: "sync.lastPushAt", value: pushStarted, updated_at: 0 },
       { key: "sync.lastSyncAt", value: Date.now(), updated_at: 0 },
+      { key: "sync.compact", value: COMPACT_VERSION, updated_at: 0 },
     ],
     true,
   );
   return { pulled: games.toLocal.length + settings.toLocal.length, pushed: games.toRemote.length + settings.toRemote.length };
 }
 
-export async function signIn(email: string, password: string): Promise<void> {
+async function requireClient(): Promise<SupabaseClient> {
   const sb = await supabase();
-  if (!sb) throw new Error("Sync ist nicht eingerichtet.");
-  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (!sb) throw new Error("In dieser Version ist kein Sync-Server hinterlegt.");
+  return sb;
+}
+
+/** Where links in account e-mails lead back to (the account page of this app). */
+function accountUrl(): string {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+export const MIN_PASSWORD = 8;
+
+export function passwordProblem(password: string): string | null {
+  if (password.length < MIN_PASSWORD) return `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`;
+  if (!/[a-zA-ZäöüÄÖÜß]/.test(password) || !/[^a-zA-ZäöüÄÖÜß]/.test(password)) {
+    return "Nimm Buchstaben und mindestens eine Zahl oder ein Sonderzeichen.";
+  }
+  return null;
+}
+
+export async function signIn(email: string, password: string): Promise<void> {
+  const { data, error } = await (await requireClient()).auth.signInWithPassword({ email: email.trim(), password });
   if (error) throw new Error(translateAuthError(error.message));
+  setStatus({ phase: "idle", email: data.user?.email ?? email.trim(), error: null });
 }
 
 /** Returns true when the account still has to be confirmed by e-mail. */
 export async function signUp(email: string, password: string): Promise<boolean> {
-  const sb = await supabase();
-  if (!sb) throw new Error("Sync ist nicht eingerichtet.");
-  const { data, error } = await sb.auth.signUp({
-    email,
+  const problem = passwordProblem(password);
+  if (problem) throw new Error(problem);
+  const { data, error } = await (await requireClient()).auth.signUp({
+    email: email.trim(),
     password,
-    options: { emailRedirectTo: window.location.origin },
+    options: { emailRedirectTo: accountUrl() },
   });
   if (error) throw new Error(translateAuthError(error.message));
   return !data.session;
 }
 
+/** Sends a reset link; the link signs the user in and the app asks for a new password. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const { error } = await (await requireClient()).auth.resetPasswordForEmail(email.trim(), { redirectTo: accountUrl() });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+export async function changePassword(password: string): Promise<void> {
+  const problem = passwordProblem(password);
+  if (problem) throw new Error(problem);
+  const { error } = await (await requireClient()).auth.updateUser({ password });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
 export async function signOut(): Promise<void> {
   await (await supabase())?.auth.signOut();
   await setSetting("sync.lastSyncAt", 0);
+  setStatus({ phase: "signed-out", email: null, error: null, lastAt: 0 });
+}
+
+/**
+ * Deletes everything this account stored online. Local data on this device
+ * stays; the next sync would upload it again, so the user is signed out.
+ */
+export async function deleteCloudData(): Promise<void> {
+  const sb = await requireClient();
+  const user = await currentUser();
+  if (!user) throw new Error("Nicht angemeldet.");
+  const { error } = await sb.from("sync_records").delete().eq("user_id", user.id);
+  if (error) throw new Error(describeSyncError(error));
+  await putSettingRecords(
+    [
+      { key: "sync.owner", value: "", updated_at: 0 },
+      { key: "sync.lastSeq", value: 0, updated_at: 0 },
+    ],
+    true,
+  );
+  await signOut();
+}
+
+/** Calls `cb` on sign-in, sign-out and when a password-reset link was opened. */
+export async function onAuthEvent(cb: (event: AuthChangeEvent) => void): Promise<() => void> {
+  const sb = await supabase();
+  if (!sb) return () => undefined;
+  const sub = sb.auth.onAuthStateChange((event, session) => {
+    if (session?.user) setStatus({ email: session.user.email ?? null, phase: status.phase === "running" ? "running" : "idle" });
+    else if (event === "SIGNED_OUT") setStatus({ phase: "signed-out", email: null });
+    cb(event);
+  });
+  return () => sub.data.subscription.unsubscribe();
 }
 
 function translateAuthError(msg: string): string {
   if (/invalid login/i.test(msg)) return "E-Mail oder Passwort ist falsch.";
   if (/not confirmed/i.test(msg)) return "Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Bestätigungsmail.";
-  if (/already registered/i.test(msg)) return "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.";
-  if (/failed to fetch|network/i.test(msg)) return "Keine Verbindung zum Sync-Server. Bitte prüfe deine Internetverbindung.";
-  if (/password/i.test(msg)) return "Das Passwort muss mindestens 6 Zeichen lang sein.";
+  if (/already registered|already been registered/i.test(msg)) return "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.";
+  if (/rate limit|too many|security purposes/i.test(msg)) return "Zu viele Versuche. Bitte warte kurz und probiere es dann noch einmal.";
+  if (/invalid.*email|email.*invalid/i.test(msg)) return "Diese E-Mail-Adresse ist ungültig.";
+  if (/same password|different from the old/i.test(msg)) return "Das neue Passwort muss sich vom alten unterscheiden.";
+  if (/failed to fetch|network|load failed/i.test(msg)) return "Keine Verbindung zum Sync-Server. Bitte prüfe deine Internetverbindung.";
+  if (/weak|pwned|leaked/i.test(msg)) return "Dieses Passwort ist zu unsicher oder schon in Datenlecks aufgetaucht. Bitte wähle ein anderes.";
+  if (/password/i.test(msg)) return `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`;
   return msg;
 }
