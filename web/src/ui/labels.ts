@@ -192,3 +192,13 @@ export function moveVerdict(move: Pick<MoveData, "move_number" | "fen_before" | 
       return m;
   }
 }
+
+/** "heute", "gestern", "vor 5 Tagen": how fresh a player's games are. */
+export function loadedAgo(ms: number | null, now = Date.now()): string {
+  if (!ms) return "noch nie geladen";
+  const day = (t: number) => Math.floor((t - new Date(t).getTimezoneOffset() * 60_000) / 86_400_000);
+  const d = day(now) - day(ms);
+  if (d <= 0) return "heute geladen";
+  if (d === 1) return "gestern geladen";
+  return `vor ${d} Tagen geladen`;
+}

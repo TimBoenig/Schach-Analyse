@@ -25,8 +25,14 @@ export async function addPlayer(input: { name?: string; accounts: PlayerAccount[
   const lower = new Set(accounts.map((a) => a.username.toLowerCase()));
   const existing = list.find((p) => playerUsernames(p).some((u) => lower.has(u.toLowerCase())));
   if (existing) {
-    // Same person again: merge accounts and keep the stronger relationship.
-    const merged = { ...existing, friend: existing.friend || input.friend, accounts: mergeAccounts(existing.accounts, accounts) };
+    // Same person again: merge accounts, keep the stronger relationship and
+    // show them again, since adding someone means wanting to see them.
+    const merged = {
+      ...existing,
+      friend: existing.friend || input.friend,
+      hidden: false,
+      accounts: mergeAccounts(existing.accounts, accounts),
+    };
     await save(list.map((p) => (p.id === existing.id ? merged : p)));
     return merged;
   }
@@ -35,6 +41,7 @@ export async function addPlayer(input: { name?: string; accounts: PlayerAccount[
     name: input.name?.trim() || accounts[0].username,
     accounts,
     friend: input.friend,
+    hidden: false,
     added_at: Date.now(),
     imported_at: null,
   };
@@ -81,11 +88,15 @@ export interface PlayerImportOptions {
   onProgress?: (label: string) => void;
 }
 
-/** Loads the newest games of every online account of the player. */
+/**
+ * Loads the newest games of every online account of the player. One account
+ * failing (a renamed Chess.com name, say) does not stop the others; it only
+ * throws when no account could be loaded.
+ */
 export async function importPlayerGames(
   player: TrackedPlayer,
   { count = 100, months = 3, signal, onProgress }: PlayerImportOptions = {},
-): Promise<{ result: ImportResult; ids: string[] }> {
+): Promise<{ result: ImportResult; ids: string[]; failed: PlayerAccount[] }> {
   const result: ImportResult = { found: 0, imported: 0, already_known: 0, skipped: [] };
   const ids: string[] = [];
   const onBatch = async (games: GameAnalysis[]) => {
@@ -93,17 +104,53 @@ export async function importPlayerGames(
     await storeImported(games);
   };
   const opts = { onBatch, signal, onProgress: (_c: number, _t: number, label: string) => onProgress?.(label) };
+  const failed: PlayerAccount[] = [];
+  let firstError: unknown = null;
+  let tried = 0;
   for (const acc of player.accounts) {
     if (signal?.aborted) break;
     let part: ImportResult | null = null;
-    if (acc.source === "lichess") part = (await importLichessGames(acc.username, gameExists, count, opts)).result;
-    else if (acc.source === "chesscom") part = (await importChesscomGames(acc.username, gameExists, months, opts)).result;
+    try {
+      if (acc.source === "lichess") part = (await importLichessGames(acc.username, gameExists, count, opts)).result;
+      else if (acc.source === "chesscom") part = (await importChesscomGames(acc.username, gameExists, months, opts)).result;
+    } catch (e) {
+      failed.push(acc);
+      firstError ??= e;
+    }
+    if (acc.source !== "other") tried++;
     if (!part) continue;
     result.found += part.found;
     result.imported += part.imported;
     result.already_known += part.already_known;
     result.skipped.push(...part.skipped);
   }
+  if (tried > 0 && failed.length === tried) throw firstError;
   await updatePlayer(player.id, { imported_at: Date.now() });
-  return { result, ids };
+  return { result, ids, failed };
+}
+
+/**
+ * Loads new games for several players one after another (the APIs rate-limit
+ * parallel requests). A failing account is reported and skipped so one typo'd
+ * username does not stop the rest.
+ */
+export async function importAllPlayers(
+  players: TrackedPlayer[],
+  { signal, onProgress, ...opts }: PlayerImportOptions = {},
+): Promise<{ imported: number; failed: string[] }> {
+  let imported = 0;
+  const failed: string[] = [];
+  const online = players.filter((p) => p.accounts.some((a) => a.source !== "other"));
+  for (const [i, p] of online.entries()) {
+    if (signal?.aborted) break;
+    const step = `${p.name} (${i + 1}/${online.length})`;
+    onProgress?.(`Lade ${step} …`);
+    try {
+      imported += (await importPlayerGames(p, { ...opts, signal, onProgress: (label) => onProgress?.(`${step}: ${label}`) })).result.imported;
+    } catch {
+      if (signal?.aborted) break;
+      failed.push(p.name);
+    }
+  }
+  return { imported, failed };
 }

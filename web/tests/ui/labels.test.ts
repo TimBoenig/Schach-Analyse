@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lineScoreWhite } from "../../src/domain/analyzer";
-import { accClass, monthLabel, outcomeFor, shortOpening } from "../../src/ui/labels";
+import { accClass, loadedAgo, monthLabel, outcomeFor, shortOpening } from "../../src/ui/labels";
 
 describe("game list labels", () => {
   it.each([
@@ -47,5 +47,15 @@ describe("engine line display", () => {
     expect(lineScoreWhite(black, { cp: 40, mate: null })).toEqual({ cp: -40, mate: null });
     expect(lineScoreWhite(black, { cp: null, mate: 3 })).toEqual({ cp: null, mate: -3 });
     expect(lineScoreWhite(white, { cp: 25, mate: null })).toEqual({ cp: 25, mate: null });
+  });
+});
+
+describe("player freshness", () => {
+  it("counts calendar days, not 24-hour blocks", () => {
+    const now = new Date(2026, 10, 5, 9, 0).getTime();
+    expect(loadedAgo(null, now)).toBe("noch nie geladen");
+    expect(loadedAgo(new Date(2026, 10, 5, 0, 30).getTime(), now)).toBe("heute geladen");
+    expect(loadedAgo(new Date(2026, 10, 4, 23, 30).getTime(), now)).toBe("gestern geladen");
+    expect(loadedAgo(new Date(2026, 10, 1, 12, 0).getTime(), now)).toBe("vor 4 Tagen geladen");
   });
 });
