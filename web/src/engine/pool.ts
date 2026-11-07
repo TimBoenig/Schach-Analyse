@@ -96,6 +96,11 @@ export class EnginePool {
     });
   }
 
+  /** Ends the running searches early (they still answer, so nothing hangs). */
+  stopSearches(): void {
+    for (const s of this.slots) if (s.busy) s.engine.stop();
+  }
+
   /** Stops every engine (e.g. on page unload). */
   quit(): void {
     for (const s of [...this.slots]) this.retire(s);

@@ -379,7 +379,9 @@ export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, op
     const settings = settingsNow();
     used(settings);
     if (i === total) {
-      final = await finalPositionScore(game, engine, settings);
+      const score = await finalPositionScore(game, engine, settings);
+      if (opts.signal?.aborted) return;
+      final = score;
       finalDone = true;
       return;
     }
@@ -388,6 +390,8 @@ export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, op
     let lines = opts.cache ? await opts.cache.get(key) : undefined;
     if (!lines || !lines.length) {
       lines = await engine.analyse(move.fen_before, settings);
+      // A cancel stops running searches early: their shallow lines are neither kept nor cached.
+      if (opts.signal?.aborted) return;
       if (opts.cache && lines.length) await opts.cache.set(key, lines);
     }
     processAnalysisResults(move, lines);

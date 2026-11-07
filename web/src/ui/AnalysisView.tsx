@@ -887,7 +887,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
                     <strong>Analyse läuft … {progress} %</strong>
                     <button class="btn small" onClick={cancelCurrent}>
-                      <IconStop /> Pause
+                      <IconStop /> Abbrechen
                     </button>
                   </div>
                   <div class="progress">

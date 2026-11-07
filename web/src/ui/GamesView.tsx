@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import { autoAnalyze, cancelAll, cancelGame, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { LiveDepth } from "./LiveDepth";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
@@ -19,6 +19,23 @@ import { PeriodSelect } from "./useProfile";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
+
+/** Stops this game's analysis (or drops it from the queue); the rest keeps running. */
+function CancelButton({ id, label }: { id: string; label: string }) {
+  return (
+    <button
+      class="btn small ghost"
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        cancelGame(id);
+      }}
+    >
+      <IconStop />
+    </button>
+  );
+}
 
 function status(g: StoredGame): "completed" | "paused" | "not_started" {
   return (g.summary_json?.analysis_status as "completed" | "paused" | "not_started") ?? "not_started";
@@ -289,9 +306,15 @@ function GameRow({
             <div class="acc-label">Genauigkeit</div>
           </>
         ) : isCurrent ? (
-          <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
+          <span class="row" style={{ gap: "6px" }}>
+            <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
+            <CancelButton id={g.id} label="Analyse abbrechen" />
+          </span>
         ) : queue?.queued.includes(g.id) ? (
-          <span class="pill">wartet</span>
+          <span class="row" style={{ gap: "6px" }}>
+            <span class="pill">wartet</span>
+            <CancelButton id={g.id} label="Aus der Warteschlange nehmen" />
+          </span>
         ) : st === "completed" ? (
           <span class="pill">analysiert</span>
         ) : (
