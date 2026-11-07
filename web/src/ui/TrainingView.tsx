@@ -1,6 +1,6 @@
 import { useMemo, useState } from "preact/hooks";
 
-import { openingLabel, profileCoachMessages, TRAINING_QUESTIONS } from "../domain/profile";
+import { openingLabel } from "../domain/profile";
 import {
   addDays,
   CATEGORIES,
@@ -13,11 +13,9 @@ import {
   MINUTE_CHOICES,
   type PlanBlock,
   streak,
-  summarizeTraining,
 } from "../domain/training";
-import { AiChat, coachDetail } from "./AiCoach";
 import { ColumnChart, type Column } from "./charts";
-import { IconPlay, IconSpark } from "./icons";
+import { IconPlay } from "./icons";
 import { navigate, type TrainingTab } from "./router";
 import { Coach, NeedNames } from "./Coach";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
@@ -241,28 +239,6 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
         </section>
       )}
 
-      {t.profile && !t.profile.is_empty && (
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>
-              <IconSpark /> Frag den KI-Coach
-            </h3>
-            <span class="tile-sub">kennt deinen Plan und deinen Trainingsstand</span>
-          </div>
-          <AiChat
-            build={(history, q) =>
-              profileCoachMessages(
-                t.profile!,
-                history,
-                q,
-                coachDetail(),
-                summarizeTraining(t.pool, t.progress, t.log, t.today, plan.headline),
-              )
-            }
-            suggestions={TRAINING_QUESTIONS}
-          />
-        </section>
-      )}
     </div>
   );
 }

@@ -6,20 +6,17 @@ import {
   LEAK_MIN_JUDGED,
   type MoveChoice,
   movesText,
-  OPENING_QUESTIONS,
   type OpeningLeak,
   type OpeningStat,
   openingLabel,
-  profileCoachMessages,
 } from "../domain/profile";
 import { MIN_LINE_GAMES, scoreDeviation } from "../domain/profile/evidence";
-import { AiChat, coachDetail } from "./AiCoach";
 import { BarList, Legend } from "./charts";
 import type { BarRow } from "./charts";
-import { IconSpark } from "./icons";
 import { formatDate } from "./labels";
 import { navigate } from "./router";
 import { Coach, CoachTip, NeedNames } from "./Coach";
+import { StatsTabs } from "./StatsLayout";
 import { Explorer } from "./openings/Explorer";
 import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
@@ -272,6 +269,7 @@ export function OpeningsView() {
   const header = (
     <>
       <div class="page-title">Eröffnungen</div>
+      <StatsTabs current="openings" />
       <FilterBar filters={filters} onChange={setFilters} />
       <CoachTip id="openings2" title="Dein Eröffnungsrepertoire">
         Oben siehst du deine Eröffnungen als Karten mit ihrer typischen Stellung. Tippe eine an, dann springt der Eröffnungsbaum
@@ -489,15 +487,6 @@ export function OpeningsView() {
           )}
         </section>
 
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>
-              <IconSpark /> Frag den KI-Coach zu deinem Repertoire
-            </h3>
-            <span class="tile-sub">kennt deine Eröffnungen und Ergebnisse</span>
-          </div>
-          <AiChat build={(history, q) => profileCoachMessages(profile, history, q, coachDetail())} suggestions={OPENING_QUESTIONS} />
-        </section>
       </div>
     </div>
   );

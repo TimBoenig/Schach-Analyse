@@ -124,7 +124,7 @@ export function MonthColumns({ months, max = 12 }: { months: TallyBlock[]; max?:
   const shown = months.slice(-max);
   const [hover, setHover] = useState<number | null>(null);
   const segs = shown.map((m) => detailSegments(m.counts));
-  const active = hover ?? shown.length - 1;
+  const active = hover !== null && hover < shown.length ? hover : shown.length - 1;
   const cur = shown[active];
   const curSegs = segs[active];
   return (
@@ -154,7 +154,7 @@ export function MonthColumns({ months, max = 12 }: { months: TallyBlock[]; max?:
           </span>
         ))}
       </div>
-      {cur && (
+      {cur && curSegs && (
         <div class="month-cols-detail small">
           <strong>{monthName(cur.key, true)}</strong>
           <span class="faint">

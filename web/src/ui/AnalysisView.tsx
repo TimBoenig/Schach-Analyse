@@ -8,15 +8,13 @@ import { lineScoreWhite, pvToSan } from "../domain/analyzer";
 import { type Explanation, explainMoveDetailed } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
-import { buildGameReview, gameCoachMessages, openingParts } from "../domain/profile";
+import { buildGameReview, openingParts } from "../domain/profile";
 import { bookKey } from "../domain/book";
 import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
 import { Board, type Arrow, type Promotion } from "./Board";
-import { AiAnswer, coachDetail } from "./AiCoach";
-import { loadFullProfile } from "./training/useTraining";
 import { BarList, StackBar } from "./charts";
 import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
 import {
@@ -83,7 +81,7 @@ function winChanceAt(moves: MoveData[], idx: number): number | null {
     return m && (m.eval_before_cp !== null || m.eval_before_mate !== null) ? getWinProbability(m.eval_before_cp, m.eval_before_mate) : null;
   }
   const m = moves[idx - 1];
-  if (!m.classification) return null;
+  if (!m?.classification) return null;
   return m.win_chance_after;
 }
 
@@ -174,9 +172,11 @@ function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: 
   const bookEnd = moves.findIndex((m) => m.classification && m.classification !== "Book");
   const indexAt = (e: PointerEvent) => {
     const rect = (e.currentTarget as Element).getBoundingClientRect();
-    return Math.round(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * n);
+    const f = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
+    return Math.round(Math.max(0, Math.min(1, f)) * n);
   };
-  const shown = hover ?? null;
+  // The hover index outlives a switch to a shorter game (palette, links), so clamp it.
+  const shown = hover !== null && hover <= n ? hover : null;
   const hm = shown !== null && shown > 0 ? moves[shown - 1] : null;
   const hwc = shown !== null ? winChanceAt(moves, shown) : null;
   const userSide = userColor === "black" ? "b" : "w";
@@ -1062,32 +1062,6 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   </div>
                 ))}
                 <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
-              </div>
-              <div class="card">
-                <AiAnswer
-                  cacheKey={`game:${game.game_id}`}
-                  title="Partie erklärt"
-                  saveTitle={`Partie erklärt: ${game.metadata.white} – ${game.metadata.black}, ${formatDate(game.metadata.date)}`}
-                  start="Partie vom KI-Coach erklären lassen"
-                  messages={async () => {
-                    const me = userColor ?? "white";
-                    // The profile lets the coach say whether an error is typical for the player.
-                    const profile = await loadFullProfile().catch(() => null);
-                    const opp = me === "white" ? "black" : "white";
-                    const elo = (c: Side) => Number(game.metadata[c === "white" ? "white_elo" : "black_elo"]) || null;
-                    return gameCoachMessages(review, {
-                      white: game.metadata.white,
-                      black: game.metadata.black,
-                      result: game.metadata.result,
-                      opening: game.metadata.opening ?? "",
-                      userColor: me,
-                      userAccuracy: acc(me) ?? null,
-                      opponentAccuracy: acc(opp) ?? null,
-                      userRating: elo(me),
-                      opponentRating: elo(opp),
-                    }, { moves: game.moves, profile: coachDetail() === "compact" ? null : profile });
-                  }}
-                />
               </div>
               {review.key_moments.length > 0 && (
                 <div class="card">

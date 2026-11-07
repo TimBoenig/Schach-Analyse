@@ -11,6 +11,7 @@ import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
 import { CoachAvatar, COACH_NAME } from "./Coach";
+import { ErrorBoundary } from "./ErrorBoundary";
 import {
   IconAccount,
   IconBoard,
@@ -60,11 +61,11 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
     ],
   },
   {
-    title: "Verstehen",
+    title: "Statistiken",
     items: [
-      { view: "profile", label: "Profil", hint: "Stärken und Schwächen", icon: IconProfile },
-      { view: "moves", label: "Zugbilanz", hint: "Brillant bis Patzer, alle Partien", icon: IconMoves },
-      { view: "insights", label: "Einblicke", hint: "Muster und Trainerbericht", icon: IconInsights },
+      { view: "profile", label: "Profil", hint: "Fähigkeiten, Stärken, Stil", icon: IconProfile },
+      { view: "moves", label: "Zugbilanz", hint: "Brillant bis Patzer gezählt", icon: IconMoves },
+      { view: "insights", label: "Einblicke", hint: "Ergebnisse, Fehler, Gewohnheiten", icon: IconInsights },
       { view: "players", label: "Spieler", hint: "Gegner und Freunde", icon: IconPlayers },
     ],
   },
@@ -273,26 +274,30 @@ export function App() {
         </button>
       </nav>
       <main class="main">
-        {route.view === "home" && <HomeView />}
-        {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
-        {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
-        {route.view === "board" && <FreeBoardView key={route.fen ?? ""} fen={route.fen} />}
-        {route.view === "profile" && <ProfileView />}
-        {route.view === "players" && <PlayersView key={route.playerId ?? route.tab ?? ""} playerId={route.playerId} tab={route.tab} />}
-        {route.view === "insights" && <InsightsView />}
-        {route.view === "openings" && <OpeningsView />}
-        {route.view === "moves" && <MovesView />}
-        {route.view === "training" && (
-          // A new tab or deep link starts fresh (and leaves a running session).
-          <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />
-        )}
-        {route.view === "settings" && <SettingsView />}
-        {route.view === "account" && <AccountView />}
+        <ErrorBoundary key={route.view}>
+          {route.view === "home" && <HomeView />}
+          {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
+          {route.view === "analysis" && <AnalysisView gameId={route.gameId} ply={route.ply} />}
+          {route.view === "board" && <FreeBoardView key={route.fen ?? ""} fen={route.fen} />}
+          {route.view === "profile" && <ProfileView />}
+          {route.view === "players" && <PlayersView key={route.playerId ?? route.tab ?? ""} playerId={route.playerId} tab={route.tab} />}
+          {route.view === "insights" && <InsightsView />}
+          {route.view === "openings" && <OpeningsView />}
+          {route.view === "moves" && <MovesView />}
+          {route.view === "training" && (
+            // A new tab or deep link starts fresh (and leaves a running session).
+            <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />
+          )}
+          {route.view === "settings" && <SettingsView />}
+          {route.view === "account" && <AccountView />}
+        </ErrorBoundary>
       </main>
-      {overlay === "palette" && (
-        <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />
-      )}
-      {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
+      <ErrorBoundary area="Das Menü">
+        {overlay === "palette" && (
+          <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />
+        )}
+        {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
+      </ErrorBoundary>
       {overlay === "more" && (
         <div class="sheet-backdrop" onClick={() => setOverlay(null)}>
           <div class="sheet" role="dialog" aria-label="Weitere Bereiche" onClick={(e) => e.stopPropagation()}>

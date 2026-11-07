@@ -14,16 +14,21 @@ Einstellungen zwischen Geräten ab.
 
 ## Startseite, Zeitraum und Export
 
-- **Start** (`#/`) ist das tägliche Dashboard: Vergleich des gewählten Zeitraums mit dem gleich langen Zeitraum davor
-  (Partien, Punkte-Quote, Genauigkeit, Patzer pro Partie, bestrafte Gegnerfehler, Wertung), Fähigkeiten-Trends,
-  die drei größten Baustellen mit Übungslink, Tagesplan-Stand, Formkurve pro Woche, Aktivitätskalender,
-  letzte Partien und der letzte gespeicherte Trainerbericht. Bei „Gesamter Zeitraum“ vergleicht sie die letzten 30 Tage.
+- **Start** (`#/`) ist das tägliche Dashboard: Mike mit dem wichtigsten Befund, „Heute“ (Tagesplan-Ring, Serie,
+  Wochenquote), „Deine Form“ (letzte zehn Ergebnisse als Kette, Wertung mit Verlauf, Genauigkeit zuletzt), Vergleich des
+  gewählten Zeitraums mit dem Zeitraum davor, die **Stellung des Tages** (eine Aufgabe aus den eigenen Partien, direkt
+  auf der Startseite lösbar, zählt in den Trainingsfortschritt), Baustellen, ein Wegweiser zu den Statistik-Seiten,
+  Formkurve, Fähigkeiten-Trends, letzte Partien und Aktivitätskalender. Bei „Gesamter Zeitraum“ vergleicht sie die
+  letzten 30 Tage.
+- **Statistiken**: Profil, Zugbilanz, Einblicke und Eröffnungen sind über Reiter verbunden. Profil und Einblicke sind in
+  Abschnitte gegliedert, eine Sprungleiste bleibt oben stehen. Jede Kennzahl hat genau einen Platz
+  (`web/src/ui/StatsLayout.tsx`, `STAT_SECTIONS`); die Befehlspalette findet jede Karte über ihren Namen.
 - **Zeitraum**: Start, Profil, Einblicke, Eröffnungen und Partien filtern nach 7/14/30/90 Tagen, 6/12 Monaten,
   diesem Jahr oder einem eigenen Von–bis-Zeitraum. Maßgeblich ist das Spieldatum aus der PGN, nicht das Importdatum.
   Die Auswahl wird gespeichert.
 - **Export** (Einstellungen → Export & Datensicherung, Start → Exportieren, Befehlspalette): eine JSON-Datei mit allen
   Partien samt analysierten Zügen, Partie-Auswertungen, dem kompletten Profil (Statistiken, Fähigkeiten, Eröffnungen,
-  Einblicke, Trainingsplan), Trainingsfortschritt und gespeicherten KI-Coach-Antworten. Dazu CSV (Excel, `;`) und PGN.
+  Einblicke, Trainingsplan) und Trainingsfortschritt. Dazu CSV (Excel, `;`) und PGN.
   Eine JSON-Sicherung lässt sich wieder einspielen; Einstellungen ergänzen dabei nur Fehlendes.
 - **KI-Export** (Einstellungen → Für KI exportieren, Befehlspalette): eine Markdown-Datei zum Hochladen in ChatGPT,
   Claude oder Gemini (`src/domain/aiExport.ts`). Sie beginnt mit dem Auftrag samt gewünschter Gliederung und einer
@@ -125,9 +130,6 @@ Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`.
 - Stockfish 17.1 *lite* (single-threaded, kleineres Netz), damit es ohne
   besondere Server-Header auch auf iOS läuft. Etwas schwächer als die
   Desktop-Engine.
-- Der KI-Coach läuft direkt aus dem Browser; nicht jeder Anbieter erlaubt das
-  (CORS). Die Datenmenge pro Frage ist in den Einstellungen wählbar, damit auch
-  kleine lokale Modelle mit kurzem Kontext funktionieren.
 
 ## Lizenzen
 

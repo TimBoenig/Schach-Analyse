@@ -9,6 +9,7 @@ import { qualitySegments } from "./labels";
 import { ClassTiles } from "./MoveTally";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
+import { openSection, type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS, StatsTabs } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
@@ -223,6 +224,7 @@ export function ProfileView() {
   const header = (
     <>
       <div class="page-title">Mein Profil</div>
+      <StatsTabs current="profile" />
       <FilterBar filters={filters} onChange={setFilters} />
       <CoachTip id="profile" title="Dein Schachprofil">
         Das ist dein Steckbrief als Spieler. Ich bewerte deine Fähigkeiten von 0 bis 100 und vergleiche sie mit Spielern deiner Wertung. Blasse Werte haben noch wenige Daten, die werden mit mehr Partien genauer.
@@ -308,22 +310,6 @@ export function ProfileView() {
 
   const quality = qualitySegments(o.quality_counts ?? {});
 
-  type BRow = { label: string; games: number; score_pct: number; avg_accuracy: number; expected_pct: number | null };
-  const scoreRows = (rows: BRow[] | undefined): BarRow[] =>
-    (rows ?? []).map((r) => ({
-      label: r.label,
-      value: r.score_pct,
-      reference: r.expected_pct,
-      valueText: pct(r.score_pct),
-      note: [
-        `${r.games} ${r.games === 1 ? "Partie" : "Partien"}`,
-        r.expected_pct !== null ? `erwartet ${r.expected_pct.toFixed(0)} %` : "",
-        r.avg_accuracy ? `Genauigkeit ${r.avg_accuracy.toFixed(0)} %` : "",
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    }));
-
   const monthly = (profile.trends.monthly ?? []) as { month: string; avg_accuracy: number | null; games: number }[];
   const accPoints = monthly
     .filter((m) => m.avg_accuracy !== null)
@@ -352,11 +338,16 @@ export function ProfileView() {
       note: `${l.games} ${l.games === 1 ? "Partie" : "Partien"}${l.avg_accuracy ? ` · Genauigkeit ${l.avg_accuracy.toFixed(0)} %` : ""}`,
     }));
 
+  const sec = (id: ProfileSection) => sectionOf("profile", id);
+  const sections = profile.is_empty ? [sec("ueberblick")] : STAT_SECTIONS.profile;
+
   return (
     <div class="profile" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
+      <SectionNav sections={sections} />
 
       <div class="dash">
+        <SectionHead section={sec("ueberblick")} />
         <Hero profile={profile} />
 
         {profile.is_empty ? (
@@ -366,6 +357,7 @@ export function ProfileView() {
           </div>
         ) : (
           <>
+            <SectionHead section={sec("faehigkeiten")} />
             <Card title="Fähigkeiten-Netz" sub={rc ? "Richtwerte geschätzt" : undefined} span={6}>
               <RadarChart axes={radar} typicalLabel={typicalLabel} />
             </Card>
@@ -378,24 +370,77 @@ export function ProfileView() {
               </p>
             </Card>
 
-            <Card title="Genauigkeit nach Phase" span={4}>
+            <SectionHead section={sec("staerken")} />
+            <Card title="Stärken" span={6}>
+              <InsightList
+                items={profile.strengths}
+                tone="pos"
+                empty="Noch keine belastbaren Stärken. Genannt wird nur, was viele Partien klar zeigen."
+              />
+            </Card>
+
+            <Card title="Schwächen" span={6}>
+              <InsightList
+                items={profile.weaknesses}
+                tone="neg"
+                empty="Keine belastbaren Schwächen. Genannt wird nur, was viele Partien klar zeigen."
+              />
+            </Card>
+
+            <SectionHead section={sec("stil")} />
+            {profile.style ? (
+              <Card title={`Spielstil: ${profile.style.label}`} span={6}>
+                <p class="small" style={{ marginTop: 0 }}>
+                  {profile.style.description}
+                </p>
+                <StyleAxes axes={profile.style.axes} />
+                {profile.style.facts.length > 0 && (
+                  <ul class="facts">
+                    {profile.style.facts.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                )}
+              </Card>
+            ) : (
+              <Card title="Spielstil" span={6}>
+                <p class="muted small">Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.</p>
+              </Card>
+            )}
+
+            <Card title="Wiederkehrende Muster" span={6}>
+              {profile.patterns.length ? (
+                <div class="insights">
+                  {profile.patterns.map((p) => (
+                    <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
+                      <div class="t">{p.title}</div>
+                      <div class="small">{p.text}</div>
+                      <Examples refs={p.examples} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p class="muted small">
+                  Noch keine Muster gefunden. Ein Muster wird erst genannt, wenn genug Partien es zeigen und es kein Zufall sein kann.
+                </p>
+              )}
+            </Card>
+
+            <SectionHead section={sec("genauigkeit")}>
+              <button class="btn small ghost" onClick={() => openSection("insights", "ergebnisse")}>
+                Ergebnisse nach Gegner, Farbe, Bedenkzeit
+              </button>
+            </SectionHead>
+            <Card title="Genauigkeit nach Phase" span={6}>
               <BarList rows={phaseRows} referenceLabel={typicalLabel} />
             </Card>
 
-            <Card title="Zugqualität" sub="alle deine Züge" span={4}>
+            <Card title="Zugqualität" sub="alle deine Züge" span={6}>
               <StackBar segments={quality} />
               {profile.moves && <ClassTiles tally={profile.moves} keys={["Brilliant", "Great", "Blunder"]} compact />}
               <button class="btn small tile-foot-btn" onClick={() => navigate({ view: "moves" })}>
                 Ganze Zugbilanz ansehen
               </button>
-            </Card>
-
-            <Card title="Nach Gegnerstärke" sub="Punkte gegen Erwartung" span={4}>
-              {profile.breakdowns.opponent?.length ? (
-                <BarList rows={scoreRows(profile.breakdowns.opponent)} referenceLabel="Erwartet nach Elo" />
-              ) : (
-                <p class="muted small">Keine Wertungszahlen in den Partien.</p>
-              )}
             </Card>
 
             <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
@@ -420,99 +465,41 @@ export function ProfileView() {
               <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
             </Card>
 
-            <Card title="Stärken" span={6}>
-              <InsightList
-                items={profile.strengths}
-                tone="pos"
-                empty="Noch keine belastbaren Stärken. Genannt wird nur, was viele Partien klar zeigen."
-              />
-            </Card>
-
-            <Card title="Schwächen" span={6}>
-              <InsightList
-                items={profile.weaknesses}
-                tone="neg"
-                empty="Keine belastbaren Schwächen. Genannt wird nur, was viele Partien klar zeigen."
-              />
-            </Card>
-
-            {profile.style && (
-              <Card title={`Spielstil: ${profile.style.label}`} span={6}>
-                <p class="small" style={{ marginTop: 0 }}>
-                  {profile.style.description}
-                </p>
-                <StyleAxes axes={profile.style.axes} />
-                {profile.style.facts.length > 0 && (
-                  <ul class="facts">
-                    {profile.style.facts.map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                )}
+            <SectionHead section={sec("eroeffnungen")}>
+              <button class="btn small ghost" onClick={() => navigate({ view: "openings" })}>
+                Ganzes Repertoire
+              </button>
+            </SectionHead>
+            {profile.openings_best.length || profile.openings_worst.length ? (
+              <>
+                <Card title="Am erfolgreichsten" sub="Punkte-Quote · Partien" span={6}>
+                  {profile.openings_best.length ? (
+                    <BarList rows={openingRows(profile.openings_best)} />
+                  ) : (
+                    <p class="muted small">Noch keine Eröffnung mit klar guten Ergebnissen.</p>
+                  )}
+                </Card>
+                <Card title="Hier verlierst du Punkte" sub="Punkte-Quote · Partien" span={6}>
+                  {profile.openings_worst.length ? (
+                    <BarList rows={openingRows(profile.openings_worst)} />
+                  ) : (
+                    <p class="muted small">Keine Eröffnung, in der du klar Punkte verlierst.</p>
+                  )}
+                </Card>
+              </>
+            ) : (
+              <Card title="Eröffnungen" span={12}>
+                <p class="muted small">Noch zu wenige Partien pro Eröffnung.</p>
               </Card>
             )}
 
-            <Card title="Wiederkehrende Muster" span={profile.style ? 6 : 12}>
-              {profile.patterns.length ? (
-                <div class="insights">
-                  {profile.patterns.map((p) => (
-                    <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
-                      <div class="t">{p.title}</div>
-                      <div class="small">{p.text}</div>
-                      <Examples refs={p.examples} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p class="muted small">
-                  Noch keine Muster gefunden. Ein Muster wird erst genannt, wenn genug Partien es zeigen und es kein Zufall sein kann.
-                </p>
-              )}
-              {!profile.style && (
-                <p class="faint small tile-foot">Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.</p>
-              )}
-            </Card>
-
-            <Card title="Nach Farbe und Bedenkzeit" sub="Punkte-Quote" span={6}>
-              <h4>Farbe</h4>
-              <BarList rows={scoreRows(profile.breakdowns.color)} />
-              {(profile.breakdowns.speed?.length ?? 0) > 0 && (
-                <>
-                  <h4>Bedenkzeit</h4>
-                  <BarList rows={scoreRows(profile.breakdowns.speed)} referenceLabel="Erwartet nach Elo" />
-                </>
-              )}
-            </Card>
-
-            <Card title="Eröffnungen" sub="Punkte-Quote · Partien" span={6}>
-              {profile.openings_best.length || profile.openings_worst.length ? (
-                <>
-                  {profile.openings_best.length > 0 && (
-                    <>
-                      <h4>Am erfolgreichsten</h4>
-                      <BarList rows={openingRows(profile.openings_best)} />
-                    </>
-                  )}
-                  {profile.openings_worst.length > 0 && (
-                    <>
-                      <h4>Hier verlierst du Punkte</h4>
-                      <BarList rows={openingRows(profile.openings_worst)} />
-                    </>
-                  )}
-                </>
-              ) : (
-                <p class="muted small">Noch zu wenige Partien pro Eröffnung.</p>
-              )}
-            </Card>
-
-            {profile.training_plan.length > 0 && (
+            <SectionHead section={sec("training")}>
+              <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
+                Zum Tagesplan
+              </button>
+            </SectionHead>
+            {profile.training_plan.length > 0 ? (
               <section class="card tile span-12">
-                <div class="tile-head">
-                  <h3>Deine Trainingsschwerpunkte</h3>
-                  <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
-                    Zum Tagesplan
-                  </button>
-                </div>
                 <div class="plan">
                   {profile.training_plan.map((t) => (
                     <div class="plan-item" key={t.title}>
@@ -542,6 +529,10 @@ export function ProfileView() {
                   ))}
                 </div>
               </section>
+            ) : (
+              <Card title="Trainingsschwerpunkte" span={12}>
+                <p class="muted small">Mit mehr analysierten Partien stelle ich dir hier Schwerpunkte zusammen.</p>
+              </Card>
             )}
           </>
         )}

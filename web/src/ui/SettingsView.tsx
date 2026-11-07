@@ -1,7 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
 
-import { AI_PROVIDERS, type AiConfig, aiReady, defaultDetail, loadAiConfig, saveAiConfig, streamChat } from "../app/ai";
-import { type CoachDetail, DETAIL_LEVELS } from "../domain/profile";
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
 import { getSetting, setSetting } from "../storage/db";
 import { refreshSyncStatus } from "../storage/sync";
@@ -80,132 +78,6 @@ function AppearanceCard() {
   );
 }
 
-function AiCard() {
-  const saved = loadAiConfig();
-  const [provider, setProvider] = useState(saved?.provider ?? "groq");
-  const [baseUrl, setBaseUrl] = useState(saved?.baseUrl ?? AI_PROVIDERS.groq.baseUrl);
-  const [model, setModel] = useState(saved?.model ?? AI_PROVIDERS.groq.model);
-  const [apiKey, setApiKey] = useState(saved?.apiKey ?? "");
-  const [detail, setDetail] = useState<CoachDetail>(saved?.detail ?? defaultDetail(saved?.provider ?? "groq"));
-  const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [testing, setTesting] = useState(false);
-  const p = AI_PROVIDERS[provider] ?? AI_PROVIDERS.custom;
-  const cfg: AiConfig = { provider, baseUrl: baseUrl.trim(), model: model.trim(), apiKey: apiKey.trim(), detail };
-
-  const pick = (k: string) => {
-    setProvider(k);
-    setBaseUrl(AI_PROVIDERS[k].baseUrl);
-    setModel(AI_PROVIDERS[k].model);
-    setDetail(defaultDetail(k));
-    setStatus(null);
-  };
-  const test = async () => {
-    setTesting(true);
-    setStatus(null);
-    try {
-      const out = await streamChat(cfg, [{ role: "user", content: "Antworte nur mit: Bereit." }], () => undefined);
-      setStatus({ ok: true, text: `Verbindung steht${out.trim() ? ` („${out.trim().slice(0, 40)}“)` : ""}.` });
-      saveAiConfig(cfg);
-    } catch (e) {
-      setStatus({ ok: false, text: e instanceof Error ? e.message : String(e) });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  return (
-    <div class="card">
-      <h3>
-        KI-Coach <span class="pill">optional</span>
-      </h3>
-      <p class="muted small" style={{ marginTop: 0 }}>
-        Erklärt Partien und beantwortet Fragen zu deinem Profil. Du nutzt dafür deinen eigenen Zugang bei einem Anbieter.
-        Der Schlüssel bleibt nur auf diesem Gerät und wird nicht synchronisiert. An den Anbieter gehen nur die
-        Analysewerte, keine Kontodaten.
-      </p>
-      <label class="field">
-        <span>Anbieter</span>
-        <select value={provider} onChange={(e) => pick(e.currentTarget.value)}>
-          {Object.entries(AI_PROVIDERS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {(provider === "custom" || provider === "lmstudio") && (
-        <label class="field">
-          <span>Server-Adresse</span>
-          <input value={baseUrl} onInput={(e) => setBaseUrl(e.currentTarget.value)} placeholder="https://…/v1" />
-        </label>
-      )}
-      <label class="field">
-        <span>Modell</span>
-        <input value={model} onInput={(e) => setModel(e.currentTarget.value)} placeholder={p.model || "model-name"} />
-      </label>
-      <label class="field">
-        <span>API-Schlüssel</span>
-        <input
-          type="password"
-          autoComplete="off"
-          value={apiKey}
-          onInput={(e) => setApiKey(e.currentTarget.value)}
-          placeholder={p.keyHint}
-        />
-      </label>
-      <label class="field">
-        <span>Datenmenge pro Frage</span>
-        <select
-          value={detail}
-          onChange={(e) => {
-            const v = e.currentTarget.value as CoachDetail;
-            setDetail(v);
-            // A working connection keeps working; only the amount of data changes.
-            if (saved) saveAiConfig({ ...saved, detail: v });
-          }}
-        >
-          {(Object.keys(DETAIL_LEVELS) as CoachDetail[]).map((k) => (
-            <option key={k} value={k}>
-              {DETAIL_LEVELS[k].label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <p class="small faint" style={{ margin: "-4px 0 10px" }}>
-        Mehr Daten (alle Fähigkeiten, Einblicke, Eröffnungen und bis zu 40 Partien mit ihren teuersten Zügen) machen die
-        Antworten genauer, brauchen aber ein Modell mit großem Kontext. Bei LM Studio dafür die Kontextlänge auf mindestens
-        16 000 Tokens stellen.
-      </p>
-      {p.helpUrl && (
-        <p class="small faint" style={{ margin: "0 0 10px" }}>
-          Schlüssel erstellen:{" "}
-          <a href={p.helpUrl} target="_blank" rel="noreferrer">
-            {p.helpUrl.replace(/^https?:\/\//, "")}
-          </a>
-        </p>
-      )}
-      <div class="row">
-        <button class="btn primary" disabled={testing || !aiReady(cfg)} onClick={() => void test()}>
-          {testing ? "Teste …" : "Testen und speichern"}
-        </button>
-        {saved && (
-          <button
-            class="btn ghost"
-            onClick={() => {
-              saveAiConfig(null);
-              setApiKey("");
-              setStatus({ ok: true, text: "KI-Coach ausgeschaltet, Schlüssel gelöscht." });
-            }}
-          >
-            Ausschalten
-          </button>
-        )}
-      </div>
-      {status && <p class={`small ${status.ok ? "ok" : "error"}`}>{status.text}</p>}
-    </div>
-  );
-}
-
 function AccountCard() {
   const s = useSyncStatus();
   useEffect(() => void refreshSyncStatus(), []);
@@ -251,7 +123,6 @@ function BackupCard() {
         text:
           `${r.games} Partien eingespielt` +
           (r.settings ? `, ${r.settings} Einstellungen ergänzt` : "") +
-          (r.answers ? `, ${r.answers} Coach-Antworten` : "") +
           ".",
       });
     } catch {
@@ -349,7 +220,6 @@ export function SettingsView() {
         </div>
         <div>
           <AppearanceCard />
-          <AiCard />
           <div class="card">
             <h3>Über die App</h3>
             <p class="small muted" style={{ margin: 0 }}>

@@ -1,8 +1,8 @@
 // Full data export and restore. One JSON file holds everything the app knows:
 // the games with every analysed move, the player profile computed from them
 // (statistics, skills, openings, insights, training plan), a review per game,
-// the training progress and the saved AI coach answers. A CSV of the games and
-// a PGN file cover spreadsheets and other chess programs.
+// and the training progress. A CSV of the games and a PGN file cover
+// spreadsheets and other chess programs.
 
 import { trFilter } from "./i18n";
 import { dateWindow, getUserColor, inDateFilter, outcomeFor, parseMoves, parseSummary } from "./metrics";
@@ -12,14 +12,6 @@ import type { MoveData, StoredGame } from "./types";
 
 export const BACKUP_FORMAT = "schach-analyse-backup";
 export const BACKUP_VERSION = 2;
-
-/** A coach answer kept across sessions (Trainerbericht, Partie-Erklärung). */
-export interface SavedCoachAnswer {
-  key: string;
-  title: string;
-  text: string;
-  created_at: number; // ms
-}
 
 export interface ExportSetting {
   key: string;
@@ -33,7 +25,6 @@ export interface ExportInput {
   /** Period to export ("All Time", a preset or a range filter). */
   dateFilter: string;
   settings: ExportSetting[];
-  coachAnswers: SavedCoachAnswer[];
   today: string; // local YYYY-MM-DD
   now: number; // ms
 }
@@ -66,22 +57,20 @@ export interface FullExport {
     prefs: unknown;
     summary: TrainingSummary | null;
   };
-  coach: { answers: SavedCoachAnswer[] };
   settings: ExportSetting[];
 }
 
-export const COACH_ANSWERS_KEY = "coach.answers";
-
-// Settings that only describe this device's sync state, or that the export
-// carries in its own section.
-const SKIP_SETTING = (key: string) => key.startsWith("sync.") || key.startsWith("training.") || key === COACH_ANSWERS_KEY;
+// Settings that only describe this device's sync state, that the export carries
+// in its own section, or that belonged to the removed AI coach ("coach.answers"
+// in older backups and on synced devices).
+const SKIP_SETTING = (key: string) => key.startsWith("sync.") || key.startsWith("training.") || key.startsWith("coach.");
 
 const HINWEIS =
   "Vollständiger Export der Schach-Analyse. games: alle Partien mit PGN und jedem analysierten Zug " +
   "(Bewertung aus Sicht von Weiß, Klassifizierung, beste Fortsetzung). reviews: Partie-Auswertung je Partie. " +
   "profile: Statistiken, Fähigkeiten, Stärken, Schwächen, Spielstil, Muster, Eröffnungen, Einblicke, " +
   "Verläufe und Trainingsplan für den gewählten Zeitraum. training: Übungsfortschritt und Tagespläne. " +
-  "coach: gespeicherte Antworten des KI-Coachs. Diese Datei lässt sich unter Einstellungen wieder einspielen.";
+  "Diese Datei lässt sich unter Einstellungen wieder einspielen.";
 
 const isoDay = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
 
@@ -147,7 +136,6 @@ export function buildFullExport(input: ExportInput): FullExport {
       prefs: setting(input.settings, "training.prefs", null),
       summary: profile ? summarizeTraining(profile.exercises, progress, log, input.today) : null,
     },
-    coach: { answers: [...input.coachAnswers].sort((a, b) => b.created_at - a.created_at) },
     settings: input.settings.filter((s) => !SKIP_SETTING(s.key)),
   };
 }
@@ -155,7 +143,6 @@ export function buildFullExport(input: ExportInput): FullExport {
 export interface ParsedBackup {
   games: StoredGame[];
   settings: ExportSetting[];
-  coachAnswers: SavedCoachAnswer[];
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typeof v === "object" && !Array.isArray(v);
@@ -185,26 +172,8 @@ export function parseBackup(text: string): ParsedBackup {
       if (v !== undefined && v !== null && !(isRecord(v) && !Object.keys(v).length)) keep(`training.${k}`, v, 0);
     }
   }
-  const answers = isRecord(data.coach) && Array.isArray(data.coach.answers) ? data.coach.answers : [];
-  const coachAnswers = answers.filter(
-    (a): a is SavedCoachAnswer =>
-      isRecord(a) && typeof a.key === "string" && typeof a.text === "string" && typeof a.created_at === "number",
-  );
-  return { games, settings, coachAnswers };
+  return { games, settings };
 }
-
-/** Merge coach answers by key, the newer answer wins; newest first, at most `limit`. */
-export function mergeCoachAnswers(a: SavedCoachAnswer[], b: SavedCoachAnswer[], limit = COACH_ANSWER_LIMIT): SavedCoachAnswer[] {
-  const byKey = new Map<string, SavedCoachAnswer>();
-  for (const x of [...a, ...b]) {
-    const prev = byKey.get(x.key);
-    if (!prev || x.created_at > prev.created_at) byKey.set(x.key, x);
-  }
-  return [...byKey.values()].sort((x, y) => y.created_at - x.created_at).slice(0, limit);
-}
-
-// Answers sync as one settings record; this keeps it well below a megabyte.
-export const COACH_ANSWER_LIMIT = 40;
 
 // ---- CSV / PGN ----
 

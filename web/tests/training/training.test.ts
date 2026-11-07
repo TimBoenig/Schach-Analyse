@@ -12,6 +12,7 @@ import {
   type PlayoutState,
   type ProgressMap,
   puzzleCategory,
+  puzzleOfTheDay,
   recordAttempt,
   repertoireDrill,
   streak,
@@ -116,7 +117,7 @@ describe("spaced repetition", () => {
     expect(p["p:g1:12"].box).toBe(1);
   });
 
-  it("summarises the last seven days for the coach", () => {
+  it("summarises the last seven days for the progress page", () => {
     let log: TrainingLog = {};
     log = logAttempt(log, "2026-10-14", "blunder", true); // 8 days ago: outside the week
     log = logAttempt(log, "2026-10-15", "blunder", true);
@@ -152,6 +153,26 @@ function pool(): Exercise[] {
     }));
   return [...puzzles("blunder", 30), ...puzzles("chance", 30), ...puzzles("endgame", 30), ...puzzles("defense", 30)];
 }
+
+describe("position of the day", () => {
+  it("stays the same all day, changes over days and skips mastered puzzles while others are open", () => {
+    const all = pool();
+    const today = puzzleOfTheDay(all, {}, TODAY);
+    expect(today?.kind).toBe("puzzle");
+    // Same day, any order of the pool (another device builds it differently).
+    expect(puzzleOfTheDay([...all].reverse(), {}, TODAY)?.id).toBe(today?.id);
+    const week = new Set(["2026-10-22", "2026-10-23", "2026-10-24", "2026-10-25", "2026-10-26"].map((d) => puzzleOfTheDay(all, {}, d)?.id));
+    expect(week.size).toBeGreaterThan(1);
+
+    const two = all.slice(0, 2);
+    const mastered: ProgressMap = { [two[0].id]: { box: 5, due: "2027-01-01", attempts: 5, solved: 5, last: TODAY } };
+    expect(puzzleOfTheDay(two, mastered, TODAY)?.id).toBe(two[1].id);
+    // Everything mastered: still a puzzle rather than an empty card.
+    mastered[two[1].id] = mastered[two[0].id];
+    expect(puzzleOfTheDay(two, mastered, TODAY)).not.toBeNull();
+    expect(puzzleOfTheDay([], {}, TODAY)).toBeNull();
+  });
+});
 
 const SKILLS = [skill("safety", 25, 55), skill("tactics", 60, 55), skill("endgame", 45, 50), skill("defense", 85, 50)];
 
