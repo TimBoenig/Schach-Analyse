@@ -1,3 +1,4 @@
+import type { AiExportInput, AiExportResult } from "../domain/aiExport";
 import type { ExportInput, FullExport } from "../domain/export";
 import type { PlayerProfile } from "../domain/profile";
 import type { ProfileRequest } from "./profile.worker";
@@ -32,6 +33,11 @@ export function buildProfileInWorker(req: Omit<ProfileRequest, "id">): Promise<P
 /** Full export (profile, reviews, training, coach answers) built off the main thread. */
 export function buildExportInWorker(input: ExportInput): Promise<FullExport> {
   return runInWorker<FullExport>({ kind: "export", input });
+}
+
+/** Markdown file for AI chats (profile, per-game evidence) built off the main thread. */
+export function buildAiExportInWorker(input: AiExportInput): Promise<AiExportResult> {
+  return runInWorker<AiExportResult>({ kind: "ai-export", input });
 }
 
 function runInWorker<T>(msg: object): Promise<T> {
