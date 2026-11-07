@@ -3,21 +3,17 @@ import {
   type GameTypeStat,
   type MoveBucket,
   type PrecisionStats,
-  PROFILE_QUESTIONS,
-  profileCoachMessages,
-  reportMessages,
   type ScoreBucket,
   type ScoreStat,
 } from "../domain/profile";
 import { MIN_BUCKET_MOVES, MIN_GROUP_GAMES } from "../domain/profile/evidence";
-import { AiAnswer, AiChat, coachDetail } from "./AiCoach";
 import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./charts";
 import type { BarRow, Column } from "./charts";
-import { trClassification, trFilter } from "../domain/i18n";
+import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
-import { loadTrainingSummary } from "./training/useTraining";
+import { type InsightsSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS, StatsTabs } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
@@ -56,7 +52,7 @@ function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
 const fmtChange = (v: number, unit: string) => (unit ? `${v.toFixed(1).replace(".", ",")} ${unit}` : v.toFixed(2).replace(".", ","));
 
 /** Development over time: accuracy per block of games and a before/after test per metric. */
-function EvolutionTiles({ d, overall }: { d: DeepInsights; overall: number }) {
+function EvolutionTiles({ d }: { d: DeepInsights }) {
   const evo = d.evolution;
   const points = evo.blocks
     .filter((b) => b.accuracy !== null)
@@ -130,22 +126,12 @@ function EvolutionTiles({ d, overall }: { d: DeepInsights; overall: number }) {
         <p class="small faint tile-foot">„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.</p>
       </Tile>
 
-      <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
-        {d.game_types.length ? (
-          <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
-        ) : (
-          <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
-        )}
-      </Tile>
-      <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={6}>
-        <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
-      </Tile>
     </>
   );
 }
 
-/** Score against the Elo expectation, game curve, consistency and turnarounds. */
-function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) {
+/** Score against the Elo expectation, game curve, consistency and turnarounds, as separate tiles for the sections. */
+function precisionTiles(p: PrecisionStats, overall: number) {
   const ratingRows: BarRow[] = p.by_rating_diff
     .filter((b) => b.games > 0)
     .map((b) => ({
@@ -170,8 +156,8 @@ function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) 
       color: r.key === "win" ? "var(--win)" : r.key === "loss" ? "var(--loss)" : "var(--draw)",
       faint: r.games < MIN_GAMES,
     }));
-  return (
-    <>
+  return {
+    expectation: (
       <Tile
         title="Gegen die Erwartung"
         sub={p.vs_expectation !== null ? `${signed(p.vs_expectation)} Prozentpunkte gegenüber der Elo-Erwartung` : "braucht Wertungen"}
@@ -188,13 +174,15 @@ function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) 
           <p class="muted small">Deine Partien enthalten keine Wertungen beider Spieler.</p>
         )}
       </Tile>
-
+    ),
+    curve: (
       <Tile title="Wo deine Partien kippen" sub="Ø Gewinnchance nach Zug" span={6}>
         <AreaChart points={curve} format={(v) => `${Math.round(v)} %`} domain={[0, 100]} reference={{ value: 50, label: "Ausgeglichen" }} />
         <p class="small faint tile-foot">Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.</p>
       </Tile>
-
-      <Tile title="Konstanz" sub={s.stdev !== null ? `Streuung ±${s.stdev.toFixed(1).replace(".", ",")} Punkte` : undefined} span={4}>
+    ),
+    consistency: (
+      <Tile title="Konstanz" sub={s.stdev !== null ? `Streuung ±${s.stdev.toFixed(1).replace(".", ",")} Punkte` : undefined} span={6}>
         <ColumnChart columns={s.histogram.map((h) => ({ label: h.label, value: h.games }))} format={(v) => String(v)} height={150} />
         {s.median !== null && (
           <p class="small tile-foot">
@@ -203,13 +191,15 @@ function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) 
           </p>
         )}
       </Tile>
-
-      <Tile title="Genauigkeit nach Ergebnis" sub="Durchschnitt" span={4}>
+    ),
+    byResult: (
+      <Tile title="Genauigkeit nach Ergebnis" sub="Durchschnitt" span={6}>
         <BarList rows={resultRows} />
         <p class="small faint tile-foot">Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.</p>
       </Tile>
-
-      <Tile title="Wendepunkte" sub="ab 75 % Gewinnchance" span={4}>
+    ),
+    turnarounds: (
+      <Tile title="Wendepunkte" sub="ab 75 % Gewinnchance" span={6}>
         {t.winning > 0 && (
           <>
             <h4>Aus {plural(t.winning, "gewonnener Stellung", "gewonnenen Stellungen")}</h4>
@@ -236,17 +226,19 @@ function PrecisionTiles({ p, overall }: { p: PrecisionStats; overall: number }) 
         )}
         {!t.winning && !t.losing && <p class="muted small">Noch keine klar entschiedenen Stellungen.</p>}
       </Tile>
-
-      <Tile title="Nach Partielänge" sub="Punkte-Quote" span={6}>
+    ),
+    length: (
+      <Tile title="Nach Partielänge" sub="Punkte-Quote" span={4}>
         <ColumnChart columns={scoreColumns(p.by_length)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
       </Tile>
-
-      <Tile title="Nach Farbe" sub="Punkte-Quote" span={6}>
+    ),
+    color: (
+      <Tile title="Nach Farbe" sub="Punkte-Quote" span={4}>
         <ColumnChart columns={scoreColumns(p.by_color)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
         <p class="small faint tile-foot">± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</p>
       </Tile>
-    </>
-  );
+    ),
+  };
 }
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
@@ -281,9 +273,10 @@ export function InsightsView() {
   const header = (
     <>
       <div class="page-title">Einblicke</div>
+      <StatsTabs current="insights" />
       <FilterBar filters={filters} onChange={setFilters} />
       <CoachTip id="insights" title="Was du hier findest">
-        Ich suche in all deinen Partien nach Mustern: Wann passieren deine Fehler, in welchen Stellungen spielst du stark, und wie entwickelst du dich? Unten kann ich dir auch einen ausführlichen Bericht schreiben.
+        Hier stehen alle Detailzahlen, sortiert nach Themen: Entwicklung, Ergebnisse, Partieverlauf, Fehler sowie Zeit und Gewohnheiten. Oben springst du direkt zu jedem Abschnitt.
       </CoachTip>
     </>
   );
@@ -382,12 +375,16 @@ export function InsightsView() {
     value: e.per_game,
     valueText: `${e.per_game.toFixed(2).replace(".", ",")} pro Partie`,
   }));
-  const coachTraining = () => loadTrainingSummary(profile.exercises).catch(() => null);
+
+  const sec = (id: InsightsSection) => sectionOf("insights", id);
+  const pt = precisionTiles(d.precision, overall);
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
+      <SectionNav sections={STAT_SECTIONS.insights} />
       <div class="dash">
+        <SectionHead section={sec("blick")} />
         {d.feedback.length > 0 && (
           <section class="card tile span-12 feedback-card">
             <div class="tile-head">
@@ -429,73 +426,31 @@ export function InsightsView() {
           )}
         </section>
 
-        <section class="card span-12">
-          <AiAnswer
-            cacheKey={`report:${profile.analyzed_games}:${filters.format}:${filters.date}:${filters.color}`}
-            title="Dein Trainerbericht"
-            saveTitle={`Trainerbericht · ${trFilter(filters.date)} · ${plural(profile.analyzed_games, "analysierte Partie", "analysierte Partien")}`}
-            start="Ausführlichen Bericht vom KI-Coach schreiben lassen"
-            hint="Lass dir vom KI-Coach einen Trainerbericht über alle deine Partien schreiben."
-            messages={async () => reportMessages(profile, coachDetail(), await coachTraining())}
-          />
-        </section>
+        <SectionHead section={sec("entwicklung")} />
+        <EvolutionTiles d={d} />
 
-        <div class="section-head span-12">
-          <h2>Entwicklung und Partietypen</h2>
-          <span class="tile-sub">wird dein Spiel besser, und welche Partien liegen dir?</span>
-        </div>
-        <EvolutionTiles d={d} overall={overall} />
-
-        <div class="section-head span-12">
-          <h2>Präzision und Verlauf</h2>
-          <span class="tile-sub">mit Unsicherheitsbereich, damit du weißt, wie belastbar jede Zahl ist</span>
-        </div>
-        <PrecisionTiles p={d.precision} overall={overall} />
-
-        <div class="section-head span-12">
-          <h2>Wann, wo und womit du Fehler machst</h2>
-        </div>
-
-        <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={4}>
-          <SquareHeatmap values={d.error_squares} />
-          {d.hot_squares.length > 0 && (
-            <p class="small muted tile-foot">
-              Am häufigsten: {d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}. Gezählt wird das Zielfeld
-              deines Zuges.
-            </p>
-          )}
-        </Tile>
-
-        <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
-          <ColumnChart columns={moveCols} />
-          <p class="small faint tile-foot">Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</p>
-        </Tile>
-
-        <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
-          <BarList rows={pieceRows} max={pieceMax} />
-        </Tile>
-
-        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={4}>
-          <BarList rows={situationRows} max={rowsMax(situationRows)} />
-          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
-        </Tile>
-
-        <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={4}>
-          {clocked ? (
-            <ColumnChart columns={thinkCols} />
+        <SectionHead section={sec("ergebnisse")} />
+        {pt.expectation}
+        <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
+          {d.game_types.length ? (
+            <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
           ) : (
-            <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
+            <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
           )}
         </Tile>
-
-        <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={4}>
-          {pressureRows.length ? (
-            <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
-          ) : (
-            <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
-          )}
+        <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={4}>
+          <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
         </Tile>
+        {pt.color}
+        {pt.length}
 
+        <SectionHead section={sec("verlauf")} />
+        {pt.curve}
+        {pt.turnarounds}
+        {pt.consistency}
+        {pt.byResult}
+
+        <SectionHead section={sec("fehler")} />
         <Tile title="Fehler pro Partie" sub="Durchschnitt" span={4}>
           <BarList rows={errorTypeRows} max={Math.max(1, ...errorTypeRows.map((r) => r.value ?? 0)) * 1.15} />
           {d.punish.chances > 0 && (
@@ -509,7 +464,48 @@ export function InsightsView() {
           )}
         </Tile>
 
-        <Tile title="Tageszeit" sub="Punkte-Quote" span={4}>
+        <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
+          <ColumnChart columns={moveCols} />
+          <p class="small faint tile-foot">Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</p>
+        </Tile>
+
+        <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
+          <BarList rows={pieceRows} max={pieceMax} />
+        </Tile>
+
+        <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={6}>
+          <SquareHeatmap values={d.error_squares} />
+          {d.hot_squares.length > 0 && (
+            <p class="small muted tile-foot">
+              Am häufigsten: {d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}. Gezählt wird das Zielfeld
+              deines Zuges.
+            </p>
+          )}
+        </Tile>
+
+        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={6}>
+          <BarList rows={situationRows} max={rowsMax(situationRows)} />
+          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
+        </Tile>
+
+        <SectionHead section={sec("gewohnheiten")} />
+        <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={6}>
+          {clocked ? (
+            <ColumnChart columns={thinkCols} />
+          ) : (
+            <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
+          )}
+        </Tile>
+
+        <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={6}>
+          {pressureRows.length ? (
+            <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
+          ) : (
+            <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
+          )}
+        </Tile>
+
+        <Tile title="Tageszeit" sub="Punkte-Quote" span={6}>
           {timed ? (
             <ColumnChart columns={scoreColumns(d.by_daytime)} max={100} reference={scoreRef} />
           ) : (
@@ -517,7 +513,7 @@ export function InsightsView() {
           )}
         </Tile>
 
-        <Tile title="Wochentag" sub="Punkte-Quote" span={4}>
+        <Tile title="Wochentag" sub="Punkte-Quote" span={6}>
           {timed ? (
             <ColumnChart columns={scoreColumns(d.by_weekday)} max={100} reference={scoreRef} />
           ) : (
@@ -540,19 +536,6 @@ export function InsightsView() {
             <p class="muted small">Für Serien braucht es Partien mit Uhrzeit.</p>
           )}
         </Tile>
-
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>
-              <IconSpark /> Frag den KI-Coach
-            </h3>
-            <span class="tile-sub">kennt dein Profil und diese Einblicke</span>
-          </div>
-          <AiChat
-            build={async (history, q) => profileCoachMessages(profile, history, q, coachDetail(), await coachTraining())}
-            suggestions={PROFILE_QUESTIONS}
-          />
-        </section>
       </div>
     </div>
   );

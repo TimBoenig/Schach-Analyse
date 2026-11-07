@@ -17,7 +17,6 @@ import {
   summarizeTraining,
   type TrainingLog,
   type TrainingPrefs,
-  type TrainingSummary,
 } from "../../domain/training";
 import { getSetting, listGames, setSetting } from "../../storage/db";
 
@@ -40,13 +39,17 @@ export async function loadFullProfile(): Promise<PlayerProfile | null> {
   return buildProfileInWorker({ games: await listGames(), usernames: names, ...ALL, format });
 }
 
-/** Training state for the AI coach on other pages. */
-export async function loadTrainingSummary(pool: Exercise[]): Promise<TrainingSummary | null> {
-  const log = await getSetting<TrainingLog>(K.log, {});
-  if (!Object.keys(log).length) return null;
-  const plan = await getSetting<DailyPlan | null>(K.plan, null);
+/** Records one exercise result outside the training page (start page's position of the day). */
+export async function recordTrainingResult(ex: Exercise, success: boolean): Promise<void> {
   const today = localDay();
-  return summarizeTraining(pool, await getSetting<ProgressMap>(K.progress, {}), log, today, plan?.date === today ? plan.headline : undefined);
+  const [progress, log] = await Promise.all([getSetting<ProgressMap>(K.progress, {}), getSetting<TrainingLog>(K.log, {})]);
+  await setSetting(K.progress, recordAttempt(progress, ex.id, success, today));
+  await setSetting(K.log, logAttempt(log, today, ex.category, success));
+}
+
+/** Spaced-repetition progress, for picking the position of the day. */
+export function loadTrainingProgress(): Promise<ProgressMap> {
+  return getSetting<ProgressMap>(K.progress, {});
 }
 
 export interface TodayTraining {

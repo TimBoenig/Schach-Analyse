@@ -7,6 +7,7 @@ import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES } from "../domain/p
 import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
 import { Donut, StackBar } from "./charts";
 import { Coach, CoachTip, NeedNames } from "./Coach";
+import { StatsTabs } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
 import { ClassBadge, ClassTiles, MonthColumns, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
@@ -70,6 +71,7 @@ export function MovesView() {
   const header = (
     <>
       <div class="page-title">Zugbilanz</div>
+      <StatsTabs current="moves" />
       <FilterBar filters={filters} onChange={setFilters} />
       <CoachTip id="moves" title="Alle deine Züge auf einen Blick">
         Hier zähle ich jede Bewertung aus all deinen analysierten Partien: von brillant bis Patzer. Tippe auf einen Glanzzug, um

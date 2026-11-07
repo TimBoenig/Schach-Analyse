@@ -1,16 +1,7 @@
 // Collects everything for the export from storage and hands the file to the browser.
-import {
-  type ExportSetting,
-  gamesCsv,
-  gamesInPeriod,
-  gamesPgn,
-  mergeCoachAnswers,
-  parseBackup,
-  COACH_ANSWERS_KEY,
-} from "../domain/export";
+import { type ExportSetting, gamesCsv, gamesInPeriod, gamesPgn, parseBackup } from "../domain/export";
 import { localDay } from "../domain/training";
 import { getSetting, listGames, listSettingRecords, putGames, putSettingRecords } from "../storage/db";
-import { listCoachAnswers } from "./coachAnswers";
 import { buildExportInWorker } from "./profileClient";
 
 export type ExportKind = "json" | "csv" | "pgn";
@@ -51,7 +42,6 @@ export async function exportData(kind: ExportKind, dateFilter: string): Promise<
     usernames,
     dateFilter,
     settings,
-    coachAnswers: await listCoachAnswers(),
     today: localDay(),
     now: Date.now(),
   });
@@ -62,13 +52,11 @@ export async function exportData(kind: ExportKind, dateFilter: string): Promise<
 export interface RestoreResult {
   games: number;
   settings: number;
-  answers: number;
 }
 
 /**
  * Restores a backup. Games are written as they are; settings only fill gaps,
- * so an old file never overwrites newer training progress. Names and coach
- * answers merge.
+ * so an old file never overwrites newer training progress. Names merge.
  */
 export async function restoreBackup(file: File): Promise<RestoreResult> {
   const backup = parseBackup(await file.text());
@@ -87,10 +75,6 @@ export async function restoreBackup(file: File): Promise<RestoreResult> {
     }
     if (merged.length !== have.length) records.push({ key: "usernames", value: merged, updated_at: now });
   }
-  if (backup.coachAnswers.length) {
-    const have = (local.get(COACH_ANSWERS_KEY) as Parameters<typeof mergeCoachAnswers>[0] | undefined) ?? [];
-    records.push({ key: COACH_ANSWERS_KEY, value: mergeCoachAnswers(have, backup.coachAnswers), updated_at: now });
-  }
   if (records.length) await putSettingRecords(records);
-  return { games: backup.games.length, settings: records.length, answers: backup.coachAnswers.length };
+  return { games: backup.games.length, settings: records.length };
 }

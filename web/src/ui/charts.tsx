@@ -109,8 +109,10 @@ export function RadarChart({
   const band = hasBand
     ? `M${poly(axes.map((a) => clamp(a.value + (a.margin ?? 0))))}Z M${poly(axes.map((a) => clamp(a.value - (a.margin ?? 0))))}Z`
     : "";
-  const h = hover !== null ? axes[hover] : null;
-  const hp = hover !== null ? pt(hover, axes[hover].value) : null;
+  // The axes can change under a resting mouse (filters, a finished analysis), so
+  // a stale index must not be read.
+  const h = hover !== null && hover < axes.length ? axes[hover] : null;
+  const hp = h && hover !== null ? pt(hover, h.value) : null;
 
   return (
     <div ref={ref} class="chart-wrap">
@@ -220,7 +222,7 @@ export function Donut({
   // 2px surface gap between segments (only when there is more than one).
   const gap = shown.length > 1 ? 2 : 0;
   let acc = 0;
-  const h = hover !== null ? segments[hover] : null;
+  const h = hover !== null ? (segments[hover] ?? null) : null;
   return (
     <div class="donut" style={{ width: `${size}px`, height: `${size}px` }} onPointerLeave={() => setHover(null)}>
       <svg width={size} height={size} role="img" aria-label={segments.map((s) => `${s.label} ${s.value}`).join(", ")}>
@@ -454,13 +456,13 @@ export function AreaChart({
   const labelEvery = Math.max(1, Math.ceil(points.length / maxLabels));
   const line = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1)},${H - padB} L${x(0)},${H - padB} Z`;
-  const h = hover !== null ? points[hover] : null;
+  const h = hover !== null ? (points[hover] ?? null) : null;
   const gid = `g${Math.round(height)}${points.length}`;
 
   const pick = (e: PointerEvent) => {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const i = Math.round(((e.clientX - rect.left - padL) / (W - padL - padR)) * (points.length - 1));
-    setHover(Math.max(0, Math.min(points.length - 1, i)));
+    setHover(Number.isFinite(i) ? Math.max(0, Math.min(points.length - 1, i)) : null);
   };
 
   return (
@@ -630,6 +632,54 @@ export function SquareHeatmap({ values, flipped = false, unit = "Fehler" }: { va
         <div class="heat-ramp" aria-hidden="true" />
         <span>{h !== null ? "" : `Viele (${max})`}</span>
       </div>
+    </div>
+  );
+}
+
+// ---------- sparkline ----------
+
+/** Tiny trend line without axes or hover (start page cards). */
+export function Sparkline({ values, width = 120, height = 34, color = "var(--accent)" }: { values: number[]; width?: number; height?: number; color?: string }) {
+  if (values.length < 2) return null;
+  const lo = Math.min(...values);
+  const hi = Math.max(...values);
+  const x = (i: number) => (i / (values.length - 1)) * (width - 4) + 2;
+  const y = (v: number) => height - 3 - ((v - lo) / (hi - lo || 1)) * (height - 6);
+  const d = values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const last = values[values.length - 1];
+  return (
+    <svg class="sparkline" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+      <path d={`${d} L${x(values.length - 1)},${height} L${x(0)},${height} Z`} fill={color} opacity="0.12" />
+      <path d={d} fill="none" stroke={color} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <circle cx={x(values.length - 1)} cy={y(last)} r="3" fill={color} />
+    </svg>
+  );
+}
+
+/** Progress ring (done of total), e.g. today's exercises. */
+export function Ring({ value, total, size = 64, thickness = 7, children }: { value: number; total: number; size?: number; thickness?: number; children?: ComponentChildren }) {
+  const r = (size - thickness) / 2;
+  const c = 2 * Math.PI * r;
+  const f = total > 0 ? Math.max(0, Math.min(1, value / total)) : 0;
+  return (
+    <div class="ring" style={{ width: `${size}px`, height: `${size}px` }}>
+      <svg width={size} height={size} aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} class="donut-track" stroke-width={thickness} />
+        {f > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke="var(--accent)"
+            stroke-width={thickness}
+            stroke-linecap="round"
+            stroke-dasharray={`${c * f} ${c}`}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        )}
+      </svg>
+      <div class="ring-center">{children}</div>
     </div>
   );
 }

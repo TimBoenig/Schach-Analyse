@@ -75,7 +75,7 @@ export interface TrainingItem {
   examples: GameRef[];
 }
 
-/** One game as the AI coach sees it (player's perspective). */
+/** One game in compact form (player's perspective), for the start page and the export. */
 export interface GameDigest {
   game_id: string;
   date: string;
@@ -124,7 +124,7 @@ export interface PlayerProfile {
   training_plan: TrainingItem[];
   /** Exercises from the player's own games plus endgame basics (empty until a game is analyzed). */
   exercises: Exercise[];
-  /** Newest games, compact, for the AI coach. */
+  /** Newest games, compact (start page, export). */
   recent_games: GameDigest[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;

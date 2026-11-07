@@ -24,6 +24,7 @@ export {
   logAttempt,
   MASTERED_BOX,
   migrateSolved,
+  puzzleOfTheDay,
   recordAttempt,
   streak,
   summarizeTraining,

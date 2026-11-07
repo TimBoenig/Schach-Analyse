@@ -1,7 +1,7 @@
 // Training progress: spaced repetition per exercise (Leitner boxes) and a
 // per-day log for streaks and statistics. Plain JSON so it syncs as a setting.
 
-import { CATEGORY_ORDER, type Category, type Exercise } from "./exercises";
+import { CATEGORY_ORDER, type Category, type Exercise, type PuzzleExercise } from "./exercises";
 
 export interface ExerciseProgress {
   /** Leitner box 0..MAX_BOX; a miss sends the exercise back to 0. */
@@ -128,7 +128,7 @@ export function migrateSolved(solved: Record<string, boolean>, progress: Progres
   return out;
 }
 
-/** Training state in a few numbers (for the AI coach and the progress page). */
+/** Training state in a few numbers (for the export and the progress page). */
 export interface TrainingSummary {
   streak: number;
   /** Exercises done and solved in the last 7 days including today. */
@@ -153,4 +153,27 @@ export function summarizeTraining(
     }
   }
   return { streak: streak(log, today), week, categories: categoryProgress(pool, progress), headline };
+}
+
+/** FNV-1a over a short string; stable across devices, unlike Math.random. */
+function dayHash(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+/**
+ * The start page's position of the day: one puzzle from the player's own games,
+ * the same all day and on every device, skipping puzzles already mastered while
+ * others are left.
+ */
+export function puzzleOfTheDay(pool: Exercise[], progress: ProgressMap, today: string): PuzzleExercise | null {
+  const puzzles = pool.filter((e): e is PuzzleExercise => e.kind === "puzzle").sort((a, b) => a.id.localeCompare(b.id));
+  if (!puzzles.length) return null;
+  const open = puzzles.filter((p) => !isMastered(progress[p.id]));
+  const from = open.length ? open : puzzles;
+  return from[dayHash(today) % from.length];
 }

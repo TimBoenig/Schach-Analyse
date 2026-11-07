@@ -1,27 +1,21 @@
-// Full export, restore parsing, coach answer merging and the CSV for spreadsheets.
+// Full export, restore parsing and the CSV for spreadsheets.
 import { describe, expect, it } from "vitest";
 
-import {
-  buildFullExport,
-  COACH_ANSWER_LIMIT,
-  gamesCsv,
-  mergeCoachAnswers,
-  parseBackup,
-  type SavedCoachAnswer,
-} from "../../src/domain/export";
+import { buildFullExport, gamesCsv, parseBackup } from "../../src/domain/export";
 import { rangeFilter } from "../../src/domain/metrics";
 import type { StoredGame } from "../../src/domain/types";
 import { buildMoves, gameRow, profileGames, THROWN_WIN } from "../profile/fixtures";
 
 const NOW = Date.UTC(2026, 6, 1);
 const games = profileGames(4, 4) as unknown as StoredGame[];
-const answer = (key: string, created_at: number, text = "Bericht"): SavedCoachAnswer => ({ key, title: key, text, created_at });
 
 const settings = [
   { key: "usernames", value: ["Tim"], updated_at: 1 },
   { key: "sync.lastSeq", value: 9, updated_at: 1 },
   { key: "training.log", value: { "2026-06-30": { done: 5, correct: 4, by_category: {} } }, updated_at: 1 },
   { key: "ui.theme", value: "dark", updated_at: 1 },
+  // Left behind by the removed AI coach on older devices; never exported again.
+  { key: "coach.answers", value: [{ key: "report:8", text: "alt" }], updated_at: 1 },
 ];
 
 function exportFor(dateFilter: string) {
@@ -30,14 +24,13 @@ function exportFor(dateFilter: string) {
     usernames: ["Tim"],
     dateFilter,
     settings,
-    coachAnswers: [answer("game:x", 1), answer("report:8", 2)],
     today: "2026-07-01",
     now: NOW,
   });
 }
 
 describe("buildFullExport", () => {
-  it("holds games, analysis, statistics, training and coach answers, and survives JSON", () => {
+  it("holds games, analysis, statistics, training, and survives JSON", () => {
     const data = exportFor("All Time");
     expect(data.scope).toMatchObject({ games_total: 8, games_exported: 8, games_analyzed: 8, from: null, to: null });
     expect(Object.keys(data.reviews)).toHaveLength(8);
@@ -47,8 +40,7 @@ describe("buildFullExport", () => {
     expect(data.profile?.openings).not.toBeNull();
     expect(data.training.log["2026-06-30"].done).toBe(5);
     expect(data.training.summary?.week.done).toBe(5);
-    expect(data.coach.answers.map((a) => a.key)).toEqual(["report:8", "game:x"]);
-    // Sync bookkeeping stays on the device; training has its own section.
+    // Sync bookkeeping stays on the device; training has its own section; old coach answers are dropped.
     expect(data.settings.map((s) => s.key)).toEqual(["usernames", "ui.theme"]);
     expect(JSON.parse(JSON.stringify(data))).toEqual(data);
   });
@@ -66,7 +58,6 @@ describe("parseBackup", () => {
     const back = parseBackup(JSON.stringify(exportFor("All Time")));
     expect(back.games).toHaveLength(8);
     expect(back.settings.map((s) => s.key).sort()).toEqual(["training.log", "ui.theme", "usernames"]);
-    expect(back.coachAnswers).toHaveLength(2);
   });
 
   it("reads a version 1 file (games only) and rejects other JSON", () => {
@@ -75,18 +66,6 @@ describe("parseBackup", () => {
     expect(v1.settings).toEqual([]);
     expect(() => parseBackup('{"foo": 1}')).toThrow();
     expect(() => parseBackup("not json")).toThrow();
-  });
-});
-
-describe("mergeCoachAnswers", () => {
-  it("keeps the newer answer per key, newest first, within the limit", () => {
-    const merged = mergeCoachAnswers([answer("a", 1, "alt"), answer("b", 5)], [answer("a", 7, "neu")]);
-    expect(merged.map((a) => [a.key, a.text])).toEqual([
-      ["a", "neu"],
-      ["b", "Bericht"],
-    ]);
-    const many = Array.from({ length: COACH_ANSWER_LIMIT + 5 }, (_, i) => answer(`k${i}`, i));
-    expect(mergeCoachAnswers([], many)).toHaveLength(COACH_ANSWER_LIMIT);
   });
 });
 

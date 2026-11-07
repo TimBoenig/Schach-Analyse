@@ -6,19 +6,6 @@
 
 export { benchmark, currentRating, expectedScore, performanceRating, ratingContext, typicalSkillScores } from "./benchmarks";
 export { buildPlayerProfile } from "./builder";
-export {
-  annotatedMoves,
-  DETAIL_LEVELS,
-  gameCoachMessages,
-  OPENING_QUESTIONS,
-  PROFILE_QUESTIONS,
-  profileBrief,
-  profileCoachMessages,
-  profileContext,
-  reportMessages,
-  TRAINING_QUESTIONS,
-} from "./coach";
-export type { CoachDetail, CoachMessage, GameContext, TrainingContext } from "./coach";
 export { extractFeatures, GameFeatures, MoveEvent, sanForUci } from "./features";
 export { buildGameReview, schoolGrade } from "./game_review";
 export { buildDeepInsights, pieceOf, sessions, SESSION_GAP_SECONDS } from "./insights";

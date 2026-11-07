@@ -7,6 +7,7 @@ import { IconSearch } from "./icons";
 import { MOD } from "./keys";
 import { formatDate, resultText, shortOpening } from "./labels";
 import { navigate, type Route } from "./router";
+import { openSection, STAT_SECTIONS, STATS_PAGES } from "./StatsLayout";
 import { setTheme } from "./theme";
 
 interface Command {
@@ -105,8 +106,19 @@ export function CommandPalette({
       keywords: `${opp(g)} ${g.opening ?? ""} ${g.date}`,
       run: go({ view: "analysis", gameId: g.id }),
     }));
+    // Every statistic by name ("Tageszeit", "Wertungsverlauf"), so nobody has to remember which page holds it.
+    const sectionCmds: Command[] = (["profile", "insights"] as const).flatMap((view) =>
+      STAT_SECTIONS[view].map((sec) => ({
+        id: `section-${view}-${sec.id}`,
+        group: "Statistiken",
+        label: `${STATS_PAGES.find((p) => p.view === view)?.label} › ${sec.title}`,
+        hint: sec.cards.slice(0, 3).join(", "),
+        keywords: `${sec.sub} ${sec.cards.join(" ")}`,
+        run: () => openSection(view, sec.id),
+      })),
+    );
     if (!query.trim()) return [...base, ...gameCmds.slice(0, 5)];
-    return [...base, ...gameCmds].filter((c) => matches(`${c.label} ${c.keywords ?? ""} ${c.group}`, query)).slice(0, 30);
+    return [...base, ...sectionCmds, ...gameCmds].filter((c) => matches(`${c.label} ${c.keywords ?? ""} ${c.group}`, query)).slice(0, 30);
   }, [games, names, query, lastGame]);
 
   useEffect(() => setActive(0), [query]);

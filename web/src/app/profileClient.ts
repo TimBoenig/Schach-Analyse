@@ -29,7 +29,7 @@ export function buildProfileInWorker(req: Omit<ProfileRequest, "id">): Promise<P
   return p;
 }
 
-/** Full export (profile, reviews, training, coach answers) built off the main thread. */
+/** Full export (profile, reviews, training) built off the main thread. */
 export function buildExportInWorker(input: ExportInput): Promise<FullExport> {
   return runInWorker<FullExport>({ kind: "export", input });
 }
