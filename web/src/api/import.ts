@@ -113,17 +113,20 @@ export async function importChesscomGames(
   return { result: total, games: all };
 }
 
-/** Imports a lichess player's last `maxGames` games (one request, NDJSON stream). */
+/** Imports a lichess player's last `maxGames` games (null = all; one request, NDJSON stream). */
 export async function importLichessGames(
   username: string,
   exists: ExistsFn,
-  maxGames = 100,
+  maxGames: number | null = 100,
   options: RemoteImportOptions & { token?: string | null } = {},
 ): Promise<ImportBatch> {
   const { onProgress, onBatch, signal, token } = options;
   try {
     onProgress?.(1, 1, `Lade Partien von ${username} …`);
-    const games = await new LichessAPI({ token }).getUserGames(username, maxGames, { signal });
+    const games = await new LichessAPI({ token }).getUserGames(username, maxGames, {
+      signal,
+      onCount: (n) => onProgress?.(n, maxGames ?? 0, `Lade Partien von ${username} … ${n}`),
+    });
     const batch = await importPgnText(games.map((g) => g.pgn).filter(Boolean).join("\n\n"), exists, "lichess");
     if (batch.games.length) await onBatch?.(batch.games);
     return batch;

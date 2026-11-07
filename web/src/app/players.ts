@@ -80,10 +80,10 @@ export async function removePlayer(id: string, { deleteGames = false } = {}): Pr
 }
 
 export interface PlayerImportOptions {
-  /** Lichess: number of newest games. */
-  count?: number;
-  /** Chess.com: number of newest monthly archives. */
-  months?: number;
+  /** Lichess: number of newest games; null = the whole history. */
+  count?: number | null;
+  /** Chess.com: number of newest monthly archives; null = the whole history. */
+  months?: number | null;
   signal?: AbortSignal;
   onProgress?: (label: string) => void;
 }
