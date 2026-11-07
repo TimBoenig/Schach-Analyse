@@ -47,7 +47,7 @@ export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Pr
     const after = terminalScore(fenAfter) ?? whiteScore(fenAfter, child[0]);
     const move = after ? judgeMove(fenBefore, uci, parent, after) : null;
     if (!move) return null;
-    // Concrete reasons (fork, hanging piece, mate) instead of a bare percentage.
+    // Concrete reasons (fork, stopped threat, hanging piece, mate) instead of a bare percentage.
     const reasons = explainMove({
       fenBefore,
       uci,
@@ -55,6 +55,7 @@ export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Pr
       replyPv: child[0]?.pv ?? [],
       mateBefore: move.eval_before_mate,
       mateAfter: move.eval_after_mate,
+      classification: move.classification,
     });
     if (reasons.length) move.explanation = reasons.join(" ");
     return move;
