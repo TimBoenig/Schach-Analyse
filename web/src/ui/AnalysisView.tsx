@@ -2,6 +2,7 @@ import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { enqueue, cancelCurrent, subscribeQueue, type QueueState } from "../app/analysisService";
+import { LiveDepth } from "./LiveDepth";
 import { DEPTH_PRESETS, deeperPreset, settingsLabel, type DepthPreset } from "../domain/analysisDepth";
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
 import { explainMove } from "../domain/explain";
@@ -852,6 +853,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <div class="progress">
                     <div style={{ width: `${progress}%` }} />
                   </div>
+                  {queue && <LiveDepth queue={queue} />}
                   <p class="muted small" style={{ marginBottom: 0 }}>
                     Stockfish rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.
                   </p>
