@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import type { StoredGame } from "../domain/types";
-import { exportData } from "../app/exporter";
+import { exportData, exportForAi } from "../app/exporter";
 import { getSetting, listGames } from "../storage/db";
 import { IconSearch } from "./icons";
 import { MOD } from "./keys";
@@ -90,6 +90,13 @@ export function CommandPalette({
         label: "Alle Daten exportieren",
         keywords: "export sicherung backup json csv pgn datei",
         run: () => void exportData("json", "All Time"),
+      },
+      {
+        id: "export-ai",
+        group: "Aktionen",
+        label: "Für KI exportieren",
+        keywords: "ki ai chatgpt claude gemini export analyse markdown datei",
+        run: () => void exportForAi("All Time"),
       },
       { id: "theme-dark", group: "Aktionen", label: "Dunkles Design", keywords: "theme dark nacht", run: () => void setTheme("dark") },
       { id: "theme-light", group: "Aktionen", label: "Helles Design", keywords: "theme light tag", run: () => void setTheme("light") },

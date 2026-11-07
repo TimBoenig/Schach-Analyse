@@ -16,7 +16,7 @@ export type { Evolution, EvolutionBlock, FeedbackItem, GameTypeStat, MetricChang
 export type { AccuracySpread, CurvePoint, PrecisionStats, RatingBucket, ScoreStat, Turnarounds } from "./precision";
 export { buildMoveTally, HIGHLIGHT_CLASSES, SERIOUS_CLASSES, sumOf, TALLY_CLASSES, TOP_CLASSES, totalOf } from "./moves";
 export type { ClassTally, Counts, MoveHighlight, MoveTally, TallyBlock, TallyClass, TallyFinding, TallyGame } from "./moves";
-export { buildOpeningInsights, movesText, openingLabel, openingMain } from "./openings";
+export { buildOpeningInsights, movesText, openingLabel, openingMain, openingParts } from "./openings";
 export { fenAfter, LEAK_MIN_JUDGED, TREE_PLIES } from "./openingTree";
 export type { OpeningLeak, OpeningNode, OpeningTree, TreeGame } from "./openingTree";
 export type { FirstMoveStat, MoveChoice, OpeningGameRef, OpeningInsights, OpeningStat } from "./openings";

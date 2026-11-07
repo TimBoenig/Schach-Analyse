@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import { LiveDepth } from "./LiveDepth";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
@@ -298,7 +299,8 @@ function GameRow({
             class="btn small"
             onClick={(e) => {
               e.stopPropagation();
-              enqueue([g.id]);
+              // An explicit request goes ahead of the background queue.
+              void enqueue([g.id], { front: true });
             }}
           >
             <IconPlay /> Analysieren
@@ -405,7 +407,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           </button>
         ) : (
           open.length > 0 && (
-            <button class="btn" onClick={() => enqueue(open)}>
+            <button class="btn" onClick={() => void enqueue(open)} title="Die neuesten Partien zuerst">
               <IconPlay /> Alle analysieren ({open.length})
             </button>
           )
@@ -422,7 +424,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             <button
               class="btn primary"
               onClick={() => {
-                enqueue(justImported);
+                void enqueue(justImported);
                 setJustImported([]);
               }}
             >
@@ -454,6 +456,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <div class="progress">
             <div style={{ width: `${Math.round((queue.done / Math.max(1, queue.total)) * 100)}%` }} />
           </div>
+          <LiveDepth queue={queue} />
           {queue.error && <p class="error small">{queue.error}</p>}
         </div>
       )}

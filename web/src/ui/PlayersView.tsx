@@ -323,6 +323,41 @@ function RefreshAll({ players, label = "Alle aktualisieren" }: { players: Tracke
   );
 }
 
+/**
+ * Queues every not yet analysed game of the friends (all shown players when
+ * nobody is marked as friend). The queue runs the newest games first.
+ */
+function AnalyzeFriends({ players, games }: { players: TrackedPlayer[]; games: StoredGame[] }) {
+  const queue = useQueue();
+  const { skipBullet } = useBulletPrefs();
+  const shown = players.filter((p) => !p.hidden);
+  const friends = shown.some((p) => p.friend) ? shown.filter((p) => p.friend) : shown;
+  const open = useMemo(() => {
+    const names = friends.flatMap(playerUsernames);
+    return gamesOf(games, names)
+      .filter((g) => g.summary_json?.analysis_status !== "completed" && !(skipBullet && isBulletGame(g)))
+      .map((g) => g.id);
+  }, [games, friends.map((p) => p.id).join("|"), skipBullet]);
+  const inQueue = new Set([...(queue?.queued ?? []), ...(queue?.current ? [queue.current] : [])]);
+  const waiting = open.filter((id) => !inQueue.has(id));
+  const running = open.length - waiting.length;
+  if (!open.length) return null;
+  const who = friends.length === shown.length && !shown.some((p) => p.friend) ? "aller Spieler" : "deiner Freunde";
+  return (
+    <button
+      class="btn"
+      disabled={!waiting.length}
+      onClick={() => void enqueue(waiting)}
+      title={`Alle noch nicht analysierten Partien ${who}, die neuesten zuerst${skipBullet ? ", ohne Bullet" : ""}`}
+    >
+      <IconPlay />{" "}
+      {waiting.length
+        ? `Neue Partien ${who} analysieren (${waiting.length})`
+        : `Analyse läuft (${plural(running, "Partie", "Partien")})`}
+    </button>
+  );
+}
+
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
   if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
   return (
@@ -457,6 +492,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
             <IconPlus /> Spieler hinzufügen
           </button>
           <RefreshAll players={players.filter((p) => !p.hidden)} />
+          <AnalyzeFriends players={players} games={games} />
         </div>
       )}
 
@@ -709,6 +745,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
       <div class="rank-toolbar">
         <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
         <RefreshAll players={friends} label="Freunde aktualisieren" />
+        <AnalyzeFriends players={friends} games={games} />
       </div>
       <RankingMembers friends={allFriends} />
       {error && <p class="error">{error}</p>}
@@ -1086,7 +1123,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
           <button
             class="btn"
             disabled={running > 0}
-            onClick={() => enqueue(open.slice(0, ANALYZE_BATCH))}
+            onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}
             title="Die neuesten Partien zuerst"
           >
             <IconPlay /> {running > 0 ? `Analyse läuft (${running})` : `${Math.min(open.length, ANALYZE_BATCH)} analysieren`}
@@ -1193,7 +1230,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
                     Partien von {player.name}.
                   </span>
                   {open.length > 0 && running === 0 && (
-                    <button class="btn primary small" onClick={() => enqueue(open.slice(0, ANALYZE_BATCH))}>
+                    <button class="btn primary small" onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}>
                       <IconPlay /> {Math.min(open.length, ANALYZE_BATCH)} analysieren
                     </button>
                   )}

@@ -43,7 +43,16 @@ export interface ProgressEvent {
 }
 
 export interface AnalyzeOptions {
-  settings?: AnalysisSettings;
+  /**
+   * Engine limits. A function is asked again before every position, so a
+   * changed depth takes effect during a running analysis without restarting it.
+   */
+  settings?: AnalysisSettings | (() => AnalysisSettings);
+  /**
+   * Positions searched at the same time (the engine must run them in parallel,
+   * e.g. an EnginePool). Also re-read after every position. Default 1.
+   */
+  concurrency?: number | (() => number);
   book?: BookData;
   cache?: EvalCache;
   signal?: AbortSignal;
@@ -328,18 +337,51 @@ function provisionalClassify(game: GameAnalysis, i: number): void {
  * Analyses `game` in place. Resumes after the last analysed move unless
  * `restart` is set. On abort the analysed part is still classified and the
  * summary is marked "paused".
+ *
+ * Positions are independent searches, so with `concurrency` > 1 several run at
+ * once; moves are classified provisionally as soon as both neighbouring
+ * positions are known. The summary records the weakest limits used, so a game
+ * analysed partly at a lower depth still offers a deeper re-run.
  */
 export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, opts: AnalyzeOptions = {}): Promise<GameSummary> {
-  const settings = opts.settings ?? DEFAULT_SETTINGS;
+  const settingsNow = (): AnalysisSettings => {
+    const s = typeof opts.settings === "function" ? opts.settings() : opts.settings;
+    return s ?? DEFAULT_SETTINGS;
+  };
+  const concurrencyNow = (): number => {
+    const c = typeof opts.concurrency === "function" ? opts.concurrency() : opts.concurrency;
+    return Math.max(1, Math.floor(c ?? 1));
+  };
   const total = game.moves.length;
   const start = opts.restart ? 0 : firstUnanalyzedIndex(game);
   for (let i = start; i < total; i++) resetMove(game.moves[i]);
 
-  let interrupted = false;
-  for (let i = start; i < total; i++) {
-    if (opts.signal?.aborted) {
-      interrupted = true;
-      break;
+  const known = (i: number) => {
+    const m = game.moves[i];
+    return Boolean(m) && (m.eval_before_cp !== null || m.eval_before_mate !== null);
+  };
+  let weakest: AnalysisSettings | null = null;
+  const used = (s: AnalysisSettings) => {
+    if (!weakest) weakest = s;
+    else weakest = { ...weakest, depth: Math.min(weakest.depth, s.depth), movetimeMs: Math.min(weakest.movetimeMs, s.movetimeMs) };
+  };
+
+  // Job `total` is the final position (after the last move).
+  const jobs: number[] = [];
+  for (let i = start; i < total; i++) jobs.push(i);
+  if (total > 0) jobs.push(total);
+
+  let final: { cp: number | null; mate: number | null } | null = null;
+  let finalDone = false;
+  let searched = 0;
+
+  const runJob = async (i: number): Promise<void> => {
+    const settings = settingsNow();
+    used(settings);
+    if (i === total) {
+      final = await finalPositionScore(game, engine, settings);
+      finalDone = true;
+      return;
     }
     const move = game.moves[i];
     const key = cacheKey(move.fen_before, settings);
@@ -349,23 +391,55 @@ export async function analyzeGame(game: GameAnalysis, engine: PositionEngine, op
       if (opts.cache && lines.length) await opts.cache.set(key, lines);
     }
     processAnalysisResults(move, lines);
-    if (i > 0) {
-      provisionalClassify(game, i - 1);
-      opts.onProgress?.({ done: i, total, index: i - 1, move: game.moves[i - 1] });
-    }
-  }
+    searched++;
+    if (i > 0 && known(i - 1)) provisionalClassify(game, i - 1);
+    if (known(i + 1)) provisionalClassify(game, i);
+    const index = Math.max(0, i - 1);
+    opts.onProgress?.({ done: Math.min(total - 1, start + searched), total, index, move: game.moves[index] });
+  };
 
-  let final: { cp: number | null; mate: number | null } | null = null;
-  if (!interrupted && total > 0) {
-    if (opts.signal?.aborted) interrupted = true;
-    else final = await finalPositionScore(game, engine, settings);
-  }
+  let failure: unknown = null;
+  await new Promise<void>((resolve) => {
+    let next = 0;
+    let active = 0;
+    const launch = () => {
+      while (!failure && !opts.signal?.aborted && next < jobs.length && active < concurrencyNow()) {
+        const i = jobs[next++];
+        active++;
+        runJob(i).then(
+          () => {
+            active--;
+            launch();
+          },
+          (e: unknown) => {
+            failure ??= e;
+            active--;
+            launch();
+          },
+        );
+      }
+      // Done when nothing runs and nothing more will start.
+      if (active === 0 && (failure || opts.signal?.aborted || next >= jobs.length)) resolve();
+    };
+    launch();
+  });
 
-  const summary = classifyAndSummarize(game, final, opts.book);
+  // Keep a clean analysed prefix: moves searched after a gap are dropped here
+  // (their lines are in the cache, so resuming costs almost nothing).
+  const gap = game.moves.findIndex((_, i) => i >= start && !known(i));
+  if (gap !== -1) for (let i = gap; i < total; i++) resetMove(game.moves[i]);
+  if (failure) throw failure;
+
+  const interrupted = gap !== -1 || (total > 0 && !finalDone);
+  const summary = classifyAndSummarize(game, interrupted ? null : final, opts.book);
   const analyzed = game.moves.filter((m) => m.classification).length;
   summary.analysis_status = interrupted ? "paused" : "completed";
   summary.analyzed_moves = interrupted ? analyzed : total;
   summary.total_moves = total;
+  if (weakest) {
+    summary.analysis_depth = (weakest as AnalysisSettings).depth;
+    summary.analysis_movetime_ms = (weakest as AnalysisSettings).movetimeMs;
+  }
   game.summary = summary;
   if (total > 0) opts.onProgress?.({ done: total, total, index: total - 1, move: game.moves[total - 1] });
   return summary;

@@ -2,15 +2,16 @@
 // the position with how they turned out, and the games that went through it.
 // Like an online opening explorer, but every number is from the player's games.
 import { Chess } from "chess.js";
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useMemo } from "preact/hooks";
 
-import { bookKey, type BookData, loadBookData } from "../../domain/book";
-import { fenAfter, movesText, type OpeningNode, openingLabel, openingMain, type TreeGame } from "../../domain/profile";
+import { type BookData, openingOf } from "../../domain/book";
+import { fenAfter, movesText, type OpeningNode, openingParts, type TreeGame } from "../../domain/profile";
 import { MIN_LINE_GAMES } from "../../domain/profile/evidence";
 import { type Arrow, Board } from "../Board";
 import { StackBar } from "../charts";
 import { formatDate } from "../labels";
 import { navigate } from "../router";
+import { useBook } from "../useBook";
 
 const pctText = (v: number | null) => (v === null ? "–" : `${Math.round(v)} %`);
 
@@ -39,43 +40,20 @@ function moveSquares(fen: string, san: string): { from: string; to: string } | n
   }
 }
 
-let book: BookData | null = null;
-
-function useBook(): BookData | null {
-  const [data, setData] = useState<BookData | null>(book);
-  useEffect(() => {
-    if (book) return;
-    let alive = true;
-    loadBookData().then((d) => {
-      book = d;
-      if (alive) setData(d);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  return data;
-}
-
 /** Name of the deepest book position along the path, e.g. "Italienische Partie · Giuoco Piano". */
 function openingAt(data: BookData | null, path: string[]): { eco: string; main: string; variation: string } | null {
-  if (!data) return null;
   const board = new Chess();
-  let found: [string, string] | null = null;
+  const fens = [board.fen()];
   for (const san of path) {
     try {
       board.move(san);
     } catch {
       break;
     }
-    const node = data[bookKey(board.fen())];
-    if (node) found = [node[0], node[1]];
+    fens.push(board.fen());
   }
-  if (!found) return null;
-  const [eco, name] = found;
-  const main = openingMain(name);
-  const variation = name.slice(main.length).replace(/^[:,]\s*/, "");
-  return { eco, main: openingLabel(main), variation };
+  const found = openingOf(data, fens);
+  return found ? { eco: found.eco, ...openingParts(found.name) } : null;
 }
 
 function GameRow({ g }: { g: TreeGame }) {

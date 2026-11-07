@@ -2,7 +2,8 @@
 import { type ExportSetting, gamesCsv, gamesInPeriod, gamesPgn, parseBackup } from "../domain/export";
 import { localDay } from "../domain/training";
 import { getSetting, listGames, listSettingRecords, putGames, putSettingRecords } from "../storage/db";
-import { buildExportInWorker } from "./profileClient";
+import type { AiExportDetail } from "../domain/aiExport";
+import { buildAiExportInWorker, buildExportInWorker } from "./profileClient";
 
 export type ExportKind = "json" | "csv" | "pgn";
 
@@ -77,4 +78,18 @@ export async function restoreBackup(file: File): Promise<RestoreResult> {
   }
   if (records.length) await putSettingRecords(records);
   return { games: backup.games.length, settings: records.length };
+}
+
+/**
+ * Builds and downloads the Markdown file for an AI chat; resolves with the
+ * number of the player's games in it (0 = nothing to export, no download).
+ */
+export async function exportForAi(dateFilter: string, detail: AiExportDetail = "full"): Promise<{ games: number; analyzed: number }> {
+  const [games, usernames, records] = await Promise.all([listGames(), getSetting<string[]>("usernames", []), listSettingRecords()]);
+  const settings: ExportSetting[] = records
+    .filter((s) => !s.deleted && s.key.startsWith("training."))
+    .map((s) => ({ key: s.key, value: s.value, updated_at: s.updated_at }));
+  const r = await buildAiExportInWorker({ games, usernames, dateFilter, settings, today: localDay(), now: Date.now(), detail });
+  if (r.games) download(r.text, `schach-analyse-ki-${localDay()}.md`, "text/markdown;charset=utf-8");
+  return { games: r.games, analyzed: r.analyzed };
 }

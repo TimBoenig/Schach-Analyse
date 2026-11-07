@@ -597,7 +597,7 @@ export function HomeView() {
                 <IconPlay /> {done && planned && done >= planned ? "Weiter üben" : "Tagesplan starten"}
               </button>
               {open.length > 0 && (
-                <button class="btn" onClick={() => enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
+                <button class="btn" onClick={() => void enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
                   {open.length} {open.length === 1 ? "Partie" : "Partien"} analysieren
                 </button>
               )}

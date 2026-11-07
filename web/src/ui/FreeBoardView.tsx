@@ -11,6 +11,8 @@ import { formatEval } from "./labels";
 import { LineMoves, VerdictCard } from "./LiveLine";
 import { navigate } from "./router";
 import { CoachTip } from "./Coach";
+import { OpeningLine } from "./OpeningLine";
+import { useBook } from "./useBook";
 import { usePositionLines, useVerdicts } from "./useLive";
 
 const START = new Chess().fen();
@@ -83,6 +85,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   const live = usePositionLines(fen, 3);
   const verdicts = useVerdicts(ucis.map((uci, k) => ({ fenBefore: fens[k], uci, fenAfter: fens[k + 1] })));
   const board = useMemo(() => new Chess(fen), [fen]);
+  const book = useBook();
 
   const play = (uci: string) => {
     // Re-playing the move that already follows keeps the rest of the line.
@@ -206,6 +209,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
         </div>
 
         <div class="side-panel">
+          <OpeningLine fens={fens.slice(0, n + 1)} book={book} />
           <div class="card">
             <h3>Bewertung</h3>
             {n > 0 ? (

@@ -2,12 +2,14 @@ import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { enqueue, cancelCurrent, subscribeQueue, type QueueState } from "../app/analysisService";
+import { LiveDepth } from "./LiveDepth";
 import { DEPTH_PRESETS, deeperPreset, settingsLabel, type DepthPreset } from "../domain/analysisDepth";
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
-import { explainMove } from "../domain/explain";
+import { type Explanation, explainMoveDetailed } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
-import { buildGameReview } from "../domain/profile";
+import { buildGameReview, openingParts } from "../domain/profile";
+import { bookKey } from "../domain/book";
 import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
@@ -33,6 +35,8 @@ import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
 import { Coach, COACH_NAME, moodFor } from "./Coach";
+import { OpeningLine } from "./OpeningLine";
+import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
@@ -116,6 +120,32 @@ function formatClock(s: number | null): string {
 const ERROR_CLASSES = new Set(["Blunder", "Mistake", "Miss", "Inaccuracy"]);
 // Moves at least as good as the engine's choice: no "better was" hint, no best-move arrow.
 const TOP_CLASSES = new Set(["Best", "Great", "Brilliant"]);
+
+// Explanations read the position statically (a few ms each); keep them while
+// the player steps back and forth through a game.
+const explanations = new Map<string, Explanation>();
+
+/** Concrete reasons for a stored game move: what it does, stops or allows. */
+function explainStored(move: MoveData, next: MoveData | undefined, previous: MoveData | undefined): Explanation {
+  const input = {
+    fenBefore: move.fen_before,
+    uci: move.uci,
+    bestPv: move.multi_pvs[0]?.pv ?? move.pv,
+    replyPv: next?.multi_pvs[0]?.pv ?? [],
+    mateBefore: move.eval_before_mate,
+    mateAfter: move.eval_after_mate,
+    classification: move.classification,
+    previousMove: previous ? { uci: previous.uci, san: previous.san } : undefined,
+  };
+  const key = `${previous?.uci ?? ""}|${input.fenBefore}|${input.uci}|${input.classification}|${input.bestPv.slice(0, 6).join(" ")}|${input.replyPv.slice(0, 8).join(" ")}`;
+  let hit = explanations.get(key);
+  if (!hit) {
+    hit = explainMoveDetailed(input);
+    if (explanations.size > 500) explanations.delete(explanations.keys().next().value as string);
+    explanations.set(key, hit);
+  }
+  return hit;
+}
 
 
 
@@ -564,6 +594,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     explore ? explore.ucis.map((uci, k) => ({ fenBefore: explore.fens[k], uci, fenAfter: explore.fens[k + 1] })) : [],
   );
   const lastVerdict = verdicts.length ? verdicts[verdicts.length - 1] : null;
+  const book = useBook();
+  // Every position of the game in order, for the opening name.
+  const gameFens = useMemo(
+    () => (game ? [game.moves[0]?.fen_before ?? game.metadata.starting_fen ?? new Chess().fen(), ...game.moves.map((m, k) => game.moves[k + 1]?.fen_before ?? fenAfter(m))] : []),
+    [game?.game_id, game?.moves.length],
+  );
 
   if (row === undefined) return <div class="skeleton" style={{ height: "60vh" }} />;
   if (!row || !game) {
@@ -717,18 +753,21 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const lastMove = explore ? sq(explore.lastUci) : move ? sq(move.uci) : null;
   // The current side line shows in the move list while it is being played.
   const shownSideLines = explore ? mergeLine(sideLines, explore) : sideLines;
-  // Concrete reasons for an error: the opponent's refutation and the better move.
-  const reasons =
-    move && !explore && ERROR_CLASSES.has(move.classification)
-      ? explainMove({
-          fenBefore: move.fen_before,
-          uci: move.uci,
-          bestPv: move.multi_pvs[0]?.pv ?? move.pv,
-          replyPv: nextMove?.multi_pvs[0]?.pv ?? [],
-          mateBefore: move.eval_before_mate,
-          mateAfter: move.eval_after_mate,
-        })
-      : [];
+  // Concrete reasons: the opponent's refutation and the better move for an error,
+  // the fork, saved piece or stopped threat for a good move.
+  const detail = move && !explore && move.classification && move.classification !== "Book" ? explainStored(move, nextMove, game.moves[i - 2]) : null;
+  const reasons = detail?.lines ?? [];
+  // The positions up to the shown one, side line included, for the opening name.
+  const shownFens = explore ? [...gameFens.slice(0, explore.base + 1), ...explore.fens.slice(1)] : gameFens.slice(0, i + 1);
+  // The idea behind the explanation on the board: the threat the move stopped,
+  // the fork it sets up, the opponent's refutation.
+  const circles: { at: string; kind: Arrow["kind"] }[] = [];
+  if (detail && showArrows && !engineArrows) {
+    for (const a of detail.arrows) {
+      if (!arrows.some((x) => x.from === a.from && x.to === a.to)) arrows.push({ from: a.from, to: a.to, kind: a.by === "opp" ? "threat" : "hint" });
+    }
+    for (const at of detail.squares) circles.push({ at, kind: "user" });
+  }
 
   const playerLine = (c: Side, r: number) => (
     <div class="player-line" style={{ gridRow: r }}>
@@ -786,6 +825,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               flipped={flipped}
               lastMove={lastMove}
               arrows={arrows}
+              circles={circles}
               badge={explore ? (lastVerdict?.classification || undefined) : move?.classification}
               onMove={tryMove}
               legalTargets={legalTargets}
@@ -839,6 +879,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </div>
 
         <div class="side-panel">
+          <OpeningLine fens={shownFens} book={book} />
           {status !== "completed" || analyzing ? (
             <div class="card">
               {analyzing ? (
@@ -852,6 +893,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <div class="progress">
                     <div style={{ width: `${progress}%` }} />
                   </div>
+                  {queue && <LiveDepth queue={queue} />}
                   <p class="muted small" style={{ marginBottom: 0 }}>
                     Stockfish rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.
                   </p>
@@ -907,12 +949,13 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     </>
                   }
                 >
-                  {!reasons.length && (
-                    <div>
-                      {move.classification === "Book" && move.opening_name
-                        ? move.opening_name
-                        : move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}
-                    </div>
+                  {move.classification === "Book" ? (
+                    <BookNote move={move} next={book?.[bookKey(gameFen)]} />
+                  ) : (
+                    // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
+                    (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
+                      <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
+                    )
                   )}
                   {reasons.length > 0 && (
                     <ul class="reasons">
@@ -924,7 +967,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
                   {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
                     <div class="small" style={{ marginTop: "4px" }}>
-                      Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ")}</strong>
+                      Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
                     </div>
                   )}
                 </Coach>
@@ -1054,6 +1097,32 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** A theory move: the opening it belongs to and the known continuations. */
+function BookNote({ move, next }: { move: MoveData; next: [string, string, string[]] | undefined }) {
+  // The live book wins over the stored name, which older analyses got wrong.
+  const name = next?.[1] || move.opening_name;
+  const parts = name ? openingParts(name) : null;
+  const continuations = next?.[2] ?? move.candidate_continuations ?? [];
+  return (
+    <div>
+      {parts ? (
+        <>
+          Theorie: <strong>{parts.main}</strong>
+          {parts.variation && <span class="muted"> · {parts.variation}</span>}
+        </>
+      ) : (
+        "Ein bekannter Eröffnungszug."
+      )}
+      {continuations.length > 0 && (
+        <div class="small muted" style={{ marginTop: "4px" }}>
+          Bekannte Fortsetzungen: {continuations.slice(0, 6).join(", ")}
+          {continuations.length > 6 ? " …" : ""}
+        </div>
+      )}
     </div>
   );
 }

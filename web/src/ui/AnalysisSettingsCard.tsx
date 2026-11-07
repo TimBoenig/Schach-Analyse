@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 
-import { AUTO_ANALYZE_KEY, loadDepthChoice, loadSpeedLog } from "../app/analysisService";
+import {
+  AUTO_ANALYZE_KEY,
+  currentPerf,
+  deviceInfo,
+  loadDepthChoice,
+  loadPerfChoice,
+  loadSpeedLog,
+  setDepthChoice,
+  setPerfChoice,
+} from "../app/analysisService";
 import {
   CUSTOM_LIMITS,
-  DEPTH_KEYS,
   DEPTH_PRESETS,
   durationDe,
   estimateGame,
@@ -18,6 +26,17 @@ import {
   type DepthScope,
 } from "../domain/analysisDepth";
 import { getUserColor } from "../domain/metrics";
+import {
+  HASH_OPTIONS,
+  maxEnginesFor,
+  PERF_ORDER,
+  PERF_PRESETS,
+  perfLabel,
+  resolvePerf,
+  usableCores,
+  type PerfChoice,
+  type PerfSettings,
+} from "../domain/performance";
 import { getSetting, listGames, setSetting } from "../storage/db";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 
@@ -34,7 +53,7 @@ const SCOPE_TEXT: Record<DepthScope, string> = {
 
 const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
 
-function DepthPicker({ scope }: { scope: DepthScope }) {
+function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number }) {
   const [choice, setChoice] = useState<DepthChoice | null>(null);
   const speedLog = useMemo(loadSpeedLog, [scope]);
 
@@ -48,10 +67,11 @@ function DepthPicker({ scope }: { scope: DepthScope }) {
   const save = (c: DepthChoice) => {
     const n = normalizeChoice(c, scope);
     setChoice(n);
-    void setSetting(DEPTH_KEYS[scope], n);
+    // Also reaches a game in analysis right now, from its next position on.
+    void setDepthChoice(scope, n);
   };
   const settings = resolveSettings(choice);
-  const est = estimateGame(settings, speedLog);
+  const est = estimateGame(settings, speedLog, engines);
   // Position of the choice between quickest and most thorough, for the meter.
   const level = Math.min(1, Math.max(0, (settings.depth - CUSTOM_LIMITS.depthMin) / (CUSTOM_LIMITS.depthMax - CUSTOM_LIMITS.depthMin)));
 
@@ -133,7 +153,94 @@ function DepthPicker({ scope }: { scope: DepthScope }) {
         <span class="muted">
           {est.measured
             ? `Eine Partie mit 40 Zügen dauert auf diesem Gerät etwa ${durationDe(est.seconds)}.`
-            : `Eine Partie mit 40 Zügen dauert höchstens etwa ${durationDe(est.seconds)}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.`}
+            : `Eine Partie mit 40 Zügen dauert höchstens etwa ${durationDe(est.seconds)}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.`}{" "}
+          Änderungen gelten sofort, auch für eine Partie, die gerade analysiert wird.
+        </span>
+      </p>
+    </>
+  );
+}
+
+/** Engines in parallel and hash: stored on this device only, applied at once. */
+function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }) {
+  const device = useMemo(deviceInfo, []);
+  const [choice, setChoice] = useState<PerfChoice>(loadPerfChoice);
+  const perf = resolvePerf(choice, device);
+  const cores = usableCores(device);
+  const save = (c: PerfChoice) => {
+    setChoice(c);
+    onChange(setPerfChoice(c));
+  };
+  const custom = choice.preset === "custom" ? choice : null;
+
+  return (
+    <>
+      <p class="muted small" style={{ margin: "6px 0 10px" }}>
+        Wie viel Rechenleistung die Analyse nutzen darf. Mehr Engines rechnen gleichzeitig an verschiedenen Zügen, so wird
+        jede Partie schneller fertig und du kannst eine größere Tiefe wählen. Gilt nur für dieses Gerät. Dein Gerät hat{" "}
+        <strong>{cores} Kerne</strong>.
+      </p>
+      <div class="depth-grid perf-grid" role="radiogroup" aria-label="Leistung">
+        {PERF_ORDER.map((p) => {
+          const r = resolvePerf({ preset: p }, device);
+          return (
+            <button key={p} role="radio" aria-checked={choice.preset === p} class={choice.preset === p ? "active" : ""} onClick={() => save({ preset: p })}>
+              <strong>{PERF_PRESETS[p].name}</strong>
+              <small>
+                {r.engines} {r.engines === 1 ? "Engine" : "Engines"}
+              </small>
+            </button>
+          );
+        })}
+        <button
+          role="radio"
+          aria-checked={choice.preset === "custom"}
+          class={choice.preset === "custom" ? "active" : ""}
+          onClick={() => save({ preset: "custom", engines: perf.engines, hashMb: perf.hashMb })}
+        >
+          <strong>Eigene</strong>
+          <small>selbst einstellen</small>
+        </button>
+      </div>
+      {custom && (
+        <div class="depth-custom">
+          <label class="range-field">
+            <span>
+              Engines gleichzeitig <strong class="tnum">{custom.engines}</strong>
+              <span class="faint"> von {maxEnginesFor(device)}</span>
+            </span>
+            <input
+              type="range"
+              min={1}
+              max={maxEnginesFor(device)}
+              step={1}
+              value={custom.engines}
+              onInput={(e) => setChoice({ ...custom, engines: Number(e.currentTarget.value) })}
+              onChange={(e) => save({ ...custom, engines: Number(e.currentTarget.value) })}
+            />
+          </label>
+          <label class="range-field">
+            <span>Hash je Engine</span>
+            <select value={custom.hashMb} onChange={(e) => save({ ...custom, hashMb: Number(e.currentTarget.value) })}>
+              {HASH_OPTIONS.map((h) => (
+                <option key={h} value={h}>
+                  {h} MB
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <p class="small depth-estimate">
+        <strong>{custom ? "Eigene" : PERF_PRESETS[choice.preset as keyof typeof PERF_PRESETS].name}</strong> · {perfLabel(perf)}
+        <br />
+        <span class="muted">
+          {perf.engines >= cores
+            ? "Alle Kerne sind belegt: der PC kann laut und warm werden, andere Programme werden langsamer."
+            : perf.engines > 1
+              ? `Belegt etwa ${Math.round((perf.engines / cores) * 100)} % der Rechenleistung, solange analysiert wird.`
+              : "Schont Akku und Lüfter. Gut für Handy und Tablet."}
+          {device.mobile && perf.engines > 2 ? " Auf Handy und Tablet wird das Gerät dabei schnell heiß." : ""}
         </span>
       </p>
     </>
@@ -163,6 +270,7 @@ function BulletStats() {
 export function AnalysisSettingsCard() {
   const [scope, setScope] = useState<DepthScope>("own");
   const [auto, setAuto] = useState(true);
+  const [perf, setPerf] = useState(currentPerf);
   const bullet = useBulletPrefs();
 
   useEffect(() => {
@@ -179,7 +287,10 @@ export function AnalysisSettingsCard() {
           </button>
         ))}
       </div>
-      <DepthPicker scope={scope} />
+      <DepthPicker scope={scope} engines={perf.engines} />
+
+      <h4 style={{ margin: "18px 0 0" }}>Leistung</h4>
+      <PerformancePicker onChange={setPerf} />
 
       <h4 style={{ margin: "18px 0 0" }}>Bullet</h4>
       <BulletStats />

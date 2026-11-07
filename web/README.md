@@ -30,6 +30,11 @@ Einstellungen zwischen Geräten ab.
   Partien samt analysierten Zügen, Partie-Auswertungen, dem kompletten Profil (Statistiken, Fähigkeiten, Eröffnungen,
   Einblicke, Trainingsplan) und Trainingsfortschritt. Dazu CSV (Excel, `;`) und PGN.
   Eine JSON-Sicherung lässt sich wieder einspielen; Einstellungen ergänzen dabei nur Fehlendes.
+- **KI-Export** (Einstellungen → Für KI exportieren, Befehlspalette): eine Markdown-Datei zum Hochladen in ChatGPT,
+  Claude oder Gemini (`src/domain/aiExport.ts`). Sie beginnt mit dem Auftrag samt gewünschter Gliederung und einer
+  Legende, dann folgen das ganze Profil als Tabellen und je Partie (Nummer P001 = neueste) die teuersten eigenen Züge
+  mit FEN, besserem Zug, Engine-Linie und konkreter Begründung sowie kommentierte Notation. „Kompakt“ passt in kleine
+  Kontextfenster.
 
 ## Spieler und Freundes-Rangliste
 

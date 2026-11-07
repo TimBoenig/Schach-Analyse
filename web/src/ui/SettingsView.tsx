@@ -6,6 +6,7 @@ import { refreshSyncStatus } from "../storage/sync";
 import { useSyncStatus } from "./AccountView";
 import { navigate } from "./router";
 import { PeriodSelect } from "./useProfile";
+import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCard } from "./AnalysisSettingsCard";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
@@ -134,9 +135,9 @@ function BackupCard() {
     <div class="card" id="export">
       <h3>Export &amp; Datensicherung</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
-        Der vollständige Export enthält alles in einer Datei: jede Partie mit allen analysierten Zügen, die Auswertung
-        pro Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke, Trainingsplan und
-        -fortschritt.
+        Der vollständige Export ist die Datensicherung: jede Partie mit allen analysierten Zügen, die Auswertung pro
+        Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke sowie Trainingsplan und
+        -fortschritt. Er lässt sich hier wieder einspielen. Für eine KI ist der KI-Export oben besser geeignet.
       </p>
       <div class="filters">
         <PeriodSelect value={period} onChange={setPeriod} />
@@ -214,6 +215,7 @@ export function SettingsView() {
           </div>
           <AnalysisSettingsCard />
           <AccountCard />
+          <AiExportCard />
           <BackupCard />
         </div>
         <div>
