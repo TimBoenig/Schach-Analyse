@@ -174,8 +174,9 @@ function AddPlayerDialog({
       added.current = player;
       if (source !== "other") {
         const { result } = await importPlayerGames(player, {
-          count: Number(count),
-          months: Number(months),
+          // "all" loads the whole history (lichess without max, every chess.com archive).
+          count: count === "all" ? null : Number(count),
+          months: months === "all" ? null : Number(months),
           signal: abort.current.signal,
           onProgress: setProgress,
         });
@@ -222,6 +223,7 @@ function AddPlayerDialog({
                 {c}
               </option>
             ))}
+            <option value="all">Alle (gesamte Zeit)</option>
           </select>
         </label>
       )}
@@ -233,6 +235,7 @@ function AddPlayerDialog({
             <option value="3">Letzte 3 Monate</option>
             <option value="6">Letzte 6 Monate</option>
             <option value="12">Letztes Jahr</option>
+            <option value="all">Gesamte Zeit</option>
           </select>
         </label>
       )}
@@ -1071,10 +1074,13 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const running = open.filter((g) => queued.has(g)).length;
   const online = player.accounts.some((a) => a.source !== "other");
 
-  const refresh = async () => {
-    setBusy("Lade Partien …");
+  const refresh = async (all = false) => {
+    setBusy(all ? "Lade die gesamte Spielhistorie …" : "Lade Partien …");
     try {
-      const { result, failed } = await importPlayerGames(player, { onProgress: setBusy });
+      const { result, failed } = await importPlayerGames(player, {
+        onProgress: setBusy,
+        ...(all ? { count: null, months: null } : {}),
+      });
       const missed = failed.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(", ");
       setBusy(`${plural(result.imported, "neue Partie", "neue Partien")} geladen.${missed ? ` Nicht erreichbar: ${missed}.` : ""}`);
       window.setTimeout(() => setBusy(""), missed ? 6000 : 2500);
@@ -1115,8 +1121,18 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         {player.hidden && <span class="pill">Ausgeblendet</span>}
         <span class="spacer" />
         {online && (
-          <button class="btn" disabled={Boolean(busy)} onClick={refresh}>
+          <button class="btn" disabled={Boolean(busy)} onClick={() => void refresh()}>
             <IconSync /> Partien laden
+          </button>
+        )}
+        {online && (
+          <button
+            class="btn"
+            disabled={Boolean(busy)}
+            onClick={() => void refresh(true)}
+            title="Alle Partien seit Kontoeröffnung laden, nicht nur die neuesten. Bereits geladene werden übersprungen."
+          >
+            <IconSync /> Gesamte Zeit laden
           </button>
         )}
         {open.length > 0 && (
@@ -1164,7 +1180,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             {online ? "Lade die Partien von Lichess oder Chess.com." : "Importiere eine PGN mit Partien dieser Person."}
           </p>
           {online && (
-            <button class="btn primary" disabled={Boolean(busy)} onClick={refresh}>
+            <button class="btn primary" disabled={Boolean(busy)} onClick={() => void refresh()}>
               <IconSync /> Partien laden
             </button>
           )}

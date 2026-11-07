@@ -36,6 +36,8 @@ export interface LichessOptions {
 
 export interface CallOptions {
   signal?: AbortSignal;
+  /** Games received so far, while a long download streams in. */
+  onCount?: (n: number) => void;
 }
 
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
@@ -90,15 +92,35 @@ export class LichessAPI {
     return headers;
   }
 
-  /** Last `maxGames` games of a user (with clocks), newest first. */
-  async getUserGames(username: string, maxGames = 20, opts: CallOptions = {}): Promise<LichessGame[]> {
+  /** Last `maxGames` games of a user (with clocks), newest first; null = the whole history. */
+  async getUserGames(username: string, maxGames: number | null = 20, opts: CallOptions = {}): Promise<LichessGame[]> {
     try {
+      const params: Record<string, string | number> = { moves: "true", opening: "true", pgnInJson: "true", clocks: "true" };
+      if (maxGames !== null) params.max = maxGames;
       const resp = await makeRequest(`${LICHESS_BASE_URL}/${encodeURIComponent(username)}`, {
         headers: this.getHeaders(),
-        params: { max: maxGames, moves: "true", opening: "true", pgnInJson: "true", clocks: "true" },
+        params,
         signal: opts.signal,
       });
-      return resp ? parseNdjson(await resp.text()) : [];
+      if (!resp) return [];
+      // The whole history can be thousands of games streamed over minutes:
+      // read it line by line so the user sees it coming in.
+      if (!resp.body || !opts.onCount) return parseNdjson(await resp.text());
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      let lines = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        text += chunk;
+        const before = lines;
+        for (const c of chunk) if (c === "\n") lines++;
+        if (lines !== before) opts.onCount(lines);
+      }
+      text += decoder.decode();
+      return parseNdjson(text);
     } catch (err) {
       if (opts.signal?.aborted) throw err;
       logApiError("Lichess", "get_user_games", err);

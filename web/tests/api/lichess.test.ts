@@ -56,6 +56,16 @@ describe("LichessAPI", () => {
     expect(init?.headers).toEqual({ Accept: "application/x-ndjson", Authorization: "Bearer lip_secret" });
   });
 
+  it("loads the whole history without a max and reports games as they stream in", async () => {
+    const one = (id: string) => JSON.stringify({ id, players: {}, createdAt: 0, pgn: "1. d4 d5" }) + "\n";
+    const calls = mockFetch(() => new Response(one("a") + one("b") + one("c")));
+    const counts: number[] = [];
+    const games = await new LichessAPI().getUserGames("UserW", null, { onCount: (n) => counts.push(n) });
+    expect(games.map((g) => g.url)).toEqual(["a", "b", "c"].map((id) => `https://lichess.org/${id}`));
+    expect(calls[0].url.searchParams.has("max")).toBe(false);
+    expect(counts.at(-1)).toBe(3);
+  });
+
   it("exports a single game and returns null on errors", async () => {
     mockFetch(() =>
       json({
