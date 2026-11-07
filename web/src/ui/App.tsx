@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { resumeQueue, subscribeQueue } from "../app/analysisService";
+import { repairOpeningNames } from "../app/openingNames";
 import { onDataChanged } from "../storage/db";
 import { currentUser, hasAuthCallback, onAuthEvent, refreshSyncStatus, syncAvailable, syncNow } from "../storage/sync";
 import { AccountView, useSyncStatus } from "./AccountView";
@@ -189,8 +190,16 @@ export function App() {
   }, []);
   useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
   // Continue analyses that were still running when the app was last closed.
+  // Opening names are fixed first so the two never write the same game at once.
   useEffect(() => {
-    const t = window.setTimeout(() => void resumeQueue().catch(() => undefined), 2500);
+    const t = window.setTimeout(
+      () =>
+        void repairOpeningNames()
+          .catch(() => 0)
+          .then(() => resumeQueue())
+          .catch(() => undefined),
+      2500,
+    );
     return () => window.clearTimeout(t);
   }, []);
 

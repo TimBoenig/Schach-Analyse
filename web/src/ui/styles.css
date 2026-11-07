@@ -1330,6 +1330,45 @@ dialog::backdrop {
   margin-bottom: 0;
 }
 
+/* Opening of the shown position, above the move explanation. */
+.opening-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 12px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  font-size: 13.5px;
+}
+.opening-eco {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.opening-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.opening-state {
+  flex: none;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.opening-state.in {
+  color: var(--book);
+  font-weight: 700;
+}
+
 .acc-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

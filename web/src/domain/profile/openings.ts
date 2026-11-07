@@ -81,6 +81,12 @@ const RECENT_GAMES = 8;
 
 export const openingMain = (name: string) => name.split(":")[0].split(",")[0].trim();
 
+/** "Italian Game: Two Knights Defense, Knight Attack" -> German main name + variation. */
+export function openingParts(name: string): { main: string; variation: string } {
+  const main = openingMain(name);
+  return { main: openingLabel(main), variation: name.slice(main.length).replace(/^[:,]\s*/, "") };
+}
+
 const OPENINGS_DE: Record<string, string> = {
   "Italian Game": "Italienische Partie",
   "Sicilian Defense": "Sizilianische Verteidigung",

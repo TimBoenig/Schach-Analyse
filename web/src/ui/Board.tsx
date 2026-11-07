@@ -37,6 +37,8 @@ interface Props {
   /** Squares the selected piece may move to (for tap-to-move hints). */
   legalTargets?: (from: string) => string[];
   highlight?: string[];
+  /** Rings around squares, e.g. the square of a fork the move prevented. */
+  circles?: { at: string; kind: Arrow["kind"] }[];
   /** Lets the player draw arrows and circles with the right mouse button (desktop). */
   annotate?: boolean;
   /** Horizontal swipe that starts on an empty square (a piece is picked up instead). */
@@ -130,7 +132,7 @@ function badgeShape(badge: Classification | undefined, lastMove: Props["lastMove
   ];
 }
 
-export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], annotate = false, onSwipe }: Props) {
+export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], circles = [], annotate = false, onSwipe }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const cgRef = useRef<Api | null>(null);
   const [promo, setPromo] = useState<{ from: string; to: string; white: boolean } | null>(null);
@@ -206,6 +208,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
   const destKey = [...dests.entries()].map(([k, v]) => k + v.join("")).join(",");
   const shapes: DrawShape[] = [
     ...arrows.map((a) => ({ orig: a.from as Key, dest: a.to as Key, brush: a.kind })),
+    ...circles.map((c) => ({ orig: c.at as Key, brush: c.kind })),
     ...badgeShape(promo ? undefined : badge, lastMove),
   ];
   const shapeKey = JSON.stringify(shapes);
