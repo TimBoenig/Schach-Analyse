@@ -257,14 +257,28 @@ export async function enqueue(ids: string[], { front = false, settings, restart 
   void pump();
 }
 
+// Aborting alone would let the running searches finish (up to 8 s each at
+// "Maximal"); stopping them makes a cancel take effect at once.
+function abortRunning(): void {
+  abort?.abort();
+  pool.stopSearches();
+}
+
 export function cancelAll(): void {
   priority = new Set();
   emit({ queued: [] });
-  abort?.abort();
+  abortRunning();
 }
 
 export function cancelCurrent(): void {
-  abort?.abort();
+  abortRunning();
+}
+
+/** Takes one game out of the analysis: stops it if it runs, else drops it from the queue. */
+export function cancelGame(id: string): void {
+  priority.delete(id);
+  if (state.queued.includes(id)) emit({ queued: state.queued.filter((q) => q !== id) });
+  if (state.current === id) abortRunning();
 }
 
 // Keeps the screen on during batch analysis: iOS pauses the engine worker when

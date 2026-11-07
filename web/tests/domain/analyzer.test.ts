@@ -170,7 +170,8 @@ describe.skipIf(!existsSync(ENGINE_JS))("analyzeGame with parallel engines", () 
     expect(paused.analysis_status).toBe("paused");
     const evaluated = game.moves.map((m) => m.eval_before_cp !== null || m.eval_before_mate !== null);
     const firstGap = evaluated.indexOf(false);
-    expect(firstGap).toBeGreaterThan(0);
+    // Which searches finish first depends on timing; a gap must exist and nothing may follow it.
+    expect(firstGap).toBeGreaterThanOrEqual(0);
     expect(evaluated.slice(firstGap).every((e) => !e)).toBe(true);
   }, 20000);
 });
