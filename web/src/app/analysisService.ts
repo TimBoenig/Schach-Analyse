@@ -1,5 +1,6 @@
-// One Stockfish worker for the whole app plus a queue, so batch analysis and
-// the open game never compete for the CPU (and the device stays cool).
+// Stockfish engines for the whole app plus a queue, so batch analysis and the
+// open game never compete for the CPU. How many engines run side by side is a
+// per-device performance setting (one by default on phones, to stay cool).
 import {
   DEFAULT_CHOICES,
   DEPTH_KEYS,
@@ -13,11 +14,21 @@ import {
   type DepthScope,
   type SpeedLog,
 } from "../domain/analysisDepth";
+import { mergeQueue } from "../domain/analysisQueue";
 import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
 import { loadBookData } from "../domain/book";
+import { parsePlayedAt } from "../domain/metrics/played";
+import {
+  normalizePerfChoice,
+  resolvePerf,
+  type DeviceInfo,
+  type PerfChoice,
+  type PerfSettings,
+} from "../domain/performance";
 import type { GameAnalysis } from "../domain/types";
+import { EnginePool } from "../engine/pool";
 import { createStockfishWorker, EngineFailure, UciEngine } from "../engine/uci";
-import { evalCache, getGame, getSetting, putGames } from "../storage/db";
+import { evalCache, getGame, getSetting, onDataChanged, putGames, setSetting } from "../storage/db";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
 
 /** Depth choice for own games or friends' games (older versions stored a bare preset name). */
@@ -36,9 +47,9 @@ export function loadSpeedLog(): SpeedLog {
   }
 }
 
-function saveSpeed(s: AnalysisSettings, positions: number, ms: number): void {
+function saveSpeed(s: AnalysisSettings, positions: number, ms: number, engines: number): void {
   try {
-    localStorage.setItem(SPEED_KEY, JSON.stringify(recordSpeed(loadSpeedLog(), s, positions, ms)));
+    localStorage.setItem(SPEED_KEY, JSON.stringify(recordSpeed(loadSpeedLog(), s, positions, ms, engines)));
   } catch {
     // Private mode or full storage: the estimate falls back to the upper bound.
   }
@@ -53,10 +64,27 @@ export interface QueueState {
   /** Live copy of the game in analysis, for the analysis view. */
   live: GameAnalysis | null;
   error: string | null;
+  /** Limits in use for the current game right now (they follow setting changes). */
+  settings: AnalysisSettings | null;
+  /** Whose depth setting the current game follows; null = fixed limits (deeper re-run). */
+  scope: DepthScope | null;
+  /** Engines searching in parallel. */
+  engines: number;
 }
 
-let engine: UciEngine | null = null;
-let state: QueueState = { current: null, done: 0, total: 0, queued: [], live: null, error: null };
+let state: QueueState = {
+  current: null,
+  done: 0,
+  total: 0,
+  queued: [],
+  live: null,
+  error: null,
+  settings: null,
+  scope: null,
+  engines: 1,
+};
+// Explicitly requested games still waiting; they stay ahead of the background queue.
+let priority = new Set<string>();
 let abort: AbortController | null = null;
 let running = false;
 const listeners = new Set<(s: QueueState) => void>();
@@ -92,7 +120,7 @@ export async function resumeQueue(): Promise<number> {
   }
   const rows = await Promise.all(ids.map((id) => getGame(id)));
   const open = ids.filter((_, i) => rows[i] && rows[i]!.summary_json?.analysis_status !== "completed");
-  if (open.length) enqueue(open);
+  if (open.length) await enqueue(open);
   else rememberQueue();
   return open.length;
 }
@@ -103,18 +131,80 @@ export function subscribeQueue(cb: (s: QueueState) => void): () => void {
   return () => listeners.delete(cb);
 }
 
-export function getEngine(): UciEngine {
-  // A crashed or hung worker is replaced by a fresh one.
-  if (engine?.broken) {
-    engine.quit();
-    engine = null;
+// ---- performance (per device, not synced: a phone and a PC differ a lot) ----
+
+const PERF_KEY = "schach.analysis.performance";
+
+export function deviceInfo(): DeviceInfo {
+  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2;
+  const coarse = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  // iPadOS reports itself as a Mac; touch points give it away.
+  const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints ?? 0) > 1);
+  return { cores, mobile: coarse || ios || /Android/.test(ua) };
+}
+
+export function loadPerfChoice(): PerfChoice {
+  let raw: unknown = null;
+  try {
+    raw = JSON.parse(localStorage.getItem(PERF_KEY) || "null");
+  } catch {
+    // Private mode: device default.
   }
-  if (!engine) {
-    engine = new UciEngine(createStockfishWorker());
-    // Small hash keeps memory low on phones (thermal/memory safety like the desktop defaults).
-    void engine.setOption("Hash", 32);
+  return normalizePerfChoice(raw, deviceInfo());
+}
+
+export function currentPerf(): PerfSettings {
+  return resolvePerf(loadPerfChoice(), deviceInfo());
+}
+
+const pool = new EnginePool(() => new UciEngine(createStockfishWorker()));
+pool.configure(currentPerf());
+
+/** Saves the performance choice and applies it at once, also to a running analysis. */
+export function setPerfChoice(choice: PerfChoice): PerfSettings {
+  const c = normalizePerfChoice(choice, deviceInfo());
+  try {
+    localStorage.setItem(PERF_KEY, JSON.stringify(c));
+  } catch {
+    // Not remembered, but still applied for this session.
   }
-  return engine;
+  const perf = resolvePerf(c, deviceInfo());
+  pool.configure(perf);
+  emit({ engines: perf.engines });
+  return perf;
+}
+
+// ---- depth, kept current so a running analysis picks up changes ----
+
+const liveDepth: Record<DepthScope, AnalysisSettings> = {
+  own: resolveSettings(DEFAULT_CHOICES.own),
+  friends: resolveSettings(DEFAULT_CHOICES.friends),
+};
+let depthLoaded: Promise<void> | null = null;
+
+function refreshDepth(): Promise<void> {
+  depthLoaded = (async () => {
+    for (const scope of ["own", "friends"] as const) liveDepth[scope] = resolveSettings(await loadDepthChoice(scope));
+  })().catch(() => undefined);
+  return depthLoaded;
+}
+
+if (typeof window !== "undefined") {
+  // Settings changes (also from another device via sync) fire a data change.
+  onDataChanged(() => void refreshDepth());
+}
+
+/**
+ * Changes the depth for own games or friends' games. A game in analysis
+ * continues with the new limits from its next position on.
+ */
+export async function setDepthChoice(scope: DepthScope, choice: DepthChoice): Promise<DepthChoice> {
+  const c = normalizeChoice(choice, scope);
+  liveDepth[scope] = resolveSettings(c);
+  if (state.scope === scope) emit({ settings: liveDepth[scope] });
+  await setSetting(DEPTH_KEYS[scope], c);
+  return c;
 }
 
 /** Setting key: analyse freshly imported games without asking (on by default). */
@@ -132,7 +222,7 @@ export async function autoAnalyze(ids: string[]): Promise<boolean> {
     pick = ids.filter((_, i) => rows[i] && !isBulletGame(rows[i]!));
   }
   if (!pick.length) return false;
-  enqueue(pick);
+  await enqueue(pick);
   return true;
 }
 
@@ -148,16 +238,27 @@ export interface EnqueueOptions {
 // Per-game overrides (re-analysis with other limits), used once.
 const overrides = new Map<string, { settings?: AnalysisSettings; restart?: boolean }>();
 
-/** Adds games to the queue (front = analyse next). */
-export function enqueue(ids: string[], { front = false, settings, restart }: EnqueueOptions = {}): void {
+// Played date per game, for the newest-first order (read once per game).
+const playedAt = new Map<string, number | null>();
+
+/**
+ * Adds games to the queue: `front` = analyse next, otherwise the newest played
+ * games run first. Returns once the games are in the queue.
+ */
+export async function enqueue(ids: string[], { front = false, settings, restart }: EnqueueOptions = {}): Promise<void> {
   if (settings || restart) for (const id of ids) overrides.set(id, { settings, restart });
-  const rest = state.queued.filter((id) => !ids.includes(id) && id !== state.current);
-  const add = ids.filter((id) => id !== state.current);
-  emit({ queued: front ? [...add, ...rest] : [...rest, ...add] });
+  const unknown = ids.filter((id) => !playedAt.has(id));
+  const rows = await Promise.all(unknown.map((id) => getGame(id)));
+  unknown.forEach((id, i) => playedAt.set(id, rows[i] ? parsePlayedAt(rows[i]!) : null));
+  // Read the queue only now: another enqueue may have changed it meanwhile.
+  const next = mergeQueue({ queued: state.queued, add: ids, front, priority, playedAt: (id) => playedAt.get(id), current: state.current });
+  priority = next.priority;
+  emit({ queued: next.queued });
   void pump();
 }
 
 export function cancelAll(): void {
+  priority = new Set();
   emit({ queued: [] });
   abort?.abort();
 }
@@ -200,6 +301,7 @@ async function pump(): Promise<void> {
   try {
     while (state.queued.length) {
       const [id, ...rest] = state.queued;
+      priority.delete(id);
       emit({ queued: rest, current: id, done: 0, total: 0, error: null });
       try {
         await analyseOne(id);
@@ -221,15 +323,8 @@ async function pump(): Promise<void> {
   } finally {
     running = false;
     void holdWakeLock(false);
-    emit({ current: null, live: null });
+    emit({ current: null, live: null, settings: null, scope: null });
   }
-}
-
-/** Limits for one game: an override, else the own or friends setting. */
-async function settingsFor(row: { white: string; black: string }, override?: AnalysisSettings): Promise<AnalysisSettings> {
-  if (override) return override;
-  const names = await getSetting<string[]>("usernames", []);
-  return resolveSettings(await loadDepthChoice(scopeOf(row, names)));
 }
 
 async function analyseOne(id: string): Promise<void> {
@@ -238,20 +333,33 @@ async function analyseOne(id: string): Promise<void> {
   overrides.delete(id);
   if (!row) return;
   const game = fromStoredGame(row);
-  const settings = await settingsFor(row, override?.settings);
+  await (depthLoaded ?? refreshDepth());
+  // A deeper re-run keeps its fixed limits; otherwise the game follows the
+  // own/friends depth setting live, position by position.
+  const scope = override?.settings ? null : scopeOf(row, await getSetting<string[]>("usernames", []));
+  const settingsNow = (): AnalysisSettings => (scope ? liveDepth[scope] : override!.settings!);
+  const first = settingsNow();
+  let changed = false;
   const restart = Boolean(override?.restart);
   const book = await loadBookData();
   abort = new AbortController();
-  emit({ live: game, total: game.moves.length });
+  emit({ live: game, total: game.moves.length, settings: first, scope, engines: pool.capacity });
   const from = restart ? 0 : firstUnanalyzedIndex(game);
   const started = Date.now();
+  const enginesAtStart = pool.capacity;
   let lastSave = Date.now();
   const savePartial = () =>
     putGames([toStoredGame({ ...game, summary: { analysis_status: "paused" } }, row.timestamp)], { silent: true });
   let summary;
   try {
-    summary = await analyzeGame(game, getEngine(), {
-      settings,
+    summary = await analyzeGame(game, pool, {
+      settings: () => {
+        const s = settingsNow();
+        if (s !== state.settings) emit({ settings: s });
+        if (s !== first) changed = true;
+        return s;
+      },
+      concurrency: () => pool.capacity,
       restart,
       book,
       cache: evalCache,
@@ -270,10 +378,10 @@ async function analyseOne(id: string): Promise<void> {
     if (game.moves.some((m) => m.classification)) await savePartial().catch(() => undefined);
     throw e;
   }
-  saveSpeed(settings, (summary.analyzed_moves ?? 0) - from, Date.now() - started);
-  // Remembered so the game can show its depth and offer a deeper re-run.
-  game.summary.analysis_depth = settings.depth;
-  game.summary.analysis_movetime_ms = settings.movetimeMs;
+  // Only clean runs teach the speed estimate: mixed limits or engine counts would skew it.
+  if (!changed && pool.capacity === enginesAtStart) {
+    saveSpeed(first, (summary.analyzed_moves ?? 0) - from, Date.now() - started, enginesAtStart);
+  }
   await putGames([toStoredGame(game, row.timestamp)]);
   emit({ live: { ...game } });
 }

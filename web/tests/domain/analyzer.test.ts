@@ -8,6 +8,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { analyzeGame, classifyAndSummarize, processAnalysisResults } from "../../src/domain/analyzer";
 import { gameAccuracy, MIN_MOVE_ACCURACY } from "../../src/domain/math";
 import { emptyMetadata, emptyMove, type GameAnalysis } from "../../src/domain/types";
+import { EnginePool } from "../../src/engine/pool";
 import { UciEngine, parseInfoLine } from "../../src/engine/uci";
 import { ENGINE_JS, nodeTransport } from "../engine";
 
@@ -114,5 +115,62 @@ describe.skipIf(!existsSync(ENGINE_JS))("analyzeGame with Stockfish", () => {
     const done = await analyzeGame(game, engine, { settings });
     expect(done.analysis_status).toBe("completed");
     expect(game.moves.every((m) => m.classification)).toBe(true);
+  }, 20000);
+});
+
+describe.skipIf(!existsSync(ENGINE_JS))("analyzeGame with parallel engines", () => {
+  const pool = new EnginePool(() => new UciEngine(nodeTransport()));
+  pool.configure({ engines: 3, hashMb: 16 });
+  afterAll(() => pool.quit());
+
+  it("analyses positions in parallel and still classifies every move", async () => {
+    const game = gameFromSans(["f3", "e5", "g4", "Qh4#"]);
+    const progress: number[] = [];
+    const summary = await analyzeGame(game, pool, {
+      settings: { depth: 8, movetimeMs: 200, multiPv: 2 },
+      concurrency: () => pool.capacity,
+      onProgress: (e) => progress.push(e.done),
+    });
+    expect(pool.running).toBe(3);
+    expect(summary.analysis_status).toBe("completed");
+    expect(game.moves[2].classification).toBe("Blunder");
+    expect(game.moves[3].classification).toBe("Best");
+    expect(progress.at(-1)).toBe(4);
+  }, 20000);
+
+  it("picks up a changed depth during the analysis and records the weakest limits", async () => {
+    const game = gameFromSans(["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "Ba4", "Nf6"]);
+    let settings = { depth: 10, movetimeMs: 300, multiPv: 2 };
+    const seen = new Set<number>();
+    const summary = await analyzeGame(game, pool, {
+      settings: () => {
+        seen.add(settings.depth);
+        return settings;
+      },
+      concurrency: 2,
+      // Switch to a quicker depth mid-game, as from the settings while it runs.
+      onProgress: (e) => e.done >= 2 && (settings = { depth: 6, movetimeMs: 100, multiPv: 2 }),
+    });
+    expect(summary.analysis_status).toBe("completed");
+    expect([...seen].sort()).toEqual([10, 6].sort());
+    expect(summary.analysis_depth).toBe(6);
+    expect(summary.analysis_movetime_ms).toBe(100);
+    expect(game.moves.every((m) => m.classification)).toBe(true);
+  }, 20000);
+
+  it("keeps a clean analysed prefix when paused mid-way", async () => {
+    const game = gameFromSans(["d4", "d5", "c4", "e6", "Nc3", "Nf6", "Bg5", "Be7"]);
+    const ctrl = new AbortController();
+    const paused = await analyzeGame(game, pool, {
+      settings: { depth: 6, movetimeMs: 100, multiPv: 1 },
+      concurrency: 3,
+      signal: ctrl.signal,
+      onProgress: (e) => e.done >= 3 && ctrl.abort(),
+    });
+    expect(paused.analysis_status).toBe("paused");
+    const evaluated = game.moves.map((m) => m.eval_before_cp !== null || m.eval_before_mate !== null);
+    const firstGap = evaluated.indexOf(false);
+    expect(firstGap).toBeGreaterThan(0);
+    expect(evaluated.slice(firstGap).every((e) => !e)).toBe(true);
   }, 20000);
 });

@@ -125,12 +125,20 @@ export type SpeedLog = Record<string, SpeedSample>;
 /** Positions in a typical game of 40 moves, plus the start position. */
 export const TYPICAL_POSITIONS = 81;
 
-export const speedKey = (s: Pick<AnalysisSettings, "depth" | "movetimeMs">) => `d${s.depth}t${s.movetimeMs}`;
+/** Log key per limits and parallel engines (one engine keeps the older key). */
+export const speedKey = (s: Pick<AnalysisSettings, "depth" | "movetimeMs">, engines = 1) =>
+  `d${s.depth}t${s.movetimeMs}${engines > 1 ? `e${engines}` : ""}`;
 
 /** Adds one run to the log; the sample is capped so newer runs keep counting. */
-export function recordSpeed(log: SpeedLog, s: Pick<AnalysisSettings, "depth" | "movetimeMs">, positions: number, ms: number): SpeedLog {
+export function recordSpeed(
+  log: SpeedLog,
+  s: Pick<AnalysisSettings, "depth" | "movetimeMs">,
+  positions: number,
+  ms: number,
+  engines = 1,
+): SpeedLog {
   if (positions <= 0 || ms <= 0) return log;
-  const key = speedKey(s);
+  const key = speedKey(s, engines);
   const prev = log[key] ?? { positions: 0, ms: 0 };
   // Older runs are scaled down to make room, so the sample follows the device
   // (e.g. a new browser version) instead of averaging forever.
@@ -149,14 +157,25 @@ export interface GameEstimate {
 // A few positions are not enough to know the device's speed.
 const MIN_MEASURED_POSITIONS = 30;
 
-/** How long one typical game takes at these limits. */
-export function estimateGame(s: Pick<AnalysisSettings, "depth" | "movetimeMs">, log: SpeedLog = {}): GameEstimate {
-  const sample = log[speedKey(s)];
-  if (sample && sample.positions >= MIN_MEASURED_POSITIONS) {
-    return { seconds: (sample.ms / sample.positions / 1000) * TYPICAL_POSITIONS, measured: true };
-  }
+// Parallel engines share memory bandwidth and the CPU's boost clock, so N
+// engines rarely give N times the speed; this is the rough share per engine
+// assumed until the device has measured the real speed.
+const PARALLEL_EFFICIENCY = 0.8;
+
+/** How long one typical game takes at these limits with `engines` running in parallel. */
+export function estimateGame(s: Pick<AnalysisSettings, "depth" | "movetimeMs">, log: SpeedLog = {}, engines = 1): GameEstimate {
+  const perPosition = (key: string) => {
+    const sample = log[key];
+    return sample && sample.positions >= MIN_MEASURED_POSITIONS ? sample.ms / sample.positions / 1000 : null;
+  };
+  const measured = perPosition(speedKey(s, engines));
+  if (measured !== null) return { seconds: measured * TYPICAL_POSITIONS, measured: true };
+  const speedup = engines > 1 ? engines * PARALLEL_EFFICIENCY : 1;
+  const single = engines > 1 ? perPosition(speedKey(s)) : null;
+  // Measured with one engine: scale it to the engine count (still an estimate).
+  if (single !== null) return { seconds: (single * TYPICAL_POSITIONS) / speedup, measured: false };
   // Without a measurement only the time limit is known: an upper bound.
-  return { seconds: (s.movetimeMs / 1000) * TYPICAL_POSITIONS, measured: false };
+  return { seconds: ((s.movetimeMs / 1000) * TYPICAL_POSITIONS) / (engines > 1 ? engines : 1), measured: false };
 }
 
 /** "45 s", "3 min", "1 h 10 min". */

@@ -59,6 +59,19 @@ describe("analysis time estimate", () => {
     // Other limits have their own measurement.
     expect(estimateGame(DEPTH_PRESETS.deep.settings, log).measured).toBe(false);
   });
+
+  it("scales to parallel engines until that engine count was measured itself", () => {
+    const single = recordSpeed({}, s, 100, 20_000); // 0.2 s per position with one engine
+    const guess = estimateGame(s, single, 4);
+    expect(guess.measured).toBe(false);
+    // Faster than one engine, but not the ideal 4x (shared memory and clock).
+    expect(guess.seconds).toBeLessThan(0.2 * TYPICAL_POSITIONS);
+    expect(guess.seconds).toBeGreaterThan((0.2 * TYPICAL_POSITIONS) / 4);
+    const four = recordSpeed(single, s, 100, 6_000, 4);
+    expect(estimateGame(s, four, 4)).toEqual({ seconds: 0.06 * TYPICAL_POSITIONS, measured: true });
+    // The single-engine sample is untouched by the parallel run.
+    expect(estimateGame(s, four)).toEqual({ seconds: 0.2 * TYPICAL_POSITIONS, measured: true });
+  });
 });
 
 describe("Bullet exclusion", () => {
