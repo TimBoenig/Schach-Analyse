@@ -33,6 +33,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        // Libraries change rarely: separate chunks stay cached across app updates
+        // and keep the main bundle small.
+        manualChunks: {
+          supabase: ["@supabase/supabase-js"],
+          chess: ["chess.js", "@lichess-org/chessground"],
+          preact: ["preact", "preact/hooks"],
+        },
+      },
+    },
+  },
   test: {
     environment: "node",
     include: ["tests/**/*.test.ts"],
