@@ -8,3 +8,5 @@ export { buildRanking, RANK_FACTORS } from "./ranking";
 export type { FactorGroup, RankCell, RankFactor, RankInput, Ranking, RankRow } from "./ranking";
 export { buildScoutReport, MIN_LINE_GAMES, ratingLabel } from "./scout";
 export type { OpeningPick, ScoutReport, ScoutTip, SkillCompare, TipKind } from "./scout";
+export { FORM_DAYS, FORM_MIN_GAMES, groupForm, groupStanding, sharedOpenings } from "./group";
+export type { FormRow, GroupPoint, GroupStanding, SharedOpening } from "./group";

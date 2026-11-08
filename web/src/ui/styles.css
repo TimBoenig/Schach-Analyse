@@ -7058,3 +7058,124 @@ button.line-move:hover {
     margin-bottom: 2px;
   }
 }
+
+/* ---------- friends: group standing, form, shared openings ---------- */
+
+.group-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+.group-cols h4 {
+  margin: 0 0 8px;
+}
+.group-line {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.group-line:hover .t {
+  text-decoration: underline;
+}
+
+.run-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.run-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(60px, 1fr) 52px;
+  align-items: center;
+  gap: 10px;
+}
+.run-row.me .run-name strong {
+  color: var(--accent);
+}
+.run-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.run-name > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-2);
+}
+.run-track::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--border);
+}
+.run-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  min-width: 2px;
+  border-radius: 5px;
+}
+.run-bar.up {
+  background: var(--win);
+}
+.run-bar.down {
+  background: var(--loss);
+}
+.run-delta {
+  text-align: right;
+  font-weight: 700;
+}
+.run-delta.up {
+  color: var(--win);
+}
+.run-delta.down {
+  color: var(--loss);
+}
+
+.shared-ops {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.shared-op {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.shared-op-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.shared-op-vals {
+  display: flex;
+  gap: 18px;
+  margin-top: 4px;
+}
+
+.detail-tabs .segmented {
+  max-width: 520px;
+}
+
+@media (max-width: 760px) {
+  .group-cols {
+    grid-template-columns: 1fr;
+  }
+}

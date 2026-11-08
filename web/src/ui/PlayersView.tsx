@@ -9,7 +9,13 @@ import {
   buildMatchup,
   buildRanking,
   buildScoutReport,
+  FORM_DAYS,
+  FORM_MIN_GAMES,
+  type FormRow,
   frequentOpponents,
+  groupForm,
+  type GroupPoint,
+  groupStanding,
   headToHead,
   mainSource,
   type Matchup,
@@ -25,6 +31,8 @@ import {
   type RankRow,
   type ScoutReport,
   type ScoutTip,
+  type SharedOpening,
+  sharedOpenings,
   SOURCE_LABELS,
   type TrackedPlayer,
 } from "../domain/players";
@@ -682,6 +690,106 @@ function RankingMembers({ friends }: { friends: TrackedPlayer[] }) {
   );
 }
 
+/** One line of the group standing: the factor, both values and who it is about. */
+function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
+  const mine = formatFactor(g.key, g.mine);
+  const other = formatFactor(g.key, g.other);
+  return (
+    <button class={`insight group-line ${kind === "edge" ? "pos" : "mid"}`} onClick={() => navigate({ view: "players", playerId: g.other_id })}>
+      <div class="t">{g.label}</div>
+      <div class="small">
+        {kind === "edge" ? (
+          <>
+            Du <strong class="tnum">{mine}</strong>, am nächsten dran: {g.other_name} <span class="tnum">{other}</span>
+          </>
+        ) : (
+          <>
+            {g.other_name} <strong class="tnum">{other}</strong>, du <span class="tnum">{mine}</span>. Schau dir die Partien von {g.other_name} an.
+          </>
+        )}
+      </div>
+    </button>
+  );
+}
+
+/** Where you clearly lead the group and where a friend is clearly better: the two lists people act on. */
+function GroupStandingCard({ ranking }: { ranking: Ranking }) {
+  const st = groupStanding(ranking);
+  if (!st || st.members < 2) return null;
+  const meRow = ranking.rows.find((r) => r.is_me);
+  return (
+    <section class="card tile span-12">
+      <div class="tile-head">
+        <h3>Deine Stellung in der Gruppe</h3>
+        <span class="tile-sub">{meRow?.rank ? `Platz ${meRow.rank} von ${st.members}` : `${st.members} Spieler`}</span>
+      </div>
+      <div class="group-cols">
+        <div>
+          <h4>Hier bist du klar vorn</h4>
+          {st.edges.length ? (
+            <div class="insights">{st.edges.map((g) => <GroupLine key={g.key} g={g} kind="edge" />)}</div>
+          ) : (
+            <p class="muted small">Noch kein Bereich, in dem du sicher besser als alle bist.</p>
+          )}
+        </div>
+        <div>
+          <h4>Hier kannst du dir etwas abschauen</h4>
+          {st.learn.length ? (
+            <div class="insights">{st.learn.map((g) => <GroupLine key={g.key} g={g} kind="learn" />)}</div>
+          ) : (
+            <p class="muted small">Kein Freund ist dir irgendwo sicher voraus.</p>
+          )}
+        </div>
+      </div>
+      <p class="faint small" style={{ margin: "8px 0 0" }}>
+        Gezählt wird nur, was mit mindestens 95 % Wahrscheinlichkeit kein Zufall ist.
+      </p>
+    </section>
+  );
+}
+
+/** Rating change over the last weeks, in each player's own main time control and platform. */
+function FormCard({ rows }: { rows: FormRow[] }) {
+  const max = Math.max(20, ...rows.map((r) => Math.abs(r.delta)));
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Wer ist in Form?</h3>
+        <span class="tile-sub">Wertung, letzte {FORM_DAYS} Tage</span>
+      </div>
+      {rows.length ? (
+        <div class="run-rows">
+          {rows.map((r) => (
+            <div class={`run-row${r.is_me ? " me" : ""}`} key={r.id}>
+              <span class="run-name">
+                <strong>{r.name}</strong>
+                <span class="faint small">
+                  {SPEED_DE[r.speed] ?? r.speed} · {SOURCE_LABELS[r.source as AccountSource] ?? "PGN"} · {r.rating}
+                </span>
+              </span>
+              <div class="run-track" aria-hidden="true">
+                <div
+                  class={`run-bar ${r.delta >= 0 ? "up" : "down"}`}
+                  style={{ width: `${(Math.abs(r.delta) / max) * 50}%`, [r.delta >= 0 ? "left" : "right"]: "50%" }}
+                />
+              </div>
+              <span class={`run-delta tnum ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}>
+                {r.delta > 0 ? "+" : r.delta < 0 ? "−" : "±"}
+                {Math.abs(Math.round(r.delta))}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p class="muted small">Niemand hat in den letzten {FORM_DAYS} Tagen genug gewertete Partien gespielt.</p>
+      )}
+      <p class="faint small" style={{ margin: "8px 0 0" }}>
+        Jeder in seiner meistgespielten Bedenkzeit und Plattform, ab {FORM_MIN_GAMES} Partien im Zeitraum.
+      </p>
+    </section>
+  );
+}
+
 function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const [format, setFormat] = useState("All Formats");
   const [date, setDate] = useState("All Time");
@@ -697,6 +805,17 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   // and needs no new profile from the worker. Cleared when the games change.
   const cache = useRef<{ games: StoredGame[]; map: Map<string, Promise<PlayerProfile>> }>({ games, map: new Map() });
   const groupKey = friends.map((p) => `${p.id}=${playerUsernames(p).join(",")}=${p.name}`).join("|");
+  const form = useMemo(
+    () =>
+      groupForm(
+        [
+          ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
+          ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
+        ],
+        games,
+      ),
+    [groupKey, games, me],
+  );
 
   useEffect(() => {
     if (!friends.length || !ready) return;
@@ -774,6 +893,8 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             <Podium rows={ranking.rows} />
           </section>
 
+          <GroupStandingCard ranking={ranking} />
+
           <section class="card tile span-12">
             <div class="tile-head">
               <h3>Rangliste</h3>
@@ -801,7 +922,9 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             <RankingTable ranking={ranking} factor={factor} />
           </section>
 
-          <section class="card tile span-12">
+          <FormCard rows={form} />
+
+          <section class="card tile span-6">
             <div class="tile-head">
               <h3>Wer ist wo vorn?</h3>
               <span class="tile-sub">Bester je Faktor</span>
@@ -1003,6 +1126,77 @@ function Repertoire({ report }: { report: ScoutReport }) {
   );
 }
 
+type DetailSection = "compare" | "beat" | "profile";
+
+// The player page used to be one long scroll of 15 cards; three tabs keep each view short.
+const DETAIL_SECTIONS: [DetailSection, (name: string) => string][] = [
+  ["compare", () => "Vergleich"],
+  ["beat", (name) => `Gegen ${name}`],
+  ["profile", () => "Profil"],
+];
+
+function H2HGames({ h2h }: { h2h: HeadToHead }) {
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Eure Partien</h3>
+        <span class="tile-sub">neueste zuerst</span>
+      </div>
+      <div class="op-games">
+        {h2h.recent.slice(0, 8).map((g) => (
+          <button key={g.id} class="op-game" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
+            <span class={`op-result ${g.score === 1 ? "win" : g.score === 0 ? "loss" : "draw"}`}>{g.score === 1 ? "S" : g.score === 0 ? "N" : "R"}</span>
+            <span class="op-opp">
+              {g.color === "white" ? "Du mit Weiß" : "Du mit Schwarz"}
+              {g.opening && <span class="faint"> · {g.opening.split(":")[0]}</span>}
+            </span>
+            <span class="faint small">{formatDate(g.date)}</span>
+            <span class="small op-acc">{SPEED_DE[g.speed] ?? ""}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Openings you both play with the same colour: who scores better in them. */
+function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[] }) {
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Gemeinsame Eröffnungen</h3>
+        <span class="tile-sub">deine Punkte gegen die von {name}</span>
+      </div>
+      {rows.length ? (
+        <div class="shared-ops">
+          {rows.map((o) => (
+            <div class="shared-op" key={`${o.color}${o.name}`}>
+              <div class="shared-op-head">
+                <strong>{o.name}</strong>
+                <span class="faint small">mit {o.color === "white" ? "Weiß" : "Schwarz"}</span>
+                <span class="spacer" />
+                <span class={`pill ${o.better === "me" ? "win" : o.better === "them" ? "loss" : ""}`}>
+                  {o.better === "me" ? "du klar besser" : o.better === "them" ? `${name} klar besser` : "ähnlich"}
+                </span>
+              </div>
+              <div class="shared-op-vals small">
+                <span>
+                  Du <strong class="tnum">{pct0(o.mine.score_pct)}</strong> <span class="faint">({o.mine.games})</span>
+                </span>
+                <span>
+                  {name} <strong class="tnum">{pct0(o.theirs.score_pct)}</strong> <span class="faint">({o.theirs.games})</span>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p class="muted small">Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens {MIN_LINE_GAMES} Mal gespielt habt.</p>
+      )}
+    </section>
+  );
+}
+
 function PlayerDetail({ id, players, games, me }: { id: string; players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const player = players.find((p) => p.id === id);
   const [format, setFormat] = useState("All Formats");
@@ -1011,6 +1205,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [loading, setLoading] = useState(false);
+  const [section, setSection] = useState<DetailSection | null>(null);
   const queue = useQueue();
   const names = player ? playerUsernames(player) : [];
   // Settings such as hiding the player hand over a new object; only a change of
@@ -1110,6 +1305,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       raw: sk?.raw_score ?? null,
     };
   });
+
+  // Friends open on the comparison, opponents on how to beat them.
+  const shown: DetailSection = section ?? (player.friend ? "compare" : "beat");
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
@@ -1227,8 +1425,36 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             </div>
           </section>
 
-          {matchup && <Duel name={player.name} matchup={matchup} />}
+          <div class="span-12 detail-tabs">
+            <div class="segmented full" role="tablist">
+              {DETAIL_SECTIONS.map(([k, label]) => (
+                <button key={k} role="tab" aria-selected={shown === k} class={shown === k ? "active" : ""} onClick={() => setSection(k)}>
+                  {label(player.name)}
+                </button>
+              ))}
+            </div>
+          </div>
 
+          {shown === "compare" && (
+            <>
+              {matchup && <Duel name={player.name} matchup={matchup} />}
+              {radar.length >= 3 && (
+                <section class="card tile span-6">
+                  <div class="tile-head">
+                    <h3>Fähigkeiten im Vergleich</h3>
+                    <span class="tile-sub">0–100 Punkte</span>
+                  </div>
+                  <RadarChart axes={radar} ownLabel={player.name} compare={data.mine ? "Du" : undefined} />
+                </section>
+              )}
+              <FriendDetails part="compare" name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />
+              {data.mine && <SharedOpeningsCard name={player.name} rows={sharedOpenings(data.mine, them)} />}
+              {h2h.recent.length > 0 && <H2HGames h2h={h2h} />}
+            </>
+          )}
+
+          {shown === "beat" && (
+            <>
           <section class="card tile span-12">
             <div class="tile-head">
               <h3>So schlägst du {player.name}</h3>
@@ -1272,16 +1498,6 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             <PickList picks={report.as_black} empty={`Keine Antwort, gegen die ${player.name} mit Weiß klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Antwort).`} />
           </section>
 
-          {radar.length >= 3 && (
-            <section class="card tile span-6">
-              <div class="tile-head">
-                <h3>Fähigkeiten im Vergleich</h3>
-                <span class="tile-sub">0–100 Punkte</span>
-              </div>
-              <RadarChart axes={radar} ownLabel={player.name} compare={data.mine ? "Du" : undefined} />
-            </section>
-          )}
-
           {report.cautions.length > 0 && (
             <section class="card tile span-6">
               <div class="tile-head">
@@ -1324,31 +1540,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             )}
           </section>
 
-          <FriendDetails name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />
-
-          {h2h.recent.length > 0 && (
-            <section class="card tile span-6">
-              <div class="tile-head">
-                <h3>Eure Partien</h3>
-                <span class="tile-sub">neueste zuerst</span>
-              </div>
-              <div class="op-games">
-                {h2h.recent.slice(0, 8).map((g) => (
-                  <button key={g.id} class="op-game" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
-                    <span class={`op-result ${g.score === 1 ? "win" : g.score === 0 ? "loss" : "draw"}`}>
-                      {g.score === 1 ? "S" : g.score === 0 ? "N" : "R"}
-                    </span>
-                    <span class="op-opp">
-                      {g.color === "white" ? "Du mit Weiß" : "Du mit Schwarz"}
-                      {g.opening && <span class="faint"> · {g.opening.split(":")[0]}</span>}
-                    </span>
-                    <span class="faint small">{formatDate(g.date)}</span>
-                    <span class="small op-acc">{SPEED_DE[g.speed] ?? ""}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
+            </>
           )}
+
+          {shown === "profile" && <FriendDetails part="profile" name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />}
         </div>
       )}
 
@@ -1365,12 +1560,14 @@ const PHASES: [string, string][] = [
 
 /** More about a friend: move tally, rating and accuracy history, activity, style and newest games. */
 function FriendDetails({
+  part,
   name,
   them,
   mine,
   games,
   names,
 }: {
+  part: "compare" | "profile";
   name: string;
   them: PlayerProfile;
   mine: PlayerProfile | null;
@@ -1402,6 +1599,39 @@ function FriendDetails({
   }));
   const weekly = (them.trends.weekly ?? []) as { week: string; avg_accuracy: number | null }[];
 
+  if (part === "compare") {
+    return (
+      <>
+        <section class="card tile span-6">
+          <div class="tile-head">
+            <h3>{name} und du</h3>
+            <span class="tile-sub">Zugbewertungen im Vergleich</span>
+          </div>
+          {t && m ? (
+            <VersusBars
+              a={{ label: name, moves: t.moves, counts: t.counts }}
+              b={{ label: "Du", moves: m.moves, counts: m.counts }}
+              keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
+            />
+          ) : (
+            <p class="muted small">Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.</p>
+          )}
+        </section>
+
+        {them.analyzed_games > 0 && (
+          <section class="card tile span-6">
+            <div class="tile-head">
+              <h3>Genauigkeit nach Phase</h3>
+              <span class="tile-sub">{mine?.analyzed_games ? "Strich: deine Werte" : ""}</span>
+            </div>
+            <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? "Du" : undefined} />
+            <FormStats weekly={weekly} />
+          </section>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <section class="card tile span-6">
@@ -1413,22 +1643,6 @@ function FriendDetails({
           <ClassTiles tally={t} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
         ) : (
           <p class="muted small">Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.</p>
-        )}
-      </section>
-
-      <section class="card tile span-6">
-        <div class="tile-head">
-          <h3>{name} und du</h3>
-          <span class="tile-sub">Zugbewertungen im Vergleich</span>
-        </div>
-        {t && m ? (
-          <VersusBars
-            a={{ label: name, moves: t.moves, counts: t.counts }}
-            b={{ label: "Du", moves: m.moves, counts: m.counts }}
-            keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
-          />
-        ) : (
-          <p class="muted small">Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.</p>
         )}
       </section>
 
@@ -1448,17 +1662,6 @@ function FriendDetails({
             </div>
           )}
           <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
-        </section>
-      )}
-
-      {them.analyzed_games > 0 && (
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Genauigkeit nach Phase</h3>
-            <span class="tile-sub">{mine?.analyzed_games ? "Strich: deine Werte" : ""}</span>
-          </div>
-          <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? "Du" : undefined} />
-          <FormStats weekly={weekly} />
         </section>
       )}
 
