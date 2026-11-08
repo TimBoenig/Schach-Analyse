@@ -203,6 +203,11 @@ export function PageHeader({
   return (
     <header class={`page-head${cls ? ` ${cls}` : ""}`}>
       <div class="page-title">
+        {title === undefined && (
+          <span class="page-mark" aria-hidden="true">
+            <area.icon />
+          </span>
+        )}
         {title ?? area.label}
         <span class="spacer" />
         {toolbar && <span class="page-toolbar wide">{toolbar}</span>}
