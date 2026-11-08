@@ -5,11 +5,13 @@ import { useState } from "preact/hooks";
 
 import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES } from "../domain/profile";
 import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
-import { Donut, StackBar } from "./charts";
+import { AreaChart, BarList, type BarRow, StackBar } from "./charts";
 import { Coach, CoachTip, NeedNames } from "./Coach";
-import { StatsTabs } from "./StatsLayout";
+import { ErrorTiles } from "./InsightsView";
+import { PageHeader } from "./Layout";
+import { type MovesSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
-import { ClassBadge, ClassTiles, MonthColumns, TallyLegend, VersusBars } from "./MoveTally";
+import { ClassBadge, ClassTiles, monthName, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
@@ -17,6 +19,14 @@ const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
 
 const HIGHLIGHTS_SHOWN = 8;
+// A month enters the trend lines from this many moves (about four games);
+// thinner months would only add noise.
+const MIN_TREND_MOVES = 120;
+const PHASES: [string, string][] = [
+  ["opening", "Eröffnung"],
+  ["middlegame", "Mittelspiel"],
+  ["endgame", "Endspiel"],
+];
 const PHASE_IN: Record<string, string> = { opening: "in der Eröffnung", middlegame: "im Mittelspiel", endgame: "im Endspiel" };
 
 /** Mike's one-sentence summary of the tally. */
@@ -70,12 +80,10 @@ export function MovesView() {
 
   const header = (
     <>
-      <div class="page-title">Zugbilanz</div>
-      <StatsTabs current="moves" />
-      <FilterBar filters={filters} onChange={setFilters} />
+      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
       <CoachTip id="moves" title="Alle deine Züge auf einen Blick">
-        Hier zähle ich jede Bewertung aus all deinen analysierten Partien: von brillant bis Patzer. Tippe auf einen Glanzzug, um
-        ihn noch einmal auf dem Brett zu sehen.
+        Hier zähle ich jede Bewertung aus all deinen analysierten Partien, von brillant bis Patzer, und zeige dir, wann, wo und
+        womit deine Fehler passieren. Tippe auf einen Glanzzug, um ihn noch einmal auf dem Brett zu sehen.
       </CoachTip>
     </>
   );
@@ -83,7 +91,7 @@ export function MovesView() {
   if (usernames && !usernames.length) {
     return (
       <div>
-        <div class="page-title">Zugbilanz</div>
+        <PageHeader />
         <NeedNames what="zähle ich hier alle deine Züge, von brillant bis Patzer." />
       </div>
     );
@@ -129,12 +137,33 @@ export function MovesView() {
 
   const h = headline(t);
   const segments = detailSegments(t.counts);
-  const topPct = Math.round((sumOf(t.counts, TOP_CLASSES) / (t.moves || 1)) * 100);
+  const sec = (id: MovesSection) => sectionOf("moves", id);
+  const rc = profile.rating;
+  const typicalLabel = rc ? `Typisch für ${rc.rating}` : undefined;
+  const phaseAcc = (profile.overview.phase_accuracy ?? {}) as Record<string, number>;
+  const phaseRows: BarRow[] = PHASES.map(([k, name]) => ({
+    label: name,
+    value: phaseAcc[k] ?? null,
+    reference: rc?.typical_phase_accuracy[k] ?? null,
+    valueText: phaseAcc[k] !== undefined ? `${de(phaseAcc[k])} %` : "–",
+  }));
+  // Monthly trend as two lines instead of stacked shares: the share of top
+  // moves and the rate of serious errors are what actually tell progress.
+  const months = t.months.filter((m) => m.moves >= MIN_TREND_MOVES).slice(-18);
+  const monthPoint = (m: (typeof months)[number], v: number) => ({
+    label: monthName(m.key),
+    value: v,
+    detail: `${monthName(m.key, true)} · ${plural(m.moves, "Zug", "Züge")}${m.moves < MIN_BUCKET_MOVES ? " · wenige Daten" : ""}`,
+  });
+  const topPoints = months.map((m) => monthPoint(m, (sumOf(m.counts, TOP_CLASSES) / m.moves) * 100));
+  const errPoints = months.map((m) => monthPoint(m, (sumOf(m.counts, SERIOUS_CLASSES) / m.moves) * 100));
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
+      <SectionNav sections={STAT_SECTIONS.moves} />
       <div class="dash">
+        <SectionHead section={sec("bilanz")} />
         <section class="card tile span-12">
           <div class="tile-head">
             <h3>Alle Bewertungen</h3>
@@ -145,18 +174,10 @@ export function MovesView() {
           <Coach mood={h.mood} size={44} tone={t.counts.Brilliant ? "var(--brilliant)" : undefined}>
             {h.text}
           </Coach>
+          <div class="tally-share">
+            <StackBar segments={segments} height={18} legend={false} />
+          </div>
           <ClassTiles tally={t} />
-        </section>
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Verteilung</h3>
-            <span class="tile-sub">Anteil an allen Zügen</span>
-          </div>
-          <div class="tally-donut">
-            <Donut segments={segments} center={`${topPct} %`} sub="bester Zug oder besser" size={168} thickness={18} />
-            <StackLegend segments={segments} total={t.moves} />
-          </div>
         </section>
 
         <section class="card tile span-6">
@@ -175,7 +196,7 @@ export function MovesView() {
           )}
         </section>
 
-        <section class="card tile span-12">
+        <section class="card tile span-6">
           <div class="tile-head">
             <h3>Was die Zahlen zeigen</h3>
             <span class="tile-sub">nur was viele Züge klar belegen</span>
@@ -197,24 +218,41 @@ export function MovesView() {
           )}
         </section>
 
+        <SectionHead section={sec("verlauf")} />
         <section class="card tile span-12">
           <div class="tile-head">
-            <h3>Verlauf</h3>
-            <span class="tile-sub">Anteile pro Monat · blasse Monate mit unter {MIN_BUCKET_MOVES} Zügen</span>
+            <h3>Zugqualität im Verlauf</h3>
+            <span class="tile-sub">pro Monat · Monate ab {MIN_TREND_MOVES} Zügen</span>
           </div>
-          {t.months.length ? (
-            <>
-              <MonthColumns months={t.months} />
-              <TallyLegend />
-            </>
+          {months.length >= 2 ? (
+            <div class="trend-pair">
+              <div>
+                <div class="kpi-label">Bester Zug oder besser</div>
+                <AreaChart points={topPoints} format={(v) => `${Math.round(v)} %`} height={170} />
+              </div>
+              <div>
+                <div class="kpi-label">Grobe Fehler je 100 Züge</div>
+                <AreaChart points={errPoints} format={(v) => de(v)} height={170} color="var(--blunder)" />
+              </div>
+            </div>
           ) : (
-            <p class="muted small">Die Partien haben kein Datum.</p>
+            <p class="muted small">Für einen Verlauf braucht es analysierte Partien aus mindestens zwei Monaten.</p>
           )}
+          <p class="small faint tile-foot">Links soll die Kurve steigen, rechts fallen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer.</p>
+        </section>
+
+        <SectionHead section={sec("phasen")} />
+        <section class="card tile span-6">
+          <div class="tile-head">
+            <h3>Genauigkeit nach Phase</h3>
+          </div>
+          <BarList rows={phaseRows} referenceLabel={typicalLabel} />
         </section>
 
         <section class="card tile span-6">
           <div class="tile-head">
             <h3>Nach Partiephase</h3>
+            <span class="tile-sub">alle Bewertungen je Phase</span>
           </div>
           <div class="phase-tally">
             {t.phases
@@ -230,9 +268,7 @@ export function MovesView() {
                     <StackBar segments={detailSegments(p.counts)} legend={false} height={12} />
                     <div class="bar-note">
                       {de((serious / p.moves) * 100)} grobe Fehler pro 100 Züge {PHASE_IN[p.key] ?? ""}
-                      {p.counts.Brilliant + p.counts.Great
-                        ? ` · ${p.counts.Brilliant + p.counts.Great} Glanzzüge`
-                        : ""}
+                      {p.counts.Brilliant + p.counts.Great ? ` · ${p.counts.Brilliant + p.counts.Great} Glanzzüge` : ""}
                     </div>
                   </div>
                 );
@@ -241,7 +277,15 @@ export function MovesView() {
           <TallyLegend />
         </section>
 
-        <section class="card tile span-6">
+        {profile.deep && (
+          <>
+            <SectionHead section={sec("fehler")} />
+            <ErrorTiles d={profile.deep} />
+          </>
+        )}
+
+        <SectionHead section={sec("glanz")} />
+        <section class="card tile span-12">
           <div class="tile-head">
             <h3>Rekorde</h3>
           </div>
@@ -315,21 +359,6 @@ export function MovesView() {
           )}
         </section>
       </div>
-    </div>
-  );
-}
-
-function StackLegend({ segments, total }: { segments: { label: string; value: number; color: string }[]; total: number }) {
-  return (
-    <div class="stack-legend">
-      {segments.map((s) => (
-        <div key={s.label} class="stack-legend-row">
-          <span class="legend-key" style={{ background: s.color }} />
-          <span class="lbl">{s.label}</span>
-          <span class="tnum cnt">{s.value.toLocaleString("de-DE")}</span>
-          <span class="tnum faint pct">{total ? de((s.value / total) * 100) : "0"} %</span>
-        </div>
-      ))}
     </div>
   );
 }

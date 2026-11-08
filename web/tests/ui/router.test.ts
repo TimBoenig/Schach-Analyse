@@ -11,6 +11,8 @@ describe("router", () => {
       { view: "games" },
       { view: "games", import: true },
       { view: "settings" },
+      { view: "settings", tab: "analyse" },
+      { view: "settings", tab: "daten" },
       { view: "board" },
       { view: "players" },
       { view: "moves" },

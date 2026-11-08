@@ -10,25 +10,9 @@ import { FreeBoardView } from "./FreeBoardView";
 import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
-import { CoachAvatar, COACH_NAME } from "./Coach";
 import { ErrorBoundary } from "./ErrorBoundary";
-import {
-  IconAccount,
-  IconBoard,
-  IconClose,
-  IconFreeBoard,
-  IconGames,
-  IconHome,
-  IconInsights,
-  IconMore,
-  IconMoves,
-  IconOpenings,
-  IconPlayers,
-  IconProfile,
-  IconSearch,
-  IconSettings,
-  IconTraining,
-} from "./icons";
+import { IconAccount, IconSearch } from "./icons";
+import { AREAS, type Area, areaOf, MAIN_AREAS, ShellContext, subRoute } from "./Layout";
 import { InsightsView } from "./InsightsView";
 import { MovesView } from "./MovesView";
 import { OpeningsView } from "./OpeningsView";
@@ -39,43 +23,8 @@ import { SettingsView } from "./SettingsView";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 
-type NavItem = { view: Route["view"]; label: string; hint: string; icon: () => preact.JSX.Element };
-
-// Sidebar groups on wide screens; on phones and portrait tablets the first
-// group (plus Profil) forms the tab bar and the rest opens from "Mehr".
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
-  {
-    title: "Spielen & Analysieren",
-    items: [
-      { view: "home", label: "Start", hint: "Dein Tag auf einen Blick", icon: IconHome },
-      { view: "games", label: "Partien", hint: "Importieren und durchsehen", icon: IconGames },
-      { view: "analysis", label: "Analyse", hint: "Zuletzt geöffnete Partie", icon: IconBoard },
-      { view: "board", label: "Analysebrett", hint: "Stellungen frei ausprobieren", icon: IconFreeBoard },
-    ],
-  },
-  {
-    title: "Verbessern",
-    items: [
-      { view: "training", label: "Training", hint: "Tagesplan und Übungen", icon: IconTraining },
-      { view: "openings", label: "Eröffnungen", hint: "Dein Repertoire", icon: IconOpenings },
-    ],
-  },
-  {
-    title: "Statistiken",
-    items: [
-      { view: "profile", label: "Profil", hint: "Fähigkeiten, Stärken, Stil", icon: IconProfile },
-      { view: "moves", label: "Zugbilanz", hint: "Brillant bis Patzer gezählt", icon: IconMoves },
-      { view: "insights", label: "Einblicke", hint: "Ergebnisse, Fehler, Gewohnheiten", icon: IconInsights },
-      { view: "players", label: "Spieler", hint: "Gegner und Freunde", icon: IconPlayers },
-    ],
-  },
-];
-
-const SETTINGS_ITEM: NavItem = { view: "settings", label: "Einstellungen", hint: "Namen, Analyse, Aussehen", icon: IconSettings };
-const ACCOUNT_ITEM: NavItem = { view: "account", label: "Konto", hint: "Anmelden, auf allen Geräten", icon: IconAccount };
-const ALL_ITEMS = [...NAV_GROUPS.flatMap((g) => g.items), ACCOUNT_ITEM, SETTINGS_ITEM];
-const TAB_VIEWS: Route["view"][] = ["home", "games", "training", "profile"];
-const MORE_ITEMS = ALL_ITEMS.filter((n) => !TAB_VIEWS.includes(n.view));
+const TAB_AREAS = MAIN_AREAS;
+const SETTINGS_AREA = AREAS.find((a) => a.id === "settings")!;
 
 // Local changes reach the cloud this long after the last edit (batch imports
 // and analysis write many records in a row).
@@ -159,11 +108,15 @@ function go(view: Route["view"], lastGame: string | null): void {
   navigate(view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view } as Route));
 }
 
+function areaRoute(a: Area, lastGame: string | null): Route {
+  return subRoute(a.sub[0], lastGame);
+}
+
 export function App() {
   const route = useRoute();
   const [lastGame, setLastGame] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
-  const [overlay, setOverlay] = useState<"palette" | "keys" | "more" | null>(null);
+  const [overlay, setOverlay] = useState<"palette" | "keys" | null>(null);
   useBackgroundSync();
 
   useEffect(() => {
@@ -173,7 +126,6 @@ export function App() {
         setOverlay((o) => (o === "palette" ? null : "palette"));
         return;
       }
-      if (e.key === "Escape") setOverlay((o) => (o === "more" ? null : o));
       if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey || document.querySelector(".overlay, dialog[open]")) return;
       if (e.key === "?") {
         e.preventDefault();
@@ -215,23 +167,48 @@ export function App() {
     }
   }, [route]);
 
-  const navButton = (n: NavItem, kind: "nav-item" | "tab" = "nav-item") => (
+  const area = areaOf(route);
+  const areaButton = (a: Area, kind: "nav-item" | "tab") => (
     <button
-      key={n.view}
-      class={`${kind}${route.view === n.view ? " active" : ""}`}
+      key={a.id}
+      class={`${kind}${area.id === a.id ? " active" : ""}`}
       onClick={() => {
         setOverlay(null);
-        go(n.view, lastGame);
+        navigate(areaRoute(a, lastGame));
       }}
-      aria-current={route.view === n.view ? "page" : undefined}
+      aria-current={area.id === a.id ? "page" : undefined}
+      title={kind === "nav-item" ? a.hint : undefined}
     >
-      {n.view === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
-      <n.icon />
-      <span class="nav-label">{n.view === "board" && kind === "tab" ? "Brett" : n.label}</span>
+      {a.id === "games" && analysing && <span class="nav-status" title="Analyse läuft" />}
+      <a.icon />
+      <span class="nav-label">{a.label}</span>
     </button>
   );
+  // Sub-pages stay listed under every area, so nothing hides behind a click.
+  const subList = (a: Area) =>
+    a.sub.length > 1 && (
+      <div class="nav-sub" role="group" aria-label={a.label}>
+        {a.sub.map((s) => {
+          const on = s.match(route);
+          return (
+            <button
+              key={s.label}
+              class={`nav-subitem${on ? " active" : ""}`}
+              aria-current={on ? "page" : undefined}
+              onClick={() => {
+                setOverlay(null);
+                navigate(subRoute(s, lastGame));
+              }}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+    );
 
   return (
+    <ShellContext.Provider value={{ route, lastGame, openPalette: () => setOverlay("palette") }}>
     <div class="app">
       <nav class="nav" aria-label="Hauptnavigation">
         <div class="nav-brand">
@@ -243,12 +220,14 @@ export function App() {
           <span class="nav-search-text">Suchen</span>
           <kbd>{MOD} K</kbd>
         </button>
-        {NAV_GROUPS.map((g) => (
-          <div class="nav-group" key={g.title}>
-            <div class="nav-group-title">{g.title}</div>
-            {g.items.map((n) => navButton(n))}
-          </div>
-        ))}
+        <div class="nav-areas">
+          {MAIN_AREAS.map((a) => (
+            <div class={`nav-area${area.id === a.id ? " current" : ""}`} key={a.id}>
+              {areaButton(a, "nav-item")}
+              {subList(a)}
+            </div>
+          ))}
+        </div>
         <div class="nav-spacer" />
         <AccountChip
           active={route.view === "account"}
@@ -257,21 +236,13 @@ export function App() {
             go("account", lastGame);
           }}
         />
-        {navButton(SETTINGS_ITEM)}
+        {areaButton(SETTINGS_AREA, "nav-item")}
         <button class="nav-keys" onClick={() => setOverlay("keys")}>
           Tastenkürzel <kbd>?</kbd>
         </button>
       </nav>
       <nav class="tabbar" aria-label="Hauptnavigation">
-        {TAB_VIEWS.map((v) => navButton(ALL_ITEMS.find((n) => n.view === v)!, "tab"))}
-        <button
-          class={`tab${MORE_ITEMS.some((n) => n.view === route.view) || overlay === "more" ? " active" : ""}`}
-          onClick={() => setOverlay((o) => (o === "more" ? null : "more"))}
-          aria-expanded={overlay === "more"}
-        >
-          <IconMore />
-          <span>Mehr</span>
-        </button>
+        {TAB_AREAS.map((a) => areaButton(a, "tab"))}
       </nav>
       <main class="main">
         <ErrorBoundary key={route.view}>
@@ -288,7 +259,7 @@ export function App() {
             // A new tab or deep link starts fresh (and leaves a running session).
             <TrainingView key={`${route.tab ?? ""}/${route.category ?? ""}`} tab={route.tab} category={route.category} />
           )}
-          {route.view === "settings" && <SettingsView />}
+          {route.view === "settings" && <SettingsView tab={route.tab} />}
           {route.view === "account" && <AccountView />}
         </ErrorBoundary>
       </main>
@@ -298,43 +269,7 @@ export function App() {
         )}
         {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
       </ErrorBoundary>
-      {overlay === "more" && (
-        <div class="sheet-backdrop" onClick={() => setOverlay(null)}>
-          <div class="sheet" role="dialog" aria-label="Weitere Bereiche" onClick={(e) => e.stopPropagation()}>
-            <div class="sheet-head">
-              <CoachAvatar size={40} />
-              <div>
-                <strong>Wohin soll es gehen?</strong>
-                <div class="small muted">{COACH_NAME} zeigt dir alle Bereiche.</div>
-              </div>
-              <span class="spacer" />
-              <button class="btn icon ghost" onClick={() => setOverlay(null)} aria-label="Schließen">
-                <IconClose />
-              </button>
-            </div>
-            <div class="sheet-grid">
-              {MORE_ITEMS.map((n) => (
-                <button
-                  key={n.view}
-                  class={`sheet-item${route.view === n.view ? " active" : ""}`}
-                  onClick={() => {
-                    setOverlay(null);
-                    go(n.view, lastGame);
-                  }}
-                >
-                  <span class="sheet-icon">
-                    <n.icon />
-                  </span>
-                  <span>
-                    <strong>{n.label}</strong>
-                    <span class="small muted">{n.hint}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    </ShellContext.Provider>
   );
 }

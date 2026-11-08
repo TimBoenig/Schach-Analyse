@@ -32,6 +32,7 @@ import { activityCalendar, dailyActivity, type PlayerProfile } from "../domain/p
 import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
+import { PageHeader } from "./Layout";
 import { AreaChart, BarList, Donut, Legend, RadarChart, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { Calendar, FormStats, RecentGames } from "./HomeView";
@@ -1551,7 +1552,7 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
   if (!players) {
     return (
       <div>
-        <div class="page-title">Spieler</div>
+        <PageHeader />
         <div class="dash">
           <div class="skeleton span-12" style={{ height: "180px" }} />
         </div>
@@ -1561,21 +1562,10 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
   if (playerId) return <PlayerDetail id={playerId} players={players} games={games} me={me} />;
   return (
     <div>
-      <div class="page-title">
-        Spieler
-        <span class="spacer" />
-        <div class="segmented">
-          <button class={tab !== "rangliste" ? "active" : ""} onClick={() => navigate({ view: "players" })}>
-            Gegner & Freunde
-          </button>
-          <button class={tab === "rangliste" ? "active" : ""} onClick={() => navigate({ view: "players", tab: "rangliste" })}>
-            Rangliste
-          </button>
-        </div>
-      </div>
+      <PageHeader />
       {!me.length && (
         <div class="notice" style={{ marginBottom: "14px" }}>
-          Trag in den Einstellungen deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
+          Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
         </div>
       )}
       <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>

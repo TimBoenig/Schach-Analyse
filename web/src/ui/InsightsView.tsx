@@ -13,7 +13,8 @@ import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
-import { type InsightsSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS, StatsTabs } from "./StatsLayout";
+import { PageHeader } from "./Layout";
+import { type InsightsSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
@@ -34,6 +35,20 @@ function scoreColumns(buckets: (ScoreBucket | ScoreStat)[]): Column[] {
     sub: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)}`,
     faint: b.games < MIN_GAMES,
   }));
+}
+
+/** Score buckets as horizontal bars against the overall score (easier to compare than lone columns). */
+function scoreRows(buckets: (ScoreBucket | ScoreStat)[], overall: number): BarRow[] {
+  return buckets
+    .filter((b) => b.games > 0)
+    .map((b) => ({
+      label: b.label.split(" (")[0],
+      value: b.score_pct,
+      reference: overall,
+      valueText: b.score_pct !== null ? `${Math.round(b.score_pct)} %` : "–",
+      note: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)}`,
+      faint: b.games < MIN_GAMES,
+    }));
 }
 
 const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(digits).replace(".", ",")}`;
@@ -229,12 +244,12 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     ),
     length: (
       <Tile title="Nach Partielänge" sub="Punkte-Quote" span={4}>
-        <ColumnChart columns={scoreColumns(p.by_length)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
+        <BarList rows={scoreRows(p.by_length, overall)} referenceLabel="Dein Schnitt" />
       </Tile>
     ),
     color: (
       <Tile title="Nach Farbe" sub="Punkte-Quote" span={4}>
-        <ColumnChart columns={scoreColumns(p.by_color)} max={100} reference={{ value: overall, label: `Dein Schnitt ${Math.round(overall)} %` }} />
+        <BarList rows={scoreRows(p.by_color, overall)} referenceLabel="Dein Schnitt" />
         <p class="small faint tile-foot">± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</p>
       </Tile>
     ),
@@ -242,6 +257,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
 }
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const errorMax = (rows: BarRow[]) => Math.max(5, ...rows.map((r) => r.value ?? 0)) * 1.1;
 
 function errorRows(buckets: MoveBucket[]): BarRow[] {
   return buckets
@@ -253,6 +269,66 @@ function errorRows(buckets: MoveBucket[]): BarRow[] {
       note: `${plural(b.errors, "Fehler", "Fehler")} in ${plural(b.moves, "Zug", "Zügen")}`,
       faint: b.moves < MIN_MOVES,
     }));
+}
+
+/** Errors: per game, by move number, piece, square and position; lives on "Züge & Fehler". */
+export function ErrorTiles({ d }: { d: DeepInsights }) {
+  const moveCols: Column[] = d.by_move_number.map((b) => ({
+    label: `Zug ${b.label}`,
+    value: b.per100,
+    valueText: b.per100 !== null ? b.per100.toFixed(1).replace(".", ",") : undefined,
+    sub: plural(b.moves, "Zug", "Züge"),
+    faint: b.moves < MIN_MOVES,
+  }));
+  const pieceRows: BarRow[] = errorRows(d.by_piece);
+  const pieceMax = Math.max(5, ...pieceRows.map((r) => r.value ?? 0)) * 1.1;
+  const situationRows = errorRows(d.by_situation);
+  const errorTypeRows: BarRow[] = d.errors_per_game.map((e) => ({
+    label: trClassification(e.classification),
+    value: e.per_game,
+    valueText: `${e.per_game.toFixed(2).replace(".", ",")} pro Partie`,
+  }));
+  return (
+    <>
+        <Tile title="Fehler pro Partie" sub="Durchschnitt" span={4}>
+          <BarList rows={errorTypeRows} max={Math.max(1, ...errorTypeRows.map((r) => r.value ?? 0)) * 1.15} />
+          {d.punish.chances > 0 && (
+            <p class="small tile-foot">
+              Gegnerfehler bestraft: <strong>{d.punish.rate !== null ? Math.round(d.punish.rate) : 0} %</strong> ({d.punish.punished} von{" "}
+              {d.punish.chances}).{" "}
+              <button class="link-btn" onClick={() => navigate({ view: "training", tab: "uebungen", category: "chance" })}>
+                Chancen nutzen üben
+              </button>
+            </p>
+          )}
+        </Tile>
+
+        <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
+          <ColumnChart columns={moveCols} />
+          <p class="small faint tile-foot">Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</p>
+        </Tile>
+
+        <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
+          <BarList rows={pieceRows} max={pieceMax} />
+        </Tile>
+
+        <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={6}>
+          <SquareHeatmap values={d.error_squares} />
+          {d.hot_squares.length > 0 && (
+            <p class="small muted tile-foot">
+              Am häufigsten: {d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}. Gezählt wird das Zielfeld
+              deines Zuges.
+            </p>
+          )}
+        </Tile>
+
+        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={6}>
+          <BarList rows={situationRows} max={errorMax(situationRows)} />
+          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
+        </Tile>
+
+    </>
+  );
 }
 
 function Tile({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 8 | 12; children: preact.ComponentChildren }) {
@@ -272,11 +348,9 @@ export function InsightsView() {
 
   const header = (
     <>
-      <div class="page-title">Einblicke</div>
-      <StatsTabs current="insights" />
-      <FilterBar filters={filters} onChange={setFilters} />
+      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
       <CoachTip id="insights" title="Was du hier findest">
-        Hier stehen alle Detailzahlen, sortiert nach Themen: Entwicklung, Ergebnisse, Partieverlauf, Fehler sowie Zeit und Gewohnheiten. Oben springst du direkt zu jedem Abschnitt.
+        Hier siehst du, wo du Punkte holst und wo du sie liegen lässt: Entwicklung, Gegner und Partietyp, Partieverlauf sowie Zeit und Gewohnheiten. Fehler und Zugbewertungen findest du unter „Züge & Fehler“.
       </CoachTip>
     </>
   );
@@ -284,7 +358,7 @@ export function InsightsView() {
   if (usernames && !usernames.length) {
     return (
       <div>
-        <div class="page-title">Einblicke</div>
+        <PageHeader />
         <NeedNames what="zeige ich dir hier Muster aus deinen Partien." />
       </div>
     );
@@ -331,23 +405,6 @@ export function InsightsView() {
 
   const overall = profile.overview.score_pct as number;
   const scoreRef = { value: overall, label: `Dein Schnitt ${Math.round(overall)} %` };
-  const moveCols: Column[] = d.by_move_number.map((b) => ({
-    label: `Zug ${b.label}`,
-    value: b.per100,
-    valueText: b.per100 !== null ? b.per100.toFixed(1).replace(".", ",") : undefined,
-    sub: plural(b.moves, "Zug", "Züge"),
-    faint: b.moves < MIN_MOVES,
-  }));
-  const pieceRows: BarRow[] = d.by_piece
-    .filter((b) => b.moves > 0)
-    .map((b) => ({
-      label: b.label,
-      value: b.per100,
-      valueText: b.per100 !== null ? `${b.per100.toFixed(1).replace(".", ",")} je 100` : "–",
-      note: `${plural(b.errors, "Fehler", "Fehler")} in ${plural(b.moves, "Zug", "Zügen")}`,
-      faint: b.moves < MIN_MOVES,
-    }));
-  const pieceMax = Math.max(5, ...pieceRows.map((r) => r.value ?? 0)) * 1.1;
   const afterRows: BarRow[] = d.after_result
     .filter((b) => b.games > 0)
     .map((b) => ({
@@ -359,7 +416,6 @@ export function InsightsView() {
       faint: b.games < MIN_GAMES,
     }));
   const timed = d.by_daytime.reduce((s, b) => s + b.games, 0);
-  const situationRows = errorRows(d.by_situation);
   const thinkCols: Column[] = d.by_think_time.map((b) => ({
     label: b.label,
     value: b.per100,
@@ -369,12 +425,7 @@ export function InsightsView() {
   }));
   const clocked = d.by_think_time.some((b) => b.moves > 0);
   const pressureRows = [...errorRows(d.time_trouble), ...errorRows(d.after_book)];
-  const rowsMax = (rows: BarRow[]) => Math.max(5, ...rows.map((r) => r.value ?? 0)) * 1.1;
-  const errorTypeRows: BarRow[] = d.errors_per_game.map((e) => ({
-    label: trClassification(e.classification),
-    value: e.per_game,
-    valueText: `${e.per_game.toFixed(2).replace(".", ",")} pro Partie`,
-  }));
+  const rowsMax = errorMax;
 
   const sec = (id: InsightsSection) => sectionOf("insights", id);
   const pt = precisionTiles(d.precision, overall);
@@ -449,44 +500,6 @@ export function InsightsView() {
         {pt.turnarounds}
         {pt.consistency}
         {pt.byResult}
-
-        <SectionHead section={sec("fehler")} />
-        <Tile title="Fehler pro Partie" sub="Durchschnitt" span={4}>
-          <BarList rows={errorTypeRows} max={Math.max(1, ...errorTypeRows.map((r) => r.value ?? 0)) * 1.15} />
-          {d.punish.chances > 0 && (
-            <p class="small tile-foot">
-              Gegnerfehler bestraft: <strong>{d.punish.rate !== null ? Math.round(d.punish.rate) : 0} %</strong> ({d.punish.punished} von{" "}
-              {d.punish.chances}).{" "}
-              <button class="link-btn" onClick={() => navigate({ view: "training", tab: "uebungen", category: "chance" })}>
-                Chancen nutzen üben
-              </button>
-            </p>
-          )}
-        </Tile>
-
-        <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
-          <ColumnChart columns={moveCols} />
-          <p class="small faint tile-foot">Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</p>
-        </Tile>
-
-        <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
-          <BarList rows={pieceRows} max={pieceMax} />
-        </Tile>
-
-        <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={6}>
-          <SquareHeatmap values={d.error_squares} />
-          {d.hot_squares.length > 0 && (
-            <p class="small muted tile-foot">
-              Am häufigsten: {d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}. Gezählt wird das Zielfeld
-              deines Zuges.
-            </p>
-          )}
-        </Tile>
-
-        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={6}>
-          <BarList rows={situationRows} max={rowsMax(situationRows)} />
-          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
-        </Tile>
 
         <SectionHead section={sec("gewohnheiten")} />
         <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={6}>

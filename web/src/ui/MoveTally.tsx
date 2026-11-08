@@ -1,11 +1,8 @@
 // Building blocks for the move tally ("Zugbilanz"): one tile per kind of move,
-// a side-by-side comparison per 100 moves and monthly 100 % columns. Used on
-// the Zugbilanz page, in the profile and on a friend's page.
+// a side-by-side comparison per 100 moves and month names. Used on the
+// "Züge & Fehler" page and on a friend's page.
 
-import { useState } from "preact/hooks";
-
-import { type MoveTally, TALLY_CLASSES, type TallyBlock, type TallyClass } from "../domain/profile";
-import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
+import { type MoveTally, TALLY_CLASSES, type TallyClass } from "../domain/profile";
 import { Legend, type Segment } from "./charts";
 import { badgeFor, CLASS_COLOR, classLabel, detailSegments } from "./labels";
 
@@ -111,71 +108,10 @@ export function VersusBars({ a, b, keys = TALLY_CLASSES }: { a: VersusSide; b: V
 
 const MONTHS_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
-function monthName(key: string, long = false): string {
+/** "2026-03" -> "Mär 26", or "Mär 2026" with `long`. */
+export function monthName(key: string, long = false): string {
   const [y, m] = key.split("-").map(Number);
   return long ? `${MONTHS_SHORT[m - 1]} ${y}` : `${MONTHS_SHORT[m - 1]} ${String(y).slice(2)}`;
-}
-
-/**
- * One 100 % column per month in the tally colours. Months with fewer than
- * MIN_BUCKET_MOVES moves are drawn faint: real, but too thin to read a trend from.
- */
-export function MonthColumns({ months, max = 12 }: { months: TallyBlock[]; max?: number }) {
-  const shown = months.slice(-max);
-  const [hover, setHover] = useState<number | null>(null);
-  const segs = shown.map((m) => detailSegments(m.counts));
-  const active = hover !== null && hover < shown.length ? hover : shown.length - 1;
-  const cur = shown[active];
-  const curSegs = segs[active];
-  return (
-    <div class="month-cols">
-      <div class="month-cols-plot" onPointerLeave={() => setHover(null)}>
-        {shown.map((m, i) => {
-          const total = segs[i].reduce((s, x) => s + x.value, 0) || 1;
-          return (
-            <div
-              key={m.key}
-              class={`month-col${i === active ? " on" : ""}${m.moves < MIN_BUCKET_MOVES ? " faint" : ""}`}
-              onPointerEnter={() => setHover(i)}
-              onPointerDown={() => setHover(i)}
-              aria-label={`${monthName(m.key, true)}: ${segs[i].map((s) => `${s.label} ${s.value}`).join(", ")}`}
-            >
-              {[...segs[i]].reverse().map((s) =>
-                s.value ? <div key={s.label} style={{ flexGrow: s.value / total, background: s.color }} /> : null,
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <div class="month-cols-labels">
-        {shown.map((m, i) => (
-          <span key={m.key} class={i === active ? "on" : ""}>
-            {monthName(m.key)}
-          </span>
-        ))}
-      </div>
-      {cur && curSegs && (
-        <div class="month-cols-detail small">
-          <strong>{monthName(cur.key, true)}</strong>
-          <span class="faint">
-            {" "}
-            · {cur.games} {cur.games === 1 ? "Partie" : "Partien"} · {cur.moves} Züge
-            {cur.moves < MIN_BUCKET_MOVES ? " · wenige Daten" : ""}
-          </span>
-          <div class="month-cols-values">
-            {curSegs
-              .filter((s) => s.value)
-              .map((s) => (
-                <span key={s.label}>
-                  <span class="legend-key" style={{ background: s.color }} />
-                  {s.label} <strong class="tnum">{s.value}</strong>
-                </span>
-              ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
 /** Legend for the eight tally colour groups. */

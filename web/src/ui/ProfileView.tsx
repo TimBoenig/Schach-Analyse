@@ -3,13 +3,12 @@ import { useState } from "preact/hooks";
 import { trSpeed } from "../domain/i18n";
 import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
-import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart, StackBar } from "./charts";
+import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart } from "./charts";
 import type { BarRow, Segment } from "./charts";
-import { qualitySegments } from "./labels";
-import { ClassTiles } from "./MoveTally";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
-import { openSection, type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS, StatsTabs } from "./StatsLayout";
+import { PageHeader } from "./Layout";
+import { openSection, type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
@@ -25,14 +24,8 @@ const RADAR_LABELS: Record<string, string> = {
   consistency: "Konstanz",
 };
 
-const PHASES: [string, string][] = [
-  ["opening", "Eröffnung"],
-  ["middlegame", "Mittelspiel"],
-  ["endgame", "Endspiel"],
-];
-
 /** First exercise category training this skill that has exercises. */
-function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
+export function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
   if (!skill) return undefined;
   return CATEGORY_ORDER.find((c) => CATEGORIES[c].skills.includes(skill) && pool.some((e) => e.category === c));
 }
@@ -52,7 +45,7 @@ export function skillNote(s: SkillScore): string | undefined {
   return `±${s.margin}${raw}`;
 }
 
-function Examples({ refs }: { refs: GameRef[] }) {
+export function Examples({ refs }: { refs: GameRef[] }) {
   if (!refs.length) return null;
   return (
     <div class="examples">
@@ -223,9 +216,7 @@ export function ProfileView() {
 
   const header = (
     <>
-      <div class="page-title">Mein Profil</div>
-      <StatsTabs current="profile" />
-      <FilterBar filters={filters} onChange={setFilters} />
+      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
       <CoachTip id="profile" title="Dein Schachprofil">
         Das ist dein Steckbrief als Spieler. Ich bewerte deine Fähigkeiten von 0 bis 100 und vergleiche sie mit Spielern deiner Wertung. Blasse Werte haben noch wenige Daten, die werden mit mehr Partien genauer.
       </CoachTip>
@@ -235,7 +226,7 @@ export function ProfileView() {
   if (usernames && !usernames.length) {
     return (
       <div>
-        <div class="page-title">Mein Profil</div>
+        <PageHeader />
         <NeedNames what="baue ich dir hier dein Spielerprofil." />
       </div>
     );
@@ -277,7 +268,6 @@ export function ProfileView() {
     );
   }
 
-  const o = profile.overview;
   const rc = profile.rating;
   const typicalLabel = rc ? `Typisch für ${rc.rating}` : undefined;
 
@@ -300,16 +290,6 @@ export function ProfileView() {
     note: skillNote(s),
   }));
 
-  const phaseAcc = (o.phase_accuracy ?? {}) as Record<string, number>;
-  const phaseRows: BarRow[] = PHASES.map(([k, name]) => ({
-    label: name,
-    value: phaseAcc[k] ?? null,
-    reference: rc?.typical_phase_accuracy[k] ?? null,
-    valueText: pct(phaseAcc[k] ?? null, 1),
-  }));
-
-  const quality = qualitySegments(o.quality_counts ?? {});
-
   const monthly = (profile.trends.monthly ?? []) as { month: string; avg_accuracy: number | null; games: number }[];
   const accPoints = monthly
     .filter((m) => m.avg_accuracy !== null)
@@ -329,14 +309,6 @@ export function ProfileView() {
       detail: d.toLocaleDateString("de-DE"),
     };
   });
-
-  const openingRows = (lines: PlayerProfile["openings_best"]): BarRow[] =>
-    lines.map((l) => ({
-      label: `${l.name} (${l.color})`,
-      value: l.score_pct,
-      valueText: pct(l.score_pct),
-      note: `${l.games} ${l.games === 1 ? "Partie" : "Partien"}${l.avg_accuracy ? ` · Genauigkeit ${l.avg_accuracy.toFixed(0)} %` : ""}`,
-    }));
 
   const sec = (id: ProfileSection) => sectionOf("profile", id);
   const sections = profile.is_empty ? [sec("ueberblick")] : STAT_SECTIONS.profile;
@@ -426,32 +398,7 @@ export function ProfileView() {
               )}
             </Card>
 
-            <SectionHead section={sec("genauigkeit")}>
-              <button class="btn small ghost" onClick={() => openSection("insights", "ergebnisse")}>
-                Ergebnisse nach Gegner, Farbe, Bedenkzeit
-              </button>
-            </SectionHead>
-            <Card title="Genauigkeit nach Phase" span={6}>
-              <BarList rows={phaseRows} referenceLabel={typicalLabel} />
-            </Card>
-
-            <Card title="Zugqualität" sub="alle deine Züge" span={6}>
-              <StackBar segments={quality} />
-              {profile.moves && <ClassTiles tally={profile.moves} keys={["Brilliant", "Great", "Blunder"]} compact />}
-              <button class="btn small tile-foot-btn" onClick={() => navigate({ view: "moves" })}>
-                Ganze Zugbilanz ansehen
-              </button>
-            </Card>
-
-            <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
-              <AreaChart
-                points={accPoints}
-                format={(v) => `${v.toFixed(0)}`}
-                domain={[0, 100]}
-                reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
-              />
-            </Card>
-
+            <SectionHead section={sec("verlauf")} />
             <Card title="Wertungsverlauf" sub={shownSpeed} span={6}>
               {speeds.length > 1 && (
                 <div class="segmented small-seg">
@@ -465,75 +412,33 @@ export function ProfileView() {
               <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
             </Card>
 
-            <SectionHead section={sec("eroeffnungen")}>
-              <button class="btn small ghost" onClick={() => navigate({ view: "openings" })}>
-                Ganzes Repertoire
-              </button>
-            </SectionHead>
-            {profile.openings_best.length || profile.openings_worst.length ? (
-              <>
-                <Card title="Am erfolgreichsten" sub="Punkte-Quote · Partien" span={6}>
-                  {profile.openings_best.length ? (
-                    <BarList rows={openingRows(profile.openings_best)} />
-                  ) : (
-                    <p class="muted small">Noch keine Eröffnung mit klar guten Ergebnissen.</p>
-                  )}
-                </Card>
-                <Card title="Hier verlierst du Punkte" sub="Punkte-Quote · Partien" span={6}>
-                  {profile.openings_worst.length ? (
-                    <BarList rows={openingRows(profile.openings_worst)} />
-                  ) : (
-                    <p class="muted small">Keine Eröffnung, in der du klar Punkte verlierst.</p>
-                  )}
-                </Card>
-              </>
-            ) : (
-              <Card title="Eröffnungen" span={12}>
-                <p class="muted small">Noch zu wenige Partien pro Eröffnung.</p>
-              </Card>
-            )}
+            <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
+              <AreaChart
+                points={accPoints}
+                format={(v) => `${v.toFixed(0)}`}
+                reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
+              />
+            </Card>
 
-            <SectionHead section={sec("training")}>
-              <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
-                Zum Tagesplan
+            <section class="card tile span-12 next-links">
+              <span class="small muted">Weiter in der Statistik:</span>
+              <button class="btn small" onClick={() => openSection("moves", "phasen")}>
+                Genauigkeit nach Phase
               </button>
-            </SectionHead>
-            {profile.training_plan.length > 0 ? (
-              <section class="card tile span-12">
-                <div class="plan">
-                  {profile.training_plan.map((t) => (
-                    <div class="plan-item" key={t.title}>
-                      <div class="plan-num">{t.priority}</div>
-                      <div class="t">{t.title}</div>
-                      <div class="small muted">{t.reason}</div>
-                      <ul>
-                        {t.steps.map((s) => (
-                          <li class="small" key={s}>
-                            {s}
-                          </li>
-                        ))}
-                      </ul>
-                      <Examples refs={t.examples} />
-                      {skillCategory(t.focus_skill, profile.exercises) && (
-                        <button
-                          class="btn small"
-                          style={{ marginTop: "8px" }}
-                          onClick={() =>
-                            navigate({ view: "training", tab: "uebungen", category: skillCategory(t.focus_skill, profile.exercises) })
-                          }
-                        >
-                          In der App üben
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : (
-              <Card title="Trainingsschwerpunkte" span={12}>
-                <p class="muted small">Mit mehr analysierten Partien stelle ich dir hier Schwerpunkte zusammen.</p>
-              </Card>
-            )}
+              <button class="btn small" onClick={() => navigate({ view: "moves" })}>
+                Zugbilanz
+              </button>
+              <button class="btn small" onClick={() => openSection("insights", "ergebnisse")}>
+                Ergebnisse nach Gegner, Farbe, Bedenkzeit
+              </button>
+              <button class="btn small" onClick={() => navigate({ view: "openings" })}>
+                Eröffnungen
+              </button>
+              <span class="spacer" />
+              <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
+                Zu deinen Trainingsschwerpunkten
+              </button>
+            </section>
           </>
         )}
       </div>

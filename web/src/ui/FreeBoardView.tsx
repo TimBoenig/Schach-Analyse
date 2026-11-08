@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { lineScoreWhite } from "../domain/analyzer";
 import { getWinProbability } from "../domain/math";
+import { PageHeader } from "./Layout";
 import { Board, type Arrow, type Promotion } from "./Board";
 import { EngineLines, EvalBar } from "./AnalysisView";
 import { IconArrow, IconFirst, IconFlip, IconLast, IconNext, IconPrev, IconReset } from "./icons";
@@ -148,13 +149,14 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
 
   return (
     <div>
-      <div class="page-title">
-        Analysebrett
-        <span class="spacer" />
-        <button class="btn small" onClick={() => reset()}>
-          <IconReset /> Startstellung
-        </button>
-      </div>
+      <PageHeader
+        about={false}
+        actions={
+          <button class="btn small" onClick={() => reset()}>
+            <IconReset /> Startstellung
+          </button>
+        }
+      />
       <CoachTip id="board" title="Probier einfach aus!">
         Zieh die Figuren für beide Seiten. Ich sage dir nach jedem Zug, wie gut er war, und zeige dir die besten
         Fortsetzungen der Engine.

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 export const RANKING_SLUG = "rangliste";
 
 export type TrainingTab = "heute" | "uebungen" | "fortschritt";
+export type SettingsTab = "analyse" | "daten";
 
 export type Route =
   | { view: "home" }
@@ -16,7 +17,7 @@ export type Route =
   | { view: "profile" }
   | { view: "players"; playerId?: string; tab?: "rangliste" }
   | { view: "training"; tab?: TrainingTab; category?: string }
-  | { view: "settings" }
+  | { view: "settings"; tab?: SettingsTab }
   | { view: "account" };
 
 export function parseHash(hash: string): Route {
@@ -47,8 +48,10 @@ export function parseHash(hash: string): Route {
       const tab = (["heute", "uebungen", "fortschritt"] as const).find((t) => t === parts[1]);
       return { view: "training", tab, category: tab === "uebungen" ? parts[2] : undefined };
     }
-    case "einstellungen":
-      return { view: "settings" };
+    case "einstellungen": {
+      const tab = (["analyse", "daten"] as const).find((t) => t === parts[1]);
+      return tab ? { view: "settings", tab } : { view: "settings" };
+    }
     case "konto":
       return { view: "account" };
     default:
@@ -77,7 +80,7 @@ export function toHash(r: Route): string {
       if (!r.tab || r.tab === "heute") return "#/training";
       return `#/training/${r.tab}${r.category ? `/${r.category}` : ""}`;
     case "settings":
-      return "#/einstellungen";
+      return r.tab ? `#/einstellungen/${r.tab}` : "#/einstellungen";
     case "account":
       return "#/konto";
     case "games":
