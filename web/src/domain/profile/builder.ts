@@ -10,7 +10,7 @@ import { buildExercisePool } from "../training/exercises";
 import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmt, pyRound, stdev } from "./num";
-import { expectedScore, ratingContext, withTypical } from "./benchmarks";
+import { expectedScore, mainRatingSources, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
 import { buildMoveTally, monthKey } from "./moves";
@@ -68,6 +68,27 @@ function groupBy<K, V>(items: V[], key: (v: V) => K): Map<K, V[]> {
 
 
 /** Build the complete player profile for the tracked usernames. */
+// Replaying a game for its features is the expensive part of a profile, and the
+// same games come back for every filter, comparison period and page. Saved games
+// carry `updated_at`, so a cached result stays valid until the game is saved again.
+const FEATURE_CACHE_MAX = 10000;
+const featureCache = new Map<string, { stamp: number; rec: GameRecord; features: GameFeatures }>();
+
+function gameFeatures(game: RawGame, color: "white" | "black"): { rec: GameRecord; features: GameFeatures } {
+  const stamp = Number((game as { updated_at?: unknown }).updated_at) || 0;
+  const key = stamp && game.id ? `${game.id}\u0000${color}` : "";
+  const hit = key ? featureCache.get(key) : undefined;
+  if (hit && hit.stamp === stamp) return hit;
+  const rec = GameRecord.fromDict(game, color);
+  const entry = { stamp, rec, features: extractFeatures(game, color, rec) };
+  if (key) {
+    featureCache.delete(key);
+    featureCache.set(key, entry);
+    if (featureCache.size > FEATURE_CACHE_MAX) featureCache.delete(featureCache.keys().next().value!);
+  }
+  return entry;
+}
+
 export function buildPlayerProfile(
   games: RawGame[],
   usernames: Iterable<string>,
@@ -81,9 +102,9 @@ export function buildPlayerProfile(
   const feats: GameFeatures[] = [];
   for (const [game, color] of matched) {
     try {
-      const rec = GameRecord.fromDict(game, color);
+      const { rec, features } = gameFeatures(game, color);
       acc.add(rec);
-      feats.push(extractFeatures(game, color, rec));
+      feats.push(features);
     } catch {
       // One corrupt game must not break the whole profile.
     }
@@ -143,8 +164,9 @@ export function buildPlayerProfile(
 
 function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]): Dict {
   const ratings = new Map<string, [number, number]>();
+  const mainSource = mainRatingSources(feats);
   for (const f of feats) {
-    if (f.user_rating && f.played_at) {
+    if (f.user_rating && f.played_at && mainSource.get(f.rec.speed) === ratingSource(f)) {
       const prev = ratings.get(f.rec.speed);
       if (prev === undefined || f.played_at > prev[0]) {
         ratings.set(f.rec.speed, [f.played_at, f.user_rating]);
@@ -416,6 +438,7 @@ function periodRows(feats: GameFeatures[], key: (ts: number) => string, field: s
 function trends(feats: GameFeatures[]): Dict {
   const months = new Map<string, GameFeatures[]>();
   const ratingPoints = new Map<string, Array<[number, number]>>();
+  const mainSource = mainRatingSources(feats);
   for (const f of feats) {
     if (!f.played_at) continue;
     const mk = monthKey(f.played_at);
@@ -423,7 +446,9 @@ function trends(feats: GameFeatures[]): Dict {
     if (list) list.push(f);
     else months.set(mk, [f]);
     if (f.user_rating) {
-      const sk = trSpeed(f.rec.speed);
+      // One line per platform: the main one under the plain speed name.
+      const src = ratingSource(f);
+      const sk = mainSource.get(f.rec.speed) === src ? trSpeed(f.rec.speed) : `${trSpeed(f.rec.speed)} · ${sourceName(src)}`;
       const pts = ratingPoints.get(sk);
       if (pts) pts.push([f.played_at, f.user_rating]);
       else ratingPoints.set(sk, [[f.played_at, f.user_rating]]);

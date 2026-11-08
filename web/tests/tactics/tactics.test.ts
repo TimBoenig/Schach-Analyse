@@ -250,4 +250,50 @@ describe("Board (python-chess parity)", () => {
     expect(mate.san(moveFromUci("a1a8"))).toBe("Ra8#");
     expect(mate.parseSan("Ra8")).toEqual(moveFromUci("a1a8"));
   });
+
+  // Known move counts (perft) exercise check detection, pins, castling through
+  // check, en passant and promotion, which the fast attacker scan must keep.
+  const KIWIPETE = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+  const perft = (b: Board, depth: number): number => {
+    const moves = b.legalMoves();
+    if (depth === 1) return moves.length;
+    let n = 0;
+    for (const m of moves) {
+      const next = b.copy();
+      next.push(m);
+      n += perft(next, depth - 1);
+    }
+    return n;
+  };
+
+  it.each([
+    ["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", 3, 8902],
+    [KIWIPETE, 2, 2039],
+    ["8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1", 3, 2812],
+  ])("counts the legal moves of %s to depth %i", (fen, depth, expected) => {
+    expect(perft(new Board(fen), depth)).toBe(expected);
+  });
+
+  it("finds the same attackers as the attack sets of every piece", () => {
+    const b = new Board(KIWIPETE);
+    for (const color of [true, false]) {
+      for (let sq = 0; sq < 64; sq++) {
+        const expected: number[] = [];
+        for (let s = 0; s < 64; s++) if (b.pieceAt(s)?.color === color && b.attacks(s).has(sq)) expected.push(s);
+        expect(b.attackers(color, sq)).toEqual(expected);
+        expect(b.isAttackedBy(color, sq)).toBe(expected.length > 0);
+      }
+    }
+  });
+
+  it("tells legal from illegal single moves", () => {
+    // Castling and a free king step are fine; e2 holds the own bishop.
+    const b = new Board(KIWIPETE);
+    expect(b.isLegal(moveFromUci("e1g1"))).toBe(true);
+    expect(b.isLegal(moveFromUci("e1f1"))).toBe(true);
+    expect(b.isLegal(moveFromUci("e1e2"))).toBe(false);
+    const pinned = new Board("4k3/4r3/8/8/8/8/4N3/4K3 w - - 0 1");
+    expect(pinned.isLegal(moveFromUci("e2c3"))).toBe(false);
+    expect(pinned.isLegal(moveFromUci("e1d1"))).toBe(true);
+  });
 });

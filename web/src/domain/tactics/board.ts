@@ -89,6 +89,11 @@ const KING_DELTAS: [number, number][] = [
 const DIAG_DIRS: [number, number][] = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
 const ORTHO_DIRS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
+const SLIDER_RAYS: [[number, number][], PieceType][] = [
+  [DIAG_DIRS, BISHOP],
+  [ORTHO_DIRS, ROOK],
+];
+
 function onBoard(f: number, r: number): boolean {
   return f >= 0 && f < 8 && r >= 0 && r < 8;
 }
@@ -279,15 +284,66 @@ export class Board {
   /** Pieces of `color` attacking `sq`, ascending order (ignores pins). */
   attackers(color: Color, sq: number): number[] {
     const out: number[] = [];
-    for (let s = 0; s < 64; s++) {
-      const p = this.squares[s];
-      if (p && p.color === color && this.attacks(s).has(sq)) out.push(s);
-    }
-    return out;
+    this.scanAttackers(color, sq, out);
+    return out.sort((a, b) => a - b);
   }
 
   isAttackedBy(color: Color, sq: number): boolean {
-    return this.attackers(color, sq).length > 0;
+    return this.scanAttackers(color, sq, null);
+  }
+
+  /**
+   * Looks outward from `sq` for pieces of `color` that attack it, instead of
+   * building the attack set of all 64 squares: legal-move generation asks this
+   * for every candidate move, and the profile replays thousands of games.
+   * Collects into `out`, or returns at the first attacker when `out` is null.
+   */
+  private scanAttackers(color: Color, sq: number, out: number[] | null): boolean {
+    const f0 = squareFile(sq);
+    const r0 = squareRank(sq);
+    let found = false;
+    const hit = (s: number): boolean => {
+      found = true;
+      if (out) out.push(s);
+      return out === null;
+    };
+    const has = (f: number, r: number, type: PieceType): number => {
+      if (!onBoard(f, r)) return -1;
+      const s = square(f, r);
+      const p = this.squares[s];
+      return p && p.color === color && p.type === type ? s : -1;
+    };
+    // Pawn attacks are mirror images: a white pawn hits sq from one rank below.
+    const pr = r0 - (color ? 1 : -1);
+    for (const df of [-1, 1]) {
+      const s = has(f0 + df, pr, PAWN);
+      if (s >= 0 && hit(s)) return true;
+    }
+    for (const [df, dr] of KNIGHT_DELTAS) {
+      const s = has(f0 + df, r0 + dr, KNIGHT);
+      if (s >= 0 && hit(s)) return true;
+    }
+    for (const [df, dr] of KING_DELTAS) {
+      const s = has(f0 + df, r0 + dr, KING);
+      if (s >= 0 && hit(s)) return true;
+    }
+    for (const [dirs, slider] of SLIDER_RAYS) {
+      for (const [df, dr] of dirs) {
+        let f = f0 + df;
+        let r = r0 + dr;
+        while (onBoard(f, r)) {
+          const s = square(f, r);
+          const p = this.squares[s];
+          if (p) {
+            if (p.color === color && (p.type === slider || p.type === QUEEN) && hit(s)) return true;
+            break;
+          }
+          f += df;
+          r += dr;
+        }
+      }
+    }
+    return found;
   }
 
   /**
@@ -342,7 +398,7 @@ export class Board {
   }
 
   isCheckmate(): boolean {
-    return this.isCheck() && this.legalMoves().length === 0;
+    return this.isCheck() && !this.hasLegalMove();
   }
 
   isEnPassant(m: Move): boolean {
@@ -493,47 +549,41 @@ export class Board {
   }
 
   legalMoves(): Move[] {
+    if (this.king(this.turn) === null) return this.pseudoLegalMoves();
+    return this.pseudoLegalMoves().filter((m) => this.keepsKingSafe(m));
+  }
+
+  /** True when the side to move has at least one legal move (stops at the first). */
+  hasLegalMove(): boolean {
+    if (this.king(this.turn) === null) return this.pseudoLegalMoves().length > 0;
+    return this.pseudoLegalMoves().some((m) => this.keepsKingSafe(m));
+  }
+
+  /** Whether `m` is legal here, without generating every legal move's check test. */
+  isLegal(m: Move): boolean {
+    const pseudo = this.pseudoLegalMoves().find(
+      (o) => o.from === m.from && o.to === m.to && (o.promotion ?? null) === (m.promotion ?? null),
+    );
+    if (!pseudo) return false;
+    return this.king(this.turn) === null || this.keepsKingSafe(pseudo);
+  }
+
+  /** A pseudo-legal move that does not leave (or, castling, pass through) check. */
+  private keepsKingSafe(m: Move): boolean {
     const us = this.turn;
-    if (this.king(us) === null) return this.pseudoLegalMoves();
-    return this.pseudoLegalMoves().filter((m) => {
-      if (this.isCastling(m)) {
-        const rank = squareRank(m.from);
-        const path = squareFile(m.to) > squareFile(m.from) ? [4, 5, 6] : [4, 3, 2];
-        if (path.some((f) => this.isAttackedBy(!us, square(f, rank)))) return false;
-      }
-      const b = this.copy();
-      b.push(m);
-      const k = b.king(us);
-      return k === null || !b.isAttackedBy(!us, k);
-    });
+    if (this.isCastling(m)) {
+      const rank = squareRank(m.from);
+      const path = squareFile(m.to) > squareFile(m.from) ? [4, 5, 6] : [4, 3, 2];
+      if (path.some((f) => this.isAttackedBy(!us, square(f, rank)))) return false;
+    }
+    const b = this.copy();
+    b.push(m);
+    const k = b.king(us);
+    return k === null || !b.isAttackedBy(!us, k);
   }
 
   san(m: Move): string {
-    const p = this.squares[m.from];
-    if (!p) throw new Error("no piece on from-square");
-    let san: string;
-    if (this.isCastling(m)) {
-      san = squareFile(m.to) > squareFile(m.from) ? "O-O" : "O-O-O";
-    } else {
-      const capture = this.isCapture(m);
-      if (p.type === PAWN) {
-        san = (capture ? FILE_NAMES[squareFile(m.from)] + "x" : "") + squareName(m.to);
-        if (m.promotion) san += "=" + SYMBOLS[m.promotion].toUpperCase();
-      } else {
-        san = SYMBOLS[p.type].toUpperCase();
-        const others = this.legalMoves().filter(
-          (o) => o.to === m.to && o.from !== m.from && this.squares[o.from]?.type === p.type,
-        );
-        if (others.length) {
-          const sameFile = others.some((o) => squareFile(o.from) === squareFile(m.from));
-          const sameRank = others.some((o) => squareRank(o.from) === squareRank(m.from));
-          if (!sameFile) san += FILE_NAMES[squareFile(m.from)];
-          else if (!sameRank) san += String(squareRank(m.from) + 1);
-          else san += squareName(m.from);
-        }
-        san += (capture ? "x" : "") + squareName(m.to);
-      }
-    }
+    let san = this.sanBody(m, null);
     const after = this.copy();
     after.push(m);
     if (after.isCheckmate()) san += "#";
@@ -541,19 +591,47 @@ export class Board {
     return san;
   }
 
+  /** SAN without the check suffix; `legal` reuses an already generated move list. */
+  private sanBody(m: Move, legal: Move[] | null): string {
+    const p = this.squares[m.from];
+    if (!p) throw new Error("no piece on from-square");
+    if (this.isCastling(m)) return squareFile(m.to) > squareFile(m.from) ? "O-O" : "O-O-O";
+    const capture = this.isCapture(m);
+    if (p.type === PAWN) {
+      let san = (capture ? FILE_NAMES[squareFile(m.from)] + "x" : "") + squareName(m.to);
+      if (m.promotion) san += "=" + SYMBOLS[m.promotion].toUpperCase();
+      return san;
+    }
+    let san = SYMBOLS[p.type].toUpperCase();
+    const others = (legal ?? this.legalMoves()).filter(
+      (o) => o.to === m.to && o.from !== m.from && this.squares[o.from]?.type === p.type,
+    );
+    if (others.length) {
+      const sameFile = others.some((o) => squareFile(o.from) === squareFile(m.from));
+      const sameRank = others.some((o) => squareRank(o.from) === squareRank(m.from));
+      if (!sameFile) san += FILE_NAMES[squareFile(m.from)];
+      else if (!sameRank) san += String(squareRank(m.from) + 1);
+      else san += squareName(m.from);
+    }
+    return san + (capture ? "x" : "") + squareName(m.to);
+  }
+
   /** Lenient SAN parser (ignores check/annotation suffixes, accepts 0-0). */
   parseSan(san: string): Move {
     const norm = (s: string) => s.replace(/[+#!?]/g, "").replace(/0/g, "O");
     const target = norm(san.trim());
-    for (const m of this.legalMoves()) {
-      if (norm(this.san(m)) === target) return m;
+    // The check suffix is stripped anyway, so compare bodies only and reuse one
+    // move list: rendering full SAN per candidate made this quadratic.
+    const legal = this.legalMoves();
+    for (const m of legal) {
+      if (this.sanBody(m, legal) === target) return m;
     }
     throw new Error(`illegal san: ${san}`);
   }
 
   hasLegalEnPassant(): boolean {
     if (this.epSquare === null) return false;
-    return this.legalMoves().some((m) => this.isEnPassant(m));
+    return this.pseudoLegalMoves().some((m) => this.isEnPassant(m) && this.keepsKingSafe(m));
   }
 
   boardFen(): string {

@@ -4,7 +4,7 @@
 // move an error. It is the data behind the opening explorer ("what do I play
 // here, what do they play against me, and where does it go wrong").
 
-import { Board, STARTING_FEN } from "../tactics/board";
+import { Board, moveFromUci, STARTING_FEN } from "../tactics/board";
 import { shareAtLeast } from "./evidence";
 import { ERROR_CLASSES, type GameFeatures, sanForUci } from "./features";
 
@@ -133,17 +133,28 @@ function grow(n: OpeningNode, fs: GameFeatures[], board: Board, color: "white" |
   }
   const fen = board.fen();
   for (const [san, group] of groups) {
-    const next = board.copy();
-    try {
-      next.push(next.parseSan(san));
-    } catch {
-      continue; // A corrupt line ends the branch instead of the whole tree.
-    }
+    const next = playStep(board, san, group[0].opening_line[n.ply]?.uci ?? "");
+    if (!next) continue; // A corrupt line ends the branch instead of the whole tree.
     const child = node(group, n.ply + 1, color, fen);
     n.children.push(child);
     grow(child, group, next, color);
   }
   n.children.sort((a, b) => b.games - a.games || a.san.localeCompare(b.san));
+}
+
+/**
+ * Board after one tree move, or null if it is not legal. The stored UCI is
+ * checked first: parsing SAN tries every legal move and dominated the profile.
+ */
+function playStep(board: Board, san: string, uci: string): Board | null {
+  const next = board.copy();
+  try {
+    const byUci = uci ? moveFromUci(uci) : null;
+    next.push(byUci && next.isLegal(byUci) ? byUci : next.parseSan(san));
+    return next;
+  } catch {
+    return null;
+  }
 }
 
 function collectLeaks(n: OpeningNode, color: "white" | "black", path: string[], board: Board, out: OpeningLeak[]): void {
@@ -163,12 +174,8 @@ function collectLeaks(n: OpeningNode, color: "white" | "black", path: string[], 
         recent: c.recent,
       });
     }
-    const next = board.copy();
-    try {
-      next.push(next.parseSan(c.san));
-    } catch {
-      continue;
-    }
+    const next = playStep(board, c.san, c.uci);
+    if (!next) continue;
     collectLeaks(c, color, here, next, out);
   }
 }
