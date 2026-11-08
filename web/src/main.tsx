@@ -4,6 +4,7 @@ import { registerSW } from "virtual:pwa-register";
 import { App } from "./ui/App";
 import { initAppearance } from "./ui/theme";
 import "./ui/styles.css";
+import "./ui/design.css";
 
 initAppearance();
 // The AI coach was removed; drop its stored provider settings and API key.
