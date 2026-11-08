@@ -1,7 +1,12 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import {
   AUTO_ANALYZE_KEY,
+  BACKGROUND_KEYS,
+  backgroundAnalyze,
+  subscribeQueue,
+  type QueueState,
   currentPerf,
   deviceInfo,
   loadDepthChoice,
@@ -38,6 +43,7 @@ import {
   type PerfSettings,
 } from "../domain/performance";
 import { getSetting, listGames, setSetting } from "../storage/db";
+import { IconBolt, IconCpu, IconGauge, IconTimer } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 
 const SCOPES: Array<[DepthScope, string]> = [
@@ -266,78 +272,119 @@ function BulletStats() {
   );
 }
 
-/** Settings card: analysis depth for own games and for friends, Bullet rules, auto-analysis. */
-export function AnalysisSettingsCard() {
+/** Card head for settings: icon chip, title and one line on what the card is for. */
+export function SettingsHead({ icon, title, sub }: { icon: ComponentChildren; title: string; sub?: string }) {
+  return (
+    <div class="settings-head">
+      <span class="settings-icon" aria-hidden="true">
+        {icon}
+      </span>
+      <div>
+        <h3>{title}</h3>
+        {sub && <p class="small muted">{sub}</p>}
+      </div>
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange, title, children }: { checked: boolean; onChange: (v: boolean) => void; title: string; children: ComponentChildren }) {
+  return (
+    <label class="toggle-row">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.currentTarget.checked)} />
+      <span>
+        <strong>{title}</strong>
+        <small class="faint">{children}</small>
+      </span>
+    </label>
+  );
+}
+
+function useBoolSetting(key: string, fallback: boolean): [boolean, (v: boolean) => Promise<void>] {
+  const [v, setV] = useState(fallback);
+  useEffect(() => void getSetting<boolean>(key, fallback).then(setV), [key]);
+  return [
+    v,
+    async (next: boolean) => {
+      setV(next);
+      await setSetting(key, next);
+    },
+  ];
+}
+
+function AutomationCard() {
+  const [auto, setAuto] = useBoolSetting(AUTO_ANALYZE_KEY, true);
+  const [own, setOwn] = useBoolSetting(BACKGROUND_KEYS.own, false);
+  const [friends, setFriends] = useBoolSetting(BACKGROUND_KEYS.friends, false);
+  const [queue, setQueue] = useState<QueueState | null>(null);
+  const [added, setAdded] = useState<number | null>(null);
+  useEffect(() => subscribeQueue(setQueue), []);
+  // Turning a switch on starts at once instead of waiting for the next app start.
+  const turn = (set: (v: boolean) => Promise<void>) => (v: boolean) =>
+    void set(v).then(() => (v ? backgroundAnalyze().then(setAdded) : undefined));
+  const waiting = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
+  return (
+    <div class="card settings-card">
+      <SettingsHead icon={<IconBolt />} title="Automatik" sub="Was beim Öffnen und nach dem Import von selbst analysiert wird." />
+      <Toggle checked={own} onChange={turn(setOwn)} title="Eigene Partien beim Öffnen analysieren">
+        Beim Start der Seite kommen alle noch nicht analysierten eigenen Partien in die Warteschlange, die neuesten zuerst.
+      </Toggle>
+      <Toggle checked={friends} onChange={turn(setFriends)} title="Partien von Freunden beim Öffnen analysieren">
+        Genauso für deine Freunde (oder alle Spieler, wenn niemand als Freund markiert ist), mit der Tiefe für Freunde.
+      </Toggle>
+      <Toggle checked={auto} onChange={(v) => void setAuto(v)} title="Importierte Partien sofort analysieren">
+        Neu geladene Partien kommen direkt in die Warteschlange.
+      </Toggle>
+      <p class="small settings-status">
+        <span class={`dot${waiting ? " on" : ""}`} />
+        {waiting
+          ? `Im Hintergrund: ${waiting} ${waiting === 1 ? "Partie wartet" : "Partien warten"} auf die Analyse.`
+          : "Gerade läuft keine Analyse."}
+        {added !== null && <span class="muted"> {added ? `${added} neu eingereiht.` : "Alles schon analysiert."}</span>}
+      </p>
+    </div>
+  );
+}
+
+/** Analysis settings as separate cards: automation, depth (own vs friends), performance, Bullet. */
+export function AnalysisSettingsCards() {
   const [scope, setScope] = useState<DepthScope>("own");
-  const [auto, setAuto] = useState(true);
   const [perf, setPerf] = useState(currentPerf);
   const bullet = useBulletPrefs();
 
-  useEffect(() => {
-    void getSetting<boolean>(AUTO_ANALYZE_KEY, true).then(setAuto);
-  }, []);
-
   return (
-    <div class="card">
-      <h3>Analyse</h3>
-      <div class="segmented full" role="tablist" aria-label="Für welche Partien">
-        {SCOPES.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>
-            {label}
-          </button>
-        ))}
+    <>
+      <AutomationCard />
+      <div class="card settings-card">
+        <SettingsHead icon={<IconGauge />} title="Analysetiefe" sub="Wie gründlich Stockfish jede Stellung prüft." />
+        <div class="segmented full" role="tablist" aria-label="Für welche Partien">
+          {SCOPES.map(([k, label]) => (
+            <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <DepthPicker scope={scope} engines={perf.engines} />
       </div>
-      <DepthPicker scope={scope} engines={perf.engines} />
-
-      <h4 style={{ margin: "18px 0 0" }}>Leistung</h4>
-      <PerformancePicker onChange={setPerf} />
-
-      <h4 style={{ margin: "18px 0 0" }}>Bullet</h4>
-      <BulletStats />
-      <label class="toggle-row">
-        <input
-          type="checkbox"
+      <div class="card settings-card">
+        <SettingsHead icon={<IconCpu />} title="Leistung" sub="Wie viel von diesem Gerät die Analyse nutzen darf. Gilt nur hier." />
+        <PerformancePicker onChange={setPerf} />
+      </div>
+      <div class="card settings-card">
+        <SettingsHead icon={<IconTimer />} title="Bullet" sub="Sehr schnelle Partien verzerren oft die Statistik." />
+        <BulletStats />
+        <Toggle
           checked={bullet.excludeBullet}
-          onChange={(e) => void setSetting(EXCLUDE_BULLET_KEY, e.currentTarget.checked)}
-        />
-        <span>
-          <strong>Bullet aus den Statistiken lassen</strong>
-          <small class="faint">
-            Start, alle Statistik-Seiten, Spieler und Training zählen Bullet nicht mit. Mit dem Filter
-            „Bullet“ kannst du sie trotzdem ansehen.
-          </small>
-        </span>
-      </label>
-      <label class="toggle-row">
-        <input
-          type="checkbox"
-          checked={bullet.skipBullet}
-          onChange={(e) => void setSetting(SKIP_BULLET_KEY, e.currentTarget.checked)}
-        />
-        <span>
-          <strong>Bullet-Partien nicht analysieren</strong>
-          <small class="faint">
-            Spart Zeit und Akku: „Alle analysieren“ und die automatische Analyse überspringen Bullet. Eine einzelne Partie
-            kannst du weiter von Hand analysieren.
-          </small>
-        </span>
-      </label>
-
-      <h4 style={{ margin: "18px 0 0" }}>Automatik</h4>
-      <label class="toggle-row">
-        <input
-          type="checkbox"
-          checked={auto}
-          onChange={(e) => {
-            setAuto(e.currentTarget.checked);
-            void setSetting(AUTO_ANALYZE_KEY, e.currentTarget.checked);
-          }}
-        />
-        <span>
-          <strong>Importierte Partien automatisch analysieren</strong>
-          <small class="faint">Neue Partien kommen direkt in die Warteschlange, die neuesten zuerst.</small>
-        </span>
-      </label>
-    </div>
+          onChange={(v) => void setSetting(EXCLUDE_BULLET_KEY, v)}
+          title="Bullet aus den Statistiken lassen"
+        >
+          Start, alle Statistik-Seiten, Spieler und Training zählen Bullet nicht mit. Mit dem Filter „Bullet“ kannst du sie
+          trotzdem ansehen.
+        </Toggle>
+        <Toggle checked={bullet.skipBullet} onChange={(v) => void setSetting(SKIP_BULLET_KEY, v)} title="Bullet-Partien nicht analysieren">
+          Spart Zeit und Akku: „Alle analysieren“ und jede Automatik überspringen Bullet. Eine einzelne Partie kannst du
+          weiter von Hand analysieren.
+        </Toggle>
+      </div>
+    </>
   );
 }

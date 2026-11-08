@@ -8,7 +8,8 @@ import { PageHeader } from "./Layout";
 import { navigate, type SettingsTab } from "./router";
 import { PeriodSelect } from "./useProfile";
 import { AiExportCard } from "./AiExportCard";
-import { AnalysisSettingsCard } from "./AnalysisSettingsCard";
+import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
+import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 
@@ -21,8 +22,8 @@ function AppearanceCard() {
     void getSetting<BoardTheme>("ui.board", "gruen").then(setBoard);
   }, []);
   return (
-    <div class="card">
-      <h3>Darstellung</h3>
+    <div class="card settings-card">
+      <SettingsHead icon={<IconPalette />} title="Darstellung" sub="Farben der App und des Bretts." />
       <div class="segmented" style={{ marginBottom: "14px" }}>
         {(Object.keys(THEME_LABELS) as ThemeMode[]).map((k) => (
           <button
@@ -85,8 +86,8 @@ function AccountCard() {
   if (s.phase === "off") return null;
   const signedIn = Boolean(s.email) && s.phase !== "signed-out";
   return (
-    <div class="card">
-      <h3>Konto &amp; Synchronisierung</h3>
+    <div class="card settings-card">
+      <SettingsHead icon={<IconCloud />} title="Konto & Synchronisierung" />
       <p class="muted small" style={{ marginTop: 0 }}>
         {signedIn
           ? `Angemeldet als ${s.email}. Profil, Statistiken und Partien sind auf allen deinen Geräten.`
@@ -199,8 +200,8 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
     return (
       <div>
         <PageHeader />
-        <div class="settings-narrow">
-          <AnalysisSettingsCard />
+        <div class="settings-cols">
+          <AnalysisSettingsCards />
         </div>
       </div>
     );
@@ -220,8 +221,8 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
     <div>
       <PageHeader />
       <div class="settings-cols">
-        <div class="card">
-          <h3>Deine Spielernamen</h3>
+        <div class="card settings-card">
+          <SettingsHead icon={<IconProfile />} title="Deine Spielernamen" />
           <Coach size={44} title="Wie heißt du beim Schach?">
             Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du
             gespielt hast, und baue dein Profil.
@@ -236,8 +237,8 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
         </div>
         <AppearanceCard />
         <AccountCard />
-        <div class="card">
-          <h3>Über die App</h3>
+        <div class="card settings-card">
+          <SettingsHead icon={<IconInfo />} title="Über die App" />
           <p class="small muted" style={{ margin: 0 }}>
             Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
             auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
