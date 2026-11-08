@@ -52,13 +52,6 @@ export function userWp(whiteWp: number | null | undefined, isWhite: boolean): nu
   return isWhite ? wp : 1 - wp;
 }
 
-function sameMove(a: Move, b: Move): boolean {
-  return a.from === b.from && a.to === b.to && (a.promotion ?? null) === (b.promotion ?? null);
-}
-
-function isLegal(board: Board, move: Move): boolean {
-  return board.legalMoves().some((m) => sameMove(m, move));
-}
 
 /** Render an engine UCI move as SAN for display; falls back to the raw UCI. */
 export function sanForUci(fen: string, uci: string | null | undefined, _chess960 = false): string {
@@ -66,7 +59,7 @@ export function sanForUci(fen: string, uci: string | null | undefined, _chess960
   try {
     const board = new Board(fen);
     const move = moveFromUci(uci);
-    if (!isLegal(board, move)) return uci;
+    if (!board.isLegal(move)) return uci;
     return board.san(move);
   } catch {
     return uci;
@@ -273,7 +266,7 @@ export function extractFeatures(
     } catch {
       moveObj = null;
     }
-    if (moveObj !== null && isLegal(board, moveObj)) {
+    if (moveObj !== null && board.isLegal(moveObj)) {
       recordStyle(board, moveObj, userMovesSeen, feats, isWhite);
     }
 

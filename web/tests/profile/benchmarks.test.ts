@@ -74,3 +74,29 @@ describe("rating context in the profile", () => {
     expect(profile.skills.every((s) => s.typical === null)).toBe(true);
   });
 });
+
+describe("rating per platform", () => {
+  // Same speed on two platforms: Lichess numbers run ~400 above Chess.com ones.
+  const row = (id: string, day: number, source: string, elo: string) => ({
+    ...gameRow(id, buildMoves(), { utc: `2026.06.${String(day).padStart(2, "0")} ${source === "lichess" ? "20" : "18"}:00:00` }),
+    source,
+    white_elo: elo,
+  });
+  const games = [
+    row("c1", 1, "chesscom", "1200"),
+    row("c2", 2, "chesscom", "1210"),
+    row("c3", 3, "chesscom", "1220"),
+    row("l1", 2, "lichess", "1620"),
+    row("l2", 3, "lichess", "1630"),
+  ];
+
+  it("keeps each platform on its own line and takes the current rating from the main one", () => {
+    const p = buildPlayerProfile(games, ["Tim"]);
+    const series = p.trends.ratings as Record<string, [number, number][]>;
+    expect(series.Schnellschach.map(([, r]) => r)).toEqual([1200, 1210, 1220]);
+    expect(series["Schnellschach · Lichess"].map(([, r]) => r)).toEqual([1620, 1630]);
+    // The newest game is on Lichess, but Chess.com has more games, so its rating stands for the speed.
+    expect((p.overview.ratings as Record<string, number>).Schnellschach).toBe(1220);
+    expect(p.rating?.rating).toBe(1220);
+  });
+});

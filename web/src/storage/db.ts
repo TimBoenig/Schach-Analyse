@@ -50,6 +50,7 @@ export function openDb(): Promise<IDBDatabase> {
 
 /** For tests: close and forget the cached connection. */
 export async function resetDbConnection(): Promise<void> {
+  resetGameCache();
   const p = dbPromise;
   dbPromise = null;
   if (p) (await p).close();
@@ -63,6 +64,24 @@ export function onDataChanged(cb: Listener): () => void {
 }
 function notify(): void {
   for (const l of listeners) l();
+}
+
+// Other tabs of the app write the same database; they tell this one to drop
+// its in-memory copy of the games (see `gameCache`).
+const channel: BroadcastChannel | null =
+  typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("schach-analyse-data") : null;
+if (channel) {
+  channel.onmessage = () => {
+    resetGameCache();
+    notify();
+  };
+}
+function broadcast(): void {
+  try {
+    channel?.postMessage("changed");
+  } catch {
+    // A closed channel only costs the other tabs their live refresh.
+  }
 }
 
 // ---- games ----
@@ -84,22 +103,84 @@ export function sortGames(games: StoredGame[]): StoredGame[] {
   return keyed.map((k) => k.g);
 }
 
-/** All live (not deleted) games, newest played first. */
+// Every record of the games store, kept in memory after the first read. With a
+// thousand analysed games the store holds tens of megabytes; reading and sorting
+// it again on every page change and every finished analysis made the whole app
+// sluggish. All writes go through this module, so they update the copy directly.
+interface GameCache {
+  records: Map<string, StoredGame>;
+  /** Sorted live games, rebuilt lazily after a write. */
+  live: StoredGame[] | null;
+}
+let gameCache: GameCache | null = null;
+let gameCacheLoad: Promise<GameCache> | null = null;
+
+// Bumped by every write, so a read that started before one is not kept.
+let gameCacheGen = 0;
+
+async function loadGameCache(): Promise<GameCache> {
+  if (gameCache) return gameCache;
+  if (!gameCacheLoad) {
+    const gen = gameCacheGen;
+    const load = (async () => {
+      const db = await openDb();
+      const all = (await req(db.transaction("games").objectStore("games").getAll())) as StoredGame[];
+      const cache: GameCache = { records: new Map(all.map((g) => [g.id, g])), live: null };
+      if (gen === gameCacheGen) gameCache = cache;
+      return cache;
+    })();
+    gameCacheLoad = load;
+    load.then(
+      () => {
+        if (gameCacheLoad === load) gameCacheLoad = null;
+      },
+      () => {
+        if (gameCacheLoad === load) gameCacheLoad = null;
+      },
+    );
+  }
+  return gameCacheLoad;
+}
+
+function cacheWrite(games: StoredGame[]): void {
+  // A read still in flight started before this write: let the next call re-read.
+  gameCacheGen += 1;
+  gameCacheLoad = null;
+  if (!gameCache) return;
+  for (const g of games) gameCache.records.set(g.id, g);
+  gameCache.live = null;
+}
+
+/**
+ * All live (not deleted) games, newest played first. The array and the game
+ * objects are shared between callers: treat them as read-only and save changes
+ * through `putGames`, which hands out fresh objects.
+ */
 export async function listGames(): Promise<StoredGame[]> {
-  const db = await openDb();
-  const all = (await req(db.transaction("games").objectStore("games").getAll())) as StoredGame[];
-  return sortGames(all.filter((g) => !g.deleted));
+  const cache = await loadGameCache();
+  cache.live ??= sortGames([...cache.records.values()].filter((g) => !g.deleted));
+  return cache.live;
+}
+
+/** For tests: forget the in-memory copy of the games. */
+export function resetGameCache(): void {
+  gameCacheGen += 1;
+  gameCache = null;
+  gameCacheLoad = null;
 }
 
 /** Every record including tombstones (sync). */
 export async function listAllGameRecords(): Promise<StoredGame[]> {
-  const db = await openDb();
-  return (await req(db.transaction("games").objectStore("games").getAll())) as StoredGame[];
+  return [...(await loadGameCache()).records.values()];
 }
 
 export async function getGame(id: string): Promise<StoredGame | undefined> {
-  const db = await openDb();
-  const g = (await req(db.transaction("games").objectStore("games").get(id))) as StoredGame | undefined;
+  let g: StoredGame | undefined;
+  if (gameCache) g = gameCache.records.get(id);
+  else {
+    const db = await openDb();
+    g = (await req(db.transaction("games").objectStore("games").get(id))) as StoredGame | undefined;
+  }
   return g && !g.deleted ? g : undefined;
 }
 
@@ -114,8 +195,11 @@ export async function putGames(games: StoredGame[], { touch = true, silent = fal
   const tx = db.transaction("games", "readwrite");
   const store = tx.objectStore("games");
   const now = Date.now();
-  for (const g of games) store.put(touch ? { ...g, updated_at: now } : g);
+  const saved = games.map((g) => (touch ? { ...g, updated_at: now } : { ...g }));
+  for (const g of saved) store.put(g);
   await done(tx);
+  cacheWrite(saved);
+  broadcast();
   if (!silent) notify();
 }
 
@@ -124,11 +208,12 @@ export async function deleteGame(id: string): Promise<void> {
   const tx = db.transaction("games", "readwrite");
   const store = tx.objectStore("games");
   const g = (await req(store.get(id))) as StoredGame | undefined;
-  if (g) {
-    // Keep only a tombstone: identity + timestamps, no heavy payload.
-    store.put({ ...g, pgn: "", moves_json: [], summary_json: {}, deleted: true, updated_at: Date.now() });
-  }
+  // Keep only a tombstone: identity + timestamps, no heavy payload.
+  const tomb = g ? { ...g, pgn: "", moves_json: [], summary_json: {}, deleted: true, updated_at: Date.now() } : null;
+  if (tomb) store.put(tomb);
   await done(tx);
+  if (tomb) cacheWrite([tomb]);
+  broadcast();
   notify();
 }
 
@@ -149,6 +234,7 @@ export async function putSettingRecords(records: SettingRecord[], silent = false
   const tx = db.transaction("settings", "readwrite");
   for (const r of records) tx.objectStore("settings").put(r);
   await done(tx);
+  broadcast();
   if (!silent) notify();
 }
 

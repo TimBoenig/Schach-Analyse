@@ -101,10 +101,48 @@ export function performanceRating(games: { opp: number; score: number }[]): numb
 }
 
 /** Current rating: latest rating in the time control with the most rated games. */
-export function currentRating(feats: GameFeatures[]): { rating: number; speed: string } | null {
-  const bySpeed = new Map<string, GameFeatures[]>();
+/** Platform a game's rating belongs to ("chesscom", "lichess", "file"). */
+export function ratingSource(f: GameFeatures): string {
+  return String(f.rec.raw_game?.source || "file").toLowerCase();
+}
+
+const SOURCE_NAMES: Record<string, string> = { chesscom: "Chess.com", lichess: "Lichess", file: "PGN" };
+export const sourceName = (source: string): string => SOURCE_NAMES[source] ?? source;
+
+/**
+ * The platform whose rating stands for each speed: the one with the most rated
+ * games (ties: the one played most recently). Lichess ratings run some 300-400
+ * points above Chess.com ones, so one line or "current rating" mixing both
+ * jumped up and down between games of the same day.
+ */
+export function mainRatingSources(feats: GameFeatures[]): Map<string, string> {
+  const stats = new Map<string, Map<string, { n: number; last: number }>>();
   for (const f of feats) {
     if (!f.user_rating) continue;
+    const bySource = stats.get(f.rec.speed) ?? new Map<string, { n: number; last: number }>();
+    stats.set(f.rec.speed, bySource);
+    const src = ratingSource(f);
+    const e = bySource.get(src) ?? { n: 0, last: 0 };
+    e.n += 1;
+    e.last = Math.max(e.last, f.played_at || 0);
+    bySource.set(src, e);
+  }
+  const out = new Map<string, string>();
+  for (const [speed, bySource] of stats) {
+    let best: [string, { n: number; last: number }] | null = null;
+    for (const entry of bySource) {
+      if (!best || entry[1].n > best[1].n || (entry[1].n === best[1].n && entry[1].last > best[1].last)) best = entry;
+    }
+    if (best) out.set(speed, best[0]);
+  }
+  return out;
+}
+
+export function currentRating(feats: GameFeatures[]): { rating: number; speed: string } | null {
+  const main = mainRatingSources(feats);
+  const bySpeed = new Map<string, GameFeatures[]>();
+  for (const f of feats) {
+    if (!f.user_rating || main.get(f.rec.speed) !== ratingSource(f)) continue;
     const list = bySpeed.get(f.rec.speed);
     if (list) list.push(f);
     else bySpeed.set(f.rec.speed, [f]);

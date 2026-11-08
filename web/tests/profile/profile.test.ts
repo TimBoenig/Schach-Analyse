@@ -25,6 +25,16 @@ describe("player profile", () => {
     expect(feats.moves.every((m) => m.ply_index % 2 === 1)).toBe(true);
   });
 
+  it("recomputes a saved game once it is saved again", () => {
+    // Features are cached per game and save time; a re-analysis must not show the old result.
+    const before = { ...gameRow("s", buildMoves(PUNISHED), { result: "1-0" }), updated_at: 1 };
+    expect(buildPlayerProfile([before], ["Tim"]).overview.wins).toBe(1);
+    const after = { ...gameRow("s", buildMoves(THROWN_WIN), { result: "0-1" }), updated_at: 2 };
+    const p = buildPlayerProfile([after], ["Tim"]);
+    expect(p.overview.wins).toBe(0);
+    expect(p.overview.losses).toBe(1);
+  });
+
   it("distinguishes kept and thrown advantages after an opponent error", () => {
     const kept = extractFeatures(gameRow("k", buildMoves(PUNISHED)), "white");
     const thrown = extractFeatures(gameRow("t", buildMoves(THROWN_WIN)), "white");

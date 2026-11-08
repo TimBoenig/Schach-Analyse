@@ -86,7 +86,19 @@ export function useProfile({ compare = false }: { compare?: boolean } = {}) {
     void setSetting(FILTERS_KEY, f);
   };
 
-  useEffect(() => onDataChanged(() => setVersion((v) => v + 1)), []);
+  // A running analysis saves a game every few seconds; rebuilding on each save
+  // kept the profile worker busy for nothing, so bursts of changes count once.
+  useEffect(() => {
+    let timer = 0;
+    const off = onDataChanged(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setVersion((v) => v + 1), 800);
+    });
+    return () => {
+      off();
+      window.clearTimeout(timer);
+    };
+  }, []);
   useEffect(() => {
     void restoreFilters().then(() => setFiltersState(lastFilters));
   }, []);

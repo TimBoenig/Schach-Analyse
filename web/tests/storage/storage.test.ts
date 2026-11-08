@@ -59,6 +59,24 @@ describe("IndexedDB storage", () => {
     expect(tomb.moves_json).toEqual([]);
   });
 
+  it("keeps the in-memory game list in step with saves and deletes", async () => {
+    const a = { ...toStoredGame(parsePgnText(PGN)[0], 100), id: "a" };
+    await putGames([a]);
+    const first = await listGames();
+    // Unchanged data is served from memory: same objects, no new read.
+    expect(await listGames()).toBe(first);
+    await putGames([{ ...first[0], opening: "Scholar's Mate" }]);
+    const second = await listGames();
+    expect(second[0]).not.toBe(first[0]);
+    expect(second[0].opening).toBe("Scholar's Mate");
+    expect((await getGame("a"))?.opening).toBe("Scholar's Mate");
+    // A fresh connection reads the same state back from IndexedDB.
+    await resetDbConnection();
+    expect((await listGames())[0].opening).toBe("Scholar's Mate");
+    await deleteGame("a");
+    expect(await listGames()).toEqual([]);
+  });
+
   it("sorts by date played, not by import order", async () => {
     const played = (id: string, ts: number, date?: string, time?: string) => {
       const head = date ? `[Date "${date}"]\n${time ? `[UTCDate "${date}"]\n[UTCTime "${time}"]\n` : ""}` : "";
