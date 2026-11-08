@@ -82,6 +82,10 @@ icon pack.
 
 ### Move Classification Icons
 
+Round badges drawn from plain SVG paths by [`assets/_generator/badges.py`](assets/_generator/badges.py)
+(re-run it to regenerate). They follow the familiar colour and glyph conventions of the big chess
+sites (!!, !, star, ?!, ?, ??) but are original drawings, not copies of any site's image files.
+
 Used by [`src/utils/resources.py`](src/utils/resources.py) (`ResourceManager.icon_map`) and
 displayed in the move list and board overlay:
 

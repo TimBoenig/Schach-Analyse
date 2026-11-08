@@ -1,4 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
-  <polygon points="40,6 71,24 71,56 40,74 9,56 9,24" fill="#F1C40F" stroke="#FFFFFF" stroke-width="4.5" stroke-linejoin="round"/>
-  <text x="40" y="57" font-family="Arial Black, sans-serif" font-size="44" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="-1.5">?!</text>
+  <circle cx="40" cy="40" r="37" fill="#c9962a"/>
+  <circle cx="40" cy="37.5" r="34.5" fill="#f7c045"/>
+  <g fill="#000000" stroke="#000000" opacity="0.22" transform="translate(0 2.2)"><path fill="none" stroke-width="7.3" stroke-linecap="round" stroke-linejoin="round" d="M22.5 30.7 a8.5 8.5 0 1 1 10.6 8.2 C32.7 41.3 31.0 43.4 31.0 45.0 L31.0 46.0"/><circle cx="31.0" cy="54.5" r="4.2"/><path d="M48.1 25.7 a4.4 4.4 0 0 1 8.8 0 L55.4 46.8 a2.9 2.9 0 0 1 -5.8 0 Z"/><circle cx="52.5" cy="54.5" r="4.2"/></g>
+  <g fill="#ffffff" stroke="#ffffff"><path fill="none" stroke-width="7.3" stroke-linecap="round" stroke-linejoin="round" d="M22.5 30.7 a8.5 8.5 0 1 1 10.6 8.2 C32.7 41.3 31.0 43.4 31.0 45.0 L31.0 46.0"/><circle cx="31.0" cy="54.5" r="4.2"/><path d="M48.1 25.7 a4.4 4.4 0 0 1 8.8 0 L55.4 46.8 a2.9 2.9 0 0 1 -5.8 0 Z"/><circle cx="52.5" cy="54.5" r="4.2"/></g>
 </svg>
