@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 
 import { resumeQueue, subscribeQueue } from "../app/analysisService";
 import { repairOpeningNames } from "../app/openingNames";
@@ -12,7 +12,7 @@ import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { IconAccount, IconSearch } from "./icons";
-import { AREAS, type Area, areaOf, MAIN_AREAS, ShellContext, subRoute } from "./Layout";
+import { AREAS, type Area, areaOf, MAIN_AREAS, ShellContext } from "./Layout";
 import { InsightsView } from "./InsightsView";
 import { MovesView } from "./MovesView";
 import { OpeningsView } from "./OpeningsView";
@@ -104,17 +104,12 @@ function AccountChip({ active, onClick }: { active: boolean; onClick: () => void
   );
 }
 
-function go(view: Route["view"], lastGame: string | null): void {
-  navigate(view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view } as Route));
-}
-
-function areaRoute(a: Area, lastGame: string | null): Route {
-  return subRoute(a.sub[0], lastGame);
+function go(view: Route["view"]): void {
+  navigate({ view } as Route);
 }
 
 export function App() {
   const route = useRoute();
-  const [lastGame, setLastGame] = useState<string | null>(null);
   const [analysing, setAnalysing] = useState(false);
   const [overlay, setOverlay] = useState<"palette" | "keys" | null>(null);
   useBackgroundSync();
@@ -135,7 +130,7 @@ export function App() {
       const page = PAGES.find((p) => p.key === e.key);
       if (page) {
         e.preventDefault();
-        go(page.view, lastGameRef.current);
+        go(page.view);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -159,13 +154,6 @@ export function App() {
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.
   useEffect(() => window.scrollTo(0, 0), [route.view]);
 
-  const lastGameRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (route.view === "analysis" && route.gameId) {
-      setLastGame(route.gameId);
-      lastGameRef.current = route.gameId;
-    }
-  }, [route]);
 
   const area = areaOf(route);
   const areaButton = (a: Area, kind: "nav-item" | "tab") => (
@@ -174,7 +162,7 @@ export function App() {
       class={`${kind}${area.id === a.id ? " active" : ""}`}
       onClick={() => {
         setOverlay(null);
-        navigate(areaRoute(a, lastGame));
+        navigate(a.sub[0].route);
       }}
       aria-current={area.id === a.id ? "page" : undefined}
       title={kind === "nav-item" ? a.hint : undefined}
@@ -197,7 +185,7 @@ export function App() {
               aria-current={on ? "page" : undefined}
               onClick={() => {
                 setOverlay(null);
-                navigate(subRoute(s, lastGame));
+                navigate(s.route);
               }}
             >
               {s.label}
@@ -208,7 +196,7 @@ export function App() {
     );
 
   return (
-    <ShellContext.Provider value={{ route, lastGame, openPalette: () => setOverlay("palette") }}>
+    <ShellContext.Provider value={{ route, openPalette: () => setOverlay("palette") }}>
     <div class="app">
       <nav class="nav" aria-label="Hauptnavigation">
         <div class="nav-brand">
@@ -233,7 +221,7 @@ export function App() {
           active={route.view === "account"}
           onClick={() => {
             setOverlay(null);
-            go("account", lastGame);
+            go("account");
           }}
         />
         {areaButton(SETTINGS_AREA, "nav-item")}
@@ -265,7 +253,7 @@ export function App() {
       </main>
       <ErrorBoundary area="Das Menü">
         {overlay === "palette" && (
-          <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} lastGame={lastGame} />
+          <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} />
         )}
         {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
       </ErrorBoundary>

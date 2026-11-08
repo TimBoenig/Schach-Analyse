@@ -54,8 +54,13 @@ export const AREAS: Area[] = [
     hint: "Importieren, analysieren, nachspielen",
     icon: IconGames,
     sub: [
-      { label: "Alle Partien", about: "Deine Partien importieren, analysieren lassen und durchsehen.", route: { view: "games" }, match: is("games") },
-      { label: "Analyse", about: "Die zuletzt geöffnete Partie Zug für Zug.", route: { view: "analysis" }, match: is("analysis") },
+      // A game opens from the list; its analysis counts as part of this page.
+      {
+        label: "Alle Partien",
+        about: "Deine Partien importieren, analysieren lassen und durchsehen.",
+        route: { view: "games" },
+        match: (r) => r.view === "games" || r.view === "analysis",
+      },
       { label: "Analysebrett", about: "Stellungen frei ausprobieren, mit Stockfish.", route: { view: "board" }, match: is("board") },
     ],
   },
@@ -137,22 +142,16 @@ export function subPageOf(r: Route): SubPage | undefined {
   return areaOf(r).sub.find((s) => s.match(r));
 }
 
-/** Where a sub-page link goes; "Analyse" reopens the last game. */
-export function subRoute(s: SubPage, lastGame: string | null): Route {
-  return s.route.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : s.route;
-}
-
 interface Shell {
   route: Route;
-  lastGame: string | null;
   openPalette: () => void;
 }
 
-export const ShellContext = createContext<Shell>({ route: { view: "home" }, lastGame: null, openPalette: () => undefined });
+export const ShellContext = createContext<Shell>({ route: { view: "home" }, openPalette: () => undefined });
 
 /** Tabs between the sub-pages of the current area. */
 export function AreaTabs({ about = true }: { about?: boolean }) {
-  const { route, lastGame } = useContext(ShellContext);
+  const { route } = useContext(ShellContext);
   const area = areaOf(route);
   const current = subPageOf(route);
   if (area.sub.length < 2) return null;
@@ -166,7 +165,7 @@ export function AreaTabs({ about = true }: { about?: boolean }) {
               key={s.label}
               class={on ? "active" : ""}
               aria-current={on ? "page" : undefined}
-              onClick={() => navigate(subRoute(s, lastGame), s.route.view === route.view)}
+              onClick={() => navigate(s.route, s.route.view === route.view)}
             >
               {s.label}
             </button>
