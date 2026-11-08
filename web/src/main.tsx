@@ -2,6 +2,7 @@ import { render } from "preact";
 import { registerSW } from "virtual:pwa-register";
 
 import { App } from "./ui/App";
+import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { initAppearance } from "./ui/theme";
 import "./ui/styles.css";
 import "./ui/design.css";
@@ -14,4 +15,11 @@ try {
   // Storage blocked (private mode): nothing was stored either.
 }
 registerSW({ immediate: true });
-render(<App />, document.getElementById("app")!);
+// Outer boundary: an error in the app shell itself shows a message with a
+// reload button instead of an empty page.
+render(
+  <ErrorBoundary area="Die App">
+    <App />
+  </ErrorBoundary>,
+  document.getElementById("app")!,
+);

@@ -203,16 +203,16 @@ kbd {
   }
 }
 
-/* Each page fades up once when it opens. */
+/* Each page slides up a little when it opens. Only transform, never opacity
+   or filter: a blur on a very tall page can exceed Safari's layer size and
+   leave the page blank, and a stalled animation must never hide content. */
 .main > * {
-  animation: page-in 0.7s var(--ease) both;
+  animation: page-in 0.6s var(--ease);
 }
 
 @keyframes page-in {
   from {
-    opacity: 0;
-    transform: translateY(12px);
-    filter: blur(4px);
+    transform: translateY(10px);
   }
 }
 
