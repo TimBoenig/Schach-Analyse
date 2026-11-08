@@ -18,6 +18,9 @@ describe("information architecture", () => {
     expect(areaOf(parseHash("#/zuege")).id).toBe("stats");
     expect(subPageOf(parseHash("#/spieler/max-2"))?.label).toBe("Gegner & Freunde");
     expect(areaOf(parseHash("#/konto")).id).toBe("settings");
+    // No separate "Analyse" entry: an opened game belongs to the game list.
+    expect(subPageOf(parseHash("#/analyse/abc"))?.label).toBe("Alle Partien");
+    expect(AREAS.find((a) => a.id === "games")?.sub.map((s) => s.label)).toEqual(["Alle Partien", "Analysebrett"]);
   });
 
   it("keeps the phone tab bar to five areas", () => {

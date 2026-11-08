@@ -22,11 +22,10 @@ interface Command {
 export const PAGES: { view: Route["view"]; label: string; key: string; keywords?: string }[] = [
   { view: "home", label: "Start", key: "1" },
   { view: "games", label: "Partien", key: "2" },
-  { view: "analysis", label: "Partien › Analyse", key: "3" },
   { view: "board", label: "Partien › Analysebrett", key: "9" },
   { view: "profile", label: "Statistik › Überblick", key: "4", keywords: "profil fähigkeiten stärken schwächen stil" },
   { view: "insights", label: "Statistik › Ergebnisse", key: "5", keywords: "einblicke entwicklung gegner bedenkzeit gewohnheiten" },
-  { view: "moves", label: "Statistik › Züge & Fehler", key: "", keywords: "zugbilanz brillant großartig patzer fehler zugbewertungen" },
+  { view: "moves", label: "Statistik › Züge & Fehler", key: "3", keywords: "zugbilanz brillant großartig patzer fehler zugbewertungen" },
   { view: "openings", label: "Statistik › Eröffnungen", key: "6", keywords: "repertoire eröffnungsbaum" },
   { view: "training", label: "Training", key: "7" },
   { view: "players", label: "Spieler & Rangliste", key: "0", keywords: "freunde gegner vergleich" },
@@ -48,11 +47,9 @@ function matches(text: string, query: string): boolean {
 export function CommandPalette({
   onClose,
   onShortcuts,
-  lastGame,
 }: {
   onClose: () => void;
   onShortcuts: () => void;
-  lastGame: string | null;
 }) {
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -76,7 +73,7 @@ export function CommandPalette({
         label: p.label,
         hint: p.key || undefined,
         keywords: p.keywords,
-        run: go(p.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view: p.view } as Route)),
+        run: go({ view: p.view } as Route),
       })),
       { id: "import", group: "Aktionen", label: "Partien importieren", keywords: "chess.com lichess pgn laden", run: go({ view: "games", import: true }) },
       {
@@ -121,7 +118,7 @@ export function CommandPalette({
     );
     if (!query.trim()) return [...base, ...gameCmds.slice(0, 5)];
     return [...base, ...sectionCmds, ...gameCmds].filter((c) => matches(`${c.label} ${c.keywords ?? ""} ${c.group}`, query)).slice(0, 30);
-  }, [games, names, query, lastGame]);
+  }, [games, names, query]);
 
   useEffect(() => setActive(0), [query]);
   useEffect(() => {
