@@ -46,3 +46,33 @@ export function mergeQueue({ queued, add, front = false, priority, playedAt, cur
     .map((x) => x.id);
   return { queued: [...head, ...sorted], priority: new Set(head) };
 }
+
+// ---- background analysis when the app opens ----
+
+export interface BackgroundGame {
+  id: string;
+  completed: boolean;
+  bullet: boolean;
+  /** One of the user's own games. */
+  own: boolean;
+  /** A game of a friend (the user did not play in it). */
+  friend: boolean;
+}
+
+export interface BackgroundOptions {
+  own: boolean;
+  friends: boolean;
+  skipBullet: boolean;
+}
+
+/**
+ * Games the background analysis should queue: every unanalysed game of the
+ * enabled groups. A game against a friend counts as an own game, so turning
+ * friends off never holds back the user's own games.
+ */
+export function pickBackgroundGames(games: BackgroundGame[], { own, friends, skipBullet }: BackgroundOptions): string[] {
+  if (!own && !friends) return [];
+  return games
+    .filter((g) => !g.completed && !(skipBullet && g.bullet) && ((own && g.own) || (friends && g.friend && !g.own)))
+    .map((g) => g.id);
+}

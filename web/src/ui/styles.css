@@ -7179,3 +7179,75 @@ button.line-move:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- settings cards ---------- */
+
+.settings-card {
+  padding: 20px;
+}
+
+.settings-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.settings-head h3 {
+  margin: 1px 0 2px;
+}
+
+.settings-head p {
+  margin: 0;
+}
+
+.settings-icon {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.settings-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.settings-card .toggle-row {
+  padding: 12px 0 0;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-card .settings-head + .toggle-row {
+  border-top: 0;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.settings-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+}
+
+.settings-status .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+.settings-status .dot.on {
+  background: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+}

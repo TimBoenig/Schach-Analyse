@@ -14,7 +14,9 @@ import {
   type DepthScope,
   type SpeedLog,
 } from "../domain/analysisDepth";
-import { mergeQueue } from "../domain/analysisQueue";
+import { mergeQueue, pickBackgroundGames } from "../domain/analysisQueue";
+import { getUserColor } from "../domain/metrics";
+import { playerUsernames } from "../domain/players/models";
 import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
 import { loadBookData } from "../domain/book";
 import { parsePlayedAt } from "../domain/metrics/played";
@@ -28,7 +30,8 @@ import {
 import type { GameAnalysis } from "../domain/types";
 import { EnginePool } from "../engine/pool";
 import { createStockfishWorker, EngineFailure, UciEngine } from "../engine/uci";
-import { evalCache, getGame, getSetting, onDataChanged, putGames, setSetting } from "../storage/db";
+import { evalCache, getGame, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
+import { loadPlayers } from "./players";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
 
 /** Depth choice for own games or friends' games (older versions stored a bare preset name). */
@@ -224,6 +227,41 @@ export async function autoAnalyze(ids: string[]): Promise<boolean> {
   if (!pick.length) return false;
   await enqueue(pick);
   return true;
+}
+
+/** Setting keys: analyse all open own / friends' games in the background when the app opens (off by default). */
+export const BACKGROUND_KEYS = { own: "analysis.background.own", friends: "analysis.background.friends" } as const;
+
+/**
+ * Queues every unanalysed game of the groups switched on in the settings,
+ * newest first (the queue order). Runs at app start and when a switch is turned on.
+ * Friends = players marked as friend, or all shown players when nobody is marked.
+ */
+export async function backgroundAnalyze(): Promise<number> {
+  const [own, friends, skipBullet] = await Promise.all([
+    getSetting<boolean>(BACKGROUND_KEYS.own, false),
+    getSetting<boolean>(BACKGROUND_KEYS.friends, false),
+    getSetting<boolean>(SKIP_BULLET_KEY, false),
+  ]);
+  if (!own && !friends) return 0;
+  const [games, usernames, players] = await Promise.all([listGames(), getSetting<string[]>("usernames", []), friends ? loadPlayers() : []]);
+  const shown = players.filter((p) => !p.hidden);
+  const marked = shown.some((p) => p.friend) ? shown.filter((p) => p.friend) : shown;
+  const friendNames = marked.flatMap(playerUsernames);
+  const ids = pickBackgroundGames(
+    games.map((g) => ({
+      id: g.id,
+      completed: g.summary_json?.analysis_status === "completed",
+      bullet: isBulletGame(g),
+      own: Boolean(getUserColor(g, usernames)),
+      friend: friendNames.length > 0 && Boolean(getUserColor(g, friendNames)),
+    })),
+    { own, friends, skipBullet },
+  );
+  const busy = new Set([...(state.current ? [state.current] : []), ...state.queued]);
+  const fresh = ids.filter((id) => !busy.has(id));
+  if (fresh.length) await enqueue(fresh);
+  return fresh.length;
 }
 
 export interface EnqueueOptions {

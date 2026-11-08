@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 
-import { resumeQueue, subscribeQueue } from "../app/analysisService";
+import { backgroundAnalyze, resumeQueue, subscribeQueue } from "../app/analysisService";
 import { repairOpeningNames } from "../app/openingNames";
 import { onDataChanged } from "../storage/db";
 import { currentUser, hasAuthCallback, onAuthEvent, refreshSyncStatus, syncAvailable, syncNow } from "../storage/sync";
@@ -145,6 +145,7 @@ export function App() {
         void repairOpeningNames()
           .catch(() => 0)
           .then(() => resumeQueue())
+          .then(() => backgroundAnalyze())
           .catch(() => undefined),
       2500,
     );

@@ -61,3 +61,9 @@ export const IconCloud = () => (
 );
 export const IconEye = () => (<svg {...base}><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>);
 export const IconEyeOff = () => (<svg {...base}><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.6 6.6A17 17 0 0 0 2 12s3.6 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2" /></svg>);
+export const IconBolt = () => (<svg {...base}><path d="M13 2L4 14h7l-1 8 9-12h-7z" /></svg>);
+export const IconCpu = () => (<svg {...base}><rect x="6" y="6" width="12" height="12" rx="2" /><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4" /></svg>);
+export const IconGauge = () => (<svg {...base}><path d="M4 18a8 8 0 1 1 16 0M12 18l4-6" /></svg>);
+export const IconPalette = () => (<svg {...base}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.2-1-1.5-1-2.6 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4c0-4.6-4-8.2-9-8.2z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="15" cy="7.5" r="1" /></svg>);
+export const IconInfo = () => (<svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>);
+export const IconTimer = () => (<svg {...base}><circle cx="12" cy="14" r="7" /><path d="M12 14V10M9 3h6" /></svg>);
