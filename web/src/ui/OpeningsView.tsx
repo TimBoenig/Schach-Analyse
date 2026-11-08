@@ -11,12 +11,12 @@ import {
   openingLabel,
 } from "../domain/profile";
 import { MIN_LINE_GAMES, scoreDeviation } from "../domain/profile/evidence";
+import { PageHeader } from "./Layout";
 import { BarList, Legend } from "./charts";
 import type { BarRow } from "./charts";
 import { formatDate } from "./labels";
 import { navigate } from "./router";
 import { Coach, CoachTip, NeedNames } from "./Coach";
-import { StatsTabs } from "./StatsLayout";
 import { Explorer } from "./openings/Explorer";
 import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
@@ -268,9 +268,7 @@ export function OpeningsView() {
 
   const header = (
     <>
-      <div class="page-title">Eröffnungen</div>
-      <StatsTabs current="openings" />
-      <FilterBar filters={filters} onChange={setFilters} />
+      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
       <CoachTip id="openings2" title="Dein Eröffnungsrepertoire">
         Oben siehst du deine Eröffnungen als Karten mit ihrer typischen Stellung. Tippe eine an, dann springt der Eröffnungsbaum
         dorthin: Zug für Zug siehst du, was du spielst, was deine Gegner antworten und wo es schiefgeht.
@@ -281,7 +279,7 @@ export function OpeningsView() {
   if (usernames && !usernames.length) {
     return (
       <div>
-        <div class="page-title">Eröffnungen</div>
+        <PageHeader />
         <NeedNames what="zeige ich dir, welche Eröffnungen dir liegen." />
       </div>
     );

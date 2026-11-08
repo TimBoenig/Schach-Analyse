@@ -377,6 +377,50 @@ export function BarList({
   );
 }
 
+// ---------- diverging change bars ----------
+
+export interface ChangeRow {
+  label: string;
+  /** Change against the comparison period; null when there is nothing to compare. */
+  delta: number | null;
+  /** Current value, shown beside the change. */
+  valueText?: string;
+  faint?: boolean;
+}
+
+/**
+ * Changes around a zero line, biggest gain on top: better for "what got
+ * better or worse" than two bars per row that differ by a hair.
+ */
+export function ChangeBars({ rows, threshold = 0, unit = "" }: { rows: ChangeRow[]; threshold?: number; unit?: string }) {
+  const shown = [...rows].sort((a, b) => (b.delta ?? -Infinity) - (a.delta ?? -Infinity));
+  const span = Math.max(10, ...shown.map((r) => Math.abs(r.delta ?? 0)));
+  return (
+    <div class="change-bars">
+      {shown.map((r) => {
+        const d = r.delta;
+        const tone = d === null ? "" : d >= threshold && d > 0 ? "up" : d <= -threshold && d < 0 ? "down" : "flat";
+        const w = d === null ? 0 : (Math.abs(d) / span) * 50;
+        return (
+          <div class={`change-row ${tone}${r.faint ? " faint" : ""}`} key={r.label}>
+            <span class="change-label">{r.label}</span>
+            <span class="change-track" aria-hidden="true">
+              <span class="change-zero" />
+              {d !== null && d !== 0 && (
+                <span class="change-fill" style={d > 0 ? { left: "50%", width: `${w}%` } : { right: "50%", width: `${w}%` }} />
+              )}
+            </span>
+            <span class="change-value tnum">
+              {d === null ? "neu" : `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(Math.round(d))}${unit}`}
+              {r.valueText && <span class="faint"> · {r.valueText}</span>}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ---------- stacked distribution bar ----------
 
 export function StackBar({ segments, height = 14, legend = true }: { segments: Segment[]; height?: number; legend?: boolean }) {
@@ -427,12 +471,18 @@ export function AreaChart({
   height = 190,
   domain,
   reference,
+  color,
+  label = "Du",
 }: {
   points: Point[];
   format: (v: number) => string;
   height?: number;
   domain?: [number, number];
   reference?: { value: number; label: string } | null;
+  /** Series colour; defaults to the accent. */
+  color?: string;
+  /** Legend name of the line when a reference is drawn. */
+  label?: string;
 }) {
   const [ref, W] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
@@ -457,7 +507,7 @@ export function AreaChart({
   const line = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1)},${H - padB} L${x(0)},${H - padB} Z`;
   const h = hover !== null ? (points[hover] ?? null) : null;
-  const gid = `g${Math.round(height)}${points.length}`;
+  const gid = `g${Math.round(height)}${points.length}${(color ?? "").replace(/[^a-z]/gi, "")}`;
 
   const pick = (e: PointerEvent) => {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
@@ -466,7 +516,7 @@ export function AreaChart({
   };
 
   return (
-    <div ref={ref} class="chart-wrap">
+    <div ref={ref} class="chart-wrap" style={color ? ({ "--series": color } as preact.JSX.CSSProperties) : undefined}>
       <svg
         class="chart"
         width={W}
@@ -478,8 +528,8 @@ export function AreaChart({
       >
         <defs>
           <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.28" />
-            <stop offset="100%" stop-color="var(--accent)" stop-opacity="0" />
+            <stop offset="0%" stop-color="var(--series, var(--accent))" stop-opacity="0.28" />
+            <stop offset="100%" stop-color="var(--series, var(--accent))" stop-opacity="0" />
           </linearGradient>
         </defs>
         {ticks.map((t) => (
@@ -517,7 +567,7 @@ export function AreaChart({
       {reference && (
         <Legend
           items={[
-            { label: "Du", color: "var(--accent)" },
+            { label, color: color ?? "var(--accent)" },
             { label: reference.label, color: "var(--text-3)", dashed: true },
           ]}
         />

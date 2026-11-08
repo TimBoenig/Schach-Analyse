@@ -19,18 +19,19 @@ interface Command {
   run: () => void;
 }
 
-export const PAGES: { view: Route["view"]; label: string; key: string }[] = [
+export const PAGES: { view: Route["view"]; label: string; key: string; keywords?: string }[] = [
   { view: "home", label: "Start", key: "1" },
   { view: "games", label: "Partien", key: "2" },
-  { view: "analysis", label: "Analyse", key: "3" },
-  { view: "board", label: "Analysebrett", key: "9" },
-  { view: "profile", label: "Profil", key: "4" },
-  { view: "players", label: "Spieler & Rangliste", key: "0" },
-  { view: "insights", label: "Einblicke", key: "5" },
-  { view: "openings", label: "Eröffnungen", key: "6" },
+  { view: "analysis", label: "Partien › Analyse", key: "3" },
+  { view: "board", label: "Partien › Analysebrett", key: "9" },
+  { view: "profile", label: "Statistik › Überblick", key: "4", keywords: "profil fähigkeiten stärken schwächen stil" },
+  { view: "insights", label: "Statistik › Ergebnisse", key: "5", keywords: "einblicke entwicklung gegner bedenkzeit gewohnheiten" },
+  { view: "moves", label: "Statistik › Züge & Fehler", key: "", keywords: "zugbilanz brillant großartig patzer fehler zugbewertungen" },
+  { view: "openings", label: "Statistik › Eröffnungen", key: "6", keywords: "repertoire eröffnungsbaum" },
   { view: "training", label: "Training", key: "7" },
+  { view: "players", label: "Spieler & Rangliste", key: "0", keywords: "freunde gegner vergleich" },
   { view: "settings", label: "Einstellungen", key: "8" },
-  { view: "account", label: "Konto & Sync", key: "k" },
+  { view: "account", label: "Einstellungen › Konto & Sync", key: "k" },
 ];
 
 const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -73,16 +74,10 @@ export function CommandPalette({
         id: `page-${p.view}`,
         group: "Seiten",
         label: p.label,
-        hint: p.key,
+        hint: p.key || undefined,
+        keywords: p.keywords,
         run: go(p.view === "analysis" ? { view: "analysis", gameId: lastGame ?? undefined } : ({ view: p.view } as Route)),
       })),
-      {
-        id: "page-moves",
-        group: "Seiten",
-        label: "Zugbilanz",
-        keywords: "brillant großartig patzer fehler zugbewertungen statistik",
-        run: go({ view: "moves" }),
-      },
       { id: "import", group: "Aktionen", label: "Partien importieren", keywords: "chess.com lichess pgn laden", run: go({ view: "games", import: true }) },
       {
         id: "export",
@@ -114,11 +109,11 @@ export function CommandPalette({
       run: go({ view: "analysis", gameId: g.id }),
     }));
     // Every statistic by name ("Tageszeit", "Wertungsverlauf"), so nobody has to remember which page holds it.
-    const sectionCmds: Command[] = (["profile", "insights"] as const).flatMap((view) =>
+    const sectionCmds: Command[] = (["profile", "insights", "moves"] as const).flatMap((view) =>
       STAT_SECTIONS[view].map((sec) => ({
         id: `section-${view}-${sec.id}`,
         group: "Statistiken",
-        label: `${STATS_PAGES.find((p) => p.view === view)?.label} › ${sec.title}`,
+        label: `Statistik › ${STATS_PAGES.find((p) => p.view === view)?.label} › ${sec.title}`,
         hint: sec.cards.slice(0, 3).join(", "),
         keywords: `${sec.sub} ${sec.cards.join(" ")}`,
         run: () => openSection(view, sec.id),

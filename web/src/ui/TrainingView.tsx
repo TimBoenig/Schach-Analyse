@@ -14,10 +14,12 @@ import {
   type PlanBlock,
   streak,
 } from "../domain/training";
+import { PageHeader } from "./Layout";
 import { ColumnChart, type Column } from "./charts";
 import { IconPlay } from "./icons";
 import { navigate, type TrainingTab } from "./router";
 import { Coach, NeedNames } from "./Coach";
+import { Examples, skillCategory } from "./ProfileView";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
 import { type TrainingState, useTraining } from "./training/useTraining";
 
@@ -97,23 +99,6 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
       {ex.kind === "puzzle" && <PuzzleRunner key={ex.id} ex={ex} {...props} />}
       {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} {...props} />}
       {ex.kind === "playout" && <PlayoutRunner key={ex.id} ex={ex} {...props} />}
-    </div>
-  );
-}
-
-function Tabs({ tab }: { tab: TrainingTab }) {
-  const items: [TrainingTab, string][] = [
-    ["heute", "Heute"],
-    ["uebungen", "Übungen"],
-    ["fortschritt", "Fortschritt"],
-  ];
-  return (
-    <div class="segmented">
-      {items.map(([k, label]) => (
-        <button key={k} class={tab === k ? "active" : ""} onClick={() => navigate({ view: "training", tab: k }, true)}>
-          {label}
-        </button>
-      ))}
     </div>
   );
 }
@@ -239,7 +224,54 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
         </section>
       )}
 
+      <FocusPlan t={t} />
     </div>
+  );
+}
+
+/** The longer-term training priorities from the profile, with steps and examples from the player's own games. */
+function FocusPlan({ t }: { t: TrainingState }) {
+  const items = t.profile?.training_plan ?? [];
+  if (!items.length) return null;
+  const pool = t.profile?.exercises ?? [];
+  return (
+    <>
+      <div class="section-head span-12">
+        <h2>Deine Trainingsschwerpunkte</h2>
+        <span class="tile-sub">woran du über die nächsten Wochen arbeiten solltest</span>
+      </div>
+      <section class="card tile span-12">
+        <div class="plan">
+          {items.map((it) => {
+            const cat = skillCategory(it.focus_skill, pool);
+            return (
+              <div class="plan-item" key={it.title}>
+                <div class="plan-num">{it.priority}</div>
+                <div class="t">{it.title}</div>
+                <div class="small muted">{it.reason}</div>
+                <ul>
+                  {it.steps.map((st) => (
+                    <li class="small" key={st}>
+                      {st}
+                    </li>
+                  ))}
+                </ul>
+                <Examples refs={it.examples} />
+                {cat && (
+                  <button
+                    class="btn small"
+                    style={{ marginTop: "8px" }}
+                    onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}
+                  >
+                    <IconPlay /> In der App üben
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -428,13 +460,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
     );
   }
 
-  const header = (
-    <div class="page-title">
-      Training
-      <span class="spacer" />
-      <Tabs tab={tab} />
-    </div>
-  );
+  const header = <PageHeader about={false} />;
 
   if (t.loading) {
     return (
@@ -452,7 +478,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
   if (t.usernames && !t.usernames.length) {
     return (
       <div>
-        <div class="page-title">Training</div>
+        <PageHeader />
         <NeedNames what="baue ich dir aus deinen Partien Übungen und einen Trainingsplan." />
       </div>
     );

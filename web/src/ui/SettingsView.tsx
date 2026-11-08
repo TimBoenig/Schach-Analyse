@@ -4,7 +4,8 @@ import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
 import { getSetting, setSetting } from "../storage/db";
 import { refreshSyncStatus } from "../storage/sync";
 import { useSyncStatus } from "./AccountView";
-import { navigate } from "./router";
+import { PageHeader } from "./Layout";
+import { navigate, type SettingsTab } from "./router";
 import { PeriodSelect } from "./useProfile";
 import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCard } from "./AnalysisSettingsCard";
@@ -137,7 +138,7 @@ function BackupCard() {
       <p class="muted small" style={{ marginTop: 0 }}>
         Der vollständige Export ist die Datensicherung: jede Partie mit allen analysierten Zügen, die Auswertung pro
         Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke sowie Trainingsplan und
-        -fortschritt. Er lässt sich hier wieder einspielen. Für eine KI ist der KI-Export oben besser geeignet.
+        -fortschritt. Er lässt sich hier wieder einspielen. Für eine KI ist der KI-Export daneben besser geeignet.
       </p>
       <div class="filters">
         <PeriodSelect value={period} onChange={setPeriod} />
@@ -176,7 +177,7 @@ function BackupCard() {
   );
 }
 
-export function SettingsView() {
+export function SettingsView({ tab }: { tab?: SettingsTab }) {
   const [names, setNames] = useState("");
   const [saved, setSaved] = useState(false);
 
@@ -194,40 +195,54 @@ export function SettingsView() {
     window.setTimeout(() => setSaved(false), 2000);
   };
 
-  return (
-    <div>
-      <div class="page-title">Einstellungen</div>
-      <div class="settings-grid">
-        <div>
-          <div class="card">
-            <h3>Deine Spielernamen</h3>
-            <Coach size={44} title="Wie heißt du beim Schach?">
-              Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du
-              gespielt hast, und baue dein Profil.
-            </Coach>
-            <label class="field">
-              <span>Namen, mit Komma getrennt</span>
-              <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. TimBoenig, tim_b" />
-            </label>
-            <button class="btn primary" onClick={saveNames}>
-              {saved ? "Gespeichert ✓" : "Speichern"}
-            </button>
-          </div>
+  if (tab === "analyse") {
+    return (
+      <div>
+        <PageHeader />
+        <div class="settings-narrow">
           <AnalysisSettingsCard />
-          <AccountCard />
+        </div>
+      </div>
+    );
+  }
+  if (tab === "daten") {
+    return (
+      <div>
+        <PageHeader />
+        <div class="settings-cols">
           <AiExportCard />
           <BackupCard />
         </div>
-        <div>
-          <AppearanceCard />
-          <div class="card">
-            <h3>Über die App</h3>
-            <p class="small muted" style={{ margin: 0 }}>
-              Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
-              auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
-              (CC0).
-            </p>
-          </div>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <PageHeader />
+      <div class="settings-cols">
+        <div class="card">
+          <h3>Deine Spielernamen</h3>
+          <Coach size={44} title="Wie heißt du beim Schach?">
+            Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du
+            gespielt hast, und baue dein Profil.
+          </Coach>
+          <label class="field">
+            <span>Namen, mit Komma getrennt</span>
+            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. TimBoenig, tim_b" />
+          </label>
+          <button class="btn primary" onClick={saveNames}>
+            {saved ? "Gespeichert ✓" : "Speichern"}
+          </button>
+        </div>
+        <AppearanceCard />
+        <AccountCard />
+        <div class="card">
+          <h3>Über die App</h3>
+          <p class="small muted" style={{ margin: 0 }}>
+            Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
+            auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
+            (CC0).
+          </p>
         </div>
       </div>
     </div>

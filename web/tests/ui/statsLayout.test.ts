@@ -11,5 +11,7 @@ describe("statistics sections", () => {
       expect(new Set(ids).size).toBe(ids.length);
     }
     expect(sectionOf("insights", "gewohnheiten").cards).toContain("Tageszeit");
+    // Errors live with the move ratings, not with the results.
+    expect(sectionOf("moves", "fehler").cards).toContain("Fehler-Landkarte");
   });
 });

@@ -303,7 +303,7 @@ export function AnalysisSettingsCard() {
         <span>
           <strong>Bullet aus den Statistiken lassen</strong>
           <small class="faint">
-            Start, Profil, Einblicke, Eröffnungen, Zugbilanz, Freunde und Training zählen Bullet nicht mit. Mit dem Filter
+            Start, alle Statistik-Seiten, Spieler und Training zählen Bullet nicht mit. Mit dem Filter
             „Bullet“ kannst du sie trotzdem ansehen.
           </small>
         </span>

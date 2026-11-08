@@ -226,7 +226,16 @@ export function PeriodSelect({ value, onChange }: { value: string; onChange: (da
   );
 }
 
-export function FilterBar({ filters, onChange }: { filters: ProfileFilters; onChange: (f: ProfileFilters) => void }) {
+export function FilterBar({
+  filters,
+  onChange,
+  hideDate = false,
+}: {
+  filters: ProfileFilters;
+  onChange: (f: ProfileFilters) => void;
+  /** The start page picks the period with its own quick buttons. */
+  hideDate?: boolean;
+}) {
   const { excludeBullet } = useBulletPrefs();
   return (
     <div class="filters">
@@ -237,7 +246,7 @@ export function FilterBar({ filters, onChange }: { filters: ProfileFilters; onCh
         label="Bedenkzeit"
         optionLabel={(o) => formatOptionLabel(o, excludeBullet)}
       />
-      <PeriodSelect value={filters.date} onChange={(date) => onChange({ ...filters, date })} />
+      {!hideDate && <PeriodSelect value={filters.date} onChange={(date) => onChange({ ...filters, date })} />}
       <Select value={filters.color} options={COLORS} onChange={(color) => onChange({ ...filters, color })} label="Farbe" />
     </div>
   );

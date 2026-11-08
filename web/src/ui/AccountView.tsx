@@ -21,8 +21,9 @@ import {
   getAuthCallback,
   type SyncStatus,
 } from "../storage/sync";
+import { PageHeader } from "./Layout";
 import { Coach, CoachAvatar } from "./Coach";
-import { IconCloud, IconEye, IconEyeOff, IconSync } from "./icons";
+import { IconEye, IconEyeOff, IconSync } from "./icons";
 
 type Mode = "login" | "register" | "forgot" | "newPassword";
 type Msg = { text: string; error?: boolean } | null;
@@ -382,7 +383,7 @@ export function AccountView() {
   if (!syncAvailable()) {
     return (
       <div>
-        <div class="page-title">Konto</div>
+        <PageHeader />
         <div class="empty">
           <CoachAvatar size={88} mood="think" />
           <h3>Kein Sync-Server hinterlegt</h3>
@@ -395,9 +396,7 @@ export function AccountView() {
   const signedIn = Boolean(status.email) && status.phase !== "signed-out";
   return (
     <div>
-      <div class="page-title">
-        <IconCloud /> Konto
-      </div>
+      <PageHeader />
       {!ready ? (
         <div class="dash">
           <div class="skeleton span-6" style={{ height: "260px" }} />

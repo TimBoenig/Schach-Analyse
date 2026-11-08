@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { enqueue } from "../app/analysisService";
-import { exportData } from "../app/exporter";
 import { trFilter, trSpeed } from "../domain/i18n";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import {
   activityCalendar,
   comparePeriods,
-  type Counts,
   dailyActivity,
   focusNotes,
   formSummary,
@@ -25,11 +23,12 @@ import {
   type PuzzleExercise,
   puzzleOfTheDay,
 } from "../domain/training";
-import { AreaChart, BarList, type BarRow, Ring, Sparkline } from "./charts";
+import { PageHeader } from "./Layout";
+import { AreaChart, ChangeBars, type ChangeRow, Ring, Sparkline } from "./charts";
 import { Coach, CoachAvatar, COACH_NAME, type Mood } from "./Coach";
-import { IconBoard, IconFreeBoard, IconInsights, IconMoves, IconOpenings, IconPlay, IconPlayers, IconProfile, IconUpload } from "./icons";
+import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
 import { formatDate, shortOpening } from "./labels";
-import { navigate, type Route } from "./router";
+import { navigate } from "./router";
 import { PuzzleRunner } from "./training/Runners";
 import { loadTodayTraining, loadTrainingProgress, recordTrainingResult, type TodayTraining } from "./training/useTraining";
 import { useBulletPrefs } from "./useAnalysisPrefs";
@@ -316,82 +315,10 @@ function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (e
   );
 }
 
-/** Signpost to the statistics pages: what each holds and one live number from it. */
-function StatsGuide({ profile }: { profile: PlayerProfile }) {
-  const top = [...profile.skills].filter((s) => s.reliable).sort((a, b) => b.score - a.score)[0];
-  const counts: Partial<Counts> = profile.moves?.counts ?? {};
-  const best = profile.openings_best[0];
-  const tiles: { view: Route["view"]; icon: () => preact.JSX.Element; tone: string; title: string; value: string; parts: string }[] = [
-    {
-      view: "profile",
-      icon: IconProfile,
-      tone: "t-green",
-      title: "Profil",
-      value: profile.style ? `Spielstil: ${profile.style.label}` : top ? `Stärkste Fähigkeit: ${top.name}` : "Dein Steckbrief",
-      parts: "Fähigkeiten · Stärken · Stil · Training",
-    },
-    {
-      view: "moves",
-      icon: IconMoves,
-      tone: "t-blue",
-      title: "Zugbilanz",
-      value: profile.moves ? `${counts.Brilliant ?? 0} brillant · ${counts.Blunder ?? 0} Patzer` : "Jeder Zug gezählt",
-      parts: "Brillant bis Patzer · Rekorde · Monate",
-    },
-    {
-      view: "insights",
-      icon: IconInsights,
-      tone: "t-orange",
-      title: "Einblicke",
-      value: profile.deep ? `${profile.deep.facts.length} ${profile.deep.facts.length === 1 ? "Befund" : "Befunde"} aus deinen Partien` : "Alle Detailzahlen",
-      parts: "Entwicklung · Ergebnisse · Fehler · Gewohnheiten",
-    },
-    {
-      view: "openings",
-      icon: IconOpenings,
-      tone: "t-purple",
-      title: "Eröffnungen",
-      value: best ? `Am besten: ${shortOpening(best.name)} ${Math.round(best.score_pct)} %` : "Dein Repertoire",
-      parts: "Repertoire · Eröffnungsbaum · Lücken",
-    },
-    {
-      view: "players",
-      icon: IconPlayers,
-      tone: "t-teal",
-      title: "Spieler",
-      value: "Gegner und Freunde",
-      parts: "Rangliste · Duell · Gegnerbericht",
-    },
-  ];
-  return (
-    <section class="span-12 stats-guide" aria-label="Deine Statistiken">
-      <div class="section-head">
-        <h2>Deine Statistiken</h2>
-        <span class="tile-sub">wo du was findest</span>
-      </div>
-      <div class="guide-grid">
-        {tiles.map((t) => (
-          <button key={t.view} class="guide-tile" onClick={() => navigate({ view: t.view } as Route)}>
-            <span class={`quick-icon ${t.tone}`}>
-              <t.icon />
-            </span>
-            <span class="guide-text">
-              <strong>{t.title}</strong>
-              <span class="guide-value">{t.value}</span>
-              <span class="small faint">{t.parts}</span>
-            </span>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function HomeView() {
   const { profile, comparison, games, usernames, loading, error, filters, setFilters } = useProfile({ compare: true });
   const [today, setToday] = useState<TodayTraining | null>(null);
   const [progress, setProgress] = useState<ProgressMap | null>(null);
-  const [exporting, setExporting] = useState(false);
 
   const refreshToday = () => void loadTodayTraining().then(setToday).catch(() => setToday(null));
   useEffect(() => {
@@ -428,35 +355,28 @@ export function HomeView() {
     if (puzzle && puzzle.id !== puzzleId) setPuzzleId(puzzle.id);
   }, [puzzle]);
 
-  const runExport = async () => {
-    setExporting(true);
-    try {
-      await exportData("json", filters.date);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   const header = (
     <>
-      <div class="page-title home-title">
-        <div class="home-greeting">
-          <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
-          <span class="home-date small muted">{TODAY_LABEL()}</span>
-        </div>
-        <span class="spacer" />
-        <div class="segmented small-seg" role="group" aria-label="Zeitraum">
-          {QUICK.map(([k, l]) => (
-            <button key={k} class={filters.date === k ? "active" : ""} onClick={() => setFilters({ ...filters, date: k })}>
-              {l}
-            </button>
-          ))}
-        </div>
-        <button class="btn small ghost" disabled={exporting} onClick={() => void runExport()} title="Alles im gewählten Zeitraum als eine Datei">
-          {exporting ? "Exportiere …" : "Exportieren"}
-        </button>
-      </div>
-      <FilterBar filters={filters} onChange={setFilters} />
+      <PageHeader
+        class="home-head"
+        tabs={false}
+        title={
+          <div class="home-greeting">
+            <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
+            <span class="home-date small muted">{TODAY_LABEL()}</span>
+          </div>
+        }
+        actions={
+          <div class="segmented small-seg" role="group" aria-label="Zeitraum">
+            {QUICK.map(([k, l]) => (
+              <button key={k} class={filters.date === k ? "active" : ""} onClick={() => setFilters({ ...filters, date: k })}>
+                {l}
+              </button>
+            ))}
+          </div>
+        }
+      />
+      <FilterBar filters={filters} onChange={setFilters} hideDate />
     </>
   );
 
@@ -534,17 +454,12 @@ export function HomeView() {
       detail: `Woche ab ${formatDate(w.week.replace(/-/g, "."))} · ${w.games} ${w.games === 1 ? "Partie" : "Partien"} · ${Math.round(w.score_pct)} % Punkte`,
     }));
 
-  const skillRows: BarRow[] = cmp.skills.map((s) => {
-    const t = s.delta === null ? "flat" : trendOf({ delta: s.delta, higher_is_better: true, threshold: 5 });
-    return {
-      label: s.name,
-      value: s.score,
-      reference: s.previous,
-      valueText: `${Math.round(s.score)}${s.delta !== null ? ` (${s.delta >= 0 ? "+" : "−"}${Math.abs(Math.round(s.delta))})` : ""}`,
-      color: t === "up" ? "var(--win)" : t === "down" ? "var(--loss)" : undefined,
-      faint: !s.reliable,
-    };
-  });
+  const changeRows: ChangeRow[] = cmp.skills.map((s) => ({
+    label: s.name,
+    delta: s.delta,
+    valueText: String(Math.round(s.score)),
+    faint: !s.reliable,
+  }));
 
   const focus = comparison.current.weaknesses.slice(0, 3);
   const pool = comparison.current.exercises;
@@ -668,8 +583,6 @@ export function HomeView() {
           )}
         </section>
 
-        <StatsGuide profile={profile} />
-
         <section class="card tile span-6">
           <div class="tile-head">
             <h3>Formkurve</h3>
@@ -686,13 +599,15 @@ export function HomeView() {
 
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>Fähigkeiten im Vergleich</h3>
-            <span class="tile-sub">Strich = Zeitraum davor</span>
+            <h3>Was sich verändert hat</h3>
+            <span class="tile-sub">Fähigkeiten · {comparison.previous ? "gegenüber dem Zeitraum davor" : "kein Vergleichszeitraum"}</span>
           </div>
-          {skillRows.length ? (
+          {changeRows.length ? (
             <>
-              <BarList rows={skillRows} referenceLabel={comparison.previous ? "Zeitraum davor" : undefined} />
-              <p class="faint small tile-foot">Grün: mindestens 5 Punkte besser, rot: 5 Punkte schlechter. Blass: wenige Daten.</p>
+              <ChangeBars rows={changeRows} threshold={5} />
+              <p class="faint small tile-foot">
+                Grün: mindestens 5 Punkte besser, rot: 5 Punkte schlechter. Dahinter der aktuelle Wert von 0 bis 100. Blass: wenige Daten.
+              </p>
             </>
           ) : (
             <p class="muted small">Noch keine analysierten Partien in diesem Zeitraum.</p>

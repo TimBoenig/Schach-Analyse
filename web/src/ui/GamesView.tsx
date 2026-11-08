@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { autoAnalyze, cancelAll, cancelGame, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
@@ -421,9 +422,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
 
   return (
     <div>
-      <div class="page-title">
-        Partien
-        <span class="spacer" />
+      <PageHeader
+        about={false}
+        actions={
+          <>
         {busy ? (
           <button class="btn" onClick={cancelAll}>
             <IconStop /> Stoppen ({remaining})
@@ -438,7 +440,9 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <button class="btn primary" onClick={() => setShowImport(true)}>
           <IconPlus /> Importieren
         </button>
-      </div>
+          </>
+        }
+      />
 
       {justImported.length > 0 && !busy && (
         <Coach
