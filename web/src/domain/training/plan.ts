@@ -6,6 +6,7 @@
 import type { Pattern, SkillScore } from "../profile/models";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "./exercises";
 import { isDue, isMastered, type ProgressMap } from "./progress";
+import type { DayTheme } from "./week";
 
 export interface TrainingPrefs {
   /** Training time per day in minutes. */
@@ -37,6 +38,8 @@ export interface DailyPlan {
   blocks: PlanBlock[];
   /** Things to do in the next real games (no exercises). */
   tips: string[];
+  /** The week plan's theme for this day (null without a week plan). */
+  theme?: DayTheme | null;
 }
 
 export interface PlanInput {
@@ -46,6 +49,8 @@ export interface PlanInput {
   progress: ProgressMap;
   prefs: TrainingPrefs;
   today: string;
+  /** Today's theme from the week plan; leads the day when the focus is automatic. */
+  theme?: DayTheme | null;
 }
 
 // Patterns that make a category more urgent than the skill score alone says.
@@ -81,6 +86,13 @@ const REVIEW_SHARE = 0.3;
 const STRENGTH_SHARE = 0.15;
 // Skills the profile could not rate yet count as moderately weak.
 const UNKNOWN_NEED = 0.35;
+// On the weekly repetition day most of the time goes to due exercises.
+const REVIEW_DAY_SHARE = 0.6;
+// Extra need for the day's theme, enough to put it first.
+const THEME_BOOST = 0.6;
+// Fresh exercises from recent games come first: errors you make now matter more than
+// ones from a year ago. Half-life of that preference, in days.
+const RECENCY_HALF_LIFE = 45;
 
 /** Deterministic pseudo-random number generator (mulberry32) seeded by a string. */
 function rng(seed: string): () => number {
@@ -94,16 +106,6 @@ function rng(seed: string): () => number {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-}
-
-function shuffled<T>(items: T[], seed: string): T[] {
-  const r = rng(seed);
-  const out = [...items];
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(r() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 export interface CategoryNeed {
@@ -154,7 +156,26 @@ function minutesOf(pool: Map<string, Exercise>, ids: string[]): number {
   return Math.round(ids.reduce((s, id) => s + EXERCISE_MINUTES[pool.get(id)?.kind ?? "puzzle"], 0));
 }
 
-export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today }: PlanInput): DailyPlan {
+function daysBetween(a: string, b: string): number {
+  const t = (s: string) => {
+    const [y, m, d] = s.replace(/\./g, "-").split("-").map(Number);
+    return new Date(y, (m || 1) - 1, d || 1).getTime();
+  };
+  const diff = Math.round((t(b) - t(a)) / 86400000);
+  return Number.isFinite(diff) ? Math.max(0, diff) : 365;
+}
+
+/**
+ * How useful a fresh exercise is for this player now: positions from recent games and
+ * the costliest errors first, with a little day-seeded jitter so the order varies.
+ */
+export function relevance(e: Exercise, today: string, jitter: number): number {
+  if (e.kind !== "puzzle") return 0.5 + jitter * 0.2;
+  const recency = e.date ? Math.pow(0.5, daysBetween(e.date, today) / RECENCY_HALF_LIFE) : 0.2;
+  return 0.55 * recency + 0.3 * Math.min(1, e.wp_loss / 0.4) + 0.15 * jitter;
+}
+
+export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today, theme = null }: PlanInput): DailyPlan {
   const byId = new Map(pool.map((e) => [e.id, e]));
   const used = new Set<string>();
   const blocks: PlanBlock[] = [];
@@ -168,7 +189,8 @@ export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today 
     const ids: string[] = [];
     let spent = 0;
     for (const e of due) {
-      if (spent + EXERCISE_MINUTES[e.kind] > Math.max(prefs.minutes * REVIEW_SHARE, EXERCISE_MINUTES[e.kind])) break;
+      const share = theme === "review" ? REVIEW_DAY_SHARE : REVIEW_SHARE;
+      if (spent + EXERCISE_MINUTES[e.kind] > Math.max(prefs.minutes * share, EXERCISE_MINUTES[e.kind])) break;
       ids.push(e.id);
       used.add(e.id);
       spent += EXERCISE_MINUTES[e.kind];
@@ -184,16 +206,25 @@ export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today 
     budget -= minutesOf(byId, ids);
   }
 
-  const fresh = (category: Category) =>
-    shuffled(
-      pool.filter((e) => e.category === category && !used.has(e.id) && !isMastered(progress[e.id]) && !isDue(progress[e.id], today)),
-      `${today}:${category}`,
-    ).sort((a, b) => (progress[a.id]?.attempts ?? 0) - (progress[b.id]?.attempts ?? 0));
+  const fresh = (category: Category) => {
+    const items = pool.filter((e) => e.category === category && !used.has(e.id) && !isMastered(progress[e.id]) && !isDue(progress[e.id], today));
+    const r = rng(`${today}:${category}`);
+    const score = new Map(items.map((e) => [e.id, relevance(e, today, r())]));
+    // Unseen first (new material), then by relevance to the player's current games.
+    return items.sort((a, b) => (progress[a.id]?.attempts ?? 0) - (progress[b.id]?.attempts ?? 0) || score.get(b.id)! - score.get(a.id)!);
+  };
 
-  const needs = categoryNeeds(skills, patterns, prefs.focus).filter((n) => fresh(n.category).length > 0);
+  const needs = categoryNeeds(skills, patterns, prefs.focus)
+    .map((n) =>
+      prefs.focus === "auto" && theme === n.category
+        ? { ...n, need: n.need + THEME_BOOST, reason: `Thema des Tages laut Wochenplan${n.reason ? ` · ${n.reason}` : ""}` }
+        : n,
+    )
+    .sort((a, b) => b.need - a.need)
+    .filter((n) => fresh(n.category).length > 0);
   const strength = prefs.minutes >= 20 && needs.length > 2 ? needs[needs.length - 1] : null;
   const strengthMinutes = strength ? Math.max(3, Math.round(prefs.minutes * STRENGTH_SHARE)) : 0;
-  const focusCount = prefs.minutes <= 10 ? 1 : prefs.minutes <= 30 ? 2 : 3;
+  const focusCount = theme === "review" || prefs.minutes <= 10 ? 1 : prefs.minutes <= 30 ? 2 : 3;
   const focus = needs.filter((n) => n !== strength).slice(0, focusCount);
   const totalNeed = focus.reduce((s, n) => s + Math.max(n.need, 0.05), 0);
   const focusBudget = Math.max(budget - strengthMinutes, focus.length ? 3 : 0);
@@ -225,6 +256,7 @@ export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today 
   }
 
   const tips: string[] = [];
+  if (theme === "review") tips.push("Wochenrückblick: Schau dir deine Partien dieser Woche an und suche bei jeder Niederlage den Moment, ab dem es kippte.");
   for (const p of patterns) {
     if ((p.severity === "hoch" || p.severity === "mittel") && PATTERN_TIPS[p.key] && !tips.includes(PATTERN_TIPS[p.key])) tips.push(PATTERN_TIPS[p.key]);
   }
@@ -241,10 +273,23 @@ export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today 
     headline,
     blocks,
     tips: tips.slice(0, 3),
+    theme,
   };
 }
 
 /** True when the stored plan no longer matches today or the preferences. */
+/**
+ * Session order for the day: round-robin over the blocks instead of block after block.
+ * Interleaved practice is harder in the moment but sticks better and transfers better
+ * to games, where nobody announces which kind of position comes next.
+ */
+export function interleave(blocks: string[][]): string[] {
+  const out: string[] = [];
+  const longest = Math.max(0, ...blocks.map((b) => b.length));
+  for (let i = 0; i < longest; i++) for (const b of blocks) if (i < b.length) out.push(b[i]);
+  return out;
+}
+
 export function planOutdated(plan: DailyPlan | null, prefs: TrainingPrefs, today: string): boolean {
   return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus;
 }

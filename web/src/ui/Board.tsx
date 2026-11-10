@@ -137,15 +137,24 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
   const cgRef = useRef<Api | null>(null);
   const [promo, setPromo] = useState<{ from: string; to: string; white: boolean } | null>(null);
   // Latest props for chessground's callbacks, which are bound once at mount.
-  const props = useRef({ fen, onMove, onSwipe });
-  props.current = { fen, onMove, onSwipe };
+  const dests = destsFor(fen, onMove ? legalTargets : undefined);
+  // Only the side to move may pick up pieces, and only while the page accepts a move:
+  // "both" would let the player drag the opponent's pieces around while it is not their turn.
+  const movableColor = dests.size ? turnOf(fen) : undefined;
+  const props = useRef({ fen, onMove, onSwipe, dests, color: movableColor });
+  props.current = { fen, onMove, onSwipe, dests, color: movableColor };
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   // Puts the board back on the position the page says it shows (after a rejected
   // or replaced move, chessground would otherwise keep the piece where it was dropped).
   const resync = () => {
     const cg = cgRef.current;
-    if (cg && cg.getFen() !== props.current.fen.split(" ")[0]) cg.set({ fen: props.current.fen });
+    if (!cg) return;
+    const { fen: f, dests: d, color } = props.current;
+    if (cg.getFen() !== f.split(" ")[0]) cg.set({ fen: f });
+    // A user move makes chessground clear its dests and flip its turn colour. When the
+    // page keeps the old position (wrong answer) they would stay wrong, so restore them.
+    cg.set({ turnColor: turnOf(f), movable: { dests: d, color } });
   };
 
   useLayoutEffect(() => {
@@ -159,7 +168,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       highlight: { lastMove: true, check: true },
       movable: {
         free: false,
-        color: "both",
+        color: undefined,
         showDests: true,
         events: {
           after: (orig, dest) => {
@@ -204,7 +213,6 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
     return () => obs.disconnect();
   }, []);
 
-  const dests = destsFor(fen, onMove ? legalTargets : undefined);
   const destKey = [...dests.entries()].map(([k, v]) => k + v.join("")).join(",");
   const shapes: DrawShape[] = [
     ...arrows.map((a) => ({ orig: a.from as Key, dest: a.to as Key, brush: a.kind })),
@@ -226,7 +234,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       check: inCheck(fen),
       lastMove: lastMove ? [lastMove.from as Key, lastMove.to as Key] : undefined,
       highlight: { custom },
-      movable: { dests, color: onMove ? "both" : undefined },
+      movable: { dests, color: movableColor },
       drawable: { enabled: annotate },
     });
   }, [fen, flipped, lastMove?.from, lastMove?.to, destKey, highlight.join(","), annotate, Boolean(onMove)]);

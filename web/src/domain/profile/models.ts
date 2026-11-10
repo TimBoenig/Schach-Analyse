@@ -6,7 +6,8 @@ import type { DeepInsights } from "./insights";
 import type { MoveTally } from "./moves";
 import type { OpeningInsights } from "./openings";
 
-/** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */
+/** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */import type { GameErrorPoint } from "../training/transfer";
+
 export interface GameRef {
   game_id: string;
   ply_index: number; // 0-based index into the move list; -1 = start of game
@@ -126,6 +127,8 @@ export interface PlayerProfile {
   exercises: Exercise[];
   /** Newest games, compact (start page, export). */
   recent_games: GameDigest[];
+  /** Every analysed game's error counts, oldest first (training transfer check). */
+  error_series: GameErrorPoint[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */

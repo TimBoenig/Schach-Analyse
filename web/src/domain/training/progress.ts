@@ -1,6 +1,7 @@
 // Training progress: spaced repetition per exercise (Leitner boxes) and a
 // per-day log for streaks and statistics. Plain JSON so it syncs as a setting.
 
+import { MIN_SITUATIONS, wilson } from "../profile/evidence";
 import { CATEGORY_ORDER, type Category, type Exercise, type PuzzleExercise } from "./exercises";
 
 export interface ExerciseProgress {
@@ -20,6 +21,8 @@ export interface DayLog {
   done: number;
   correct: number;
   by_category: Partial<Record<Category, [number, number]>>;
+  /** Repetitions of exercises seen on an earlier day: [done, solved]. Measures retention. */
+  review?: [number, number];
 }
 
 export type TrainingLog = Record<string, DayLog>;
@@ -56,17 +59,55 @@ export function recordAttempt(progress: ProgressMap, id: string, success: boolea
   };
 }
 
-export function logAttempt(log: TrainingLog, today: string, category: Category, success: boolean): TrainingLog {
+/**
+ * Logs one result. `review` marks a repetition of an exercise first seen on an earlier
+ * day: those results show what the player still knows after a gap (retention), which is
+ * what spaced repetition is meant to improve.
+ */
+export function logAttempt(log: TrainingLog, today: string, category: Category, success: boolean, review = false): TrainingLog {
   const day = log[today] ?? { done: 0, correct: 0, by_category: {} };
   const [n, ok] = day.by_category[category] ?? [0, 0];
-  return {
-    ...log,
-    [today]: {
-      done: day.done + 1,
-      correct: day.correct + (success ? 1 : 0),
-      by_category: { ...day.by_category, [category]: [n + 1, ok + (success ? 1 : 0)] },
-    },
+  const entry: DayLog = {
+    ...day,
+    done: day.done + 1,
+    correct: day.correct + (success ? 1 : 0),
+    by_category: { ...day.by_category, [category]: [n + 1, ok + (success ? 1 : 0)] },
   };
+  if (review) {
+    const [rn, rok] = day.review ?? [0, 0];
+    entry.review = [rn + 1, rok + (success ? 1 : 0)];
+  }
+  return { ...log, [today]: entry };
+}
+
+/** True when this attempt repeats an exercise from an earlier day. */
+export function isReview(p: ExerciseProgress | undefined, today: string): boolean {
+  return Boolean(p && p.attempts > 0 && p.last && p.last < today);
+}
+
+export interface Retention {
+  done: number;
+  solved: number;
+  /** 95 % Wilson interval of the solve rate on repetitions, in percent. */
+  low: number;
+  high: number;
+  /** Enough repetitions to show a rate (MIN_SITUATIONS). */
+  reliable: boolean;
+}
+
+/** How often repetitions are solved over the last `days` days. */
+export function retention(log: TrainingLog, today: string, days = 28): Retention {
+  let done = 0;
+  let solved = 0;
+  for (let i = 0; i < days; i++) {
+    const r = log[addDays(today, -i)]?.review;
+    if (r) {
+      done += r[0];
+      solved += r[1];
+    }
+  }
+  const [lo, hi] = wilson(solved, done);
+  return { done, solved, low: Math.round(lo * 100), high: Math.round(hi * 100), reliable: done >= MIN_SITUATIONS };
 }
 
 /** Exercises that were seen before and are due again today. */
