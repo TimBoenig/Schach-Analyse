@@ -7740,6 +7740,7 @@ button.line-move:hover {
   .breakdown-row > .faint {
     display: none;
   }
+}
 
 .chart-range {
   margin-top: 6px;
