@@ -19,6 +19,7 @@ import { detectPatterns } from "./patterns";
 import { computeSkills, settleSkills } from "./skills";
 import { buildStyle } from "./style";
 import { buildTrainingPlan } from "./training";
+import type { GameErrorPoint } from "../training/transfer";
 
 type Dict = Record<string, any>;
 
@@ -130,6 +131,7 @@ export function buildPlayerProfile(
     training_plan: [],
     exercises: [],
     recent_games: recentGames(feats),
+    error_series: errorSeries(analyzed),
     rating: ratingContext(feats),
     deep: null,
     openings: null,
@@ -530,6 +532,35 @@ function expectedPct(fs: GameFeatures[]): number | null {
   const rated = fs.filter((f) => f.user_rating && f.opp_rating);
   if (!rated.length) return null;
   return pyRound((rated.reduce((s, f) => s + expectedScore(f.user_rating, f.opp_rating), 0) / rated.length) * 100, 1);
+}
+
+/** Calendar day of a game as YYYY-MM-DD (PGN dates use dots). */
+function isoDay(f: GameFeatures): string {
+  if (f.played_at) {
+    // played_at is Unix seconds.
+    const d = new Date(f.played_at < 1e12 ? f.played_at * 1000 : f.played_at);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return f.date.replace(/\./g, "-").slice(0, 10);
+}
+
+/** Per-game error counts for the training transfer check, oldest first. */
+function errorSeries(analyzed: GameFeatures[]): GameErrorPoint[] {
+  return analyzed
+    .map((f) => {
+      const phases: GameErrorPoint["phases"] = { opening: [0, 0], middlegame: [0, 0], endgame: [0, 0] };
+      let serious = 0;
+      for (const m of f.moves) {
+        const ph = phases[m.phase as keyof GameErrorPoint["phases"]];
+        if (ph) {
+          ph[0] += 1;
+          if (m.is_error) ph[1] += 1;
+        }
+        if (m.is_serious_error) serious += 1;
+      }
+      return { date: isoDay(f), phases, serious, moves: f.moves.length, accuracy: pyRound(f.rec.game_acc, 1) };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 /** Compact per-game record for the AI coach: newest first, the player's worst moves included. */

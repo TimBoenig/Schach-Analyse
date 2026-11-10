@@ -8,11 +8,17 @@ import {
   type Category,
   categoryProgress,
   type Exercise,
+  interleave,
   isDue,
   isMastered,
   MINUTE_CHOICES,
   type PlanBlock,
+  retention,
   streak,
+  themeLabel,
+  trainingStart,
+  transferReport,
+  type TransferRow,
 } from "../domain/training";
 import { PageHeader } from "./Layout";
 import { ColumnChart, type Column } from "./charts";
@@ -113,7 +119,8 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
   const blocks = plan.blocks.filter((b) => b.exercise_ids.some((id) => t.byId.has(id)));
   const total = blocks.reduce((s, b) => s + b.exercise_ids.length, 0);
   const done = blocks.reduce((s, b) => s + blockDone(b, t), 0);
-  const open = blocks.flatMap((b) => b.exercise_ids.filter((id) => t.byId.has(id) && t.progress[id]?.last !== t.today));
+  // Mixed across blocks (interleaved practice), not block after block.
+  const open = interleave(blocks.map((b) => b.exercise_ids.filter((id) => t.byId.has(id) && t.progress[id]?.last !== t.today)));
   const days = streak(t.log, t.today);
   const today = t.log[t.today];
 
@@ -179,6 +186,8 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
         </div>
       </section>
 
+      <WeekStrip t={t} />
+
       {blocks.map((b) => {
         const n = b.exercise_ids.length;
         const d = blockDone(b, t);
@@ -226,6 +235,41 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
 
       <FocusPlan t={t} />
     </div>
+  );
+}
+
+/** The week at a glance: theme per day, which days were trained, and the weekly target. */
+function WeekStrip({ t }: { t: TrainingState }) {
+  const week = t.week;
+  if (!week) return null;
+  const trained = week.days.filter((d) => t.log[d.date]?.done).length;
+  return (
+    <section class="card tile span-12 week-card">
+      <div class="tile-head">
+        <h3>Deine Trainingswoche</h3>
+        <span class="tile-sub tnum">
+          {trained} von {week.target_days} Trainingstagen
+        </span>
+      </div>
+      <div class="week-strip">
+        {week.days.map((d) => {
+          const [y, m, day] = d.date.split("-").map(Number);
+          const log = t.log[d.date];
+          const state = d.date === t.today ? " today" : log?.done ? " done" : d.date < t.today ? " missed" : "";
+          return (
+            <div key={d.date} class={`week-day${state}`}>
+              <span class="week-dow">{WEEKDAY[new Date(y, m - 1, day).getDay()]}</span>
+              <span class="week-theme">{themeLabel(d.theme)}</span>
+              <span class="week-state small tnum">{log?.done ? `${log.correct}/${log.done}` : d.date === t.today ? "heute" : ""}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p class="small faint tile-foot">
+        Deine größte Schwäche kommt dreimal pro Woche dran, die zweite zweimal, die dritte einmal – nie zweimal am Stück. Sonntag ist
+        Wiederholung. Verteiltes, gemischtes Üben bleibt nachweislich besser hängen als alles an einem Tag.
+      </p>
+    </section>
   );
 }
 
@@ -407,6 +451,8 @@ function ProgressTab({ t }: { t: TrainingState }) {
         </div>
         <ColumnChart columns={columns} max={Math.max(5, ...columns.map((c) => c.value ?? 0)) * 1.2} height={140} />
       </section>
+      <RetentionCard t={t} />
+      <TransferCard t={t} />
       <section class="card tile span-12">
         <div class="tile-head">
           <h3>Nach Bereich</h3>
@@ -432,6 +478,77 @@ function ProgressTab({ t }: { t: TrainingState }) {
         </p>
       </section>
     </div>
+  );
+}
+
+/** How much of what was practised is still there days later (solve rate on repetitions). */
+function RetentionCard({ t }: { t: TrainingState }) {
+  const r = retention(t.log, t.today);
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Behalten</h3>
+        <span class="tile-sub">Wiederholungen, letzte 4 Wochen</span>
+      </div>
+      {r.reliable ? (
+        <>
+          <div class="kpi-big tnum">{Math.round((r.solved / r.done) * 100)} %</div>
+          <p class="small muted" style={{ marginTop: "4px" }}>
+            {r.solved} von {r.done} wiederholten Übungen auf Anhieb gelöst (sicher zwischen {r.low} und {r.high} %).{" "}
+            {r.low >= 85
+              ? "Sehr gut – die Abstände dürfen ruhig größer werden."
+              : r.high < 60
+                ? "Viel geht zwischen den Wiederholungen verloren. Kürzere, dafür tägliche Einheiten helfen hier am meisten."
+                : "Im Zielbereich: schwer genug, dass du etwas lernst, leicht genug, dass es hängen bleibt."}
+          </p>
+        </>
+      ) : (
+        <p class="small muted">
+          Noch {Math.max(0, 8 - r.done)} Wiederholungen bis zu einer belastbaren Quote. Wiederholte Übungen zeigen, was du nach ein paar Tagen
+          noch kannst – das ist der eigentliche Lerneffekt.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function transferText(row: TransferRow): string {
+  if (row.verdict === null) {
+    const need = Math.max(0, 10 - row.gamesAfter);
+    return need > 0 ? `noch ${need} analysierte Partien seit Trainingsbeginn nötig` : "noch zu wenige Züge für einen Vergleich";
+  }
+  if (row.verdict === -1) return "deutlich besser";
+  if (row.verdict === 1) return "deutlich schlechter";
+  return "keine klare Änderung";
+}
+
+/** Before/after training in real games, only with enough data and a significant difference. */
+function TransferCard({ t }: { t: TrainingState }) {
+  const report = transferReport(t.profile?.error_series ?? [], trainingStart(Object.keys(t.log).filter((d) => t.log[d].done)));
+  if (!report.start) return null;
+  const fmt = (row: TransferRow, v: number | null) => (v === null ? "–" : row.metric === "accuracy" ? `${v.toFixed(1)} %` : v.toFixed(1));
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Wirkt das Training?</h3>
+        <span class="tile-sub">deine Partien vor und seit {report.start.split("-").reverse().join(".")}</span>
+      </div>
+      <div class="transfer-table">
+        {report.rows.map((row) => (
+          <div key={row.metric} class="transfer-row">
+            <span class="small">{row.label}</span>
+            <span class="tnum small muted">
+              {fmt(row, row.before)} → {fmt(row, row.after)}
+            </span>
+            <span class={`small ${row.verdict === -1 ? "feedback-ok" : row.verdict === 1 ? "feedback-bad" : "faint"}`}>{transferText(row)}</span>
+          </div>
+        ))}
+      </div>
+      <p class="small faint tile-foot">
+        Fehler pro 100 eigene Züge. Eine Änderung zählt erst ab je 10 Partien und wenn sie statistisch klar ist – so siehst du echte
+        Fortschritte statt Zufall.
+      </p>
+    </section>
   );
 }
 

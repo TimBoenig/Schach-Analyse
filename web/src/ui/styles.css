@@ -7283,3 +7283,66 @@ button.line-move:hover {
   background: var(--accent);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
 }
+
+/* Training week plan */
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+.week-day {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2, transparent);
+  min-height: 86px;
+}
+.week-day.today {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+.week-day.done .week-state {
+  color: var(--win);
+}
+.week-day.missed {
+  opacity: 0.6;
+}
+.week-dow {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text-2);
+}
+.week-theme {
+  font-size: 0.85rem;
+  line-height: 1.25;
+  font-weight: 600;
+}
+.week-state {
+  margin-top: auto;
+}
+@media (max-width: 720px) {
+  .week-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.transfer-table {
+  display: grid;
+  gap: 8px;
+}
+.transfer-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+}
+@media (max-width: 560px) {
+  .transfer-row {
+    grid-template-columns: 1fr auto;
+  }
+  .transfer-row > :last-child {
+    grid-column: 1 / -1;
+  }
+}

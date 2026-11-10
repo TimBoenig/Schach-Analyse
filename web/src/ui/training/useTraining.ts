@@ -5,6 +5,8 @@ import { EXCLUDE_BULLET_KEY, statsFormat } from "../../domain/analysisDepth";
 import type { PlayerProfile } from "../../domain/profile";
 import {
   buildDailyPlan,
+  buildWeekPlan,
+  categoryNeeds,
   type DailyPlan,
   DEFAULT_PREFS,
   type Exercise,
@@ -12,11 +14,15 @@ import {
   logAttempt,
   migrateSolved,
   planOutdated,
+  isReview,
   type ProgressMap,
   recordAttempt,
   summarizeTraining,
   type TrainingLog,
   type TrainingPrefs,
+  themeOf,
+  weekOutdated,
+  type WeekPlan,
 } from "../../domain/training";
 import { getSetting, listGames, setSetting } from "../../storage/db";
 
@@ -26,6 +32,7 @@ const K = {
   log: "training.log",
   prefs: "training.prefs",
   plan: "training.plan",
+  week: "training.week",
   legacySolved: "training.solved",
 } as const;
 
@@ -43,8 +50,9 @@ export async function loadFullProfile(): Promise<PlayerProfile | null> {
 export async function recordTrainingResult(ex: Exercise, success: boolean): Promise<void> {
   const today = localDay();
   const [progress, log] = await Promise.all([getSetting<ProgressMap>(K.progress, {}), getSetting<TrainingLog>(K.log, {})]);
+  const review = isReview(progress[ex.id], today);
   await setSetting(K.progress, recordAttempt(progress, ex.id, success, today));
-  await setSetting(K.log, logAttempt(log, today, ex.category, success));
+  await setSetting(K.log, logAttempt(log, today, ex.category, success, review));
 }
 
 /** Spaced-repetition progress, for picking the position of the day. */
@@ -76,6 +84,17 @@ export async function loadTodayTraining(): Promise<TodayTraining> {
   };
 }
 
+/** The stored week plan, or a fresh one when a new calendar week has started. */
+function currentWeek(stored: WeekPlan | null, p: PlayerProfile, today: string): WeekPlan {
+  if (!weekOutdated(stored, today)) return stored!;
+  const withExercises = new Set(p.exercises.map((e) => e.category));
+  // The week follows the profile, not the manual focus, which only steers single days.
+  const ranking = categoryNeeds(p.skills, p.patterns, "auto")
+    .map((n) => n.category)
+    .filter((c) => withExercises.has(c));
+  return buildWeekPlan(ranking, today);
+}
+
 export function useTraining() {
   const [profile, setProfile] = useState<PlayerProfile | null>(null);
   const [usernames, setUsernames] = useState<string[] | null>(null);
@@ -83,6 +102,7 @@ export function useTraining() {
   const [log, setLog] = useState<TrainingLog>({});
   const [prefs, setPrefsState] = useState<TrainingPrefs>(DEFAULT_PREFS);
   const [plan, setPlan] = useState<DailyPlan | null>(null);
+  const [week, setWeek] = useState<WeekPlan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const today = localDay();
@@ -104,12 +124,19 @@ export function useTraining() {
         const lg = await getSetting<TrainingLog>(K.log, {});
         const pf = { ...DEFAULT_PREFS, ...(await getSetting<Partial<TrainingPrefs>>(K.prefs, {})) };
         let pl = await getSetting<DailyPlan | null>(K.plan, null);
+        let wk = await getSetting<WeekPlan | null>(K.week, null);
         const p = names.length ? await loadFullProfile() : null;
         if (!alive) return;
-        if (p && planOutdated(pl, pf, today)) {
-          pl = buildDailyPlan({ skills: p.skills, patterns: p.patterns, pool: p.exercises, progress: prog, prefs: pf, today });
+        if (p) {
+          const fresh = currentWeek(wk, p, today);
+          if (fresh !== wk) void setSetting(K.week, fresh);
+          wk = fresh;
+        }
+        if (p && (planOutdated(pl, pf, today) || pl?.theme === undefined)) {
+          pl = buildDailyPlan({ skills: p.skills, patterns: p.patterns, pool: p.exercises, progress: prog, prefs: pf, today, theme: themeOf(wk, today) });
           void setSetting(K.plan, pl);
         }
+        setWeek(wk);
         setProfile(p);
         setProgress(prog);
         setLog(lg);
@@ -131,13 +158,15 @@ export function useTraining() {
 
   const record = (ex: Exercise, success: boolean) => {
     // Functional updates: several results can land before a re-render.
+    // Decided from the progress before this attempt (the log update runs after it).
+    const review = isReview(progress[ex.id], today);
     setProgress((prev) => {
       const next = recordAttempt(prev, ex.id, success, today);
       void setSetting(K.progress, next);
       return next;
     });
     setLog((prev) => {
-      const next = logAttempt(prev, today, ex.category, success);
+      const next = logAttempt(prev, today, ex.category, success, review);
       void setSetting(K.log, next);
       return next;
     });
@@ -145,7 +174,7 @@ export function useTraining() {
 
   const rebuild = (pf: TrainingPrefs) => {
     if (!profile) return;
-    const pl = buildDailyPlan({ skills: profile.skills, patterns: profile.patterns, pool, progress, prefs: pf, today });
+    const pl = buildDailyPlan({ skills: profile.skills, patterns: profile.patterns, pool, progress, prefs: pf, today, theme: themeOf(week, today) });
     setPlan(pl);
     void setSetting(K.plan, pl);
   };
@@ -165,6 +194,7 @@ export function useTraining() {
     log,
     prefs,
     plan,
+    week,
     loading,
     error,
     today,
