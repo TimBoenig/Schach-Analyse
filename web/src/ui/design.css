@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Design layer (2026-11 redesign)
+   Design layer: "Grand Salon" (2026-11)
 
-   Loaded after styles.css. It does not add features; it gives every page the
-   same calm system: one typeface (Manrope), graphite surfaces separated by
-   hairlines instead of heavy shadows, one accent, sentence-case labels, a
-   clear title block per page and soft, weighted motion. Component rules in
-   styles.css keep their layout; this file sets the look.
+   Loaded after styles.css. It adds no features; it sets the look of every
+   page: ink black (or warm paper) with two soft glows, champagne gold as the
+   one accent, a serif for headlines and big numbers, pill-shaped controls,
+   softly lit cards, and a floating icon rail instead of a wide sidebar.
+   Component rules in styles.css keep their layout; this file sets the look.
    ========================================================================== */
 
 /* ---------- base ---------- */
@@ -34,61 +34,69 @@ p {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/* Film grain: breaks up large flat areas without a gradient. */
+/* Two soft lights behind everything: gold from the top left, teal from the
+   right. Fixed, so it costs nothing while scrolling. */
 .app::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  background:
+    radial-gradient(60% 50% at 12% -8%, var(--glow-a), transparent 70%),
+    radial-gradient(45% 45% at 100% 8%, var(--glow-b), transparent 70%);
 }
 
-:root[data-theme="light"] .app::before {
-  opacity: 0.05;
-}
+/* ---------- navigation rail (desktop) ---------- */
 
-/* ---------- sidebar ---------- */
-
+/* A slim floating dock: one icon per area. The sub-pages of an area are the
+   tabs under each page title, so the rail stays calm and the content wide. */
 .nav {
-  width: 248px;
-  padding: calc(20px + var(--safe-top)) 14px 16px;
-  background: var(--bg-elev);
-  box-shadow: inset -1px 0 0 var(--border);
+  width: 84px;
+  height: calc(100dvh - 24px);
+  top: 12px;
+  margin: 12px 0 12px 12px;
+  padding: calc(14px + var(--safe-top)) 8px 12px;
+  align-items: stretch;
+  gap: 4px;
+  border-radius: 28px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: 0 0 0 1px var(--border), inset 0 1px 0 var(--sheen), 0 30px 60px -30px rgba(0, 0, 0, 0.6);
 }
 
 .nav-brand {
-  gap: 12px;
-  padding: 0 8px 18px;
+  justify-content: center;
+  padding: 0 0 10px;
 }
 
 .nav-logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  box-shadow: 0 0 0 1px var(--border-strong);
+  width: 40px;
+  height: 40px;
+  border-radius: 13px;
+  box-shadow: 0 0 0 1px var(--border-strong), 0 8px 20px -8px var(--glow-a);
 }
 
-.nav-title {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.nav-title,
+.nav-search-text,
+.nav-search kbd,
+.nav-sub {
+  display: none;
 }
 
 .nav-search {
-  min-height: 38px;
-  border-radius: 12px;
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--border);
-  font-weight: 500;
-  font-size: 13.5px;
-  transition: box-shadow 0.3s var(--ease), color 0.3s var(--ease);
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-2);
+  transition: background 0.3s var(--ease), color 0.3s var(--ease);
 }
 
 .nav-search:hover {
-  color: var(--text-2);
-  box-shadow: 0 0 0 1px var(--border-strong);
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
 }
 
 .nav kbd,
@@ -103,103 +111,88 @@ kbd {
 }
 
 .nav-areas {
-  gap: 2px;
-  margin-top: 18px;
+  gap: 4px;
+  margin-top: 10px;
 }
 
 .nav button.nav-item {
-  gap: 12px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: 12px;
-  font-size: 14px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-height: 60px;
+  padding: 8px 2px 7px;
+  border-radius: 18px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--text-2);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+  letter-spacing: 0.01em;
+  color: var(--text-3);
+  transition: background 0.3s var(--ease), color 0.3s var(--ease), box-shadow 0.3s var(--ease);
 }
 
 .nav button.nav-item svg {
-  width: 20px;
-  height: 20px;
-  color: var(--text-3);
-  transition: color 0.3s var(--ease);
+  width: 22px;
+  height: 22px;
+  color: inherit;
 }
 
 .nav button.nav-item:hover:not(.active) {
+  color: var(--text);
   background: color-mix(in srgb, var(--text) 5%, transparent);
 }
 
-.nav-area.current > button.nav-item,
+.nav-area > button.nav-item.active,
 .nav > button.nav-item.active {
-  color: var(--text);
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
-.nav-area.current > button.nav-item svg,
-.nav > button.nav-item.active svg {
+.nav-area > button.nav-item.active:hover {
+  background: var(--accent-soft);
+}
+
+.nav button.nav-item.active svg {
   color: var(--accent);
 }
 
-.nav > button.nav-item.active {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+.nav .nav-status {
+  right: 16px;
+  top: 12px;
+  margin: 0;
 }
 
-.nav-sub {
-  margin: 2px 0 8px 20px;
-  padding-left: 12px;
-  border-left: 1px solid var(--border);
+/* Account and settings: icon only, the name shows as a tooltip. */
+.nav button.account-chip {
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
 }
 
-.nav-area.current .nav-sub {
-  border-left-color: var(--border-strong);
+.nav > button.nav-item .nav-label {
+  display: none;
 }
 
-.nav button.nav-subitem {
-  min-height: 30px;
-  padding: 5px 10px;
-  border-radius: 9px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-3);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease);
-}
-
-.nav button.nav-subitem:hover:not(.active) {
-  background: color-mix(in srgb, var(--text) 4%, transparent);
-  color: var(--text-2);
-}
-
-.nav button.nav-subitem.active {
-  color: var(--text);
-  font-weight: 600;
-  background: color-mix(in srgb, var(--text) 6%, transparent);
-}
-
-.nav button.nav-subitem.active::before {
-  left: -13px;
-  top: 8px;
-  bottom: 8px;
-  width: 1px;
-  border-radius: 0;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
+.nav > button.nav-item {
+  min-height: 48px;
 }
 
 .nav button.nav-keys {
-  font-weight: 500;
-  font-size: 12.5px;
+  justify-content: center;
+  font-size: 0;
+  padding: 4px 0 0;
+  min-height: 28px;
 }
 
 /* ---------- page frame ---------- */
 
 .main {
-  max-width: 1440px;
+  max-width: 1400px;
 }
 
 @media (min-width: 1024px) {
   .main {
-    max-width: 1440px;
-    padding: calc(32px + var(--safe-top)) 40px 48px;
+    max-width: 1400px;
+    padding: calc(36px + var(--safe-top)) 44px 56px;
   }
 }
 
@@ -232,33 +225,26 @@ kbd {
 }
 
 .page-title {
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.15;
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
   margin: 0 0 16px;
   gap: 12px;
+}
+
+.page-title > * {
+  font-family: var(--font);
 }
 
 .page-head .page-title {
   margin-bottom: 18px;
 }
 
+/* The rail already marks the area; the title stands alone. */
 .page-mark {
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  flex-shrink: 0;
-  color: var(--accent);
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.page-mark svg {
-  width: 21px;
-  height: 21px;
+  display: none;
 }
 
 .page-title select,
@@ -275,7 +261,7 @@ kbd {
   gap: 2px;
   padding: 4px;
   border: 0;
-  border-radius: 14px;
+  border-radius: 999px;
   background: color-mix(in srgb, var(--text) 4%, transparent);
   box-shadow: inset 0 0 0 1px var(--border);
 }
@@ -284,8 +270,8 @@ kbd {
 .area-tabs-row button:first-child {
   border: 0;
   margin: 0;
-  padding: 7px 14px;
-  border-radius: 10px;
+  padding: 7px 16px;
+  border-radius: 999px;
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-3);
@@ -297,9 +283,9 @@ kbd {
 }
 
 .area-tabs-row button.active {
-  color: var(--text);
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--border-strong), 0 2px 8px -2px rgba(0, 0, 0, 0.25);
+  color: var(--accent-text);
+  background: var(--cta);
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--cta) 70%, transparent);
 }
 
 .area-about {
@@ -333,18 +319,24 @@ kbd {
   gap: 16px;
 }
 
+.kpi-big,
+.kpi-value,
+.form-big,
+.donut-center .v {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
 .kpi-big {
-  font-size: 40px;
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1;
+  font-size: 56px;
+  line-height: 0.95;
 }
 
 .kpi-value {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.05;
+  font-size: 40px;
+  line-height: 1;
 }
 
 .kpi-unit {
@@ -381,9 +373,11 @@ kbd {
 }
 
 .section-head h2 {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
 }
 
 .section-nav {
@@ -427,7 +421,8 @@ textarea:focus {
 .filters select,
 .page-title select {
   min-height: 38px;
-  border-radius: 12px;
+  border-radius: 999px;
+  padding-left: 16px;
   font-weight: 600;
   font-size: 13.5px;
 }
@@ -480,7 +475,11 @@ textarea:focus {
 }
 
 .coach.big .coach-title {
-  font-size: 19px;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .coach-text {
@@ -554,8 +553,8 @@ textarea:focus {
     right: 12px;
     bottom: calc(10px + var(--safe-bottom));
     padding: 6px;
-    border-radius: 22px;
-    background: color-mix(in srgb, var(--bg-elev) 78%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 78%, transparent);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     box-shadow: 0 0 0 1px var(--border-strong), 0 18px 40px -12px rgba(0, 0, 0, 0.5);
@@ -564,7 +563,7 @@ textarea:focus {
   }
   .tabbar .tab {
     min-height: 50px;
-    border-radius: 16px;
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
     gap: 2px;
@@ -575,7 +574,8 @@ textarea:focus {
     height: 22px;
   }
   .tabbar .tab.active {
-    background: color-mix(in srgb, var(--text) 8%, transparent);
+    color: var(--accent);
+    background: var(--accent-soft);
   }
   .main {
     padding: calc(20px + var(--safe-top)) 24px calc(var(--nav-h) + 40px + var(--safe-bottom));
@@ -592,22 +592,16 @@ textarea:focus {
     padding: calc(14px + var(--safe-top)) 16px calc(var(--nav-h) + 36px + var(--safe-bottom));
   }
   .page-title {
-    font-size: 26px;
-  }
-  .page-mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-  }
-  .page-mark svg {
-    width: 18px;
-    height: 18px;
+    font-size: 38px;
   }
   .kpi-big {
-    font-size: 32px;
+    font-size: 44px;
   }
   .kpi-value {
-    font-size: 25px;
+    font-size: 32px;
+  }
+  .section-head h2 {
+    font-size: 26px;
   }
   .kpi-cell,
   .hero-cell {
@@ -667,15 +661,19 @@ textarea:focus {
   .filters > select:last-of-type:nth-of-type(odd) {
     grid-column: 1 / -1;
   }
-  /* The area icon gives way so title, action and tools fit on one line. */
-  .page-mark {
-    display: none;
+  /* Title with search and settings on the first line, actions below it. */
+  .page-head .page-title .spacer {
+    order: 1;
   }
-  .page-head .page-title {
-    flex-wrap: nowrap;
+  .page-head .page-title .mobile-tools {
+    order: 2;
   }
-  .page-head .page-title .btn.primary {
-    padding: 0 12px;
+  .page-head .page-title > .btn {
+    order: 3;
+    flex: 1 1 40%;
+  }
+  .home-date {
+    white-space: nowrap;
   }
 }
 
@@ -688,11 +686,12 @@ textarea:focus {
 }
 
 .home-greeting > span:first-child {
-  font-size: 40px;
-  font-weight: 700;
-  letter-spacing: -0.045em;
-  line-height: 1.05;
-  background: linear-gradient(90deg, var(--text) 0%, color-mix(in srgb, var(--text) 55%, var(--bg)) 100%);
+  font-family: var(--font-display);
+  font-size: 68px;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  background: linear-gradient(100deg, var(--text) 30%, var(--accent) 110%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -701,14 +700,123 @@ textarea:focus {
 
 .home-date {
   order: -1;
-  font-size: 13px;
+  font-family: var(--font);
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--accent);
   margin: 0;
 }
 
 @media (max-width: 760px) {
   .home-greeting > span:first-child {
-    font-size: 30px;
+    font-size: 44px;
   }
+}
+
+/* ---------- cards: softly lit glass ---------- */
+
+.card,
+.game-list {
+  background-image: linear-gradient(180deg, var(--sheen), transparent 120px);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
+}
+
+.card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Small labels: quiet, spaced capitals, like the legend of a fine print. */
+.kpi-label,
+.card h4 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* ---------- pills everywhere ---------- */
+
+.btn,
+.btn.small,
+.btn.big,
+.segmented,
+.segmented button,
+.chip,
+.pill {
+  border-radius: 999px;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, var(--cta-hover), var(--cta));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 26px -12px color-mix(in srgb, var(--cta) 80%, transparent);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, var(--cta-hover), var(--cta-hover));
+}
+
+.segmented button.active {
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+input:not([type]),
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"] {
+  border-radius: 999px;
+  padding-left: 18px;
+  padding-right: 18px;
+}
+
+.game-item .acc {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* ---------- big numbers and headlines in the serif ---------- */
+
+.acc-box .value,
+.plan-headline,
+.op-hero-kpis strong,
+.explorer-score strong,
+.form-big,
+.welcome-hero h1,
+.duel-acc,
+.cls-tile-count,
+.battle-big {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.cls-tile-count,
+.op-hero-kpis strong {
+  font-size: 36px;
+  line-height: 1;
+}
+
+.form-big {
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.welcome-hero h1 {
+  font-size: 44px;
+  line-height: 1.05;
+}
+
+/* Inner tiles: one step lighter than the card, fully rounded. */
+.week-day,
+.plan-day {
+  border-radius: 16px;
 }
