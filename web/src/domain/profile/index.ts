@@ -40,4 +40,4 @@ export { PRIOR_WEIGHT, RELIABLE_MARGIN, settleSkills, SKILL_NAMES } from "./skil
 export { STYLE_MIN_GAMES } from "./style";
 export * as evidence from "./evidence";
 export { activityCalendar, comparePeriods, dailyActivity, focusNotes, formSummary, SKILL_TREND_POINTS, trendOf } from "./dashboard";
-export type { CalendarDay, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";
+export type { CalendarDay, DailyRow, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";
