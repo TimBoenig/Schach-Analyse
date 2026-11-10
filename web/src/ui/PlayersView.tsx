@@ -916,7 +916,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             </div>
             <p class="small muted" style={{ marginTop: 0 }}>
               {factor === "overall"
-                ? "Jeder Faktor vergibt Punkte nach der Wahrscheinlichkeit, wirklich besser als die anderen zu sein (Messunsicherheit eingerechnet): ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als die Hälfte, ein klarer fast 100. Die Gesamtwertung ist der gewichtete Schnitt; Genauigkeit, Über Erwartung und Direktvergleich zählen am stärksten."
+                ? "Jeder Faktor vergibt Punkte nach der Wahrscheinlichkeit, wirklich besser als die anderen zu sein (Messunsicherheit eingerechnet): ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als die Hälfte, ein klarer fast 100. Die Gesamtwertung ist der gewichtete Schnitt (die Wertung ist nur zur Info und zählt nicht mit); Genauigkeit, Über Erwartung und Direktvergleich zählen am stärksten."
                 : ranking.factors.find((f) => f.key === factor)?.hint}
             </p>
             <RankingTable ranking={ranking} factor={factor} />

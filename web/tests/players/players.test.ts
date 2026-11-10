@@ -225,6 +225,30 @@ describe("fair comparison", () => {
     expect(ranking.notes.join(" ")).toContain("nicht vergleichbar");
   });
 
+  it("lists the rating for orientation only and keeps it out of the overall score and the skills", () => {
+    const rated = (inp: RankInput, elo: number): RankInput => ({ ...inp, profile: { ...inp.profile, overview: { ...inp.profile.overview, ratings: { Schnellschach: elo } } } });
+    const same = [...match("A", "X", 4, 4, "a"), ...match("B", "Y", 4, 4, "b")];
+    const run = (eloA: number) => buildRanking([rated(withAcc(input("A", ["A"], same), 80), eloA), rated(withAcc(input("B", ["B"], same), 80), 1500)], same);
+    const low = run(900);
+    const high = run(2400);
+    const row = (r: typeof low, id: string) => r.rows.find((x) => x.id === id)!;
+    // The rating cell still ranks, but 1500 points of rating gap move nothing overall.
+    expect(row(high, "A").cells.rating.points).toBeGreaterThan(99);
+    expect(row(high, "A").overall).toBeCloseTo(row(low, "A").overall as number, 6);
+
+    // Same moves, different rating-typical prior: the comparison judges both alike.
+    const base = buildPlayerProfile(match("Tim", "Max", 4, 4, "t"), ["Tim"]);
+    const skill = (typical: number): PlayerProfile => ({
+      ...base,
+      analyzed_games: 30,
+      // Profile score = 0.75 * raw 60 + 0.25 * typical (margin 15 -> prior share (15/30)² = 0.25).
+      skills: base.skills.map((s) => (s.key === "endgame" ? { ...s, raw_score: 60, score: 0.75 * 60 + 0.25 * typical, typical, margin: 15, sample: 200, reliable: true } : s)),
+    });
+    const m = buildMatchup(skill(70), skill(30), headToHead([], [], []), true).rows.find((r) => r.key === "endgame")!;
+    expect(m.me).toBeCloseTo(m.them as number, 6);
+    expect(m.p_me).toBeCloseTo(0.5, 6);
+  });
+
   it("forecasts the duel from comparable ratings and the direct games", () => {
     const base = buildPlayerProfile(match("Tim", "Max", 4, 4, "t"), ["Tim"]);
     const rated = (rapid: number, skills: Record<string, [number, number]>): PlayerProfile => ({
