@@ -9,9 +9,10 @@
 // many games is worth nearly 100. So factors on different scales (a rating of
 // 1500, 3 blunders, 80 % accuracy) count alike, a lucky streak over five games
 // cannot buy a top spot, and a factor only counts where at least two players
-// have data for it. The rating is listed for orientation only (weight 0):
-// it would otherwise count twice, since "Über Erwartung" already judges
-// results fairly against the opponents' strength.
+// have data for it. The weights live in weights.ts (percent of the total).
+// The rating is listed for orientation only (weight 0): a fresh account's
+// rating is not settled yet, and "Über Erwartung" already judges results
+// fairly against the opponents' strength.
 
 import { filterGames } from "../metrics/filters";
 import { type RawGame } from "../metrics/models";
@@ -32,6 +33,7 @@ import {
   skillPrior,
 } from "./compare";
 import { headToHead, mainSource } from "./h2h";
+import { FACTOR_WEIGHTS, SKILL_FACTORS } from "./weights";
 
 export interface RankInput {
   id: string;
@@ -66,6 +68,19 @@ export interface RankCell {
   note: string;
 }
 
+/** How one factor fed a player's overall score. */
+export interface RankContribution {
+  key: string;
+  /** Points the player got in this factor (0..100). */
+  points: number;
+  /** Weight in percent of this player's own total (missing factors handed on). */
+  share: number;
+  /** Overall points this factor brought: points * share / 100. */
+  value: number;
+  /** Most overall points still to win here: (100 - points) * share / 100. */
+  room: number;
+}
+
 export interface RankRow {
   id: string;
   name: string;
@@ -79,6 +94,10 @@ export interface RankRow {
   analyzed: number;
   /** Platform the player's games mostly come from. */
   source: string;
+  /** Factor by factor, how the overall score is made up (biggest first). */
+  breakdown: RankContribution[];
+  /** Weighted factors without data for this player (their weight goes to the others). */
+  missing: string[];
 }
 
 export interface Ranking {
@@ -92,27 +111,27 @@ export interface Ranking {
 
 const MIN_ANALYZED = MIN_COMPARE_ANALYZED;
 const ACTIVITY_DAYS = 30;
-
-const SKILL_FACTORS = ["opening", "middlegame", "endgame", "tactics", "safety", "conversion", "defense", "time"] as const;
+// Share of the total weight (in percent) a player needs data for to be ranked.
+const MIN_WEIGHT = 30;
 
 export const RANK_FACTORS: RankFactor[] = [
   // Weight 0: the rating is shown for orientation but never moves the overall score.
-  { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, weight: 0, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit (nur zur Info, zählt nicht in die Gesamtwertung)" },
-  { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, weight: 1.5, hint: "Punkte über oder unter der Elo-Erwartung, in Prozentpunkten (fair, auch bei unterschiedlich starken Gegnern)" },
+  { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, weight: 0, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit. Nur zur Info: neue Konten haben noch keine aussagekräftige Wertung" },
+  { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, weight: FACTOR_WEIGHTS.expectation, hint: "Punkte über oder unter der Elo-Erwartung je Partie, in Prozentpunkten. Fair bei unterschiedlich starken Gegnern; Partien mit noch springender Wertung (neue Konten) zählen nicht" },
   // Raw points depend on who someone plays; "Über Erwartung" measures the same thing fairly.
-  { key: "score", label: "Punkte-Quote", group: "Ergebnisse", higher_is_better: true, weight: 0.5, hint: "Anteil der geholten Punkte (hängt stark von der Gegnerwahl ab)" },
-  { key: "h2h", label: "Direktvergleich", group: "Ergebnisse", higher_is_better: true, weight: 1.5, hint: "Punkte in Partien gegeneinander (innerhalb der Gruppe)" },
-  { key: "accuracy", label: "Genauigkeit", group: "Spielqualität", higher_is_better: true, weight: 1.5, hint: "Ø Genauigkeit der analysierten Partien" },
-  { key: "blunders", label: "Patzer pro Partie", group: "Spielqualität", higher_is_better: false, weight: 1, hint: "Weniger ist besser" },
+  { key: "score", label: "Punkte-Quote", group: "Ergebnisse", higher_is_better: true, weight: 0, hint: "Anteil der geholten Punkte. Nur zur Info: hängt stark davon ab, gegen wen jemand spielt" },
+  { key: "h2h", label: "Direktvergleich", group: "Ergebnisse", higher_is_better: true, weight: FACTOR_WEIGHTS.h2h, hint: "Punkte in Partien gegeneinander (innerhalb der Gruppe)" },
+  { key: "accuracy", label: "Genauigkeit", group: "Spielqualität", higher_is_better: true, weight: FACTOR_WEIGHTS.accuracy, hint: "Ø Genauigkeit der analysierten Partien" },
+  { key: "blunders", label: "Patzer pro Partie", group: "Spielqualität", higher_is_better: false, weight: FACTOR_WEIGHTS.blunders, hint: "Grobe Fehler je analysierter Partie, weniger ist besser" },
   ...SKILL_FACTORS.map((k) => ({
     key: k,
     label: SKILL_NAMES[k],
     group: "Fähigkeiten" as const,
     higher_is_better: true,
-    weight: 0.5,
-    hint: `Fähigkeitswert ${SKILL_NAMES[k]} (0–100)`,
+    weight: FACTOR_WEIGHTS[k],
+    hint: `Fähigkeitswert ${SKILL_NAMES[k]} (0–100), nur aus den eigenen Zügen`,
   })),
-  { key: "activity", label: `Partien (${ACTIVITY_DAYS} Tage)`, group: "Sonstiges", higher_is_better: true, weight: 0.5, hint: `Gespielte Partien in den letzten ${ACTIVITY_DAYS} Tagen` },
+  { key: "activity", label: `Partien (${ACTIVITY_DAYS} Tage)`, group: "Sonstiges", higher_is_better: true, weight: FACTOR_WEIGHTS.activity, hint: `Gespielte Partien in den letzten ${ACTIVITY_DAYS} Tagen` },
 ];
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -218,6 +237,8 @@ export function buildRanking(
     games: inp.profile.total_games,
     analyzed: inp.profile.analyzed_games,
     source: sources[i],
+    breakdown: [],
+    missing: [],
   }));
 
   const weightSum = new Array(inputs.length).fill(0);
@@ -232,15 +253,26 @@ export function buildRanking(
     const points = chancePoints(est, f.higher_is_better);
     cells.forEach((c, i) => {
       rows[i].cells[f.key] = { value: c.est?.value ?? null, se: c.est?.se ?? null, rank: ranks[i], points: points[i], note: c.note };
-      if (points[i] !== null && f.weight > 0) {
-        weightSum[i] += f.weight;
-        pointSum[i] += f.weight * (points[i] as number);
+      if (f.weight <= 0) return;
+      if (points[i] === null) {
+        rows[i].missing.push(f.key);
+        return;
       }
+      weightSum[i] += f.weight;
+      pointSum[i] += f.weight * (points[i] as number);
     });
   }
-  // Two full factors (e.g. results and accuracy) are the least to stand on.
+  // A third of the weight (e.g. results and accuracy) is the least to stand on.
   rows.forEach((r, i) => {
-    r.overall = weightSum[i] >= 2 ? pointSum[i] / weightSum[i] : null;
+    r.overall = weightSum[i] >= MIN_WEIGHT ? pointSum[i] / weightSum[i] : null;
+    if (r.overall === null) return;
+    r.breakdown = RANK_FACTORS.filter((f) => f.weight > 0 && r.cells[f.key]?.points !== null && r.cells[f.key]?.points !== undefined)
+      .map((f) => {
+        const pts = r.cells[f.key].points as number;
+        const share = (f.weight / weightSum[i]) * 100;
+        return { key: f.key, points: pts, share, value: (pts * share) / 100, room: ((100 - pts) * share) / 100 };
+      })
+      .sort((a, b) => b.value - a.value);
   });
   const overall = assignRanks(
     rows.map((r) => r.overall),

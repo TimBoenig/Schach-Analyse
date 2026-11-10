@@ -4,10 +4,12 @@
 // friends ranking (points = chance of being better than each other player),
 // the head-to-head duel card and the matchup tips of the scouting report.
 //
-// The win forecast combines the Elo expectation (from comparable ratings)
-// with the direct encounters: the rating counts like ELO_PRIOR_GAMES games,
-// so a 3:0 between two equally rated players moves the forecast, but does not
-// turn it into 100 %.
+// The win forecast starts from how the two compare in the rating-free factors
+// (results against the opponents' strength, accuracy, blunders, skills) and
+// adds the direct encounters: that starting point counts like
+// QUALITY_PRIOR_GAMES games, so a 3:0 moves the forecast but does not turn it
+// into 100 %. The rating is shown next to it but plays no part: a friend who
+// just opened an account can be hundreds of points off for weeks.
 
 import { trSpeed } from "../i18n";
 import { expectedScore } from "../profile/benchmarks";
@@ -15,6 +17,7 @@ import { ERROR_OVERDISPERSION, MIN_GROUP_GAMES } from "../profile/evidence";
 import type { PlayerProfile, SkillScore } from "../profile/models";
 import { PRIOR_MARGIN, SKILL_NAMES } from "../profile/skills";
 import type { HeadToHead } from "./h2h";
+import { FACTOR_WEIGHTS } from "./weights";
 
 export interface Estimate {
   value: number;
@@ -28,9 +31,12 @@ export const MIN_COMPARE_ANALYZED = 5;
 const ACCURACY_SD = 9;
 // An active player's rating is uncertain by about this much (Glicko RD on Lichess is ~50–70).
 export const RATING_SE = 60;
-// The rating gap counts like this many direct games in the forecast.
-export const ELO_PRIOR_GAMES = 10;
-// Without comparable ratings the forecast starts at 50 % with this weight.
+// The comparison of the players' own play counts like this many direct games.
+export const QUALITY_PRIOR_GAMES = 6;
+// Being certainly better everywhere moves the starting point by at most this
+// much from 50 %: even a clearly better player drops points between friends.
+const QUALITY_SPAN = 0.25;
+// Without any comparison the forecast starts at 50 % with this weight.
 const NEUTRAL_PRIOR_GAMES = 4;
 // Probability of being better from which a side "leads" a comparison, and "clearly" leads.
 export const EDGE_P = 0.8;
@@ -162,8 +168,10 @@ export interface Prediction {
   high: number;
   /** Ratings the forecast starts from (null: no comparable ratings). */
   elo: { me: number; them: number; speed: string; from: "Wertung" | "letzte Partie" } | null;
-  /** Elo expectation alone, in percent (null without ratings). */
+  /** Elo expectation alone, in percent (null without ratings). For information only. */
   elo_pct: number | null;
+  /** Starting point from the rating-free comparison, in percent (null without one). */
+  quality_pct: number | null;
   h2h_games: number;
   /** One German sentence on what the forecast rests on. */
   basis: string;
@@ -196,7 +204,7 @@ function ratingIn(p: PlayerProfile | null, speed: string): number | null {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead, comparableRatings: boolean): Prediction | null {
+function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead, comparableRatings: boolean, quality: number | null): Prediction | null {
   const speed = duelSpeed(h2h, me, them);
   let elo: Prediction["elo"] = null;
   if (speed && comparableRatings) {
@@ -209,15 +217,16 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
     const g = h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null && (!speed || x.speed === speed)) ?? h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null);
     if (g) elo = { me: g.rating_a as number, them: g.rating_b as number, speed: trSpeed(g.speed), from: "letzte Partie" };
   }
-  if (!elo && !h2h.games) return null;
+  if (quality === null && !h2h.games) return null;
   const eloP = elo ? expectedScore(elo.me, elo.them) : null;
-  const prior = eloP ?? 0.5;
-  const k = eloP !== null ? ELO_PRIOR_GAMES : NEUTRAL_PRIOR_GAMES;
+  const qualityP = quality === null ? null : 0.5 + (quality - 0.5) * 2 * QUALITY_SPAN;
+  const prior = qualityP ?? 0.5;
+  const k = qualityP !== null ? QUALITY_PRIOR_GAMES : NEUTRAL_PRIOR_GAMES;
   const points = h2h.wins + h2h.draws / 2;
   const p = (prior * k + points) / (k + h2h.games);
   const sd = Math.sqrt((p * (1 - p)) / (k + h2h.games + 1));
   const parts: string[] = [];
-  if (elo) parts.push(`der Wertung (${elo.speed} ${Math.round(elo.me)} zu ${Math.round(elo.them)}${elo.from === "letzte Partie" ? ", aus eurer letzten Partie" : ""})`);
+  if (qualityP !== null) parts.push("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)");
   if (h2h.games) parts.push(plural(h2h.games, "direkten Partie", "direkten Partien"));
   return {
     pct: p * 100,
@@ -225,8 +234,9 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
     high: Math.min(1, p + BAND_Z * sd) * 100,
     elo,
     elo_pct: eloP === null ? null : eloP * 100,
+    quality_pct: qualityP === null ? null : qualityP * 100,
     h2h_games: h2h.games,
-    basis: `Aus ${parts.join(" und ")}.`,
+    basis: `Aus ${parts.join(" und ")}. Die Wertung zählt nicht mit.`,
   };
 }
 
@@ -241,15 +251,11 @@ export function buildMatchup(
   h2h: HeadToHead,
   comparableRatings: boolean,
 ): Matchup {
-  const prediction = predict(me, them, h2h, comparableRatings);
   const rows: MatchupRow[] = [];
   const add = (key: string, label: string, group: MatchupRow["group"], higher: boolean, a: Estimate | null, b: Estimate | null) => {
     const pMe = a && b ? probBetter(a, b, higher) : null;
     rows.push({ key, label, group, higher_is_better: higher, me: a?.value ?? null, them: b?.value ?? null, p_me: pMe, ...edgeOf(pMe) });
   };
-  if (prediction?.elo?.from === "Wertung") {
-    add("rating", `Wertung (${prediction.elo.speed})`, "Ergebnisse", true, { value: prediction.elo.me, se: RATING_SE }, { value: prediction.elo.them, se: RATING_SE });
-  }
   if (me) {
     add("expectation", "Über Erwartung", "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them));
     add("accuracy", "Genauigkeit", "Spielqualität", true, accuracyEstimate(me), accuracyEstimate(them));
@@ -262,8 +268,29 @@ export function buildMatchup(
       add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior));
     }
   }
+  const known = rows.filter((r) => r.p_me !== null);
+  // Weighted chance of being the better player, the same weights as the ranking.
+  let wsum = 0;
+  let psum = 0;
+  for (const r of known) {
+    const w = FACTOR_WEIGHTS[r.key] ?? 0;
+    wsum += w;
+    psum += w * (r.p_me as number);
+  }
+  const prediction = predict(me, them, h2h, comparableRatings, wsum ? psum / wsum : null);
   // The rating is shown for orientation only: it never counts as a lead.
-  const known = rows.filter((r) => r.p_me !== null && r.key !== "rating");
+  if (prediction?.elo?.from === "Wertung") {
+    rows.unshift({
+      key: "rating",
+      label: `Wertung (${prediction.elo.speed})`,
+      group: "Ergebnisse",
+      higher_is_better: true,
+      me: prediction.elo.me,
+      them: prediction.elo.them,
+      p_me: probBetter({ value: prediction.elo.me, se: RATING_SE }, { value: prediction.elo.them, se: RATING_SE }),
+      ...edgeOf(null),
+    });
+  }
   return {
     prediction,
     rows,

@@ -249,28 +249,36 @@ describe("fair comparison", () => {
     expect(m.p_me).toBeCloseTo(0.5, 6);
   });
 
-  it("forecasts the duel from comparable ratings and the direct games", () => {
+  it("forecasts the duel from the players' own play and the direct games, never from the rating", () => {
     const base = buildPlayerProfile(match("Tim", "Max", 4, 4, "t"), ["Tim"]);
     const rated = (rapid: number, skills: Record<string, [number, number]>): PlayerProfile => ({
       ...base,
       overview: { ...base.overview, ratings: { Schnellschach: rapid } },
       skills: base.skills.map((s) => (skills[s.key] ? { ...s, score: skills[s.key][0], margin: skills[s.key][1], sample: 200, reliable: true } : s)),
     });
-    const me = rated(1600, { endgame: [78, 6], tactics: [50, 6] });
-    const them = rated(1400, { endgame: [45, 6], tactics: [52, 25] });
+    const me = rated(1200, { endgame: [78, 6], tactics: [50, 6] });
+    const them = rated(1900, { endgame: [45, 6], tactics: [52, 25] });
     const none = headToHead([], [], []);
     const solo = buildMatchup(me, them, none, true);
-    expect(solo.prediction?.pct).toBeCloseTo(75.97, 1);
-    expect(solo.prediction?.elo).toMatchObject({ me: 1600, them: 1400, from: "Wertung" });
-    // Six lost direct games pull the forecast down, but the rating still counts like ten games.
+    const p0 = solo.prediction!;
+    // 700 points of rating gap (a fresh account) are shown, but the better endgame decides: above 50 %.
+    expect(p0.elo).toMatchObject({ me: 1200, them: 1900, from: "Wertung" });
+    expect(p0.elo_pct).toBeLessThan(2);
+    expect(p0.pct).toBeGreaterThan(50);
+    expect(p0.pct).toBeCloseTo(p0.quality_pct as number, 6);
+    expect(buildMatchup(rated(2400, { endgame: [78, 6], tactics: [50, 6] }), them, none, true).prediction!.pct).toBeCloseTo(p0.pct, 6);
+    expect(p0.basis).toContain("Wertung zählt nicht");
+    // The rating row is listed but never counts as a lead.
+    const ratingRow = solo.rows.find((r) => r.key === "rating")!;
+    expect(ratingRow.edge).toBe("even");
+    expect(solo.ahead + solo.behind + solo.even).toBe(solo.rows.filter((r) => r.p_me !== null).length - 1);
+    // Six lost direct games pull the forecast down; the comparison counts like six games.
     const lost = { ...none, games: 6, losses: 6, score_pct: 0 };
     const p = buildMatchup(me, them, lost, true).prediction!;
-    expect(p.pct).toBeCloseTo((0.7597 * 10) / 16 * 100, 0);
+    expect(p.pct).toBeCloseTo(((p0.quality_pct as number) * 6) / 12, 6);
     expect(p.low).toBeLessThan(p.pct);
     expect(p.high).toBeGreaterThan(p.pct);
     expect(p.basis).toContain("6 direkten Partien");
-    // Different platforms: no rating row, and without direct games no forecast at all.
-    expect(buildMatchup(me, them, none, false).prediction).toBeNull();
     const endgame = solo.rows.find((r) => r.key === "endgame")!;
     expect(endgame).toMatchObject({ edge: "me", sure: true });
     // A 2-point gap with a ±25 margin on one side decides nothing.

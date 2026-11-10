@@ -15,6 +15,8 @@ function row(id: string, isMe: boolean, cells: Record<string, [number, number]>)
     games: 50,
     analyzed: 30,
     source: "lichess",
+    breakdown: [],
+    missing: [],
     cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se]]) => [k, { value, se, rank: null, points: null, note: "" }])),
   };
 }
