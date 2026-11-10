@@ -30,7 +30,7 @@ import {
   Z_MULTI,
 } from "../profile/evidence";
 import { fmt } from "../profile/num";
-import { edgeOf, MIN_COMPARE_ANALYZED, probBetter, skillEstimate } from "./compare";
+import { edgeOf, MIN_COMPARE_ANALYZED, probBetter, skillEstimate, skillPrior } from "./compare";
 import type { HeadToHead } from "./h2h";
 
 export type TipKind = "Eröffnung" | "Taktik" | "Strategie" | "Zeit" | "Psychologie";
@@ -214,8 +214,9 @@ function skillTips(name: string, p: PlayerProfile, me: PlayerProfile | null): { 
   for (const s of p.skills) {
     if (s.grade === "Keine Uhrdaten") continue;
     const mine = compareMe ? me.skills.find((x) => x.key === s.key) : undefined;
-    const a = skillEstimate(mine);
-    const b = skillEstimate(s);
+    const prior = skillPrior([mine, s]);
+    const a = skillEstimate(mine, prior);
+    const b = skillEstimate(s, prior);
     // Chance that the user is truly better here (null when either side lacks data).
     const pMe = a && b && mine?.reliable ? probBetter(a, b) : null;
     const { edge, sure } = edgeOf(pMe);

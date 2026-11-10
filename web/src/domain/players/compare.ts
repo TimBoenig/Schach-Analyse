@@ -13,7 +13,7 @@ import { trSpeed } from "../i18n";
 import { expectedScore } from "../profile/benchmarks";
 import { ERROR_OVERDISPERSION, MIN_GROUP_GAMES } from "../profile/evidence";
 import type { PlayerProfile, SkillScore } from "../profile/models";
-import { SKILL_NAMES } from "../profile/skills";
+import { PRIOR_MARGIN, SKILL_NAMES } from "../profile/skills";
 import type { HeadToHead } from "./h2h";
 
 export interface Estimate {
@@ -73,8 +73,11 @@ export function scoreEstimate(p: PlayerProfile): Estimate | null {
 export function expectationEstimate(p: PlayerProfile): Estimate | null {
   const rc = p.rating;
   if (!rc || rc.expected_score === null || rc.rated_games < MIN_GROUP_GAMES) return null;
-  // One game's score spreads by at most 0.5 around its expectation.
-  return { value: ((rc.score - rc.expected_score) / rc.rated_games) * 100, se: 50 / Math.sqrt(rc.rated_games) };
+  // One game's score spreads around its expectation by sqrt(p(1-p)) at most 0.5;
+  // draws narrow it, so the player's own mean expectation gives a tighter, honest bound.
+  const e = rc.expected_score / rc.rated_games;
+  const sd = Math.max(0.35, Math.sqrt(Math.max(0, e * (1 - e))));
+  return { value: ((rc.score - rc.expected_score) / rc.rated_games) * 100, se: (100 * sd) / Math.sqrt(rc.rated_games) };
 }
 
 export function accuracyEstimate(p: PlayerProfile): Estimate | null {
@@ -94,10 +97,38 @@ export function blunderEstimate(p: PlayerProfile): Estimate | null {
   return { value: b / n, se: Math.sqrt(ERROR_OVERDISPERSION * (b + 0.5)) / n };
 }
 
-/** A skill as an estimate; its margin is a 95 % band. */
-export function skillEstimate(s: SkillScore | undefined): Estimate | null {
+/**
+ * A skill as a rating-free estimate for comparisons. The profile blends each
+ * measured skill with what is typical for the player's *rating* (weight
+ * 1 - w, which the margin gives back: margin = PRIOR_MARGIN * sqrt(1 - w)).
+ * Between two players that would let the rating decide close skills: the
+ * lower-rated one is pulled down before a single move is looked at. Here that
+ * share of the prior is swapped for `prior`, a value shared by everyone
+ * compared (see `skillPrior`), so only the player's own moves separate them.
+ */
+export function skillEstimate(s: SkillScore | undefined, prior = 50): Estimate | null {
   if (!s || s.sample <= 0 || s.grade === "Keine Uhrdaten") return null;
-  return { value: s.score, se: (s.margin ?? 30) / 1.96 };
+  const margin = s.margin ?? PRIOR_MARGIN;
+  const priorShare = s.margin === null || s.margin === undefined ? 0 : Math.min(1, (margin / PRIOR_MARGIN) ** 2);
+  const ratingPrior = s.typical ?? 50;
+  return { value: s.score + priorShare * (prior - ratingPrior), se: margin / 1.96 };
+}
+
+/**
+ * Common prior for one skill among the compared players: the measured level
+ * of the group, each player weighted by the evidence behind the skill, plus
+ * one player's worth of 50 so two players with little data do not set it alone.
+ */
+export function skillPrior(skills: (SkillScore | undefined)[]): number {
+  let sum = 50;
+  let weight = 1;
+  for (const s of skills) {
+    if (!s || s.sample <= 0 || s.grade === "Keine Uhrdaten" || s.margin === null || s.margin === undefined) continue;
+    const w = 1 - Math.min(1, (s.margin / PRIOR_MARGIN) ** 2);
+    sum += w * (s.raw_score ?? s.score);
+    weight += w;
+  }
+  return sum / weight;
 }
 
 export type Edge = "me" | "them" | "even";
@@ -225,17 +256,14 @@ export function buildMatchup(
     add("blunders", "Patzer pro Partie", "Spielqualität", false, blunderEstimate(me), blunderEstimate(them));
     for (const k of SKILL_KEYS) {
       const ok = (p: PlayerProfile) => p.analyzed_games >= MIN_COMPARE_ANALYZED;
-      add(
-        k,
-        SKILL_NAMES[k],
-        "Fähigkeiten",
-        true,
-        ok(me) ? skillEstimate(me.skills.find((s) => s.key === k)) : null,
-        ok(them) ? skillEstimate(them.skills.find((s) => s.key === k)) : null,
-      );
+      const a = ok(me) ? me.skills.find((s) => s.key === k) : undefined;
+      const b = ok(them) ? them.skills.find((s) => s.key === k) : undefined;
+      const prior = skillPrior([a, b]);
+      add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior));
     }
   }
-  const known = rows.filter((r) => r.p_me !== null);
+  // The rating is shown for orientation only: it never counts as a lead.
+  const known = rows.filter((r) => r.p_me !== null && r.key !== "rating");
   return {
     prediction,
     rows,

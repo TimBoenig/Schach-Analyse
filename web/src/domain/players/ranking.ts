@@ -1,5 +1,5 @@
 // Friends ranking: compares the user and their friends across many factors
-// (rating, results against the Elo expectation, accuracy, blunders, each
+// (results against the Elo expectation, accuracy, blunders, each
 // skill, activity and the direct encounters inside the group) and combines
 // the places into one overall score.
 //
@@ -9,7 +9,9 @@
 // many games is worth nearly 100. So factors on different scales (a rating of
 // 1500, 3 blunders, 80 % accuracy) count alike, a lucky streak over five games
 // cannot buy a top spot, and a factor only counts where at least two players
-// have data for it.
+// have data for it. The rating is listed for orientation only (weight 0):
+// it would otherwise count twice, since "Über Erwartung" already judges
+// results fairly against the opponents' strength.
 
 import { filterGames } from "../metrics/filters";
 import { type RawGame } from "../metrics/models";
@@ -27,6 +29,7 @@ import {
   scoreEstimate,
   scoreSe,
   skillEstimate,
+  skillPrior,
 } from "./compare";
 import { headToHead, mainSource } from "./h2h";
 
@@ -93,7 +96,8 @@ const ACTIVITY_DAYS = 30;
 const SKILL_FACTORS = ["opening", "middlegame", "endgame", "tactics", "safety", "conversion", "defense", "time"] as const;
 
 export const RANK_FACTORS: RankFactor[] = [
-  { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, weight: 1, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit" },
+  // Weight 0: the rating is shown for orientation but never moves the overall score.
+  { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, weight: 0, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit (nur zur Info, zählt nicht in die Gesamtwertung)" },
   { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, weight: 1.5, hint: "Punkte über oder unter der Elo-Erwartung, in Prozentpunkten (fair, auch bei unterschiedlich starken Gegnern)" },
   // Raw points depend on who someone plays; "Über Erwartung" measures the same thing fairly.
   { key: "score", label: "Punkte-Quote", group: "Ergebnisse", higher_is_better: true, weight: 0.5, hint: "Anteil der geholten Punkte (hängt stark von der Gegnerwahl ab)" },
@@ -165,6 +169,10 @@ export function buildRanking(
   const ratingSource = [...bySource.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   let ratingDropped = false;
 
+  // One rating-free prior per skill for the whole group (see skillEstimate).
+  const eligible = inputs.filter((inp) => inp.profile.analyzed_games >= MIN_ANALYZED);
+  const priors = Object.fromEntries(SKILL_FACTORS.map((k) => [k, skillPrior(eligible.map((inp) => inp.profile.skills.find((x) => x.key === k)))]));
+
   inputs.forEach((inp, i) => {
     const p = inp.profile;
     const rating = ratingOf(i);
@@ -178,7 +186,7 @@ export function buildRanking(
     const enough = p.analyzed_games >= MIN_ANALYZED;
     for (const k of SKILL_FACTORS) {
       const s = p.skills.find((x) => x.key === k);
-      const est = enough ? skillEstimate(s) : null;
+      const est = enough ? skillEstimate(s, priors[k]) : null;
       put(k, i, est, est && s?.margin ? `±${s.margin}` : "");
     }
     const recent = filterGames(games, inp.usernames).filter(([g]) => {
@@ -224,7 +232,7 @@ export function buildRanking(
     const points = chancePoints(est, f.higher_is_better);
     cells.forEach((c, i) => {
       rows[i].cells[f.key] = { value: c.est?.value ?? null, se: c.est?.se ?? null, rank: ranks[i], points: points[i], note: c.note };
-      if (points[i] !== null) {
+      if (points[i] !== null && f.weight > 0) {
         weightSum[i] += f.weight;
         pointSum[i] += f.weight * (points[i] as number);
       }

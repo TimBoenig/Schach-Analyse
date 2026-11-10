@@ -48,7 +48,7 @@ export const PRIOR_WEIGHT: Record<string, number> = {
 const MOVE_SKILLS = new Set(["opening", "middlegame", "endgame", "safety", "time"]);
 // 95 % uncertainty (score points) of a skill without any evidence: twice the
 // spread of true skill between players of one rating. Shrinks with sqrt(k / (n + k)).
-const PRIOR_MARGIN = 30;
+export const PRIOR_MARGIN = 30;
 // Above this uncertainty a skill is shown faint and never called a strength or weakness.
 export const RELIABLE_MARGIN = 18;
 
