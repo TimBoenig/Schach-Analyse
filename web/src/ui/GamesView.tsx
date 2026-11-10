@@ -4,6 +4,7 @@ import { autoAnalyze, cancelAll, cancelGame, enqueue, subscribeQueue, type Queue
 import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
+import { parsePgnTextDetailed } from "../domain/pgn";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
@@ -49,6 +50,7 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
   const [months, setMonths] = useState("3");
   const [count, setCount] = useState("100");
   const [pgn, setPgn] = useState("");
+  const [color, setColor] = useState<"" | "white" | "black">("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -80,6 +82,20 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
     try {
       let res: ImportResult;
       if (source === "pgn") {
+        // A pasted game only shows up under "Meine Partien" once one of its player names is one of mine,
+        // so the chosen colour tells us which name that is.
+        const names = await getSetting<string[]>("usernames", []);
+        const parsed = parsePgnTextDetailed(pgn).games;
+        const known = (n: string) => names.some((x) => x.toLowerCase() === n.toLowerCase());
+        const mine = new Set<string>();
+        if (color) for (const g of parsed) mine.add((color === "white" ? g.metadata.white : g.metadata.black).trim());
+        const anyKnown = parsed.some((g) => known(g.metadata.white) || known(g.metadata.black));
+        if (!color && !anyKnown && parsed.length) {
+          setError("Bitte wähle, mit welcher Farbe du gespielt hast, damit die Partie in „Meine Partien“ erscheint.");
+          return;
+        }
+        const fresh = [...mine].filter((n) => n && n !== "?" && !known(n));
+        if (fresh.length) await setSetting("usernames", [...names, ...fresh]);
         const batch = await importPgnText(pgn, gameExists, "file");
         await onBatch(batch.games);
         res = batch.result;
@@ -160,6 +176,21 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
             <span>PGN einfügen (eine oder mehrere Partien)</span>
             <textarea value={pgn} onInput={(e) => setPgn(e.currentTarget.value)} placeholder='[Event "..."]' />
           </label>
+          <div class="field">
+            <span>Mit welcher Farbe hast du gespielt?</span>
+            <div class="segmented">
+              {(
+                [
+                  ["white", "Weiß"],
+                  ["black", "Schwarz"],
+                ] as const
+              ).map(([k, l]) => (
+                <button key={k} type="button" class={color === k ? "active" : ""} onClick={() => setColor(color === k ? "" : k)} disabled={busy}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </div>
           <label class="btn" style={{ marginBottom: "12px" }}>
             PGN-Datei wählen
             <input
