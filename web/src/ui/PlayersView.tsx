@@ -36,12 +36,12 @@ import {
   SOURCE_LABELS,
   type TrackedPlayer,
 } from "../domain/players";
-import { activityCalendar, dailyActivity, type PlayerProfile } from "../domain/profile";
+import { dailyActivity, type PlayerProfile } from "../domain/profile";
 import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { PageHeader } from "./Layout";
-import { AreaChart, BarList, Donut, Legend, RadarChart, StackBar } from "./charts";
+import { AreaChart, BarList, Donut, Legend, RadarChart, ratingSeriesPoints, StackBar } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { Calendar, FormStats, RecentGames } from "./HomeView";
 import { ClassTiles, VersusBars } from "./MoveTally";
@@ -1575,17 +1575,14 @@ function FriendDetails({
   names: string[];
 }) {
   const [speed, setSpeed] = useState<string | null>(null);
-  const calendar = useMemo(() => activityCalendar(dailyActivity(games, names), localDay(), 16), [games, names.join("|")]);
+  const daily = useMemo(() => dailyActivity(games, names), [games, names.join("|")]);
   const t = them.moves;
   const m = mine?.moves ?? null;
 
   const ratingSeries = (them.trends.ratings ?? {}) as Record<string, [number, number][]>;
   const speeds = Object.keys(ratingSeries).sort((a, b) => ratingSeries[b].length - ratingSeries[a].length);
   const shown = speed && ratingSeries[speed] ? speed : speeds[0];
-  const ratingPoints = (ratingSeries[shown] ?? []).map(([ts, r]) => {
-    const d = new Date(ts * 1000);
-    return { label: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }), value: r, detail: d.toLocaleDateString("de-DE") };
-  });
+  const ratingPoints = ratingSeriesPoints(ratingSeries[shown] ?? []);
 
   const theirPhase = (them.overview.phase_accuracy ?? {}) as Record<string, number>;
   const myPhase = (mine?.analyzed_games ? mine.overview.phase_accuracy ?? {} : {}) as Record<string, number>;
@@ -1668,9 +1665,9 @@ function FriendDetails({
       <section class="card tile span-6">
         <div class="tile-head">
           <h3>Aktivität von {name}</h3>
-          <span class="tile-sub">letzte 16 Wochen</span>
+          <span class="tile-sub">Partien pro Tag</span>
         </div>
-        <Calendar days={calendar} note="Nur Partien, die in der App gespeichert sind." />
+        <Calendar daily={daily} today={localDay()} note="Nur Partien, die in der App gespeichert sind." />
       </section>
 
       {them.style && (

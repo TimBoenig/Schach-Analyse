@@ -5,7 +5,9 @@ import { trFilter, trSpeed } from "../domain/i18n";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import {
   activityCalendar,
+  type CalendarDay,
   comparePeriods,
+  type DailyRow,
   dailyActivity,
   focusNotes,
   formSummary,
@@ -24,7 +26,7 @@ import {
   puzzleOfTheDay,
 } from "../domain/training";
 import { PageHeader } from "./Layout";
-import { AreaChart, ChangeBars, type ChangeRow, Ring, Sparkline } from "./charts";
+import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring, Sparkline } from "./charts";
 import { Coach, CoachAvatar, COACH_NAME, type Mood } from "./Coach";
 import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
 import { formatDate, shortOpening } from "./labels";
@@ -130,27 +132,94 @@ export function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: nu
   );
 }
 
-export function Calendar({ days, note }: { days: ReturnType<typeof activityCalendar>; note?: string }) {
-  const total = days.flat().reduce((s, d) => s + d.games, 0);
-  const active = days.flat().filter((d) => d.games > 0).length;
-  const level = (n: number) => (n === 0 ? 0 : n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4);
+const CAL_SPANS = [4, 8, 16] as const;
+const CAL_WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const CAL_MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const calLevel = (n: number) => (n === 0 ? 0 : n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4);
+
+function dayLong(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+}
+
+function dayText(d: CalendarDay): string {
+  if (!d.games) return `${dayLong(d.day)}: keine Partie`;
+  const wdl = [d.wins && `${d.wins} S`, d.draws && `${d.draws} R`, d.losses && `${d.losses} N`].filter(Boolean).join(" · ");
+  return `${dayLong(d.day)}: ${d.games} ${d.games === 1 ? "Partie" : "Partien"}${wdl ? ` (${wdl})` : ""}${d.score_pct !== null ? `, ${Math.round(d.score_pct)} % Punkte` : ""}`;
+}
+
+/**
+ * Activity as a real calendar: one row per week (Monday first, newest at the
+ * bottom), the day number in each cell and the month at its first day, so
+ * "when was that" can be read off directly. Tapping a day shows its games.
+ * `daily` is the full history; the span picker cuts the last 4/8/16 weeks.
+ */
+export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: string; note?: string }) {
+  const [weeks, setWeeks] = useState<number>(8);
+  const [picked, setPicked] = useState<string | null>(null);
+  const days = useMemo(() => activityCalendar(daily, today, weeks), [daily, today, weeks]);
+  const flat = days.flat().filter((d) => !d.future);
+  const total = flat.reduce((s, d) => s + d.games, 0);
+  const active = flat.filter((d) => d.games > 0).length;
+  const busiest = flat.reduce<CalendarDay | null>((b, d) => (d.games > (b?.games ?? 0) ? d : b), null);
+  const lastPlayed = [...flat].reverse().find((d) => d.games > 0) ?? null;
+  const shown = flat.find((d) => d.day === picked) ?? null;
   return (
     <>
-      <div class="calendar" role="img" aria-label={`${total} Partien an ${active} Tagen in den letzten ${days.length} Wochen`}>
-        {days.map((col, i) => (
-          <div class="cal-col" key={i}>
-            {col.map((d) => (
-              <span
-                key={d.day}
-                class={`cal-cell l${level(d.games)}${d.future ? " future" : ""}`}
-                title={`${formatDate(d.day.replace(/-/g, "."))}: ${d.games} ${d.games === 1 ? "Partie" : "Partien"}${d.score_pct !== null ? `, ${Math.round(d.score_pct)} % Punkte` : ""}`}
-              />
-            ))}
-          </div>
+      <div class="segmented small-seg cal-spans" role="group" aria-label="Zeitraum der Aktivität">
+        {CAL_SPANS.map((w) => (
+          <button key={w} class={weeks === w ? "active" : ""} onClick={() => setWeeks(w)}>
+            {w} Wochen
+          </button>
         ))}
       </div>
-      <p class="small muted tile-foot">
-        {total} Partien an {active} Tagen.{" "}
+      <div class="cal-grid" role="grid" aria-label={`${total} Partien an ${active} Tagen in den letzten ${weeks} Wochen`}>
+        <span />
+        {CAL_WEEKDAYS.map((w) => (
+          <span key={w} class="cal-wd">
+            {w}
+          </span>
+        ))}
+        {days.map((week) => {
+          const first = week.find((d) => d.day.endsWith("-01"));
+          const label = first ?? (week === days[0] ? week[0] : null);
+          return [
+            <span key={`m${week[0].day}`} class="cal-month">
+              {label ? CAL_MONTHS[Number(label.day.slice(5, 7)) - 1] : ""}
+            </span>,
+            ...week.map((d) => {
+              const tone = d.score_pct === null ? "" : d.score_pct >= 60 ? " good" : d.score_pct <= 40 ? " bad" : "";
+              return (
+                <button
+                  key={d.day}
+                  type="button"
+                  disabled={d.future}
+                  class={`cal-day l${calLevel(d.games)}${tone}${d.day === today ? " today" : ""}${d.future ? " future" : ""}${picked === d.day ? " on" : ""}`}
+                  title={dayText(d)}
+                  aria-label={dayText(d)}
+                  onClick={() => setPicked(picked === d.day ? null : d.day)}
+                >
+                  <span class="cal-num">{Number(d.day.slice(8, 10))}</span>
+                  {d.games > 0 && <span class="cal-n tnum">{d.games}</span>}
+                </button>
+              );
+            }),
+          ];
+        })}
+      </div>
+      <p class="small cal-detail">
+        {shown ? (
+          dayText(shown)
+        ) : (
+          <span class="muted">
+            {total} Partien an {active} von {flat.length} Tagen
+            {lastPlayed ? ` · zuletzt ${dayLong(lastPlayed.day)}` : ""}
+            {busiest && busiest.games > 1 ? ` · meiste: ${busiest.games} am ${dayLong(busiest.day)}` : ""}
+          </span>
+        )}
+      </p>
+      <p class="small faint tile-foot">
+        Zahl unten rechts = Partien an dem Tag, grüner Rand = gut gepunktet, roter Rand = schwacher Tag. Tippe einen Tag an.{" "}
         {note ?? "Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien."}
       </p>
     </>
@@ -328,7 +397,8 @@ export function HomeView() {
 
   const names = usernames ?? [];
   const { skipBullet } = useBulletPrefs();
-  const calendar = useMemo(() => activityCalendar(dailyActivity(games, names), localDay(), 16), [games, usernames]);
+  const daily = useMemo(() => dailyActivity(games, names), [games, usernames]);
+  const calendar = useMemo(() => activityCalendar(daily, localDay(), 1), [daily]);
   const open = useMemo(
     () =>
       games
@@ -451,6 +521,7 @@ export function HomeView() {
     .map((w) => ({
       label: `${w.week.slice(8, 10)}.${w.week.slice(5, 7)}.`,
       value: w.avg_accuracy as number,
+      t: monthStart(w.week),
       detail: `Woche ab ${formatDate(w.week.replace(/-/g, "."))} · ${w.games} ${w.games === 1 ? "Partie" : "Partien"} · ${Math.round(w.score_pct)} % Punkte`,
     }));
 
@@ -627,9 +698,9 @@ export function HomeView() {
         <section class="card tile span-6">
           <div class="tile-head">
             <h3>Aktivität</h3>
-            <span class="tile-sub">letzte 16 Wochen</span>
+            <span class="tile-sub">Partien pro Tag</span>
           </div>
-          <Calendar days={calendar} />
+          <Calendar daily={daily} today={localDay()} />
         </section>
       </div>
     </div>

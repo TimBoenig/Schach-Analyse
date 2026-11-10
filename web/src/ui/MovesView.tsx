@@ -5,7 +5,7 @@ import { useState } from "preact/hooks";
 
 import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES } from "../domain/profile";
 import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
-import { AreaChart, BarList, type BarRow, StackBar } from "./charts";
+import { AreaChart, BarList, type BarRow, monthStart, StackBar } from "./charts";
 import { Coach, CoachTip, NeedNames } from "./Coach";
 import { ErrorTiles } from "./InsightsView";
 import { PageHeader } from "./Layout";
@@ -149,10 +149,11 @@ export function MovesView() {
   }));
   // Monthly trend as two lines instead of stacked shares: the share of top
   // moves and the rate of serious errors are what actually tell progress.
-  const months = t.months.filter((m) => m.moves >= MIN_TREND_MOVES).slice(-18);
+  const months = t.months.filter((m) => m.moves >= MIN_TREND_MOVES);
   const monthPoint = (m: (typeof months)[number], v: number) => ({
     label: monthName(m.key),
     value: v,
+    t: monthStart(m.key),
     detail: `${monthName(m.key, true)} · ${plural(m.moves, "Zug", "Züge")}${m.moves < MIN_BUCKET_MOVES ? " · wenige Daten" : ""}`,
   });
   const topPoints = months.map((m) => monthPoint(m, (sumOf(m.counts, TOP_CLASSES) / m.moves) * 100));

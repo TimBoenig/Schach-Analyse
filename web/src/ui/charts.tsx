@@ -463,10 +463,38 @@ export interface Point {
   label: string;
   value: number;
   detail?: string;
+  /** Time of the point (epoch seconds); enables the chart's own period chips. */
+  t?: number;
+}
+
+const RANGES: [string, number][] = [
+  ["1 M", 31],
+  ["3 M", 92],
+  ["6 M", 183],
+  ["1 J", 366],
+];
+
+/**
+ * Period chips for a time series: only spans shorter than the data are
+ * offered, measured back from the newest point (not from today, so an old
+ * history still shows its last months instead of an empty chart).
+ */
+export function rangeOptions(points: Point[]): [string, number][] {
+  const ts = points.map((p) => p.t).filter((t): t is number => typeof t === "number");
+  if (ts.length < 3) return [];
+  const span = (Math.max(...ts) - Math.min(...ts)) / 86400;
+  return RANGES.filter(([, days]) => days < span);
+}
+
+export function clipRange(points: Point[], days: number | null): Point[] {
+  if (!days) return points;
+  const ts = points.map((p) => p.t ?? 0);
+  const end = Math.max(...ts);
+  return points.filter((p) => p.t === undefined || p.t >= end - days * 86400);
 }
 
 export function AreaChart({
-  points,
+  points: allPoints,
   format,
   height = 190,
   domain,
@@ -486,7 +514,30 @@ export function AreaChart({
 }) {
   const [ref, W] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
-  if (points.length < 2) return <p class="muted small">Noch zu wenige Daten für einen Verlauf.</p>;
+  const [range, setRange] = useState<number | null>(null);
+  const options = rangeOptions(allPoints);
+  const active = options.some(([, d]) => d === range) ? range : null;
+  const points = clipRange(allPoints, active);
+  if (allPoints.length < 2) return <p class="muted small">Noch zu wenige Daten für einen Verlauf.</p>;
+  const chips = options.length ? (
+    <div class="segmented small-seg chart-range" role="group" aria-label="Zeitraum des Diagramms">
+      {options.map(([l, d]) => (
+        <button key={l} class={active === d ? "active" : ""} onClick={() => setRange(d)}>
+          {l}
+        </button>
+      ))}
+      <button class={active === null ? "active" : ""} onClick={() => setRange(null)}>
+        Alle
+      </button>
+    </div>
+  ) : null;
+  if (points.length < 2)
+    return (
+      <div ref={ref} class="chart-wrap">
+        {chips}
+        <p class="muted small">In diesem Zeitraum zu wenige Daten für einen Verlauf.</p>
+      </div>
+    );
   const H = height;
   const padL = 38;
   const padR = 12;
@@ -564,6 +615,7 @@ export function AreaChart({
           <strong>{format(h.value)}</strong> <span class="faint">{h.detail ?? h.label}</span>
         </Tip>
       )}
+      {chips}
       {reference && (
         <Legend
           items={[
@@ -732,4 +784,30 @@ export function Ring({ value, total, size = 64, thickness = 7, children }: { val
       <div class="ring-center">{children}</div>
     </div>
   );
+}
+
+/** Local start of a "YYYY-MM" or "YYYY-MM-DD" key in epoch seconds (series `t`). */
+export function monthStart(key: string): number | undefined {
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(key);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3] ?? 1)).getTime() / 1000 : undefined;
+}
+
+/**
+ * Rating history [epoch, rating] as chart points. Axis labels carry the year
+ * once the history spans more than one, otherwise "03.04." from two years
+ * looked like the same day.
+ */
+const p2 = (n: number) => String(n).padStart(2, "0");
+
+export function ratingSeriesPoints(series: [number, number][]): Point[] {
+  const multiYear = series.length > 1 && new Date(series[0][0] * 1000).getFullYear() !== new Date(series[series.length - 1][0] * 1000).getFullYear();
+  return series.map(([ts, r]) => {
+    const d = new Date(ts * 1000);
+    return {
+      label: multiYear ? `${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(2)}` : `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.`,
+      value: r,
+      detail: d.toLocaleDateString("de-DE"),
+      t: ts,
+    };
+  });
 }

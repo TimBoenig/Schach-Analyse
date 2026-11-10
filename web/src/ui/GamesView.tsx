@@ -11,7 +11,7 @@ import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "..
 import { storeImported } from "../storage/rows";
 import { Donut, Gauge, Legend } from "./charts";
 import type { Segment } from "./charts";
-import { IconPlay, IconPlus, IconStop } from "./icons";
+import { IconPlay, IconPlus, IconStop, IconSync } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { isTyping } from "./keys";
 import { navigate } from "./router";
@@ -232,6 +232,35 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
   );
 }
 
+const HIDE_BULLET_KEY = "games.hideBullet";
+// Two archives: early in a month the current one alone may hold only a game or two.
+const QUICK_MONTHS = 2;
+
+/**
+ * One click: fetch the newest chess.com games of the remembered player
+ * (last two monthly archives, already known ones skipped) and queue them for
+ * analysis right away, newest first. Returns null when no chess.com name is
+ * known yet, so the caller can open the full import dialog instead.
+ */
+async function quickImportChesscom(onProgress: (label: string) => void, skipBullet: boolean): Promise<{ name: string; result: ImportResult; queued: number } | null> {
+  const last = await getSetting<Record<string, string>>("import.lastUser", {});
+  const name = (last.chesscom ?? "").trim();
+  if (!name) return null;
+  const fresh: GameAnalysis[] = [];
+  const { result } = await importChesscomGames(name, gameExists, QUICK_MONTHS, {
+    onProgress: (_c, _t, label) => onProgress(label),
+    onBatch: async (games) => {
+      fresh.push(...games);
+      await storeImported(games);
+    },
+  });
+  const ids = fresh
+    .filter((g) => !(skipBullet && isBulletGame(g.metadata)))
+    .map((g) => g.game_id);
+  if (ids.length) await enqueue(ids, { front: true });
+  return { name, result, queued: ids.length };
+}
+
 interface Summary {
   games: number;
   wins: number;
@@ -397,6 +426,13 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   // Games of tracked opponents and friends live in the same store; by default the list shows only the user's own.
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const [justImported, setJustImported] = useState<string[]>([]);
+  const [hideBullet, setHideBulletState] = useState(false);
+  const [quick, setQuick] = useState<{ busy: boolean; text: string; error?: boolean } | null>(null);
+  useEffect(() => void getSetting<boolean>(HIDE_BULLET_KEY, false).then(setHideBulletState), []);
+  const setHideBullet = (v: boolean) => {
+    setHideBulletState(v);
+    void setSetting(HIDE_BULLET_KEY, v);
+  };
 
   useEffect(() => subscribeQueue(setQueue), []);
   useEffect(() => {
@@ -423,15 +459,38 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       if (filter === "analyzed" && status(g) !== "completed") return false;
       if (filter === "open" && status(g) === "completed") return false;
       if (speed !== "all" && g.speed_category !== speed) return false;
+      if (hideBullet && isBulletGame(g)) return false;
       if (period !== "All Time" && !inDateFilter(g, period)) return false;
       if (q && !`${g.white} ${g.black} ${g.opening ?? ""} ${g.event}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [scoped, filter, speed, search, period]);
+  }, [scoped, filter, speed, search, period, hideBullet]);
+  const bulletCount = useMemo(() => scoped.filter((g) => isBulletGame(g)).length, [scoped]);
 
   const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
 
-  const open = scoped.filter((g) => status(g) !== "completed" && !(skipBullet && isBulletGame(g))).map((g) => g.id);
+  const open = scoped.filter((g) => status(g) !== "completed" && !((skipBullet || hideBullet) && isBulletGame(g))).map((g) => g.id);
+
+  const runQuick = async () => {
+    setQuick({ busy: true, text: "Suche neue Partien auf chess.com …" });
+    try {
+      const res = await quickImportChesscom((label) => setQuick({ busy: true, text: label }), skipBullet);
+      if (!res) {
+        setQuick(null);
+        setShowImport(true);
+        return;
+      }
+      const { name, result, queued } = res;
+      setQuick({
+        busy: false,
+        text: result.imported
+          ? `${result.imported} neue ${result.imported === 1 ? "Partie" : "Partien"} von ${name} geholt${queued ? `, ${queued} ${queued === 1 ? "wird" : "werden"} jetzt analysiert` : ""}.`
+          : `Keine neuen Partien von ${name} auf chess.com. Alles ist schon da.`,
+      });
+    } catch (e) {
+      setQuick({ busy: false, error: true, text: e instanceof Error ? e.message : String(e) });
+    }
+  };
   const busy = Boolean(queue?.current) || (queue?.queued.length ?? 0) > 0;
   const remaining = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
 
@@ -468,12 +527,31 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             </button>
           )
         )}
-        <button class="btn primary" onClick={() => setShowImport(true)}>
+        <button
+          class="btn primary"
+          onClick={() => void runQuick()}
+          disabled={quick?.busy}
+          title="Holt die neuesten Partien von chess.com und analysiert sie sofort"
+        >
+          <IconSync /> {quick?.busy ? "Hole Partien …" : "Neueste holen"}
+        </button>
+        <button class="btn" onClick={() => setShowImport(true)}>
           <IconPlus /> Importieren
         </button>
           </>
         }
       />
+
+      {quick && (
+        <div class={`notice${quick.error ? " error" : ""}`} role="status">
+          <span>{quick.text}</span>
+          {!quick.busy && (
+            <button class="btn small ghost" onClick={() => setQuick(null)} aria-label="Hinweis schließen">
+              OK
+            </button>
+          )}
+        </div>
+      )}
 
       {justImported.length > 0 && !busy && (
         <Coach
@@ -551,6 +629,12 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
                 </option>
               ))}
             </select>
+          )}
+          {bulletCount > 0 && (
+            <label class="check-chip" title="Bullet-Partien in der Liste und in der Zusammenfassung ausblenden">
+              <input type="checkbox" checked={hideBullet} onChange={(e) => setHideBullet(e.currentTarget.checked)} />
+              Bullet ausblenden ({bulletCount})
+            </label>
           )}
           <PeriodSelect value={period} onChange={setPeriod} />
           <input
