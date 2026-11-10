@@ -154,10 +154,43 @@ export function currentRating(feats: GameFeatures[]): { rating: number; speed: s
   return { rating: latest.user_rating as number, speed: best[0] };
 }
 
+// A rating that jumps by this much from one game to the next is still settling
+// (new account, provisional Glicko): established ratings move 5-15 points a game.
+export const PROVISIONAL_JUMP = 40;
+
+/**
+ * Games played while the player's rating was still settling on that platform
+ * and time control. Against such a rating the Elo expectation says little: a
+ * strong player on a fresh account "beats expectations" for dozens of games
+ * just because the account started too low, a weaker one the other way round.
+ */
+export function provisionalGames(feats: GameFeatures[]): Set<GameFeatures> {
+  const out = new Set<GameFeatures>();
+  const lines = new Map<string, GameFeatures[]>();
+  for (const f of feats) {
+    if (!f.user_rating) continue;
+    const key = `${ratingSource(f)}|${f.rec.speed}`;
+    const list = lines.get(key);
+    if (list) list.push(f);
+    else lines.set(key, [f]);
+  }
+  for (const list of lines.values()) {
+    list.sort((a, b) => (a.played_at || 0) - (b.played_at || 0));
+    list.forEach((f, i) => {
+      const prev = list[i - 1];
+      const next = list[i + 1];
+      const jump = Math.max(prev ? Math.abs(f.user_rating - prev.user_rating) : 0, next ? Math.abs(next.user_rating - f.user_rating) : 0);
+      if (jump >= PROVISIONAL_JUMP) out.add(f);
+    });
+  }
+  return out;
+}
+
 export function ratingContext(feats: GameFeatures[]): RatingContext | null {
   const cur = currentRating(feats);
   if (!cur) return null;
-  const rated = feats.filter((f) => f.user_rating && f.opp_rating && f.score !== null);
+  const provisional = provisionalGames(feats);
+  const rated = feats.filter((f) => f.user_rating && f.opp_rating && f.score !== null && !provisional.has(f));
   let score = 0;
   let expected = 0;
   let oppSum = 0;
@@ -173,6 +206,7 @@ export function ratingContext(feats: GameFeatures[]): RatingContext | null {
     rating: cur.rating,
     speed: cur.speed,
     rated_games: n,
+    provisional_games: provisional.size,
     avg_opponent: avgOpp !== null ? Math.round(avgOpp) : null,
     performance: performanceRating(rated.map((f) => ({ opp: f.opp_rating as number, score: f.score as number }))),
     score: pyRound(score, 1),

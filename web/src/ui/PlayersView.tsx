@@ -1,3 +1,4 @@
+import { Fragment } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
@@ -6,8 +7,13 @@ import { isBulletGame, statsFormat } from "../domain/analysisDepth";
 import { addPlayer, importAllPlayers, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
 import { getUserColor } from "../domain/metrics";
 import {
+  type Battle,
+  buildBattle,
   buildMatchup,
   buildRanking,
+  chase,
+  crowns,
+  rivalOf,
   buildScoutReport,
   FORM_DAYS,
   FORM_MIN_GAMES,
@@ -550,12 +556,13 @@ function RankBadge({ rank }: { rank: number | null }) {
 }
 
 function RankingTable({ ranking, factor }: { ranking: Ranking; factor: string }) {
+  const [open, setOpen] = useState<string | null>(null);
   const f = ranking.factors.find((x) => x.key === factor);
   const rows = [...ranking.rows].sort((a, b) => {
     if (factor === "overall") return (a.rank ?? Infinity) - (b.rank ?? Infinity);
     return (a.cells[factor]?.rank ?? Infinity) - (b.cells[factor]?.rank ?? Infinity) || (a.rank ?? Infinity) - (b.rank ?? Infinity);
   });
-  const cols = ["rating", "accuracy", "expectation", "blunders", "h2h"];
+  const cols = ["accuracy", "expectation", "blunders", "h2h"];
   return (
     <div class="table-scroll">
       <table class="table rank-table">
@@ -576,13 +583,31 @@ function RankingTable({ ranking, factor }: { ranking: Ranking; factor: string })
           {rows.map((r) => {
             const cell = factor === "overall" ? null : r.cells[factor];
             const rank = factor === "overall" ? r.rank : (cell?.rank ?? null);
+            const expandable = factor === "overall" && r.overall !== null;
+            const isOpen = expandable && open === r.id;
             return (
-              <tr key={r.id} class={r.is_me ? "me" : ""} onClick={() => !r.is_me && navigate({ view: "players", playerId: r.id })}>
+              <Fragment key={r.id}>
+              <tr
+                class={`${r.is_me ? "me" : ""}${isOpen ? " open" : ""}`}
+                aria-expanded={expandable ? isOpen : undefined}
+                title={expandable ? "Tippen: woher die Punkte kommen" : undefined}
+                onClick={() => (expandable ? setOpen(isOpen ? null : r.id) : !r.is_me && navigate({ view: "players", playerId: r.id }))}
+              >
                 <td>
                   <RankBadge rank={rank} />
                 </td>
                 <td>
-                  <strong>{r.name}</strong>
+                  {r.is_me ? (
+                    <strong>{r.name}</strong>
+                  ) : (
+                    <a
+                      href={toHash({ view: "players", playerId: r.id })}
+                      onClick={(e) => e.stopPropagation()}
+                      class="rank-name"
+                    >
+                      <strong>{r.name}</strong>
+                    </a>
+                  )}
                   <div class="faint small">
                     {plural(r.games, "Partie", "Partien")} · {r.analyzed} analysiert
                   </div>
@@ -609,31 +634,18 @@ function RankingTable({ ranking, factor }: { ranking: Ranking; factor: string })
                     </td>
                   ))}
               </tr>
+              {isOpen && (
+                <tr class="rank-breakdown">
+                  <td colSpan={3 + cols.length}>
+                    <Breakdown ranking={ranking} row={r} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             );
           })}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function Leaders({ ranking }: { ranking: Ranking }) {
-  const items = ranking.factors
-    .map((f) => {
-      const best = ranking.rows.filter((r) => r.cells[f.key]?.rank === 1);
-      return { f, best };
-    })
-    .filter((x) => x.best.length > 0);
-  if (!items.length) return <p class="muted small">Für den Vergleich fehlen noch Daten.</p>;
-  return (
-    <div class="leaders">
-      {items.map(({ f, best }) => (
-        <div class="leader" key={f.key} title={f.hint}>
-          <span class="faint small">{f.label}</span>
-          <strong>{best.map((b) => b.name).join(", ")}</strong>
-          <span class="tnum small muted">{formatFactor(f.key, best[0].cells[f.key].value)}</span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -790,6 +802,283 @@ function FormCard({ rows }: { rows: FormRow[] }) {
   );
 }
 
+const GROUP_CLASS: Record<string, string> = { Ergebnisse: "g-res", Spielqualität: "g-qual", Fähigkeiten: "g-skill", Sonstiges: "g-misc" };
+
+/** Where a player's overall points come from: one segment per factor, sized by what it brought. */
+function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
+  const byKey = new Map(ranking.factors.map((f) => [f.key, f]));
+  if (!row.breakdown.length) return <p class="muted small">Noch zu wenig Daten für eine Aufschlüsselung.</p>;
+  return (
+    <div class="breakdown">
+      <div class="breakdown-bar" role="img" aria-label={`${Math.round(row.overall ?? 0)} von 100 Punkten`}>
+        {row.breakdown.map((c) => (
+          <span key={c.key} class={GROUP_CLASS[byKey.get(c.key)?.group ?? "Sonstiges"]} style={{ width: `${c.value}%` }} title={`${byKey.get(c.key)?.label}: ${de(c.value, 1)} Punkte`} />
+        ))}
+      </div>
+      <div class="breakdown-rows">
+        {row.breakdown.map((c) => {
+          const f = byKey.get(c.key);
+          return (
+            <div class="breakdown-row" key={c.key}>
+              <span class={`dot ${GROUP_CLASS[f?.group ?? "Sonstiges"]}`} />
+              <span>{f?.label}</span>
+              <span class="faint small tnum">{formatFactor(c.key, row.cells[c.key]?.value ?? null)}</span>
+              <span class="tnum small muted">
+                {Math.round(c.points)} × {de(c.share, 0)} %
+              </span>
+              <strong class="tnum">{de(c.value, 1)}</strong>
+            </div>
+          );
+        })}
+      </div>
+      {row.missing.length > 0 && (
+        <p class="faint small" style={{ margin: "6px 0 0" }}>
+          Ohne Daten: {row.missing.map((k) => byKey.get(k)?.label).join(", ")}. Ihr Gewicht verteilt sich auf die übrigen Faktoren.
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Your place, the gap to the next one and where the points to close it are. */
+function ChaseCard({ ranking }: { ranking: Ranking }) {
+  const me = ranking.rows.find((r) => r.is_me);
+  const ch = me ? chase(ranking, me.id) : null;
+  if (!me || !ch || me.overall === null) return null;
+  return (
+    <section class="card tile span-6 chase">
+      <div class="tile-head">
+        <h3>Dein Rennen</h3>
+        <span class="tile-sub">
+          Platz {me.rank} von {ranking.rows.length} · {Math.round(me.overall)} Punkte
+        </span>
+      </div>
+      <div class="chase-lane">
+        {ch.target ? (
+          <div class="chase-step up">
+            <span class="faint small">bis {ch.target.name}</span>
+            <strong class="tnum">−{de(ch.gap, 1)}</strong>
+          </div>
+        ) : (
+          <div class="chase-step top">
+            <span class="faint small">Spitze</span>
+            <strong>Du führst</strong>
+          </div>
+        )}
+        {ch.below && ch.lead !== null && (
+          <div class="chase-step down">
+            <span class="faint small">vor {ch.below.name}</span>
+            <strong class="tnum">+{de(ch.lead, 1)}</strong>
+          </div>
+        )}
+      </div>
+      {ch.levers.length > 0 && (
+        <>
+          <h4>Hier liegen deine Punkte</h4>
+          <div class="lever-rows">
+            {ch.levers.map((l) => (
+              <div class="lever" key={l.key}>
+                <span>{l.label}</span>
+                <div class="bar-track">
+                  <div class="bar-fill" style={{ width: `${Math.min(100, (l.room / Math.max(...ch.levers.map((x) => x.room))) * 100)}%` }} />
+                </div>
+                <span class="tnum small">bis +{de(l.room, 1)}</span>
+              </div>
+            ))}
+          </div>
+          <p class="faint small" style={{ margin: "6px 0 0" }}>
+            So viele Gesamtpunkte wären höchstens drin, wenn du dort sicher vor allen liegst.
+            {ch.target && ch.levers[0].room >= ch.gap ? ` ${ch.levers[0].label} allein reicht, um ${ch.target.name} zu überholen.` : ""}
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** The group's best player per area, with a title to defend. */
+function CrownsCard({ ranking }: { ranking: Ranking }) {
+  const list = crowns(ranking);
+  if (!list.length) return null;
+  return (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Kronen der Gruppe</h3>
+        <span class="tile-sub">Bester je Battle-Runde</span>
+      </div>
+      <div class="crowns">
+        {list.map((c) => {
+          const mine = ranking.rows.find((r) => r.id === c.holder_id)?.is_me;
+          return (
+            <div class={`crown${mine ? " me" : ""}${c.clear ? " clear" : ""}`} key={c.key} title={c.clear ? "Klar vorn" : "Knapp vorn, die Krone kann schnell wechseln"}>
+              <span class="crown-icon" aria-hidden="true">♛</span>
+              <span class="crown-title">{c.title}</span>
+              <strong>{mine ? "Du" : c.holder_name}</strong>
+              <span class="faint small">
+                {c.label} · {c.clear ? "klar" : "knapp"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+const MARGIN_TEXT: Record<string, string> = { knapp: "knapp", deutlich: "deutlich", klar: "klar" };
+
+/** Two players of the group, round by round: who wins which area, and the battle overall. */
+function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; games: StoredGame[]; group: { id: string; usernames: string[] }[]; fmt: string; date: string }) {
+  const me = ranking.rows.find((r) => r.is_me) ?? ranking.rows[0];
+  const [aId, setA] = useState(me?.id ?? "");
+  const [bId, setB] = useState(() => (me ? (rivalOf(ranking, me.id)?.id ?? "") : ""));
+  const [open, setOpen] = useState<string | null>(null);
+  const ids = ranking.rows.map((r) => r.id);
+  const a = ids.includes(aId) ? aId : (me?.id ?? "");
+  const b = ids.includes(bId) && bId !== a ? bId : (rivalOf(ranking, a)?.id ?? "");
+  const battle: Battle | null = useMemo(() => {
+    const ua = group.find((g) => g.id === a)?.usernames ?? [];
+    const ub = group.find((g) => g.id === b)?.usernames ?? [];
+    return buildBattle(ranking, a, b, ua.length && ub.length ? headToHead(games, ua, ub, fmt, date) : null);
+  }, [ranking, a, b, games, fmt, date]);
+  if (ranking.rows.length < 2 || !battle) return null;
+  const label = new Map(ranking.factors.map((f) => [f.key, f.label]));
+  const nameOf = (id: string, n: string) => (ranking.rows.find((r) => r.id === id)?.is_me ? "Du" : n);
+  const an = nameOf(battle.a.id, battle.a.name);
+  const bn = nameOf(battle.b.id, battle.b.name);
+  const power = battle.power_a;
+  const pick = (value: string, on: (v: string) => void, other: string, aria: string) => (
+    <select class="factor-select" value={value} onChange={(e) => on(e.currentTarget.value)} aria-label={aria}>
+      {ranking.rows
+        .filter((r) => r.id !== other)
+        .map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.is_me ? "Du" : r.name}
+          </option>
+        ))}
+    </select>
+  );
+  return (
+    <section class="card tile span-12 battle">
+      <div class="tile-head">
+        <h3>Battle-Arena</h3>
+        <span class="tile-sub">8 Runden, ohne Wertung</span>
+      </div>
+      <div class="battle-pick">
+        {pick(a, setA, b, "Spieler links")}
+        <button class="btn ghost small" onClick={() => { setA(b); setB(a); }} title="Seiten tauschen">
+          ⇄
+        </button>
+        {pick(b, setB, a, "Spieler rechts")}
+      </div>
+      <div class="battle-score">
+        <div class={`battle-side a${battle.leader === "a" ? " win" : ""}`}>
+          <span class="player-avatar big" aria-hidden="true">{an.slice(0, 1).toUpperCase()}</span>
+          <strong>{an}</strong>
+        </div>
+        <div class="battle-result">
+          <div class="battle-big tnum">
+            {battle.wins_a}<span class="faint">:</span>{battle.wins_b}
+          </div>
+          <span class="faint small">Runden{battle.draws ? ` · ${battle.draws} offen` : ""}</span>
+        </div>
+        <div class={`battle-side b${battle.leader === "b" ? " win" : ""}`}>
+          <span class="player-avatar big" aria-hidden="true">{bn.slice(0, 1).toUpperCase()}</span>
+          <strong>{bn}</strong>
+        </div>
+      </div>
+      {power !== null && (
+        <div class="battle-power" title="Gewichteter Schnitt der Wahrscheinlichkeit, in den Runden besser zu sein">
+          <div class="battle-power-a" style={{ width: `${power}%` }}>
+            <span class="tnum">{Math.round(power)}</span>
+          </div>
+          <div class="battle-power-b">
+            <span class="tnum">{Math.round(100 - power)}</span>
+          </div>
+        </div>
+      )}
+      <p class="battle-verdict">{battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ")}</p>
+      <div class="battle-rounds">
+        {battle.rounds.map((r, i) => {
+          const pa = r.p_a === null ? null : r.p_a * 100;
+          const isOpen = open === r.key;
+          return (
+            <div class={`battle-round${r.key === battle.decisive ? " decisive" : ""}`} key={r.key}>
+              <button class="battle-round-head" onClick={() => setOpen(isOpen ? null : r.key)} aria-expanded={isOpen}>
+                <span class="battle-no faint small tnum">R{i + 1}</span>
+                <span class="battle-name">
+                  {r.label}
+                  <span class="faint small"> · {de(r.weight, 0)} %</span>
+                </span>
+                <span class={`battle-chip ${r.winner ?? "none"}`}>
+                  {r.winner === null ? "keine Daten" : r.winner === "draw" ? "offen" : `${r.winner === "a" ? an : bn} ${MARGIN_TEXT[r.margin as string]}`}
+                </span>
+              </button>
+              {pa !== null && (
+                <div class="duel-tug battle-tug" title={`${an}: ${Math.round(pa)} % Wahrscheinlichkeit, hier besser zu sein`}>
+                  <div class="duel-tug-me" style={{ width: `${pa}%` }} />
+                </div>
+              )}
+              {isOpen && (
+                <div class="battle-detail">
+                  {r.factors.map((f) => (
+                    <div class="battle-factor" key={f.key}>
+                      <span class="tnum">{duelValue(f.key, f.a)}</span>
+                      <span class="small muted">{label.get(f.key) ?? f.key}{f.p_a !== null ? ` · ${Math.round(f.p_a * 100)} % für ${an}` : ""}</span>
+                      <span class="tnum">{duelValue(f.key, f.b)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p class="faint small" style={{ margin: "8px 0 0" }}>
+        Eine Runde gewinnt, wer dort mit mindestens 65 % Wahrscheinlichkeit wirklich besser ist (ab 80 % deutlich, ab 95 % klar); darunter bleibt sie offen. Tippe auf eine Runde für die Werte.
+      </p>
+    </section>
+  );
+}
+
+/** Every factor with its share of the total, so nobody has to guess what counts. */
+function ScoringCard({ ranking }: { ranking: Ranking }) {
+  const groups = ["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const;
+  return (
+    <section class="card tile span-12">
+      <div class="tile-head">
+        <h3>So wird gewertet</h3>
+        <span class="tile-sub">Anteil an der Gesamtwertung</span>
+      </div>
+      <div class="scoring">
+        {groups.map((g) => {
+          const fs = ranking.factors.filter((f) => f.group === g);
+          const sum = fs.reduce((t, f) => t + f.weight, 0);
+          return (
+            <div class="scoring-group" key={g}>
+              <div class="scoring-head">
+                <span class={`dot ${GROUP_CLASS[g]}`} />
+                <strong>{g}</strong>
+                <span class="tnum">{de(sum, 0)} %</span>
+              </div>
+              {fs.map((f) => (
+                <div class={`scoring-row${f.weight ? "" : " off"}`} key={f.key} title={f.hint}>
+                  <span>{f.label}</span>
+                  <span class="tnum">{f.weight ? `${de(f.weight, f.weight % 1 ? 1 : 0)} %` : "nur Info"}</span>
+                  <span class="faint small">{f.hint}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      <p class="faint small" style={{ margin: "8px 0 0" }}>
+        Jeder Faktor vergibt 0–100 Punkte: die Wahrscheinlichkeit, wirklich besser als die anderen zu sein. Ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als 50, ein klarer fast 100. Fehlt einem Spieler ein Faktor, verteilt sich dessen Gewicht auf die übrigen. Die Wertung zählt nicht: neue Konten liegen oft Hunderte Punkte daneben, und Partien mit noch springender Wertung fließen auch nicht in „Über Erwartung“ ein.
+      </p>
+    </section>
+  );
+}
+
 function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const [format, setFormat] = useState("All Formats");
   const [date, setDate] = useState("All Time");
@@ -805,17 +1094,14 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   // and needs no new profile from the worker. Cleared when the games change.
   const cache = useRef<{ games: StoredGame[]; map: Map<string, Promise<PlayerProfile>> }>({ games, map: new Map() });
   const groupKey = friends.map((p) => `${p.id}=${playerUsernames(p).join(",")}=${p.name}`).join("|");
-  const form = useMemo(
-    () =>
-      groupForm(
-        [
-          ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
-          ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
-        ],
-        games,
-      ),
-    [groupKey, games, me],
+  const group = useMemo(
+    () => [
+      ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
+      ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
+    ],
+    [groupKey, me],
   );
+  const form = useMemo(() => groupForm(group, games), [group, games]);
 
   useEffect(() => {
     if (!friends.length || !ready) return;
@@ -833,10 +1119,6 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
       }
       return p;
     };
-    const group = [
-      ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
-      ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
-    ];
     Promise.all(group.map((g) => profileOf(g.usernames)))
       .then((profiles) => {
         if (!alive) return;
@@ -855,7 +1137,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
       <div class="empty">
         <CoachAvatar size={88} mood="think" />
         <h3>Noch keine Freunde in der Rangliste</h3>
-        <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann vergleicht die App euch nach Wertung, Genauigkeit, Patzern, Fähigkeiten und Direktvergleich.</p>
+        <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann vergleicht die App euch nach Ergebnissen, Genauigkeit, Patzern, Fähigkeiten und Direktvergleich und ihr könnt gegeneinander battlen.</p>
         <button class="btn primary" onClick={() => navigate({ view: "players" })}>
           Zu den Spielern
         </button>
@@ -885,15 +1167,17 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       ) : (
         <div class="dash">
-          <section class="card tile span-12">
+          <section class="card tile span-6">
             <div class="tile-head">
               <h3>Wer ist der Beste?</h3>
-              <span class="tile-sub">Gesamtwertung aus {ranking.factors.length} Faktoren</span>
+              <span class="tile-sub">Gesamtwertung, 0–100 Punkte</span>
             </div>
             <Podium rows={ranking.rows} />
           </section>
 
-          <GroupStandingCard ranking={ranking} />
+          <ChaseCard ranking={ranking} />
+
+          <BattleArena ranking={ranking} games={games} group={group} fmt={fmt} date={date} />
 
           <section class="card tile span-12">
             <div class="tile-head">
@@ -908,6 +1192,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
                         <option key={f.key} value={f.key}>
                           {f.label}
                           {f.key === "rating" && ranking.rating_speed ? ` (${ranking.rating_speed})` : ""}
+                          {f.weight ? ` · ${de(f.weight, f.weight % 1 ? 1 : 0)} %` : " · nur Info"}
                         </option>
                       ))}
                   </optgroup>
@@ -916,21 +1201,16 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             </div>
             <p class="small muted" style={{ marginTop: 0 }}>
               {factor === "overall"
-                ? "Jeder Faktor vergibt Punkte nach der Wahrscheinlichkeit, wirklich besser als die anderen zu sein (Messunsicherheit eingerechnet): ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als die Hälfte, ein klarer fast 100. Die Gesamtwertung ist der gewichtete Schnitt (die Wertung ist nur zur Info und zählt nicht mit); Genauigkeit, Über Erwartung und Direktvergleich zählen am stärksten."
+                ? "Tippe auf einen Spieler: dann siehst du, wie viele Punkte jeder Faktor gebracht hat. Gewichte stehen unten unter „So wird gewertet“."
                 : ranking.factors.find((f) => f.key === factor)?.hint}
             </p>
             <RankingTable ranking={ranking} factor={factor} />
           </section>
 
+          <CrownsCard ranking={ranking} />
           <FormCard rows={form} />
-
-          <section class="card tile span-6">
-            <div class="tile-head">
-              <h3>Wer ist wo vorn?</h3>
-              <span class="tile-sub">Bester je Faktor</span>
-            </div>
-            <Leaders ranking={ranking} />
-          </section>
+          <GroupStandingCard ranking={ranking} />
+          <ScoringCard ranking={ranking} />
           {ranking.notes.length > 0 && (
             <div class="span-12">
               {ranking.notes.map((n) => (
@@ -955,6 +1235,7 @@ function duelValue(key: string, v: number | null): string {
 }
 
 function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
+  if (r.key === "rating") return { text: "nur Info", cls: "" };
   if (r.p_me === null) return { text: "zu wenig Daten", cls: "" };
   if (r.edge === "me") return { text: r.sure ? "klar du" : "eher du", cls: "duel-me" };
   if (r.edge === "them") return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "duel-them" };
@@ -995,12 +1276,12 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
               </div>
               <p class="faint small" style={{ margin: "8px 0 0" }}>
                 {p.basis}
-                {p.elo_pct !== null && p.h2h_games > 0 ? ` Die Wertung allein sagt ${pct0(p.elo_pct)}.` : ""}
+                {p.elo_pct !== null ? ` Nach Wertung wären es ${pct0(p.elo_pct)}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.` : ""}
               </p>
             </>
           ) : (
             <p class="muted small">
-              Für eine Prognose fehlen vergleichbare Wertungen (gleiche Plattform) oder Partien gegeneinander.
+              Für eine Prognose fehlen analysierte Partien (je mindestens 5) oder Partien gegeneinander.
             </p>
           )}
         </div>
@@ -1017,9 +1298,11 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
                       <span>{r.label}</span>
                       <span class={`duel-verdict ${v.cls}`}>{v.text}</span>
                     </div>
-                    <div class="duel-tug">
-                      <div class="duel-tug-me" style={{ width: `${pMe}%` }} />
-                    </div>
+                    {r.key !== "rating" && (
+                      <div class="duel-tug">
+                        <div class="duel-tug-me" style={{ width: `${pMe}%` }} />
+                      </div>
+                    )}
                   </div>
                   <span class={`duel-val tnum them${r.edge === "them" ? " lead" : ""}`}>{duelValue(r.key, r.them)}</span>
                 </div>

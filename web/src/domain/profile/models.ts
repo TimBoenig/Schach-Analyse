@@ -147,6 +147,8 @@ export interface RatingContext {
   speed: string;
   /** Games with both ratings known (basis for performance / expectation). */
   rated_games: number;
+  /** Rated games left out because the rating was still settling (new account). */
+  provisional_games: number;
   avg_opponent: number | null;
   /** Classic performance rating: average opponent + 400 · (W − L) / N. */
   performance: number | null;

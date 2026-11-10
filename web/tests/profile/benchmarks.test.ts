@@ -100,3 +100,17 @@ describe("rating per platform", () => {
     expect(p.rating?.rating).toBe(1220);
   });
 });
+
+describe("settling ratings", () => {
+  it("leaves out games while a fresh account's rating still jumps", () => {
+    const moves = buildMoves({});
+    // A new account climbs 1200 -> 1300 -> 1400 -> 1500 by beating 1500 players, then settles.
+    const elo = [1200, 1300, 1400, 1500, 1508, 1500, 1506];
+    const rows = elo.map((r, i) => ({ ...gameRow(`g${i}`, moves, { result: "1-0", utc: `2026.05.0${i + 1} 10:00:00` }), white_elo: String(r), black_elo: "1500" }));
+    const rc = buildPlayerProfile(rows, ["Tim"]).rating!;
+    // Only the games around the settled 1500 count; the climb would fake a huge "above expectation".
+    expect(rc.provisional_games).toBe(4);
+    expect(rc.rated_games).toBe(3);
+    expect(rc.expected_score).toBeCloseTo(expectedScore(1508, 1500) + expectedScore(1500, 1500) + expectedScore(1506, 1500), 1);
+  });
+});
