@@ -7346,3 +7346,117 @@ button.line-move:hover {
     grid-column: 1 / -1;
   }
 }
+
+.chart-range {
+  margin-top: 6px;
+  justify-content: flex-end;
+}
+
+/* Activity calendar: weeks as rows, day numbers in the cells. */
+.cal-spans {
+  margin-bottom: 10px;
+}
+.cal-grid {
+  display: grid;
+  grid-template-columns: 34px repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  align-items: center;
+}
+.cal-wd,
+.cal-month {
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+}
+.cal-month {
+  text-align: left;
+  font-weight: 600;
+}
+.cal-day {
+  position: relative;
+  aspect-ratio: 1.35;
+  min-height: 26px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.cal-day.l1 {
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface-3));
+}
+.cal-day.l2 {
+  background: color-mix(in srgb, var(--accent) 42%, var(--surface-3));
+}
+.cal-day.l3 {
+  background: color-mix(in srgb, var(--accent) 64%, var(--surface-3));
+  color: var(--text);
+}
+.cal-day.l4 {
+  background: color-mix(in srgb, var(--accent) 85%, var(--surface-3));
+  color: var(--text);
+}
+.cal-day.good {
+  border-color: var(--win);
+}
+.cal-day.bad {
+  border-color: var(--loss);
+}
+.cal-day.today {
+  outline: 2px solid var(--text);
+  outline-offset: 1px;
+}
+.cal-day.on {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.cal-day.future {
+  opacity: 0.3;
+  cursor: default;
+}
+.cal-num {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 11px;
+}
+.cal-n {
+  position: absolute;
+  right: 5px;
+  bottom: 2px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.cal-detail {
+  margin: 10px 0 0;
+  min-height: 1.4em;
+}
+
+.check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.check-chip input {
+  width: auto;
+  margin: 0;
+}
+.notice[role="status"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.notice.error {
+  background: color-mix(in srgb, var(--loss) 12%, transparent);
+  border-color: color-mix(in srgb, var(--loss) 40%, transparent);
+}

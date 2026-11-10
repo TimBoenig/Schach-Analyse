@@ -42,6 +42,19 @@ export interface CalendarDay {
   games: number;
   score_pct: number | null;
   future: boolean;
+  wins: number;
+  draws: number;
+  losses: number;
+}
+
+export interface DailyRow {
+  day: string;
+  games: number;
+  /** Null when none of the day's games has a result yet. */
+  score_pct: number | null;
+  wins?: number;
+  draws?: number;
+  losses?: number;
 }
 
 const de = (x: number, digits: number) => fmt(x, digits).replace(".", ",");
@@ -168,7 +181,7 @@ const dayString = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${p
  * (Monday first), one cell per day, from the profile's daily trend rows.
  */
 export function activityCalendar(
-  daily: { day: string; games: number; score_pct: number }[],
+  daily: DailyRow[],
   today: string,
   weeks = 12,
 ): CalendarDay[][] {
@@ -182,7 +195,15 @@ export function activityCalendar(
     for (let i = 0; i < 7; i++) {
       const day = dayString(start);
       const row = byDay.get(day);
-      col.push({ day, games: row?.games ?? 0, score_pct: row && row.games ? row.score_pct : null, future: day > today });
+      col.push({
+        day,
+        games: row?.games ?? 0,
+        score_pct: row && row.games ? row.score_pct : null,
+        future: day > today,
+        wins: row?.wins ?? 0,
+        draws: row?.draws ?? 0,
+        losses: row?.losses ?? 0,
+      });
       start.setDate(start.getDate() + 1);
     }
     cols.push(col);
@@ -197,25 +218,28 @@ export function activityCalendar(
 export function dailyActivity(
   games: (FilterableGame & { result?: string | null })[],
   usernames: string[],
-): { day: string; games: number; score_pct: number }[] {
-  const days = new Map<string, { games: number; points: number; finished: number }>();
+): DailyRow[] {
+  const days = new Map<string, { games: number; wins: number; draws: number; losses: number }>();
   for (const g of games) {
     const color = getUserColor(g, usernames);
     const ts = color ? extractGameTimestamp(g) : null;
     if (!color || ts === null) continue;
     const day = dayString(new Date(ts * 1000));
-    const d = days.get(day) ?? { games: 0, points: 0, finished: 0 };
+    const d = days.get(day) ?? { games: 0, wins: 0, draws: 0, losses: 0 };
     d.games++;
     const o = outcomeFor(g.result, color);
-    if (o) {
-      d.finished++;
-      d.points += o === "win" ? 1 : o === "draw" ? 0.5 : 0;
-    }
+    if (o === "win") d.wins++;
+    else if (o === "draw") d.draws++;
+    else if (o === "loss") d.losses++;
     days.set(day, d);
   }
+  // A day of unfinished games used to show "50 % Punkte"; it has no score.
   return [...days.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([day, d]) => ({ day, games: d.games, score_pct: d.finished ? (d.points / d.finished) * 100 : 50 }));
+    .map(([day, d]) => {
+      const finished = d.wins + d.draws + d.losses;
+      return { day, ...d, score_pct: finished ? ((d.wins + d.draws / 2) / finished) * 100 : null };
+    });
 }
 
 export interface FormSummary {

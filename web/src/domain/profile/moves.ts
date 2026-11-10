@@ -125,9 +125,11 @@ export const sumOf = (counts: Counts, keys: readonly TallyClass[]): number => ke
 
 export const totalOf = (counts: Counts): number => sumOf(counts, TALLY_CLASSES);
 
+/** Local calendar month, like the day and week buckets and the date filters
+ * (a game at 00:30 on the 1st used to count for the month before). */
 export function monthKey(ts: number): string {
   const d = new Date(ts * 1000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 function block(key: string, label: string): TallyBlock {

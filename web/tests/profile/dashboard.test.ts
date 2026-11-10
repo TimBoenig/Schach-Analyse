@@ -72,4 +72,18 @@ describe("activity calendar", () => {
     expect(last.map((d) => d.games)).toEqual([1, 1, 0, 0, 0, 0, 0]);
     expect(last.map((d) => d.future)).toEqual([false, false, false, true, true, true, true]);
   });
+
+  it("keeps wins, draws and losses per day and gives unfinished days no score", () => {
+    const games = [
+      { white: "Tim", black: "A", result: "1-0", date: "2026.06.01", pgn: "" },
+      { white: "B", black: "Tim", result: "1/2-1/2", date: "2026.06.01", pgn: "" },
+      { white: "Tim", black: "C", result: "0-1", date: "2026.06.01", pgn: "" },
+      { white: "Tim", black: "D", result: "*", date: "2026.06.02", pgn: "" },
+    ];
+    const daily = dailyActivity(games, ["Tim"]);
+    expect(daily[0]).toMatchObject({ day: "2026-06-01", games: 3, wins: 1, draws: 1, losses: 1, score_pct: 50 });
+    expect(daily[1]).toMatchObject({ day: "2026-06-02", games: 1, score_pct: null });
+    const day = activityCalendar(daily, "2026-06-03", 1)[0][0];
+    expect([day.wins, day.draws, day.losses]).toEqual([1, 1, 1]);
+  });
 });

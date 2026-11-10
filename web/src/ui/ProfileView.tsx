@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { trSpeed } from "../domain/i18n";
 import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
-import { AreaChart, BarList, Donut, Gauge, Legend, RadarChart } from "./charts";
+import { AreaChart, BarList, Donut, Gauge, Legend, monthStart, RadarChart, ratingSeriesPoints } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { navigate } from "./router";
 import { CoachTip, NeedNames } from "./Coach";
@@ -297,18 +297,12 @@ export function ProfileView() {
       label: `${m.month.slice(5, 7)}/${m.month.slice(2, 4)}`,
       value: m.avg_accuracy as number,
       detail: `${m.month.slice(5, 7)}/${m.month.slice(0, 4)} · ${m.games} ${m.games === 1 ? "Partie" : "Partien"}`,
+      t: monthStart(m.month),
     }));
   const ratingSeries = (profile.trends.ratings ?? {}) as Record<string, [number, number][]>;
   const speeds = Object.keys(ratingSeries).sort((a, b) => ratingSeries[b].length - ratingSeries[a].length);
   const shownSpeed = ratingSpeed && ratingSeries[ratingSpeed] ? ratingSpeed : speeds[0];
-  const ratingPoints = (ratingSeries[shownSpeed] ?? []).map(([ts, r]) => {
-    const d = new Date(ts * 1000);
-    return {
-      label: d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }),
-      value: r,
-      detail: d.toLocaleDateString("de-DE"),
-    };
-  });
+  const ratingPoints = ratingSeriesPoints(ratingSeries[shownSpeed] ?? []);
 
   const sec = (id: ProfileSection) => sectionOf("profile", id);
   const sections = profile.is_empty ? [sec("ueberblick")] : STAT_SECTIONS.profile;

@@ -397,7 +397,7 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
 const pad2 = (n: number) => String(n).padStart(2, "0");
 const localDayKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 
-/** Local calendar day: what "today" means to the player, unlike the UTC month buckets. */
+/** Local calendar day: what "today" means to the player, same as the month buckets. */
 export function dayKey(ts: number): string {
   return localDayKey(new Date(ts * 1000));
 }
