@@ -311,13 +311,13 @@ function WeekStrip({ t }: { t: TrainingState }) {
           {trained} von {week.target_days} Trainingstagen
         </span>
       </div>
-      <div class="week-strip">
+      <div class="plan-week">
         {week.days.map((d) => {
           const [y, m, day] = d.date.split("-").map(Number);
           const log = t.log[d.date];
           const state = d.date === t.today ? " today" : log?.done ? " done" : d.date < t.today ? " missed" : "";
           return (
-            <div key={d.date} class={`week-day${state}`}>
+            <div key={d.date} class={`plan-day${state}`}>
               <span class="week-dow">{WEEKDAY[new Date(y, m - 1, day).getDay()]}</span>
               <span class="week-theme">{themeLabel(d.theme)}</span>
               <span class="week-state small tnum">{log?.done ? `${log.correct}/${log.done}` : d.date === t.today ? "heute" : ""}</span>

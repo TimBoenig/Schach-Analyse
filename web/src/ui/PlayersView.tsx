@@ -376,6 +376,59 @@ function AnalyzeFriends({ players, games }: { players: TrackedPlayer[]; games: S
   );
 }
 
+const SECTIONS: [string, boolean, string][] = [
+  ["Freunde", true, "in Rangliste und Vergleich"],
+  ["Gegner", false, "zum Ausspähen vor der Partie"],
+];
+
+/** Summary strip on top of the player list: who you track and how you fare against them. */
+function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]; onAdd: () => void; players: TrackedPlayer[]; games: StoredGame[] }) {
+  const t = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
+  const n = t.w + t.d + t.l;
+  const friends = cards.filter((c) => c.player.friend).length;
+  return (
+    <section class="card players-hero">
+      <div class="players-hero-stats">
+        <div>
+          <span class="players-hero-num tnum">{cards.length}</span>
+          <span class="faint small">Spieler</span>
+        </div>
+        <div>
+          <span class="players-hero-num tnum">{friends}</span>
+          <span class="faint small">Freunde</span>
+        </div>
+        <div>
+          <span class="players-hero-num tnum">{n ? pct0(((t.w + t.d / 2) / n) * 100) : "–"}</span>
+          <span class="faint small">{n ? `deine Punkte aus ${plural(n, "Direktpartie", "Direktpartien")}` : "noch keine Direktpartie"}</span>
+        </div>
+      </div>
+      <div class="players-hero-actions">
+        <button class="btn primary" onClick={onAdd}>
+          <IconPlus /> Spieler hinzufügen
+        </button>
+        <RefreshAll players={players.filter((p) => !p.hidden)} />
+        <AnalyzeFriends players={players} games={games} />
+      </div>
+    </section>
+  );
+}
+
+/** Win/draw/loss split as one bar, readable at a glance. */
+function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
+  if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
+  const n = h.wins + h.draws + h.losses || 1;
+  return (
+    <div class="h2h-bar-wrap">
+      <div class="h2h-bar" aria-hidden="true">
+        <span class="w" style={{ flex: h.wins / n }} />
+        <span class="d" style={{ flex: h.draws / n }} />
+        <span class="l" style={{ flex: h.losses / n }} />
+      </div>
+      <H2HLine h={h} name={name} />
+    </div>
+  );
+}
+
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
   if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
   return (
@@ -413,8 +466,20 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
           </button>
         </div>
       ) : (
-        <div class="player-grid">
-          {cards.shown.map((c) => (
+        <>
+          <PlayersHero cards={cards.shown} onAdd={() => setAdding(null)} players={players} games={games} />
+          {SECTIONS.map(([title, isFriend, sub]) => {
+            const list = cards.shown.filter((c) => c.player.friend === isFriend);
+            if (!list.length) return null;
+            return (
+              <section class="players-section" key={title}>
+                <div class="section-head">
+                  <h2>{title}</h2>
+                  <span class="pill tnum">{list.length}</span>
+                  <span class="faint small">{sub}</span>
+                </div>
+                <div class="player-grid">
+                  {list.map((c) => (
             <button key={c.player.id} class="card player-card" onClick={() => navigate({ view: "players", playerId: c.player.id })}>
               <div class="player-card-head">
                 <span class="player-avatar" aria-hidden="true">
@@ -443,14 +508,18 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   </span>
                 )}
               </div>
-              <H2HLine h={c.h2h} name={c.player.name} />
+              <H2HBar h={c.h2h} name={c.player.name} />
               {c.player.accounts.some((a) => a.source !== "other") && (
                 <span class="faint small">{loadedAgo(c.player.imported_at)}</span>
               )}
             </button>
-          ))}
+                  ))}
+                </div>
+              </section>
+            );
+          })}
           {cards.shown.length === 0 && <p class="muted small">Alle Spieler sind ausgeblendet.</p>}
-        </div>
+        </>
       )}
 
       {cards.hidden.length > 0 && (
@@ -502,16 +571,6 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
             ))}
           </div>
         </section>
-      )}
-
-      {players.length > 0 && (
-        <div class="row" style={{ justifyContent: "center", marginTop: "6px", flexWrap: "wrap", gap: "8px" }}>
-          <button class="btn primary" onClick={() => setAdding(null)}>
-            <IconPlus /> Spieler hinzufügen
-          </button>
-          <RefreshAll players={players.filter((p) => !p.hidden)} />
-          <AnalyzeFriends players={players} games={games} />
-        </div>
       )}
 
       {adding !== undefined && (
@@ -1045,11 +1104,17 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
 function ScoringCard({ ranking }: { ranking: Ranking }) {
   const groups = ["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const;
   return (
-    <section class="card tile span-12">
-      <div class="tile-head">
-        <h3>So wird gewertet</h3>
-        <span class="tile-sub">Anteil an der Gesamtwertung</span>
-      </div>
+    <details class="card tile span-12 rank-explain">
+      <summary>
+        <span>
+          <strong>So funktioniert das Ranking</strong>
+          <span class="faint small"> · 15 Bereiche, Gewichte und Regeln</span>
+        </span>
+        <span class="rank-explain-chev" aria-hidden="true" />
+      </summary>
+      <p class="small muted">
+        Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum, klare Vorsprünge voll. Daraus entsteht die Gesamtwertung.
+      </p>
       <div class="scoring">
         {groups.map((g) => {
           const fs = ranking.factors.filter((f) => f.group === g);
@@ -1075,7 +1140,21 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
       <p class="faint small" style={{ margin: "8px 0 0" }}>
         Jeder Faktor vergibt 0–100 Punkte: die Wahrscheinlichkeit, wirklich besser als die anderen zu sein. Ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als 50, ein klarer fast 100. Fehlt einem Spieler ein Faktor, verteilt sich dessen Gewicht auf die übrigen. Die Wertung zählt nicht: neue Konten liegen oft Hunderte Punkte daneben, und Partien mit noch springender Wertung fließen auch nicht in „Über Erwartung“ ein.
       </p>
-    </section>
+      {ranking.notes.map((n) => (
+        <p class="faint small" key={n} style={{ margin: "6px 0 0" }}>
+          {n}
+        </p>
+      ))}
+    </details>
+  );
+}
+
+function RankSection({ title, sub, first }: { title: string; sub: string; first?: boolean }) {
+  return (
+    <div class={`section-head span-12${first ? " first" : ""}`}>
+      <h2>{title}</h2>
+      <span class="faint small">{sub}</span>
+    </div>
   );
 }
 
@@ -1167,6 +1246,7 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       ) : (
         <div class="dash">
+          <RankSection title="Stand" sub="wer vorne liegt und wie knapp es ist" first />
           <section class="card tile span-6">
             <div class="tile-head">
               <h3>Wer ist der Beste?</h3>
@@ -1177,11 +1257,10 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
 
           <ChaseCard ranking={ranking} />
 
-          <BattleArena ranking={ranking} games={games} group={group} fmt={fmt} date={date} />
-
+          <RankSection title="Rangliste" sub="alle Faktoren, Spieler antippen für Details" />
           <section class="card tile span-12">
             <div class="tile-head">
-              <h3>Rangliste</h3>
+              <h3>Tabelle</h3>
               <select class="factor-select" value={factor} onChange={(e) => setFactor(e.currentTarget.value)} aria-label="Faktor">
                 <option value="overall">Gesamtwertung</option>
                 {(["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const).map((grp) => (
@@ -1201,25 +1280,20 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             </div>
             <p class="small muted" style={{ marginTop: 0 }}>
               {factor === "overall"
-                ? "Tippe auf einen Spieler: dann siehst du, wie viele Punkte jeder Faktor gebracht hat. Gewichte stehen unten unter „So wird gewertet“."
+                ? "Tippe auf einen Spieler: dann siehst du, wie viele Punkte jeder Faktor gebracht hat."
                 : ranking.factors.find((f) => f.key === factor)?.hint}
             </p>
             <RankingTable ranking={ranking} factor={factor} />
           </section>
 
+          <RankSection title="Battle" sub="Kopf an Kopf, Faktor für Faktor" />
+          <BattleArena ranking={ranking} games={games} group={group} fmt={fmt} date={date} />
+
+          <RankSection title="Gruppe" sub="Kronen, Form und deine Stellung" />
           <CrownsCard ranking={ranking} />
           <FormCard rows={form} />
           <GroupStandingCard ranking={ranking} />
           <ScoringCard ranking={ranking} />
-          {ranking.notes.length > 0 && (
-            <div class="span-12">
-              {ranking.notes.map((n) => (
-                <p class="faint small" key={n} style={{ margin: "0 0 6px" }}>
-                  {n}
-                </p>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -2051,11 +2125,11 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
           Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
         </div>
       )}
-      <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>
-        {tab === "rangliste"
-          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum, klare Vorsprünge voll. Daraus entsteht die Gesamtwertung."
-          : "Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?"}
-      </CoachTip>
+      {tab !== "rangliste" && (
+        <CoachTip id="players" title="Deine Gegner und Freunde">
+          Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?
+        </CoachTip>
+      )}
       {tab === "rangliste" ? <RankingPanel players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
     </div>
   );
