@@ -8,6 +8,7 @@
 import { Board, moveFromUci, STARTING_FEN } from "../tactics/board";
 import { ERROR_CLASSES, type GameFeatures, type MoveEvent, moveLabel, sanForUci } from "../profile/features";
 import { openingMain } from "../profile/openings";
+import { LIBRARY_DRILLS } from "./library";
 import { BASIC_ENDGAMES } from "./basics";
 
 export type Category =
@@ -133,6 +134,9 @@ export interface RepertoireExercise extends Base {
   correction: { ply: number; played_san: string; best_san: string; games: number } | null;
   games: number;
   score_pct: number | null;
+  /** Set for lines from the opening library (its opening key), absent for the player's own lines. */
+  library?: string;
+  idea?: string;
 }
 
 export type PlayoutGoal = "mate" | "promote" | "win" | "hold";
@@ -354,7 +358,7 @@ function playouts(analyzed: GameFeatures[]): PlayoutExercise[] {
 export function buildExercisePool(feats: GameFeatures[]): Exercise[] {
   const standard = feats.filter((f) => !f.chess960);
   const analyzed = standard.filter((f) => f.analyzed);
-  return [...puzzles(analyzed), ...drills(standard), ...playouts(analyzed), ...BASIC_ENDGAMES];
+  return [...puzzles(analyzed), ...drills(standard), ...playouts(analyzed), ...BASIC_ENDGAMES, ...LIBRARY_DRILLS];
 }
 
 export function countByCategory(pool: Exercise[]): Record<Category, number> {
