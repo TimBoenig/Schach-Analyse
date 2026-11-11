@@ -712,3 +712,110 @@ textarea:focus {
     font-size: 30px;
   }
 }
+
+/* ---------- players & ranking (PR: Gegner/Freunde/Rangliste) ---------- */
+.players-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 28px;
+  margin-bottom: 8px;
+}
+.players-hero-stats {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.players-hero-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.players-hero-num {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--text);
+}
+.players-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.players-section {
+  margin-top: 22px;
+}
+.players-section > .section-head {
+  margin: 0 2px 12px;
+  align-items: center;
+}
+.players-section .section-head h2,
+.dash > .section-head h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+}
+.dash > .section-head.first {
+  border-top: 0;
+  padding-top: 0;
+  margin-top: 0;
+}
+.player-card {
+  transition: border-color 0.2s, transform 0.2s;
+}
+.player-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.player-avatar {
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 22px;
+}
+.h2h-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.h2h-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border);
+  gap: 2px;
+}
+.h2h-bar .w { background: var(--win); }
+.h2h-bar .d { background: var(--text-3); }
+.h2h-bar .l { background: var(--loss); }
+.rank-explain > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.rank-explain > summary::-webkit-details-marker {
+  display: none;
+}
+.rank-explain-chev {
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.rank-explain[open] .rank-explain-chev {
+  transform: rotate(-135deg);
+}
+.rank-explain[open] > summary {
+  margin-bottom: 12px;
+}

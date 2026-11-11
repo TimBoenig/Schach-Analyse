@@ -1,10 +1,21 @@
 import { Fragment } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import {
+  enqueue,
+  subscribeQueue,
+  type QueueState,
+} from "../app/analysisService";
 import { buildProfileInWorker } from "../app/profileClient";
 import { isBulletGame, statsFormat } from "../domain/analysisDepth";
-import { addPlayer, importAllPlayers, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
+import {
+  addPlayer,
+  importAllPlayers,
+  importPlayerGames,
+  loadPlayers,
+  removePlayer,
+  updatePlayer,
+} from "../app/players";
 import { getUserColor } from "../domain/metrics";
 import {
   type Battle,
@@ -47,12 +58,27 @@ import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { PageHeader } from "./Layout";
-import { AreaChart, BarList, Donut, Legend, RadarChart, ratingSeriesPoints, StackBar } from "./charts";
+import {
+  AreaChart,
+  BarList,
+  Donut,
+  Legend,
+  RadarChart,
+  ratingSeriesPoints,
+  StackBar,
+} from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { Calendar, FormStats, RecentGames } from "./HomeView";
 import { ClassTiles, VersusBars } from "./MoveTally";
 import { StyleAxes } from "./ProfileView";
-import { IconEye, IconEyeOff, IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
+import {
+  IconEye,
+  IconEyeOff,
+  IconPlay,
+  IconPlus,
+  IconSync,
+  IconTrash,
+} from "./icons";
 import { formatDate, loadedAgo, SPEED_DE } from "./labels";
 import { navigate, toHash } from "./router";
 import { CoachAvatar, CoachTip } from "./Coach";
@@ -74,22 +100,37 @@ const RADAR_LABELS: Record<string, string> = {
   consistency: "Konstanz",
 };
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-const pct0 = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${Math.round(v)} %`);
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+const pct0 = (v: number | null | undefined) =>
+  v === null || v === undefined || Number.isNaN(v) ? "–" : `${Math.round(v)} %`;
 const de = (v: number, digits: number) => v.toFixed(digits).replace(".", ",");
-const signed = (v: number, digits = 1) => `${v >= 0 ? "+" : "−"}${de(Math.abs(v), digits)}`;
+const signed = (v: number, digits = 1) =>
+  `${v >= 0 ? "+" : "−"}${de(Math.abs(v), digits)}`;
 
 function gamesOf(all: StoredGame[], names: string[]): StoredGame[] {
   return all.filter((g) => getUserColor(g, names));
 }
 
 /** Profile for one set of usernames; only their games travel to the worker. */
-function profileFor(all: StoredGame[], names: string[], format: string, date: string): Promise<PlayerProfile> {
-  return buildProfileInWorker({ games: gamesOf(all, names), usernames: names, format, date, color: "All Colors" });
+function profileFor(
+  all: StoredGame[],
+  names: string[],
+  format: string,
+  date: string,
+): Promise<PlayerProfile> {
+  return buildProfileInWorker({
+    games: gamesOf(all, names),
+    usernames: names,
+    format,
+    date,
+    color: "All Colors",
+  });
 }
 
 /** Changes only when a game is added, removed or re-analysed. */
-const gamesSignature = (games: StoredGame[]) => games.map((g) => `${g.id}:${g.updated_at}`).join("|");
+const gamesSignature = (games: StoredGame[]) =>
+  games.map((g) => `${g.id}:${g.updated_at}`).join("|");
 
 function useData() {
   const [players, setPlayers] = useState<TrackedPlayer[] | null>(null);
@@ -99,7 +140,11 @@ function useData() {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [p, g, u] = await Promise.all([loadPlayers(), listGames(), getSetting<string[]>("usernames", [])]);
+      const [p, g, u] = await Promise.all([
+        loadPlayers(),
+        listGames(),
+        getSetting<string[]>("usernames", []),
+      ]);
       if (!alive) return;
       setPlayers(p);
       // Settings changes (like hiding a friend) also fire a data change. Keeping
@@ -142,7 +187,11 @@ function PlayerFilters({
   const { excludeBullet } = useBulletPrefs();
   return (
     <div class="filters">
-      <select value={format} onChange={(e) => onFormat(e.currentTarget.value)} aria-label="Bedenkzeit">
+      <select
+        value={format}
+        onChange={(e) => onFormat(e.currentTarget.value)}
+        aria-label="Bedenkzeit"
+      >
         {FORMATS.map((f) => (
           <option key={f} value={f}>
             {formatOptionLabel(f, excludeBullet)}
@@ -185,7 +234,11 @@ function AddPlayerDialog({
     setError("");
     abort.current = new AbortController();
     try {
-      const player = await addPlayer({ name, accounts: [{ source, username }], friend });
+      const player = await addPlayer({
+        name,
+        accounts: [{ source, username }],
+        friend,
+      });
       added.current = player;
       if (source !== "other") {
         const { result } = await importPlayerGames(player, {
@@ -195,7 +248,9 @@ function AddPlayerDialog({
           signal: abort.current.signal,
           onProgress: setProgress,
         });
-        setProgress(`${result.imported} neue Partien geladen${result.already_known ? `, ${result.already_known} waren schon da` : ""}.`);
+        setProgress(
+          `${result.imported} neue Partien geladen${result.already_known ? `, ${result.already_known} waren schon da` : ""}.`,
+        );
       }
       ref.current?.close();
     } catch (e) {
@@ -216,23 +271,46 @@ function AddPlayerDialog({
             ["other", "Nur meine Partien"],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} class={source === k ? "active" : ""} onClick={() => setSource(k)} disabled={busy}>
+          <button
+            key={k}
+            class={source === k ? "active" : ""}
+            onClick={() => setSource(k)}
+            disabled={busy}
+          >
             {l}
           </button>
         ))}
       </div>
       <label class="field">
-        <span>{source === "other" ? "Name in deinen Partien" : `Benutzername auf ${SOURCE_LABELS[source]}`}</span>
-        <input type="text" autocapitalize="off" autocorrect="off" value={username} onInput={(e) => setUsername(e.currentTarget.value)} />
+        <span>
+          {source === "other"
+            ? "Name in deinen Partien"
+            : `Benutzername auf ${SOURCE_LABELS[source]}`}
+        </span>
+        <input
+          type="text"
+          autocapitalize="off"
+          autocorrect="off"
+          value={username}
+          onInput={(e) => setUsername(e.currentTarget.value)}
+        />
       </label>
       <label class="field">
         <span>Anzeigename (optional)</span>
-        <input type="text" value={name} placeholder={username || "z. B. Max"} onInput={(e) => setName(e.currentTarget.value)} />
+        <input
+          type="text"
+          value={name}
+          placeholder={username || "z. B. Max"}
+          onInput={(e) => setName(e.currentTarget.value)}
+        />
       </label>
       {source === "lichess" && (
         <label class="field">
           <span>Letzte Partien laden</span>
-          <select value={count} onChange={(e) => setCount(e.currentTarget.value)}>
+          <select
+            value={count}
+            onChange={(e) => setCount(e.currentTarget.value)}
+          >
             {["50", "100", "200", "500"].map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -245,7 +323,10 @@ function AddPlayerDialog({
       {source === "chesscom" && (
         <label class="field">
           <span>Zeitraum laden</span>
-          <select value={months} onChange={(e) => setMonths(e.currentTarget.value)}>
+          <select
+            value={months}
+            onChange={(e) => setMonths(e.currentTarget.value)}
+          >
             <option value="1">Letzter Monat</option>
             <option value="3">Letzte 3 Monate</option>
             <option value="6">Letzte 6 Monate</option>
@@ -256,19 +337,29 @@ function AddPlayerDialog({
       )}
       {source === "other" && (
         <p class="small muted" style={{ marginTop: 0 }}>
-          Nutzt nur die Partien, die schon in der App sind (z. B. deine Partien gegen diese Person oder eine importierte PGN).
+          Nutzt nur die Partien, die schon in der App sind (z. B. deine Partien
+          gegen diese Person oder eine importierte PGN).
         </p>
       )}
       <label class="toggle-row">
-        <input type="checkbox" checked={friend} onChange={(e) => setFriend(e.currentTarget.checked)} />
+        <input
+          type="checkbox"
+          checked={friend}
+          onChange={(e) => setFriend(e.currentTarget.checked)}
+        />
         <span>
           <strong>In die Freundes-Rangliste aufnehmen</strong>
-          <small class="faint">Ohne Haken nur als Gegner zum Ausspionieren.</small>
+          <small class="faint">
+            Ohne Haken nur als Gegner zum Ausspionieren.
+          </small>
         </span>
       </label>
       {progress && <p class="small muted">{progress}</p>}
       {error && <p class="error small">{error}</p>}
-      <div class="row" style={{ justifyContent: "flex-end", marginTop: "12px" }}>
+      <div
+        class="row"
+        style={{ justifyContent: "flex-end", marginTop: "12px" }}
+      >
         {busy ? (
           <button class="btn" onClick={() => abort.current?.abort()}>
             Abbrechen
@@ -278,8 +369,16 @@ function AddPlayerDialog({
             Schließen
           </button>
         )}
-        <button class="btn primary" disabled={busy || !username.trim()} onClick={run}>
-          {busy ? "Lade Partien …" : source === "other" ? "Hinzufügen" : "Hinzufügen und Partien laden"}
+        <button
+          class="btn primary"
+          disabled={busy || !username.trim()}
+          onClick={run}
+        >
+          {busy
+            ? "Lade Partien …"
+            : source === "other"
+              ? "Hinzufügen"
+              : "Hinzufügen und Partien laden"}
         </button>
       </div>
     </dialog>
@@ -296,7 +395,11 @@ interface PlayerCardData {
   h2h: HeadToHead;
 }
 
-function cardData(p: TrackedPlayer, all: StoredGame[], me: string[]): PlayerCardData {
+function cardData(
+  p: TrackedPlayer,
+  all: StoredGame[],
+  me: string[],
+): PlayerCardData {
   const names = playerUsernames(p);
   const theirs = gamesOf(all, names);
   // `all` is newest first, so the first rated game holds the current rating.
@@ -312,20 +415,32 @@ function cardData(p: TrackedPlayer, all: StoredGame[], me: string[]): PlayerCard
   return {
     player: p,
     games: theirs.length,
-    analyzed: theirs.filter((g) => g.summary_json?.analysis_status === "completed").length,
+    analyzed: theirs.filter(
+      (g) => g.summary_json?.analysis_status === "completed",
+    ).length,
     rating,
     h2h: headToHead(all, me, names),
   };
 }
 
 /** Loads new games for all given players in one go. */
-function RefreshAll({ players, label = "Alle aktualisieren" }: { players: TrackedPlayer[]; label?: string }) {
+function RefreshAll({
+  players,
+  label = "Alle aktualisieren",
+}: {
+  players: TrackedPlayer[];
+  label?: string;
+}) {
   const [busy, setBusy] = useState("");
-  const online = players.filter((p) => p.accounts.some((a) => a.source !== "other"));
+  const online = players.filter((p) =>
+    p.accounts.some((a) => a.source !== "other"),
+  );
   if (online.length < 2) return null;
   const run = async () => {
     setBusy("Lade Partien …");
-    const { imported, failed } = await importAllPlayers(online, { onProgress: setBusy });
+    const { imported, failed } = await importAllPlayers(online, {
+      onProgress: setBusy,
+    });
     setBusy(
       `${plural(imported, "neue Partie", "neue Partien")} geladen${failed.length ? `, nicht erreichbar: ${failed.join(", ")}` : ""}.`,
     );
@@ -333,10 +448,19 @@ function RefreshAll({ players, label = "Alle aktualisieren" }: { players: Tracke
   };
   return (
     <span class="refresh-all">
-      <button class="btn" disabled={Boolean(busy)} onClick={() => void run()} title="Neue Partien aller Spieler von Lichess und Chess.com laden">
+      <button
+        class="btn"
+        disabled={Boolean(busy)}
+        onClick={() => void run()}
+        title="Neue Partien aller Spieler von Lichess und Chess.com laden"
+      >
         <IconSync /> {label}
       </button>
-      {busy && <span class="small muted" role="status">{busy}</span>}
+      {busy && (
+        <span class="small muted" role="status">
+          {busy}
+        </span>
+      )}
     </span>
   );
 }
@@ -345,22 +469,40 @@ function RefreshAll({ players, label = "Alle aktualisieren" }: { players: Tracke
  * Queues every not yet analysed game of the friends (all shown players when
  * nobody is marked as friend). The queue runs the newest games first.
  */
-function AnalyzeFriends({ players, games }: { players: TrackedPlayer[]; games: StoredGame[] }) {
+function AnalyzeFriends({
+  players,
+  games,
+}: {
+  players: TrackedPlayer[];
+  games: StoredGame[];
+}) {
   const queue = useQueue();
   const { skipBullet } = useBulletPrefs();
   const shown = players.filter((p) => !p.hidden);
-  const friends = shown.some((p) => p.friend) ? shown.filter((p) => p.friend) : shown;
+  const friends = shown.some((p) => p.friend)
+    ? shown.filter((p) => p.friend)
+    : shown;
   const open = useMemo(() => {
     const names = friends.flatMap(playerUsernames);
     return gamesOf(games, names)
-      .filter((g) => g.summary_json?.analysis_status !== "completed" && !(skipBullet && isBulletGame(g)))
+      .filter(
+        (g) =>
+          g.summary_json?.analysis_status !== "completed" &&
+          !(skipBullet && isBulletGame(g)),
+      )
       .map((g) => g.id);
   }, [games, friends.map((p) => p.id).join("|"), skipBullet]);
-  const inQueue = new Set([...(queue?.queued ?? []), ...(queue?.current ? [queue.current] : [])]);
+  const inQueue = new Set([
+    ...(queue?.queued ?? []),
+    ...(queue?.current ? [queue.current] : []),
+  ]);
   const waiting = open.filter((id) => !inQueue.has(id));
   const running = open.length - waiting.length;
   if (!open.length) return null;
-  const who = friends.length === shown.length && !shown.some((p) => p.friend) ? "aller Spieler" : "deiner Freunde";
+  const who =
+    friends.length === shown.length && !shown.some((p) => p.friend)
+      ? "aller Spieler"
+      : "deiner Freunde";
   return (
     <button
       class="btn"
@@ -376,26 +518,123 @@ function AnalyzeFriends({ players, games }: { players: TrackedPlayer[]; games: S
   );
 }
 
+/** Summary strip on top of the player list: who you track and how you fare against them. */
+function PlayersHero({
+  cards,
+  onAdd,
+  players,
+  games,
+}: {
+  cards: PlayerCardData[];
+  onAdd: () => void;
+  players: TrackedPlayer[];
+  games: StoredGame[];
+}) {
+  const t = cards.reduce(
+    (a, c) => ({
+      w: a.w + c.h2h.wins,
+      d: a.d + c.h2h.draws,
+      l: a.l + c.h2h.losses,
+    }),
+    { w: 0, d: 0, l: 0 },
+  );
+  const n = t.w + t.d + t.l;
+  const friends = cards.filter((c) => c.player.friend).length;
+  return (
+    <section class="card players-hero">
+      <div class="players-hero-stats">
+        <div>
+          <span class="players-hero-num tnum">{cards.length}</span>
+          <span class="faint small">Spieler</span>
+        </div>
+        <div>
+          <span class="players-hero-num tnum">{friends}</span>
+          <span class="faint small">Freunde</span>
+        </div>
+        <div>
+          <span class="players-hero-num tnum">
+            {n ? pct0(((t.w + t.d / 2) / n) * 100) : "–"}
+          </span>
+          <span class="faint small">
+            {n
+              ? `deine Punkte aus ${plural(n, "Direktpartie", "Direktpartien")}`
+              : "noch keine Direktpartie"}
+          </span>
+        </div>
+      </div>
+      <div class="players-hero-actions">
+        <button class="btn primary" onClick={onAdd}>
+          <IconPlus /> Spieler hinzufügen
+        </button>
+        <RefreshAll players={players.filter((p) => !p.hidden)} />
+        <AnalyzeFriends players={players} games={games} />
+      </div>
+    </section>
+  );
+}
+
+/** Win/draw/loss split as one bar, readable at a glance. */
+function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
+  if (!h.games)
+    return <span class="faint small">Noch keine Partie gegen {name}</span>;
+  const n = h.wins + h.draws + h.losses || 1;
+  return (
+    <div class="h2h-bar-wrap">
+      <div class="h2h-bar" aria-hidden="true">
+        <span class="w" style={{ flex: h.wins / n }} />
+        <span class="d" style={{ flex: h.draws / n }} />
+        <span class="l" style={{ flex: h.losses / n }} />
+      </div>
+      <H2HLine h={h} name={name} />
+    </div>
+  );
+}
+
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
-  if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
+  if (!h.games)
+    return <span class="faint small">Noch keine Partie gegen {name}</span>;
   return (
     <span class="small">
-      Du gegen {name}: <strong class="tnum">{h.wins}</strong> S · <strong class="tnum">{h.draws}</strong> R ·{" "}
+      Du gegen {name}: <strong class="tnum">{h.wins}</strong> S ·{" "}
+      <strong class="tnum">{h.draws}</strong> R ·{" "}
       <strong class="tnum">{h.losses}</strong> N
     </span>
   );
 }
 
-function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
-  const [adding, setAdding] = useState<{ username: string; source: AddSource } | null | undefined>(undefined);
-  const cards = useMemo(() => orderPlayers(players.map((p) => cardData(p, games, me))), [players, games, me]);
+function PlayerList({
+  players,
+  games,
+  me,
+}: {
+  players: TrackedPlayer[];
+  games: StoredGame[];
+  me: string[];
+}) {
+  const [adding, setAdding] = useState<
+    { username: string; source: AddSource } | null | undefined
+  >(undefined);
+  const cards = useMemo(
+    () => orderPlayers(players.map((p) => cardData(p, games, me))),
+    [players, games, me],
+  );
   const suggestions = useMemo(
-    () => frequentOpponents(games, me, players.flatMap(playerUsernames)).slice(0, 6),
+    () =>
+      frequentOpponents(games, me, players.flatMap(playerUsernames)).slice(
+        0,
+        6,
+      ),
     [games, me, players],
   );
   const sourceOf = (username: string): AddSource => {
-    const g = games.find((x) => [x.white, x.black].some((n) => n.toLowerCase() === username.toLowerCase()));
-    return g?.source === "lichess" || g?.source === "chesscom" ? g.source : "other";
+    const g = games.find((x) =>
+      [x.white, x.black].some(
+        (n) => n.toLowerCase() === username.toLowerCase(),
+      ),
+    );
+    return g?.source === "lichess" || g?.source === "chesscom"
+      ? g.source
+      : "other";
   };
 
   return (
@@ -405,59 +644,114 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
           <CoachAvatar size={88} mood="think" />
           <h3>Noch keine Spieler</h3>
           <p>
-            Füge Freunde oder Gegner mit ihrem Lichess- oder Chess.com-Namen hinzu. Die App lädt ihre Partien, zeigt dir,
-            mit welchen Eröffnungen und Taktiken du sie schlägst, und vergleicht euch in einer Rangliste.
+            Füge Freunde oder Gegner mit ihrem Lichess- oder Chess.com-Namen
+            hinzu. Die App lädt ihre Partien, zeigt dir, mit welchen Eröffnungen
+            und Taktiken du sie schlägst, und vergleicht euch in einer
+            Rangliste.
           </p>
           <button class="btn primary" onClick={() => setAdding(null)}>
             <IconPlus /> Spieler hinzufügen
           </button>
         </div>
       ) : (
-        <div class="player-grid">
-          {cards.shown.map((c) => (
-            <button key={c.player.id} class="card player-card" onClick={() => navigate({ view: "players", playerId: c.player.id })}>
-              <div class="player-card-head">
-                <span class="player-avatar" aria-hidden="true">
-                  {c.player.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span class="player-card-name">
-                  <strong>{c.player.name}</strong>
-                  <span class="faint small">
-                    {c.player.accounts.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(" · ")}
+        <>
+          <PlayersHero
+            cards={cards.shown}
+            onAdd={() => setAdding(null)}
+            players={players}
+            games={games}
+          />
+          {[
+            [
+              "Freunde",
+              cards.shown.filter((c) => c.player.friend),
+              "in Rangliste und Vergleich",
+            ],
+            [
+              "Gegner",
+              cards.shown.filter((c) => !c.player.friend),
+              "zum Ausspähen vor der Partie",
+            ],
+          ].map(([title, list, sub]) =>
+            (list as PlayerCardData[]).length ? (
+              <section class="players-section" key={title as string}>
+                <div class="section-head">
+                  <h2>{title as string}</h2>
+                  <span class="pill tnum">
+                    {(list as PlayerCardData[]).length}
                   </span>
-                </span>
-                {c.player.friend && <span class="pill accent">Freund</span>}
-              </div>
-              <div class="player-card-stats">
-                <span>
-                  <strong class="tnum">{c.games}</strong>
-                  <span class="faint small"> Partien</span>
-                </span>
-                <span>
-                  <strong class="tnum">{c.analyzed}</strong>
-                  <span class="faint small"> analysiert</span>
-                </span>
-                {c.rating && (
-                  <span>
-                    <strong class="tnum">{c.rating}</strong>
-                  </span>
-                )}
-              </div>
-              <H2HLine h={c.h2h} name={c.player.name} />
-              {c.player.accounts.some((a) => a.source !== "other") && (
-                <span class="faint small">{loadedAgo(c.player.imported_at)}</span>
-              )}
-            </button>
-          ))}
-          {cards.shown.length === 0 && <p class="muted small">Alle Spieler sind ausgeblendet.</p>}
-        </div>
+                  <span class="faint small">{sub as string}</span>
+                </div>
+                <div class="player-grid">
+                  {(list as PlayerCardData[]).map((c) => (
+                    <button
+                      key={c.player.id}
+                      class="card player-card"
+                      onClick={() =>
+                        navigate({ view: "players", playerId: c.player.id })
+                      }
+                    >
+                      <div class="player-card-head">
+                        <span class="player-avatar" aria-hidden="true">
+                          {c.player.name.slice(0, 1).toUpperCase()}
+                        </span>
+                        <span class="player-card-name">
+                          <strong>{c.player.name}</strong>
+                          <span class="faint small">
+                            {c.player.accounts
+                              .map(
+                                (a) =>
+                                  `${SOURCE_LABELS[a.source]}: ${a.username}`,
+                              )
+                              .join(" · ")}
+                          </span>
+                        </span>
+                        {c.player.friend && (
+                          <span class="pill accent">Freund</span>
+                        )}
+                      </div>
+                      <div class="player-card-stats">
+                        <span>
+                          <strong class="tnum">{c.games}</strong>
+                          <span class="faint small"> Partien</span>
+                        </span>
+                        <span>
+                          <strong class="tnum">{c.analyzed}</strong>
+                          <span class="faint small"> analysiert</span>
+                        </span>
+                        {c.rating && (
+                          <span>
+                            <strong class="tnum">{c.rating}</strong>
+                          </span>
+                        )}
+                      </div>
+                      <H2HBar h={c.h2h} name={c.player.name} />
+                      {c.player.accounts.some((a) => a.source !== "other") && (
+                        <span class="faint small">
+                          {loadedAgo(c.player.imported_at)}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null,
+          )}
+          {cards.shown.length === 0 && (
+            <p class="muted small">Alle Spieler sind ausgeblendet.</p>
+          )}
+        </>
       )}
 
       {cards.hidden.length > 0 && (
         <details class="card tile hidden-players">
           <summary>
             <strong>Ausgeblendet</strong>
-            <span class="faint small"> · {plural(cards.hidden.length, "Spieler", "Spieler")}, nicht in Rangliste und Vergleich</span>
+            <span class="faint small">
+              {" "}
+              · {plural(cards.hidden.length, "Spieler", "Spieler")}, nicht in
+              Rangliste und Vergleich
+            </span>
           </summary>
           <div class="suggest-list">
             {cards.hidden.map((c) => (
@@ -470,7 +764,12 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                     {c.player.friend ? " · Freund" : ""}
                   </span>
                 </a>
-                <button class="btn small" onClick={() => void updatePlayer(c.player.id, { hidden: false })}>
+                <button
+                  class="btn small"
+                  onClick={() =>
+                    void updatePlayer(c.player.id, { hidden: false })
+                  }
+                >
                   <IconEye /> Einblenden
                 </button>
               </div>
@@ -492,26 +791,25 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   <strong>{s.username}</strong>
                   <span class="faint small">
                     {" "}
-                    · {plural(s.games, "Partie", "Partien")} · du holst {pct0(s.score_pct)}
+                    · {plural(s.games, "Partie", "Partien")} · du holst{" "}
+                    {pct0(s.score_pct)}
                   </span>
                 </span>
-                <button class="btn small" onClick={() => setAdding({ username: s.username, source: sourceOf(s.username) })}>
+                <button
+                  class="btn small"
+                  onClick={() =>
+                    setAdding({
+                      username: s.username,
+                      source: sourceOf(s.username),
+                    })
+                  }
+                >
                   <IconPlus /> Hinzufügen
                 </button>
               </div>
             ))}
           </div>
         </section>
-      )}
-
-      {players.length > 0 && (
-        <div class="row" style={{ justifyContent: "center", marginTop: "6px", flexWrap: "wrap", gap: "8px" }}>
-          <button class="btn primary" onClick={() => setAdding(null)}>
-            <IconPlus /> Spieler hinzufügen
-          </button>
-          <RefreshAll players={players.filter((p) => !p.hidden)} />
-          <AnalyzeFriends players={players} games={games} />
-        </div>
       )}
 
       {adding !== undefined && (
@@ -555,12 +853,23 @@ function RankBadge({ rank }: { rank: number | null }) {
   return <span class={`rank-badge ${MEDALS[rank - 1] ?? ""}`}>{rank}</span>;
 }
 
-function RankingTable({ ranking, factor }: { ranking: Ranking; factor: string }) {
+function RankingTable({
+  ranking,
+  factor,
+}: {
+  ranking: Ranking;
+  factor: string;
+}) {
   const [open, setOpen] = useState<string | null>(null);
   const f = ranking.factors.find((x) => x.key === factor);
   const rows = [...ranking.rows].sort((a, b) => {
-    if (factor === "overall") return (a.rank ?? Infinity) - (b.rank ?? Infinity);
-    return (a.cells[factor]?.rank ?? Infinity) - (b.cells[factor]?.rank ?? Infinity) || (a.rank ?? Infinity) - (b.rank ?? Infinity);
+    if (factor === "overall")
+      return (a.rank ?? Infinity) - (b.rank ?? Infinity);
+    return (
+      (a.cells[factor]?.rank ?? Infinity) -
+        (b.cells[factor]?.rank ?? Infinity) ||
+      (a.rank ?? Infinity) - (b.rank ?? Infinity)
+    );
   });
   const cols = ["accuracy", "expectation", "blunders", "h2h"];
   return (
@@ -587,60 +896,80 @@ function RankingTable({ ranking, factor }: { ranking: Ranking; factor: string })
             const isOpen = expandable && open === r.id;
             return (
               <Fragment key={r.id}>
-              <tr
-                class={`${r.is_me ? "me" : ""}${isOpen ? " open" : ""}`}
-                aria-expanded={expandable ? isOpen : undefined}
-                title={expandable ? "Tippen: woher die Punkte kommen" : undefined}
-                onClick={() => (expandable ? setOpen(isOpen ? null : r.id) : !r.is_me && navigate({ view: "players", playerId: r.id }))}
-              >
-                <td>
-                  <RankBadge rank={rank} />
-                </td>
-                <td>
-                  {r.is_me ? (
-                    <strong>{r.name}</strong>
-                  ) : (
-                    <a
-                      href={toHash({ view: "players", playerId: r.id })}
-                      onClick={(e) => e.stopPropagation()}
-                      class="rank-name"
-                    >
-                      <strong>{r.name}</strong>
-                    </a>
-                  )}
-                  <div class="faint small">
-                    {plural(r.games, "Partie", "Partien")} · {r.analyzed} analysiert
-                  </div>
-                </td>
-                <td class="num">
-                  {factor === "overall" ? (
-                    <div class="rank-score">
-                      <div class="bar-track">
-                        <div class="bar-fill" style={{ width: `${Math.max(2, r.overall ?? 0)}%` }} />
-                      </div>
-                      <strong>{r.overall === null ? "–" : Math.round(r.overall)}</strong>
-                    </div>
-                  ) : (
-                    <>
-                      <strong>{formatFactor(factor, cell?.value ?? null)}</strong>
-                      {cell?.note && <div class="faint small">{cell.note}</div>}
-                    </>
-                  )}
-                </td>
-                {factor === "overall" &&
-                  cols.map((k) => (
-                    <td class={`num wide-only${r.cells[k]?.rank === 1 ? " lead" : ""}`} key={k}>
-                      {formatFactor(k, r.cells[k]?.value ?? null)}
-                    </td>
-                  ))}
-              </tr>
-              {isOpen && (
-                <tr class="rank-breakdown">
-                  <td colSpan={3 + cols.length}>
-                    <Breakdown ranking={ranking} row={r} />
+                <tr
+                  class={`${r.is_me ? "me" : ""}${isOpen ? " open" : ""}`}
+                  aria-expanded={expandable ? isOpen : undefined}
+                  title={
+                    expandable ? "Tippen: woher die Punkte kommen" : undefined
+                  }
+                  onClick={() =>
+                    expandable
+                      ? setOpen(isOpen ? null : r.id)
+                      : !r.is_me &&
+                        navigate({ view: "players", playerId: r.id })
+                  }
+                >
+                  <td>
+                    <RankBadge rank={rank} />
                   </td>
+                  <td>
+                    {r.is_me ? (
+                      <strong>{r.name}</strong>
+                    ) : (
+                      <a
+                        href={toHash({ view: "players", playerId: r.id })}
+                        onClick={(e) => e.stopPropagation()}
+                        class="rank-name"
+                      >
+                        <strong>{r.name}</strong>
+                      </a>
+                    )}
+                    <div class="faint small">
+                      {plural(r.games, "Partie", "Partien")} · {r.analyzed}{" "}
+                      analysiert
+                    </div>
+                  </td>
+                  <td class="num">
+                    {factor === "overall" ? (
+                      <div class="rank-score">
+                        <div class="bar-track">
+                          <div
+                            class="bar-fill"
+                            style={{ width: `${Math.max(2, r.overall ?? 0)}%` }}
+                          />
+                        </div>
+                        <strong>
+                          {r.overall === null ? "–" : Math.round(r.overall)}
+                        </strong>
+                      </div>
+                    ) : (
+                      <>
+                        <strong>
+                          {formatFactor(factor, cell?.value ?? null)}
+                        </strong>
+                        {cell?.note && (
+                          <div class="faint small">{cell.note}</div>
+                        )}
+                      </>
+                    )}
+                  </td>
+                  {factor === "overall" &&
+                    cols.map((k) => (
+                      <td
+                        class={`num wide-only${r.cells[k]?.rank === 1 ? " lead" : ""}`}
+                        key={k}
+                      >
+                        {formatFactor(k, r.cells[k]?.value ?? null)}
+                      </td>
+                    ))}
                 </tr>
-              )}
+                {isOpen && (
+                  <tr class="rank-breakdown">
+                    <td colSpan={3 + cols.length}>
+                      <Breakdown ranking={ranking} row={r} />
+                    </td>
+                  </tr>
+                )}
               </Fragment>
             );
           })}
@@ -663,7 +992,9 @@ function Podium({ rows }: { rows: RankRow[] }) {
             {r.name.slice(0, 1).toUpperCase()}
           </span>
           <strong>{r.name}</strong>
-          <span class="tnum small muted">{r.overall === null ? "–" : `${Math.round(r.overall)} Punkte`}</span>
+          <span class="tnum small muted">
+            {r.overall === null ? "–" : `${Math.round(r.overall)} Punkte`}
+          </span>
           <div class="podium-block">{r.rank}</div>
         </div>
       ))}
@@ -686,14 +1017,25 @@ function RankingMembers({ friends }: { friends: TrackedPlayer[] }) {
             key={p.id}
             class={`chip member${p.hidden ? "" : " on"}`}
             aria-pressed={!p.hidden}
-            title={p.hidden ? `${p.name} wieder in die Rangliste aufnehmen` : `${p.name} in Rangliste und Vergleich ausblenden`}
+            title={
+              p.hidden
+                ? `${p.name} wieder in die Rangliste aufnehmen`
+                : `${p.name} in Rangliste und Vergleich ausblenden`
+            }
             onClick={() => void updatePlayer(p.id, { hidden: !p.hidden })}
           >
             {p.hidden ? <IconEyeOff /> : <IconEye />} {p.name}
           </button>
         ))}
         {hidden.length > 1 && (
-          <button class="chip" onClick={() => void Promise.all(hidden.map((p) => updatePlayer(p.id, { hidden: false })))}>
+          <button
+            class="chip"
+            onClick={() =>
+              void Promise.all(
+                hidden.map((p) => updatePlayer(p.id, { hidden: false })),
+              )
+            }
+          >
             Alle einblenden
           </button>
         )}
@@ -707,16 +1049,22 @@ function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
   const mine = formatFactor(g.key, g.mine);
   const other = formatFactor(g.key, g.other);
   return (
-    <button class={`insight group-line ${kind === "edge" ? "pos" : "mid"}`} onClick={() => navigate({ view: "players", playerId: g.other_id })}>
+    <button
+      class={`insight group-line ${kind === "edge" ? "pos" : "mid"}`}
+      onClick={() => navigate({ view: "players", playerId: g.other_id })}
+    >
       <div class="t">{g.label}</div>
       <div class="small">
         {kind === "edge" ? (
           <>
-            Du <strong class="tnum">{mine}</strong>, am nächsten dran: {g.other_name} <span class="tnum">{other}</span>
+            Du <strong class="tnum">{mine}</strong>, am nächsten dran:{" "}
+            {g.other_name} <span class="tnum">{other}</span>
           </>
         ) : (
           <>
-            {g.other_name} <strong class="tnum">{other}</strong>, du <span class="tnum">{mine}</span>. Schau dir die Partien von {g.other_name} an.
+            {g.other_name} <strong class="tnum">{other}</strong>, du{" "}
+            <span class="tnum">{mine}</span>. Schau dir die Partien von{" "}
+            {g.other_name} an.
           </>
         )}
       </div>
@@ -733,28 +1081,45 @@ function GroupStandingCard({ ranking }: { ranking: Ranking }) {
     <section class="card tile span-12">
       <div class="tile-head">
         <h3>Deine Stellung in der Gruppe</h3>
-        <span class="tile-sub">{meRow?.rank ? `Platz ${meRow.rank} von ${st.members}` : `${st.members} Spieler`}</span>
+        <span class="tile-sub">
+          {meRow?.rank
+            ? `Platz ${meRow.rank} von ${st.members}`
+            : `${st.members} Spieler`}
+        </span>
       </div>
       <div class="group-cols">
         <div>
           <h4>Hier bist du klar vorn</h4>
           {st.edges.length ? (
-            <div class="insights">{st.edges.map((g) => <GroupLine key={g.key} g={g} kind="edge" />)}</div>
+            <div class="insights">
+              {st.edges.map((g) => (
+                <GroupLine key={g.key} g={g} kind="edge" />
+              ))}
+            </div>
           ) : (
-            <p class="muted small">Noch kein Bereich, in dem du sicher besser als alle bist.</p>
+            <p class="muted small">
+              Noch kein Bereich, in dem du sicher besser als alle bist.
+            </p>
           )}
         </div>
         <div>
           <h4>Hier kannst du dir etwas abschauen</h4>
           {st.learn.length ? (
-            <div class="insights">{st.learn.map((g) => <GroupLine key={g.key} g={g} kind="learn" />)}</div>
+            <div class="insights">
+              {st.learn.map((g) => (
+                <GroupLine key={g.key} g={g} kind="learn" />
+              ))}
+            </div>
           ) : (
-            <p class="muted small">Kein Freund ist dir irgendwo sicher voraus.</p>
+            <p class="muted small">
+              Kein Freund ist dir irgendwo sicher voraus.
+            </p>
           )}
         </div>
       </div>
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        Gezählt wird nur, was mit mindestens 95 % Wahrscheinlichkeit kein Zufall ist.
+        Gezählt wird nur, was mit mindestens 95 % Wahrscheinlichkeit kein Zufall
+        ist.
       </p>
     </section>
   );
@@ -776,16 +1141,23 @@ function FormCard({ rows }: { rows: FormRow[] }) {
               <span class="run-name">
                 <strong>{r.name}</strong>
                 <span class="faint small">
-                  {SPEED_DE[r.speed] ?? r.speed} · {SOURCE_LABELS[r.source as AccountSource] ?? "PGN"} · {r.rating}
+                  {SPEED_DE[r.speed] ?? r.speed} ·{" "}
+                  {SOURCE_LABELS[r.source as AccountSource] ?? "PGN"} ·{" "}
+                  {r.rating}
                 </span>
               </span>
               <div class="run-track" aria-hidden="true">
                 <div
                   class={`run-bar ${r.delta >= 0 ? "up" : "down"}`}
-                  style={{ width: `${(Math.abs(r.delta) / max) * 50}%`, [r.delta >= 0 ? "left" : "right"]: "50%" }}
+                  style={{
+                    width: `${(Math.abs(r.delta) / max) * 50}%`,
+                    [r.delta >= 0 ? "left" : "right"]: "50%",
+                  }}
                 />
               </div>
-              <span class={`run-delta tnum ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}>
+              <span
+                class={`run-delta tnum ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}
+              >
                 {r.delta > 0 ? "+" : r.delta < 0 ? "−" : "±"}
                 {Math.abs(Math.round(r.delta))}
               </span>
@@ -793,26 +1165,47 @@ function FormCard({ rows }: { rows: FormRow[] }) {
           ))}
         </div>
       ) : (
-        <p class="muted small">Niemand hat in den letzten {FORM_DAYS} Tagen genug gewertete Partien gespielt.</p>
+        <p class="muted small">
+          Niemand hat in den letzten {FORM_DAYS} Tagen genug gewertete Partien
+          gespielt.
+        </p>
       )}
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        Jeder in seiner meistgespielten Bedenkzeit und Plattform, ab {FORM_MIN_GAMES} Partien im Zeitraum.
+        Jeder in seiner meistgespielten Bedenkzeit und Plattform, ab{" "}
+        {FORM_MIN_GAMES} Partien im Zeitraum.
       </p>
     </section>
   );
 }
 
-const GROUP_CLASS: Record<string, string> = { Ergebnisse: "g-res", Spielqualität: "g-qual", Fähigkeiten: "g-skill", Sonstiges: "g-misc" };
+const GROUP_CLASS: Record<string, string> = {
+  Ergebnisse: "g-res",
+  Spielqualität: "g-qual",
+  Fähigkeiten: "g-skill",
+  Sonstiges: "g-misc",
+};
 
 /** Where a player's overall points come from: one segment per factor, sized by what it brought. */
 function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
   const byKey = new Map(ranking.factors.map((f) => [f.key, f]));
-  if (!row.breakdown.length) return <p class="muted small">Noch zu wenig Daten für eine Aufschlüsselung.</p>;
+  if (!row.breakdown.length)
+    return (
+      <p class="muted small">Noch zu wenig Daten für eine Aufschlüsselung.</p>
+    );
   return (
     <div class="breakdown">
-      <div class="breakdown-bar" role="img" aria-label={`${Math.round(row.overall ?? 0)} von 100 Punkten`}>
+      <div
+        class="breakdown-bar"
+        role="img"
+        aria-label={`${Math.round(row.overall ?? 0)} von 100 Punkten`}
+      >
         {row.breakdown.map((c) => (
-          <span key={c.key} class={GROUP_CLASS[byKey.get(c.key)?.group ?? "Sonstiges"]} style={{ width: `${c.value}%` }} title={`${byKey.get(c.key)?.label}: ${de(c.value, 1)} Punkte`} />
+          <span
+            key={c.key}
+            class={GROUP_CLASS[byKey.get(c.key)?.group ?? "Sonstiges"]}
+            style={{ width: `${c.value}%` }}
+            title={`${byKey.get(c.key)?.label}: ${de(c.value, 1)} Punkte`}
+          />
         ))}
       </div>
       <div class="breakdown-rows">
@@ -822,7 +1215,9 @@ function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
             <div class="breakdown-row" key={c.key}>
               <span class={`dot ${GROUP_CLASS[f?.group ?? "Sonstiges"]}`} />
               <span>{f?.label}</span>
-              <span class="faint small tnum">{formatFactor(c.key, row.cells[c.key]?.value ?? null)}</span>
+              <span class="faint small tnum">
+                {formatFactor(c.key, row.cells[c.key]?.value ?? null)}
+              </span>
               <span class="tnum small muted">
                 {Math.round(c.points)} × {de(c.share, 0)} %
               </span>
@@ -833,7 +1228,8 @@ function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
       </div>
       {row.missing.length > 0 && (
         <p class="faint small" style={{ margin: "6px 0 0" }}>
-          Ohne Daten: {row.missing.map((k) => byKey.get(k)?.label).join(", ")}. Ihr Gewicht verteilt sich auf die übrigen Faktoren.
+          Ohne Daten: {row.missing.map((k) => byKey.get(k)?.label).join(", ")}.
+          Ihr Gewicht verteilt sich auf die übrigen Faktoren.
         </p>
       )}
     </div>
@@ -850,7 +1246,8 @@ function ChaseCard({ ranking }: { ranking: Ranking }) {
       <div class="tile-head">
         <h3>Dein Rennen</h3>
         <span class="tile-sub">
-          Platz {me.rank} von {ranking.rows.length} · {Math.round(me.overall)} Punkte
+          Platz {me.rank} von {ranking.rows.length} · {Math.round(me.overall)}{" "}
+          Punkte
         </span>
       </div>
       <div class="chase-lane">
@@ -880,15 +1277,23 @@ function ChaseCard({ ranking }: { ranking: Ranking }) {
               <div class="lever" key={l.key}>
                 <span>{l.label}</span>
                 <div class="bar-track">
-                  <div class="bar-fill" style={{ width: `${Math.min(100, (l.room / Math.max(...ch.levers.map((x) => x.room))) * 100)}%` }} />
+                  <div
+                    class="bar-fill"
+                    style={{
+                      width: `${Math.min(100, (l.room / Math.max(...ch.levers.map((x) => x.room))) * 100)}%`,
+                    }}
+                  />
                 </div>
                 <span class="tnum small">bis +{de(l.room, 1)}</span>
               </div>
             ))}
           </div>
           <p class="faint small" style={{ margin: "6px 0 0" }}>
-            So viele Gesamtpunkte wären höchstens drin, wenn du dort sicher vor allen liegst.
-            {ch.target && ch.levers[0].room >= ch.gap ? ` ${ch.levers[0].label} allein reicht, um ${ch.target.name} zu überholen.` : ""}
+            So viele Gesamtpunkte wären höchstens drin, wenn du dort sicher vor
+            allen liegst.
+            {ch.target && ch.levers[0].room >= ch.gap
+              ? ` ${ch.levers[0].label} allein reicht, um ${ch.target.name} zu überholen.`
+              : ""}
           </p>
         </>
       )}
@@ -910,8 +1315,18 @@ function CrownsCard({ ranking }: { ranking: Ranking }) {
         {list.map((c) => {
           const mine = ranking.rows.find((r) => r.id === c.holder_id)?.is_me;
           return (
-            <div class={`crown${mine ? " me" : ""}${c.clear ? " clear" : ""}`} key={c.key} title={c.clear ? "Klar vorn" : "Knapp vorn, die Krone kann schnell wechseln"}>
-              <span class="crown-icon" aria-hidden="true">♛</span>
+            <div
+              class={`crown${mine ? " me" : ""}${c.clear ? " clear" : ""}`}
+              key={c.key}
+              title={
+                c.clear
+                  ? "Klar vorn"
+                  : "Knapp vorn, die Krone kann schnell wechseln"
+              }
+            >
+              <span class="crown-icon" aria-hidden="true">
+                ♛
+              </span>
               <span class="crown-title">{c.title}</span>
               <strong>{mine ? "Du" : c.holder_name}</strong>
               <span class="faint small">
@@ -925,30 +1340,65 @@ function CrownsCard({ ranking }: { ranking: Ranking }) {
   );
 }
 
-const MARGIN_TEXT: Record<string, string> = { knapp: "knapp", deutlich: "deutlich", klar: "klar" };
+const MARGIN_TEXT: Record<string, string> = {
+  knapp: "knapp",
+  deutlich: "deutlich",
+  klar: "klar",
+};
 
 /** Two players of the group, round by round: who wins which area, and the battle overall. */
-function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; games: StoredGame[]; group: { id: string; usernames: string[] }[]; fmt: string; date: string }) {
+function BattleArena({
+  ranking,
+  games,
+  group,
+  fmt,
+  date,
+}: {
+  ranking: Ranking;
+  games: StoredGame[];
+  group: { id: string; usernames: string[] }[];
+  fmt: string;
+  date: string;
+}) {
   const me = ranking.rows.find((r) => r.is_me) ?? ranking.rows[0];
   const [aId, setA] = useState(me?.id ?? "");
-  const [bId, setB] = useState(() => (me ? (rivalOf(ranking, me.id)?.id ?? "") : ""));
+  const [bId, setB] = useState(() =>
+    me ? (rivalOf(ranking, me.id)?.id ?? "") : "",
+  );
   const [open, setOpen] = useState<string | null>(null);
   const ids = ranking.rows.map((r) => r.id);
   const a = ids.includes(aId) ? aId : (me?.id ?? "");
-  const b = ids.includes(bId) && bId !== a ? bId : (rivalOf(ranking, a)?.id ?? "");
+  const b =
+    ids.includes(bId) && bId !== a ? bId : (rivalOf(ranking, a)?.id ?? "");
   const battle: Battle | null = useMemo(() => {
     const ua = group.find((g) => g.id === a)?.usernames ?? [];
     const ub = group.find((g) => g.id === b)?.usernames ?? [];
-    return buildBattle(ranking, a, b, ua.length && ub.length ? headToHead(games, ua, ub, fmt, date) : null);
+    return buildBattle(
+      ranking,
+      a,
+      b,
+      ua.length && ub.length ? headToHead(games, ua, ub, fmt, date) : null,
+    );
   }, [ranking, a, b, games, fmt, date]);
   if (ranking.rows.length < 2 || !battle) return null;
   const label = new Map(ranking.factors.map((f) => [f.key, f.label]));
-  const nameOf = (id: string, n: string) => (ranking.rows.find((r) => r.id === id)?.is_me ? "Du" : n);
+  const nameOf = (id: string, n: string) =>
+    ranking.rows.find((r) => r.id === id)?.is_me ? "Du" : n;
   const an = nameOf(battle.a.id, battle.a.name);
   const bn = nameOf(battle.b.id, battle.b.name);
   const power = battle.power_a;
-  const pick = (value: string, on: (v: string) => void, other: string, aria: string) => (
-    <select class="factor-select" value={value} onChange={(e) => on(e.currentTarget.value)} aria-label={aria}>
+  const pick = (
+    value: string,
+    on: (v: string) => void,
+    other: string,
+    aria: string,
+  ) => (
+    <select
+      class="factor-select"
+      value={value}
+      onChange={(e) => on(e.currentTarget.value)}
+      aria-label={aria}
+    >
       {ranking.rows
         .filter((r) => r.id !== other)
         .map((r) => (
@@ -966,29 +1416,47 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
       </div>
       <div class="battle-pick">
         {pick(a, setA, b, "Spieler links")}
-        <button class="btn ghost small" onClick={() => { setA(b); setB(a); }} title="Seiten tauschen">
+        <button
+          class="btn ghost small"
+          onClick={() => {
+            setA(b);
+            setB(a);
+          }}
+          title="Seiten tauschen"
+        >
           ⇄
         </button>
         {pick(b, setB, a, "Spieler rechts")}
       </div>
       <div class="battle-score">
         <div class={`battle-side a${battle.leader === "a" ? " win" : ""}`}>
-          <span class="player-avatar big" aria-hidden="true">{an.slice(0, 1).toUpperCase()}</span>
+          <span class="player-avatar big" aria-hidden="true">
+            {an.slice(0, 1).toUpperCase()}
+          </span>
           <strong>{an}</strong>
         </div>
         <div class="battle-result">
           <div class="battle-big tnum">
-            {battle.wins_a}<span class="faint">:</span>{battle.wins_b}
+            {battle.wins_a}
+            <span class="faint">:</span>
+            {battle.wins_b}
           </div>
-          <span class="faint small">Runden{battle.draws ? ` · ${battle.draws} offen` : ""}</span>
+          <span class="faint small">
+            Runden{battle.draws ? ` · ${battle.draws} offen` : ""}
+          </span>
         </div>
         <div class={`battle-side b${battle.leader === "b" ? " win" : ""}`}>
-          <span class="player-avatar big" aria-hidden="true">{bn.slice(0, 1).toUpperCase()}</span>
+          <span class="player-avatar big" aria-hidden="true">
+            {bn.slice(0, 1).toUpperCase()}
+          </span>
           <strong>{bn}</strong>
         </div>
       </div>
       {power !== null && (
-        <div class="battle-power" title="Gewichteter Schnitt der Wahrscheinlichkeit, in den Runden besser zu sein">
+        <div
+          class="battle-power"
+          title="Gewichteter Schnitt der Wahrscheinlichkeit, in den Runden besser zu sein"
+        >
           <div class="battle-power-a" style={{ width: `${power}%` }}>
             <span class="tnum">{Math.round(power)}</span>
           </div>
@@ -997,25 +1465,41 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
           </div>
         </div>
       )}
-      <p class="battle-verdict">{battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ")}</p>
+      <p class="battle-verdict">
+        {battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ")}
+      </p>
       <div class="battle-rounds">
         {battle.rounds.map((r, i) => {
           const pa = r.p_a === null ? null : r.p_a * 100;
           const isOpen = open === r.key;
           return (
-            <div class={`battle-round${r.key === battle.decisive ? " decisive" : ""}`} key={r.key}>
-              <button class="battle-round-head" onClick={() => setOpen(isOpen ? null : r.key)} aria-expanded={isOpen}>
+            <div
+              class={`battle-round${r.key === battle.decisive ? " decisive" : ""}`}
+              key={r.key}
+            >
+              <button
+                class="battle-round-head"
+                onClick={() => setOpen(isOpen ? null : r.key)}
+                aria-expanded={isOpen}
+              >
                 <span class="battle-no faint small tnum">R{i + 1}</span>
                 <span class="battle-name">
                   {r.label}
                   <span class="faint small"> · {de(r.weight, 0)} %</span>
                 </span>
                 <span class={`battle-chip ${r.winner ?? "none"}`}>
-                  {r.winner === null ? "keine Daten" : r.winner === "draw" ? "offen" : `${r.winner === "a" ? an : bn} ${MARGIN_TEXT[r.margin as string]}`}
+                  {r.winner === null
+                    ? "keine Daten"
+                    : r.winner === "draw"
+                      ? "offen"
+                      : `${r.winner === "a" ? an : bn} ${MARGIN_TEXT[r.margin as string]}`}
                 </span>
               </button>
               {pa !== null && (
-                <div class="duel-tug battle-tug" title={`${an}: ${Math.round(pa)} % Wahrscheinlichkeit, hier besser zu sein`}>
+                <div
+                  class="duel-tug battle-tug"
+                  title={`${an}: ${Math.round(pa)} % Wahrscheinlichkeit, hier besser zu sein`}
+                >
                   <div class="duel-tug-me" style={{ width: `${pa}%` }} />
                 </div>
               )}
@@ -1024,7 +1508,12 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
                   {r.factors.map((f) => (
                     <div class="battle-factor" key={f.key}>
                       <span class="tnum">{duelValue(f.key, f.a)}</span>
-                      <span class="small muted">{label.get(f.key) ?? f.key}{f.p_a !== null ? ` · ${Math.round(f.p_a * 100)} % für ${an}` : ""}</span>
+                      <span class="small muted">
+                        {label.get(f.key) ?? f.key}
+                        {f.p_a !== null
+                          ? ` · ${Math.round(f.p_a * 100)} % für ${an}`
+                          : ""}
+                      </span>
                       <span class="tnum">{duelValue(f.key, f.b)}</span>
                     </div>
                   ))}
@@ -1035,7 +1524,9 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
         })}
       </div>
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        Eine Runde gewinnt, wer dort mit mindestens 65 % Wahrscheinlichkeit wirklich besser ist (ab 80 % deutlich, ab 95 % klar); darunter bleibt sie offen. Tippe auf eine Runde für die Werte.
+        Eine Runde gewinnt, wer dort mit mindestens 65 % Wahrscheinlichkeit
+        wirklich besser ist (ab 80 % deutlich, ab 95 % klar); darunter bleibt
+        sie offen. Tippe auf eine Runde für die Werte.
       </p>
     </section>
   );
@@ -1043,13 +1534,26 @@ function BattleArena({ ranking, games, group, fmt, date }: { ranking: Ranking; g
 
 /** Every factor with its share of the total, so nobody has to guess what counts. */
 function ScoringCard({ ranking }: { ranking: Ranking }) {
-  const groups = ["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const;
+  const groups = [
+    "Ergebnisse",
+    "Spielqualität",
+    "Fähigkeiten",
+    "Sonstiges",
+  ] as const;
   return (
-    <section class="card tile span-12">
-      <div class="tile-head">
-        <h3>So wird gewertet</h3>
-        <span class="tile-sub">Anteil an der Gesamtwertung</span>
-      </div>
+    <details class="card tile span-12 rank-explain">
+      <summary>
+        <span>
+          <strong>So funktioniert das Ranking</strong>
+          <span class="faint small"> · 15 Bereiche, Gewichte und Regeln</span>
+        </span>
+        <span class="rank-explain-chev" aria-hidden="true" />
+      </summary>
+      <p class="small muted">
+        Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit
+        bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum,
+        klare Vorsprünge voll. Daraus entsteht die Gesamtwertung.
+      </p>
       <div class="scoring">
         {groups.map((g) => {
           const fs = ranking.factors.filter((f) => f.group === g);
@@ -1062,9 +1566,17 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
                 <span class="tnum">{de(sum, 0)} %</span>
               </div>
               {fs.map((f) => (
-                <div class={`scoring-row${f.weight ? "" : " off"}`} key={f.key} title={f.hint}>
+                <div
+                  class={`scoring-row${f.weight ? "" : " off"}`}
+                  key={f.key}
+                  title={f.hint}
+                >
                   <span>{f.label}</span>
-                  <span class="tnum">{f.weight ? `${de(f.weight, f.weight % 1 ? 1 : 0)} %` : "nur Info"}</span>
+                  <span class="tnum">
+                    {f.weight
+                      ? `${de(f.weight, f.weight % 1 ? 1 : 0)} %`
+                      : "nur Info"}
+                  </span>
                   <span class="faint small">{f.hint}</span>
                 </div>
               ))}
@@ -1073,13 +1585,49 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
         })}
       </div>
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        Jeder Faktor vergibt 0–100 Punkte: die Wahrscheinlichkeit, wirklich besser als die anderen zu sein. Ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als 50, ein klarer fast 100. Fehlt einem Spieler ein Faktor, verteilt sich dessen Gewicht auf die übrigen. Die Wertung zählt nicht: neue Konten liegen oft Hunderte Punkte daneben, und Partien mit noch springender Wertung fließen auch nicht in „Über Erwartung“ ein.
+        Jeder Faktor vergibt 0–100 Punkte: die Wahrscheinlichkeit, wirklich
+        besser als die anderen zu sein. Ein knapper Vorsprung aus wenigen
+        Partien bringt kaum mehr als 50, ein klarer fast 100. Fehlt einem
+        Spieler ein Faktor, verteilt sich dessen Gewicht auf die übrigen. Die
+        Wertung zählt nicht: neue Konten liegen oft Hunderte Punkte daneben, und
+        Partien mit noch springender Wertung fließen auch nicht in „Über
+        Erwartung“ ein.
       </p>
-    </section>
+      {ranking.notes.map((n) => (
+        <p class="faint small" key={n} style={{ margin: "6px 0 0" }}>
+          {n}
+        </p>
+      ))}
+    </details>
   );
 }
 
-function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
+function RankSection({
+  title,
+  sub,
+  first,
+}: {
+  title: string;
+  sub: string;
+  first?: boolean;
+}) {
+  return (
+    <div class={`section-head span-12${first ? " first" : ""}`}>
+      <h2>{title}</h2>
+      <span class="faint small">{sub}</span>
+    </div>
+  );
+}
+
+function RankingPanel({
+  players,
+  games,
+  me,
+}: {
+  players: TrackedPlayer[];
+  games: StoredGame[];
+  me: string[];
+}) {
   const [format, setFormat] = useState("All Formats");
   const [date, setDate] = useState("All Time");
   const [factor, setFactor] = useState("overall");
@@ -1092,12 +1640,24 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   const fmt = statsFormat(format, excludeBullet);
   // Profiles per player and filter, so hiding or showing a friend only re-ranks
   // and needs no new profile from the worker. Cleared when the games change.
-  const cache = useRef<{ games: StoredGame[]; map: Map<string, Promise<PlayerProfile>> }>({ games, map: new Map() });
-  const groupKey = friends.map((p) => `${p.id}=${playerUsernames(p).join(",")}=${p.name}`).join("|");
+  const cache = useRef<{
+    games: StoredGame[];
+    map: Map<string, Promise<PlayerProfile>>;
+  }>({ games, map: new Map() });
+  const groupKey = friends
+    .map((p) => `${p.id}=${playerUsernames(p).join(",")}=${p.name}`)
+    .join("|");
   const group = useMemo(
     () => [
-      ...(me.length ? [{ id: "ich", name: "Du", is_me: true, usernames: me }] : []),
-      ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) })),
+      ...(me.length
+        ? [{ id: "ich", name: "Du", is_me: true, usernames: me }]
+        : []),
+      ...friends.map((p) => ({
+        id: p.id,
+        name: p.name,
+        is_me: false,
+        usernames: playerUsernames(p),
+      })),
     ],
     [groupKey, me],
   );
@@ -1107,7 +1667,8 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
     if (!friends.length || !ready) return;
     let alive = true;
     setLoading(true);
-    if (cache.current.games !== games) cache.current = { games, map: new Map() };
+    if (cache.current.games !== games)
+      cache.current = { games, map: new Map() };
     const map = cache.current.map;
     const profileOf = (names: string[]) => {
       const key = `${names.join(",")}|${fmt}|${date}`;
@@ -1122,10 +1683,18 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
     Promise.all(group.map((g) => profileOf(g.usernames)))
       .then((profiles) => {
         if (!alive) return;
-        setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date }));
+        setRanking(
+          buildRanking(
+            group.map((g, i) => ({ ...g, profile: profiles[i] })),
+            games,
+            { format: fmt, date },
+          ),
+        );
         setError("");
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)))
+      .catch(
+        (e) => alive && setError(e instanceof Error ? e.message : String(e)),
+      )
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
@@ -1137,8 +1706,15 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
       <div class="empty">
         <CoachAvatar size={88} mood="think" />
         <h3>Noch keine Freunde in der Rangliste</h3>
-        <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann vergleicht die App euch nach Ergebnissen, Genauigkeit, Patzern, Fähigkeiten und Direktvergleich und ihr könnt gegeneinander battlen.</p>
-        <button class="btn primary" onClick={() => navigate({ view: "players" })}>
+        <p>
+          Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann
+          vergleicht die App euch nach Ergebnissen, Genauigkeit, Patzern,
+          Fähigkeiten und Direktvergleich und ihr könnt gegeneinander battlen.
+        </p>
+        <button
+          class="btn primary"
+          onClick={() => navigate({ view: "players" })}
+        >
           Zu den Spielern
         </button>
       </div>
@@ -1148,7 +1724,12 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       <div class="rank-toolbar">
-        <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
+        <PlayerFilters
+          format={format}
+          date={date}
+          onFormat={setFormat}
+          onDate={setDate}
+        />
         <RefreshAll players={friends} label="Freunde aktualisieren" />
         <AnalyzeFriends players={friends} games={games} />
       </div>
@@ -1158,7 +1739,10 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         <div class="empty">
           <CoachAvatar size={72} mood="think" />
           <h3>Alle Freunde sind ausgeblendet</h3>
-          <p>Tippe oben auf einen Namen, um ihn wieder in die Rangliste aufzunehmen.</p>
+          <p>
+            Tippe oben auf einen Namen, um ihn wieder in die Rangliste
+            aufzunehmen.
+          </p>
         </div>
       ) : !ranking ? (
         <div class="dash">
@@ -1167,6 +1751,11 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
         </div>
       ) : (
         <div class="dash">
+          <RankSection
+            title="Stand"
+            sub="wer vorne liegt und wie knapp es ist"
+            first
+          />
           <section class="card tile span-6">
             <div class="tile-head">
               <h3>Wer ist der Beste?</h3>
@@ -1177,22 +1766,40 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
 
           <ChaseCard ranking={ranking} />
 
-          <BattleArena ranking={ranking} games={games} group={group} fmt={fmt} date={date} />
-
+          <RankSection
+            title="Rangliste"
+            sub="alle Faktoren, Spieler antippen für Details"
+          />
           <section class="card tile span-12">
             <div class="tile-head">
-              <h3>Rangliste</h3>
-              <select class="factor-select" value={factor} onChange={(e) => setFactor(e.currentTarget.value)} aria-label="Faktor">
+              <h3>Tabelle</h3>
+              <select
+                class="factor-select"
+                value={factor}
+                onChange={(e) => setFactor(e.currentTarget.value)}
+                aria-label="Faktor"
+              >
                 <option value="overall">Gesamtwertung</option>
-                {(["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const).map((grp) => (
+                {(
+                  [
+                    "Ergebnisse",
+                    "Spielqualität",
+                    "Fähigkeiten",
+                    "Sonstiges",
+                  ] as const
+                ).map((grp) => (
                   <optgroup key={grp} label={grp}>
                     {ranking.factors
                       .filter((f) => f.group === grp)
                       .map((f) => (
                         <option key={f.key} value={f.key}>
                           {f.label}
-                          {f.key === "rating" && ranking.rating_speed ? ` (${ranking.rating_speed})` : ""}
-                          {f.weight ? ` · ${de(f.weight, f.weight % 1 ? 1 : 0)} %` : " · nur Info"}
+                          {f.key === "rating" && ranking.rating_speed
+                            ? ` (${ranking.rating_speed})`
+                            : ""}
+                          {f.weight
+                            ? ` · ${de(f.weight, f.weight % 1 ? 1 : 0)} %`
+                            : " · nur Info"}
                         </option>
                       ))}
                   </optgroup>
@@ -1201,25 +1808,26 @@ function RankingPanel({ players, games, me }: { players: TrackedPlayer[]; games:
             </div>
             <p class="small muted" style={{ marginTop: 0 }}>
               {factor === "overall"
-                ? "Tippe auf einen Spieler: dann siehst du, wie viele Punkte jeder Faktor gebracht hat. Gewichte stehen unten unter „So wird gewertet“."
+                ? "Tippe auf einen Spieler: dann siehst du, wie viele Punkte jeder Faktor gebracht hat."
                 : ranking.factors.find((f) => f.key === factor)?.hint}
             </p>
             <RankingTable ranking={ranking} factor={factor} />
           </section>
 
+          <RankSection title="Battle" sub="Kopf an Kopf, Faktor für Faktor" />
+          <BattleArena
+            ranking={ranking}
+            games={games}
+            group={group}
+            fmt={fmt}
+            date={date}
+          />
+
+          <RankSection title="Gruppe" sub="Kronen, Form und deine Stellung" />
           <CrownsCard ranking={ranking} />
           <FormCard rows={form} />
           <GroupStandingCard ranking={ranking} />
           <ScoringCard ranking={ranking} />
-          {ranking.notes.length > 0 && (
-            <div class="span-12">
-              {ranking.notes.map((n) => (
-                <p class="faint small" key={n} style={{ margin: "0 0 6px" }}>
-                  {n}
-                </p>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -1237,8 +1845,10 @@ function duelValue(key: string, v: number | null): string {
 function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
   if (r.key === "rating") return { text: "nur Info", cls: "" };
   if (r.p_me === null) return { text: "zu wenig Daten", cls: "" };
-  if (r.edge === "me") return { text: r.sure ? "klar du" : "eher du", cls: "duel-me" };
-  if (r.edge === "them") return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "duel-them" };
+  if (r.edge === "me")
+    return { text: r.sure ? "klar du" : "eher du", cls: "duel-me" };
+  if (r.edge === "them")
+    return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "duel-them" };
   return { text: "offen", cls: "" };
 }
 
@@ -1252,7 +1862,9 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
       <div class="tile-head">
         <h3>Du gegen {name}</h3>
         <span class="tile-sub">
-          {rows.length ? `Du vorn: ${matchup.ahead} · ${name} vorn: ${matchup.behind} · offen: ${matchup.even}` : "Vergleich"}
+          {rows.length
+            ? `Du vorn: ${matchup.ahead} · ${name} vorn: ${matchup.behind} · offen: ${matchup.even}`
+            : "Vergleich"}
         </span>
       </div>
       <div class="duel-grid">
@@ -1262,10 +1874,21 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
             <>
               <div class="kpi-big tnum">{pct0(p.pct)}</div>
               <div class="small muted">
-                erwartete Punkte für dich · wahrscheinlich {Math.round(p.low)}–{Math.round(p.high)} %
+                erwartete Punkte für dich · wahrscheinlich {Math.round(p.low)}–
+                {Math.round(p.high)} %
               </div>
-              <div class="duel-band" role="img" aria-label={`Prognose ${Math.round(p.pct)} Prozent, Bereich ${Math.round(p.low)} bis ${Math.round(p.high)} Prozent`}>
-                <div class="duel-band-range" style={{ left: `${p.low}%`, width: `${Math.max(1, p.high - p.low)}%` }} />
+              <div
+                class="duel-band"
+                role="img"
+                aria-label={`Prognose ${Math.round(p.pct)} Prozent, Bereich ${Math.round(p.low)} bis ${Math.round(p.high)} Prozent`}
+              >
+                <div
+                  class="duel-band-range"
+                  style={{
+                    left: `${p.low}%`,
+                    width: `${Math.max(1, p.high - p.low)}%`,
+                  }}
+                />
                 <div class="duel-band-mid" />
                 <div class="duel-band-mark" style={{ left: `${p.pct}%` }} />
               </div>
@@ -1276,12 +1899,15 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
               </div>
               <p class="faint small" style={{ margin: "8px 0 0" }}>
                 {p.basis}
-                {p.elo_pct !== null ? ` Nach Wertung wären es ${pct0(p.elo_pct)}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.` : ""}
+                {p.elo_pct !== null
+                  ? ` Nach Wertung wären es ${pct0(p.elo_pct)}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.`
+                  : ""}
               </p>
             </>
           ) : (
             <p class="muted small">
-              Für eine Prognose fehlen analysierte Partien (je mindestens 5) oder Partien gegeneinander.
+              Für eine Prognose fehlen analysierte Partien (je mindestens 5)
+              oder Partien gegeneinander.
             </p>
           )}
         </div>
@@ -1291,8 +1917,16 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
               const v = verdict(r, name);
               const pMe = (r.p_me as number) * 100;
               return (
-                <div class="duel-row" key={r.key} title={`Wahrscheinlichkeit, dass du hier besser bist: ${Math.round(pMe)} %`}>
-                  <span class={`duel-val tnum${r.edge === "me" ? " lead" : ""}`}>{duelValue(r.key, r.me)}</span>
+                <div
+                  class="duel-row"
+                  key={r.key}
+                  title={`Wahrscheinlichkeit, dass du hier besser bist: ${Math.round(pMe)} %`}
+                >
+                  <span
+                    class={`duel-val tnum${r.edge === "me" ? " lead" : ""}`}
+                  >
+                    {duelValue(r.key, r.me)}
+                  </span>
                   <div class="duel-mid">
                     <div class="duel-label">
                       <span>{r.label}</span>
@@ -1304,12 +1938,19 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
                       </div>
                     )}
                   </div>
-                  <span class={`duel-val tnum them${r.edge === "them" ? " lead" : ""}`}>{duelValue(r.key, r.them)}</span>
+                  <span
+                    class={`duel-val tnum them${r.edge === "them" ? " lead" : ""}`}
+                  >
+                    {duelValue(r.key, r.them)}
+                  </span>
                 </div>
               );
             })
           ) : (
-            <p class="muted small">Analysiere Partien von dir und {name} (je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.</p>
+            <p class="muted small">
+              Analysiere Partien von dir und {name} (je mindestens 5), dann
+              vergleicht die App Genauigkeit, Patzer und Fähigkeiten.
+            </p>
           )}
           {rows.length > 0 && (
             <div class="duel-legend faint small">
@@ -1319,7 +1960,12 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
               <span>
                 <span class="vs-key duel-them-key" /> {name} (rechts)
               </span>
-              <span>Balken = Wahrscheinlichkeit, wer wirklich besser ist{missing ? ` · ${plural(missing, "Wert", "Werte")} ohne genug Daten` : ""}</span>
+              <span>
+                Balken = Wahrscheinlichkeit, wer wirklich besser ist
+                {missing
+                  ? ` · ${plural(missing, "Wert", "Werte")} ohne genug Daten`
+                  : ""}
+              </span>
             </div>
           )}
         </div>
@@ -1363,9 +2009,13 @@ function PickList({ picks, empty }: { picks: OpeningPick[]; empty: string }) {
         <div class={`pick${i === 0 && p.value >= 5 ? " top" : ""}`} key={p.key}>
           <div class="pick-head">
             <strong>{p.title}</strong>
-            {i === 0 && p.value >= 5 && <span class="pill accent">Empfehlung</span>}
+            {i === 0 && p.value >= 5 && (
+              <span class="pill accent">Empfehlung</span>
+            )}
             <span class="spacer" />
-            <span class={`pill ${p.their_score_pct !== null && p.their_score_pct <= 40 ? "win" : p.their_score_pct !== null && p.their_score_pct >= 60 ? "loss" : "draw"}`}>
+            <span
+              class={`pill ${p.their_score_pct !== null && p.their_score_pct <= 40 ? "win" : p.their_score_pct !== null && p.their_score_pct >= 60 ? "loss" : "draw"}`}
+            >
               holt {pct0(p.their_score_pct)}
             </span>
           </div>
@@ -1398,7 +2048,14 @@ function Repertoire({ report }: { report: ScoutReport }) {
           {report.their_replies.slice(0, 4).map((v) => (
             <div key={v.san} class="small">
               <strong>auf 1. {v.san}</strong>
-              <span class="muted"> mit {v.replies.slice(0, 3).map((r) => `1… ${r.san} (${r.games})`).join(", ")}</span>
+              <span class="muted">
+                {" "}
+                mit{" "}
+                {v.replies
+                  .slice(0, 3)
+                  .map((r) => `1… ${r.san} (${r.games})`)
+                  .join(", ")}
+              </span>
             </div>
           ))}
         </div>
@@ -1427,11 +2084,21 @@ function H2HGames({ h2h }: { h2h: HeadToHead }) {
       </div>
       <div class="op-games">
         {h2h.recent.slice(0, 8).map((g) => (
-          <button key={g.id} class="op-game" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
-            <span class={`op-result ${g.score === 1 ? "win" : g.score === 0 ? "loss" : "draw"}`}>{g.score === 1 ? "S" : g.score === 0 ? "N" : "R"}</span>
+          <button
+            key={g.id}
+            class="op-game"
+            onClick={() => navigate({ view: "analysis", gameId: g.id })}
+          >
+            <span
+              class={`op-result ${g.score === 1 ? "win" : g.score === 0 ? "loss" : "draw"}`}
+            >
+              {g.score === 1 ? "S" : g.score === 0 ? "N" : "R"}
+            </span>
             <span class="op-opp">
               {g.color === "white" ? "Du mit Weiß" : "Du mit Schwarz"}
-              {g.opening && <span class="faint"> · {g.opening.split(":")[0]}</span>}
+              {g.opening && (
+                <span class="faint"> · {g.opening.split(":")[0]}</span>
+              )}
             </span>
             <span class="faint small">{formatDate(g.date)}</span>
             <span class="small op-acc">{SPEED_DE[g.speed] ?? ""}</span>
@@ -1443,7 +2110,13 @@ function H2HGames({ h2h }: { h2h: HeadToHead }) {
 }
 
 /** Openings you both play with the same colour: who scores better in them. */
-function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[] }) {
+function SharedOpeningsCard({
+  name,
+  rows,
+}: {
+  name: string;
+  rows: SharedOpening[];
+}) {
   return (
     <section class="card tile span-6">
       <div class="tile-head">
@@ -1456,35 +2129,62 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
             <div class="shared-op" key={`${o.color}${o.name}`}>
               <div class="shared-op-head">
                 <strong>{o.name}</strong>
-                <span class="faint small">mit {o.color === "white" ? "Weiß" : "Schwarz"}</span>
+                <span class="faint small">
+                  mit {o.color === "white" ? "Weiß" : "Schwarz"}
+                </span>
                 <span class="spacer" />
-                <span class={`pill ${o.better === "me" ? "win" : o.better === "them" ? "loss" : ""}`}>
-                  {o.better === "me" ? "du klar besser" : o.better === "them" ? `${name} klar besser` : "ähnlich"}
+                <span
+                  class={`pill ${o.better === "me" ? "win" : o.better === "them" ? "loss" : ""}`}
+                >
+                  {o.better === "me"
+                    ? "du klar besser"
+                    : o.better === "them"
+                      ? `${name} klar besser`
+                      : "ähnlich"}
                 </span>
               </div>
               <div class="shared-op-vals small">
                 <span>
-                  Du <strong class="tnum">{pct0(o.mine.score_pct)}</strong> <span class="faint">({o.mine.games})</span>
+                  Du <strong class="tnum">{pct0(o.mine.score_pct)}</strong>{" "}
+                  <span class="faint">({o.mine.games})</span>
                 </span>
                 <span>
-                  {name} <strong class="tnum">{pct0(o.theirs.score_pct)}</strong> <span class="faint">({o.theirs.games})</span>
+                  {name}{" "}
+                  <strong class="tnum">{pct0(o.theirs.score_pct)}</strong>{" "}
+                  <span class="faint">({o.theirs.games})</span>
                 </span>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <p class="muted small">Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens {MIN_LINE_GAMES} Mal gespielt habt.</p>
+        <p class="muted small">
+          Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe
+          mindestens {MIN_LINE_GAMES} Mal gespielt habt.
+        </p>
       )}
     </section>
   );
 }
 
-function PlayerDetail({ id, players, games, me }: { id: string; players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
+function PlayerDetail({
+  id,
+  players,
+  games,
+  me,
+}: {
+  id: string;
+  players: TrackedPlayer[];
+  games: StoredGame[];
+  me: string[];
+}) {
   const player = players.find((p) => p.id === id);
   const [format, setFormat] = useState("All Formats");
   const [date, setDate] = useState("All Time");
-  const [data, setData] = useState<{ them: PlayerProfile; mine: PlayerProfile | null } | null>(null);
+  const [data, setData] = useState<{
+    them: PlayerProfile;
+    mine: PlayerProfile | null;
+  } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1501,22 +2201,33 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     if (!player || !ready) return;
     let alive = true;
     setLoading(true);
-    Promise.all([profileFor(games, names, fmt, date), me.length ? profileFor(games, me, fmt, date) : Promise.resolve(null)])
+    Promise.all([
+      profileFor(games, names, fmt, date),
+      me.length ? profileFor(games, me, fmt, date) : Promise.resolve(null),
+    ])
       .then(([them, mine]) => {
         if (!alive) return;
         setData({ them, mine });
         setError("");
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : String(e)))
+      .catch(
+        (e) => alive && setError(e instanceof Error ? e.message : String(e)),
+      )
       .finally(() => alive && setLoading(false));
     return () => {
       alive = false;
     };
   }, [namesKey, games, me, fmt, date, ready]);
 
-  const h2h = useMemo(() => headToHead(games, me, names, fmt, date), [games, me, namesKey, fmt, date]);
+  const h2h = useMemo(
+    () => headToHead(games, me, names, fmt, date),
+    [games, me, namesKey, fmt, date],
+  );
   const report = useMemo(
-    () => (data && player ? buildScoutReport(player.name, data.them, data.mine, h2h) : null),
+    () =>
+      data && player
+        ? buildScoutReport(player.name, data.them, data.mine, h2h)
+        : null,
     [data, player?.name, h2h],
   );
   // Lichess and Chess.com ratings only compare when both mostly play on the same site.
@@ -1524,21 +2235,34 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     const a = mainSource(games, me);
     return Boolean(a) && a !== "file" && a === mainSource(games, names);
   }, [games, me, namesKey]);
-  const matchup = useMemo(() => (data ? buildMatchup(data.mine, data.them, h2h, sameSite) : null), [data, h2h, sameSite]);
+  const matchup = useMemo(
+    () => (data ? buildMatchup(data.mine, data.them, h2h, sameSite) : null),
+    [data, h2h, sameSite],
+  );
   // The time control the two mostly play each other in, to offer tips just for it.
   const duelSpeed = useMemo(() => {
     const all = headToHead(games, me, names);
     const by = new Map<string, number>();
-    for (const g of all.recent) if (g.speed) by.set(g.speed, (by.get(g.speed) ?? 0) + 1);
+    for (const g of all.recent)
+      if (g.speed) by.set(g.speed, (by.get(g.speed) ?? 0) + 1);
     const top = [...by.entries()].sort((a, b) => b[1] - a[1])[0];
-    return top && all.games >= 3 && top[1] / all.games >= 0.6 && FORMATS.includes(top[0]) && !(excludeBullet && top[0] === "Bullet") ? top[0] : null;
+    return top &&
+      all.games >= 3 &&
+      top[1] / all.games >= 0.6 &&
+      FORMATS.includes(top[0]) &&
+      !(excludeBullet && top[0] === "Bullet")
+      ? top[0]
+      : null;
   }, [games, me, namesKey, excludeBullet]);
 
   if (!player) {
     return (
       <div class="empty">
         <p>Diesen Spieler gibt es nicht mehr.</p>
-        <button class="btn primary" onClick={() => navigate({ view: "players" })}>
+        <button
+          class="btn primary"
+          onClick={() => navigate({ view: "players" })}
+        >
           Zu den Spielern
         </button>
       </div>
@@ -1547,9 +2271,16 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
   const theirGames = gamesOf(games, names);
   const open = theirGames
-    .filter((g) => g.summary_json?.analysis_status !== "completed" && !(skipBullet && isBulletGame(g)))
+    .filter(
+      (g) =>
+        g.summary_json?.analysis_status !== "completed" &&
+        !(skipBullet && isBulletGame(g)),
+    )
     .map((g) => g.id);
-  const queued = new Set([...(queue?.queued ?? []), ...(queue?.current ? [queue.current] : [])]);
+  const queued = new Set([
+    ...(queue?.queued ?? []),
+    ...(queue?.current ? [queue.current] : []),
+  ]);
   const running = open.filter((g) => queued.has(g)).length;
   const online = player.accounts.some((a) => a.source !== "other");
 
@@ -1560,8 +2291,12 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         onProgress: setBusy,
         ...(all ? { count: null, months: null } : {}),
       });
-      const missed = failed.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(", ");
-      setBusy(`${plural(result.imported, "neue Partie", "neue Partien")} geladen.${missed ? ` Nicht erreichbar: ${missed}.` : ""}`);
+      const missed = failed
+        .map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`)
+        .join(", ");
+      setBusy(
+        `${plural(result.imported, "neue Partie", "neue Partien")} geladen.${missed ? ` Nicht erreichbar: ${missed}.` : ""}`,
+      );
       window.setTimeout(() => setBusy(""), missed ? 6000 : 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -1571,7 +2306,11 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
   const them = data?.them;
   const rc = them?.rating;
-  const wdl = (o: { wins: number; draws: number; losses: number }): Segment[] => [
+  const wdl = (o: {
+    wins: number;
+    draws: number;
+    losses: number;
+  }): Segment[] => [
     { label: "Siege", value: o.wins, color: "var(--win)" },
     { label: "Remis", value: o.draws, color: "var(--draw)" },
     { label: "Niederlagen", value: o.losses, color: "var(--loss)" },
@@ -1595,7 +2334,11 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       <div class="page-title">
-        <button class="btn small ghost" onClick={() => navigate({ view: "players" })} aria-label="Zurück">
+        <button
+          class="btn small ghost"
+          onClick={() => navigate({ view: "players" })}
+          aria-label="Zurück"
+        >
           ←
         </button>
         {player.name}
@@ -1603,7 +2346,11 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         {player.hidden && <span class="pill">Ausgeblendet</span>}
         <span class="spacer" />
         {online && (
-          <button class="btn" disabled={Boolean(busy)} onClick={() => void refresh()}>
+          <button
+            class="btn"
+            disabled={Boolean(busy)}
+            onClick={() => void refresh()}
+          >
             <IconSync /> Partien laden
           </button>
         )}
@@ -1624,21 +2371,37 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}
             title="Die neuesten Partien zuerst"
           >
-            <IconPlay /> {running > 0 ? `Analyse läuft (${running})` : `${Math.min(open.length, ANALYZE_BATCH)} analysieren`}
+            <IconPlay />{" "}
+            {running > 0
+              ? `Analyse läuft (${running})`
+              : `${Math.min(open.length, ANALYZE_BATCH)} analysieren`}
           </button>
         )}
       </div>
       {busy && <p class="small muted">{busy}</p>}
       {player.hidden && (
-        <div class="notice row" style={{ marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
-          <span>{player.name} ist ausgeblendet und zählt nicht in der Rangliste.</span>
-          <button class="btn small" onClick={() => void updatePlayer(player.id, { hidden: false })}>
+        <div
+          class="notice row"
+          style={{ marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}
+        >
+          <span>
+            {player.name} ist ausgeblendet und zählt nicht in der Rangliste.
+          </span>
+          <button
+            class="btn small"
+            onClick={() => void updatePlayer(player.id, { hidden: false })}
+          >
             <IconEye /> Wieder einblenden
           </button>
         </div>
       )}
 
-      <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
+      <PlayerFilters
+        format={format}
+        date={date}
+        onFormat={setFormat}
+        onDate={setDate}
+      />
       {duelSpeed && format !== duelSpeed && (
         <p class="small muted duel-speed-hint">
           Ihr spielt meist {formatOptionLabel(duelSpeed, false)} gegeneinander.{" "}
@@ -1658,11 +2421,20 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         <div class="empty">
           <p>
             Noch keine Partien von {player.name}
-            {format !== "All Formats" || date !== "All Time" ? " in diesem Zeitraum" : ""}.{" "}
-            {online ? "Lade die Partien von Lichess oder Chess.com." : "Importiere eine PGN mit Partien dieser Person."}
+            {format !== "All Formats" || date !== "All Time"
+              ? " in diesem Zeitraum"
+              : ""}
+            .{" "}
+            {online
+              ? "Lade die Partien von Lichess oder Chess.com."
+              : "Importiere eine PGN mit Partien dieser Person."}
           </p>
           {online && (
-            <button class="btn primary" disabled={Boolean(busy)} onClick={() => void refresh()}>
+            <button
+              class="btn primary"
+              disabled={Boolean(busy)}
+              onClick={() => void refresh()}
+            >
               <IconSync /> Partien laden
             </button>
           )}
@@ -1671,33 +2443,76 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         <div class="dash">
           <section class="card hero span-12">
             <div class="hero-cell">
-              <div class="kpi-label">{rc ? `Wertung · ${SPEED_DE[rc.speed] ?? rc.speed}` : "Wertung"}</div>
+              <div class="kpi-label">
+                {rc ? `Wertung · ${SPEED_DE[rc.speed] ?? rc.speed}` : "Wertung"}
+              </div>
               <div class="kpi-big tnum">{rc ? rc.rating : "–"}</div>
               <div class="small muted">
-                {plural(them.total_games, "Partie", "Partien")} · {them.analyzed_games} analysiert
+                {plural(them.total_games, "Partie", "Partien")} ·{" "}
+                {them.analyzed_games} analysiert
               </div>
             </div>
             <div class="hero-cell with-chart">
-              <Donut segments={wdl(them.overview as { wins: number; draws: number; losses: number })} center={pct0(them.overview.score_pct)} sub="Punkte" size={96} thickness={11} />
+              <Donut
+                segments={wdl(
+                  them.overview as {
+                    wins: number;
+                    draws: number;
+                    losses: number;
+                  },
+                )}
+                center={pct0(them.overview.score_pct)}
+                sub="Punkte"
+                size={96}
+                thickness={11}
+              />
               <div class="hero-side">
                 <div class="kpi-label">Bilanz von {player.name}</div>
-                <Legend items={wdl(them.overview as { wins: number; draws: number; losses: number }).map((s) => ({ label: s.label, color: s.color, value: String(s.value) }))} />
+                <Legend
+                  items={wdl(
+                    them.overview as {
+                      wins: number;
+                      draws: number;
+                      losses: number;
+                    },
+                  ).map((s) => ({
+                    label: s.label,
+                    color: s.color,
+                    value: String(s.value),
+                  }))}
+                />
               </div>
             </div>
             <div class="hero-cell with-chart">
-              <Donut segments={wdl(h2h)} center={h2h.games ? pct0(h2h.score_pct) : "–"} sub="deine Punkte" size={96} thickness={11} />
+              <Donut
+                segments={wdl(h2h)}
+                center={h2h.games ? pct0(h2h.score_pct) : "–"}
+                sub="deine Punkte"
+                size={96}
+                thickness={11}
+              />
               <div class="hero-side">
                 <div class="kpi-label">Direktvergleich</div>
                 {h2h.games ? (
-                  <Legend items={wdl(h2h).map((s) => ({ label: s.label, color: s.color, value: String(s.value) }))} />
+                  <Legend
+                    items={wdl(h2h).map((s) => ({
+                      label: s.label,
+                      color: s.color,
+                      value: String(s.value),
+                    }))}
+                  />
                 ) : (
-                  <div class="small muted">Ihr habt noch nicht gegeneinander gespielt.</div>
+                  <div class="small muted">
+                    Ihr habt noch nicht gegeneinander gespielt.
+                  </div>
                 )}
               </div>
             </div>
             <div class="hero-cell">
               <div class="kpi-label">Genauigkeit</div>
-              <div class="kpi-big tnum">{them.analyzed_games ? de(them.overview.avg_accuracy, 1) : "–"}</div>
+              <div class="kpi-big tnum">
+                {them.analyzed_games ? de(them.overview.avg_accuracy, 1) : "–"}
+              </div>
               <div class="small muted">
                 {data.mine && data.mine.analyzed_games && them.analyzed_games
                   ? `Du: ${de(data.mine.overview.avg_accuracy, 1)}`
@@ -1711,7 +2526,13 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
           <div class="span-12 detail-tabs">
             <div class="segmented full" role="tablist">
               {DETAIL_SECTIONS.map(([k, label]) => (
-                <button key={k} role="tab" aria-selected={shown === k} class={shown === k ? "active" : ""} onClick={() => setSection(k)}>
+                <button
+                  key={k}
+                  role="tab"
+                  aria-selected={shown === k}
+                  class={shown === k ? "active" : ""}
+                  onClick={() => setSection(k)}
+                >
                   {label(player.name)}
                 </button>
               ))}
@@ -1727,106 +2548,162 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
                     <h3>Fähigkeiten im Vergleich</h3>
                     <span class="tile-sub">0–100 Punkte</span>
                   </div>
-                  <RadarChart axes={radar} ownLabel={player.name} compare={data.mine ? "Du" : undefined} />
+                  <RadarChart
+                    axes={radar}
+                    ownLabel={player.name}
+                    compare={data.mine ? "Du" : undefined}
+                  />
                 </section>
               )}
-              <FriendDetails part="compare" name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />
-              {data.mine && <SharedOpeningsCard name={player.name} rows={sharedOpenings(data.mine, them)} />}
+              <FriendDetails
+                part="compare"
+                name={player.name}
+                them={them}
+                mine={data.mine}
+                games={theirGames}
+                names={names}
+              />
+              {data.mine && (
+                <SharedOpeningsCard
+                  name={player.name}
+                  rows={sharedOpenings(data.mine, them)}
+                />
+              )}
               {h2h.recent.length > 0 && <H2HGames h2h={h2h} />}
             </>
           )}
 
           {shown === "beat" && (
             <>
-          <section class="card tile span-12">
-            <div class="tile-head">
-              <h3>So schlägst du {player.name}</h3>
-              <span class="tile-sub">aus {plural(them.total_games, "Partie", "Partien")} von {player.name}</span>
-            </div>
-            {report.plan.length ? (
-              <TipList tips={report.plan} numbered />
-            ) : (
-              <p class="muted small">Noch keine klare Schwachstelle erkennbar. Mehr Partien laden oder analysieren hilft.</p>
-            )}
-            {them.analyzed_games < 3 && (
-              <div class="notice" style={{ marginTop: "12px" }}>
-                <div class="row" style={{ justifyContent: "space-between" }}>
-                  <span>
-                    Eröffnungstipps kommen schon aus den Ergebnissen. Für Taktik- und Strategietipps braucht die App analysierte
-                    Partien von {player.name}.
+              <section class="card tile span-12">
+                <div class="tile-head">
+                  <h3>So schlägst du {player.name}</h3>
+                  <span class="tile-sub">
+                    aus {plural(them.total_games, "Partie", "Partien")} von{" "}
+                    {player.name}
                   </span>
-                  {open.length > 0 && running === 0 && (
-                    <button class="btn primary small" onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}>
-                      <IconPlay /> {Math.min(open.length, ANALYZE_BATCH)} analysieren
-                    </button>
-                  )}
                 </div>
-              </div>
-            )}
-          </section>
-
-          <section class="card tile span-6">
-            <div class="tile-head">
-              <h3>Du hast Weiß</h3>
-              <span class="tile-sub">{player.name} mit Schwarz</span>
-            </div>
-            <PickList picks={report.as_white} empty={`Keine Eröffnung, in der ${player.name} mit Schwarz klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Eröffnung).`} />
-          </section>
-
-          <section class="card tile span-6">
-            <div class="tile-head">
-              <h3>Du hast Schwarz</h3>
-              <span class="tile-sub">{player.name} mit Weiß</span>
-            </div>
-            <PickList picks={report.as_black} empty={`Keine Antwort, gegen die ${player.name} mit Weiß klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Antwort).`} />
-          </section>
-
-          {report.cautions.length > 0 && (
-            <section class="card tile span-6">
-              <div class="tile-head">
-                <h3>Vorsicht</h3>
-                <span class="tile-sub">Stärken von {player.name}</span>
-              </div>
-              <div class="insights">
-                {report.cautions.map((c) => (
-                  <div class="insight neg" key={c.key}>
-                    <div class="t">{c.title}</div>
-                    <div class="small">{c.text}</div>
+                {report.plan.length ? (
+                  <TipList tips={report.plan} numbered />
+                ) : (
+                  <p class="muted small">
+                    Noch keine klare Schwachstelle erkennbar. Mehr Partien laden
+                    oder analysieren hilft.
+                  </p>
+                )}
+                {them.analyzed_games < 3 && (
+                  <div class="notice" style={{ marginTop: "12px" }}>
+                    <div
+                      class="row"
+                      style={{ justifyContent: "space-between" }}
+                    >
+                      <span>
+                        Eröffnungstipps kommen schon aus den Ergebnissen. Für
+                        Taktik- und Strategietipps braucht die App analysierte
+                        Partien von {player.name}.
+                      </span>
+                      {open.length > 0 && running === 0 && (
+                        <button
+                          class="btn primary small"
+                          onClick={() =>
+                            void enqueue(open.slice(0, ANALYZE_BATCH))
+                          }
+                        >
+                          <IconPlay /> {Math.min(open.length, ANALYZE_BATCH)}{" "}
+                          analysieren
+                        </button>
+                      )}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </section>
-          )}
+                )}
+              </section>
 
-          <section class="card tile span-6">
-            <div class="tile-head">
-              <h3>Repertoire von {player.name}</h3>
-            </div>
-            <Repertoire report={report} />
-          </section>
+              <section class="card tile span-6">
+                <div class="tile-head">
+                  <h3>Du hast Weiß</h3>
+                  <span class="tile-sub">{player.name} mit Schwarz</span>
+                </div>
+                <PickList
+                  picks={report.as_white}
+                  empty={`Keine Eröffnung, in der ${player.name} mit Schwarz klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Eröffnung).`}
+                />
+              </section>
 
-          <section class="card tile span-6">
-            <div class="tile-head">
-              <h3>So verliert {player.name}</h3>
-              <span class="tile-sub">{plural(them.overview.losses, "Niederlage", "Niederlagen")}</span>
-            </div>
-            {report.losses.length ? (
-              <StackBar
-                segments={report.losses.map((l, i) => ({
-                  label: `${l.label} (${Math.round(l.pct)} %)`,
-                  value: l.count,
-                  color: ["var(--loss)", "var(--mistake)", "var(--inacc)", "var(--draw)"][i] ?? "var(--draw)",
-                }))}
-              />
-            ) : (
-              <p class="muted small">Keine Niederlagen in diesen Partien.</p>
-            )}
-          </section>
+              <section class="card tile span-6">
+                <div class="tile-head">
+                  <h3>Du hast Schwarz</h3>
+                  <span class="tile-sub">{player.name} mit Weiß</span>
+                </div>
+                <PickList
+                  picks={report.as_black}
+                  empty={`Keine Antwort, gegen die ${player.name} mit Weiß klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Antwort).`}
+                />
+              </section>
 
+              {report.cautions.length > 0 && (
+                <section class="card tile span-6">
+                  <div class="tile-head">
+                    <h3>Vorsicht</h3>
+                    <span class="tile-sub">Stärken von {player.name}</span>
+                  </div>
+                  <div class="insights">
+                    {report.cautions.map((c) => (
+                      <div class="insight neg" key={c.key}>
+                        <div class="t">{c.title}</div>
+                        <div class="small">{c.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              <section class="card tile span-6">
+                <div class="tile-head">
+                  <h3>Repertoire von {player.name}</h3>
+                </div>
+                <Repertoire report={report} />
+              </section>
+
+              <section class="card tile span-6">
+                <div class="tile-head">
+                  <h3>So verliert {player.name}</h3>
+                  <span class="tile-sub">
+                    {plural(them.overview.losses, "Niederlage", "Niederlagen")}
+                  </span>
+                </div>
+                {report.losses.length ? (
+                  <StackBar
+                    segments={report.losses.map((l, i) => ({
+                      label: `${l.label} (${Math.round(l.pct)} %)`,
+                      value: l.count,
+                      color:
+                        [
+                          "var(--loss)",
+                          "var(--mistake)",
+                          "var(--inacc)",
+                          "var(--draw)",
+                        ][i] ?? "var(--draw)",
+                    }))}
+                  />
+                ) : (
+                  <p class="muted small">
+                    Keine Niederlagen in diesen Partien.
+                  </p>
+                )}
+              </section>
             </>
           )}
 
-          {shown === "profile" && <FriendDetails part="profile" name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />}
+          {shown === "profile" && (
+            <FriendDetails
+              part="profile"
+              name={player.name}
+              them={them}
+              mine={data.mine}
+              games={theirGames}
+              names={names}
+            />
+          )}
         </div>
       )}
 
@@ -1858,17 +2735,30 @@ function FriendDetails({
   names: string[];
 }) {
   const [speed, setSpeed] = useState<string | null>(null);
-  const daily = useMemo(() => dailyActivity(games, names), [games, names.join("|")]);
+  const daily = useMemo(
+    () => dailyActivity(games, names),
+    [games, names.join("|")],
+  );
   const t = them.moves;
   const m = mine?.moves ?? null;
 
-  const ratingSeries = (them.trends.ratings ?? {}) as Record<string, [number, number][]>;
-  const speeds = Object.keys(ratingSeries).sort((a, b) => ratingSeries[b].length - ratingSeries[a].length);
+  const ratingSeries = (them.trends.ratings ?? {}) as Record<
+    string,
+    [number, number][]
+  >;
+  const speeds = Object.keys(ratingSeries).sort(
+    (a, b) => ratingSeries[b].length - ratingSeries[a].length,
+  );
   const shown = speed && ratingSeries[speed] ? speed : speeds[0];
   const ratingPoints = ratingSeriesPoints(ratingSeries[shown] ?? []);
 
-  const theirPhase = (them.overview.phase_accuracy ?? {}) as Record<string, number>;
-  const myPhase = (mine?.analyzed_games ? mine.overview.phase_accuracy ?? {} : {}) as Record<string, number>;
+  const theirPhase = (them.overview.phase_accuracy ?? {}) as Record<
+    string,
+    number
+  >;
+  const myPhase = (
+    mine?.analyzed_games ? (mine.overview.phase_accuracy ?? {}) : {}
+  ) as Record<string, number>;
   // Accuracy has a 10 % floor per move, so 0 only means "no moves in this phase".
   const known = (v: number | undefined) => (v ? v : null);
   const phaseRows: BarRow[] = PHASES.map(([k, label]) => ({
@@ -1877,7 +2767,10 @@ function FriendDetails({
     reference: known(myPhase[k]),
     valueText: theirPhase[k] ? `${de(theirPhase[k], 1)} %` : "–",
   }));
-  const weekly = (them.trends.weekly ?? []) as { week: string; avg_accuracy: number | null }[];
+  const weekly = (them.trends.weekly ?? []) as {
+    week: string;
+    avg_accuracy: number | null;
+  }[];
 
   if (part === "compare") {
     return (
@@ -1891,10 +2784,20 @@ function FriendDetails({
             <VersusBars
               a={{ label: name, moves: t.moves, counts: t.counts }}
               b={{ label: "Du", moves: m.moves, counts: m.counts }}
-              keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
+              keys={[
+                "Brilliant",
+                "Great",
+                "Best",
+                "Inaccuracy",
+                "Mistake",
+                "Blunder",
+              ]}
             />
           ) : (
-            <p class="muted small">Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.</p>
+            <p class="muted small">
+              Der Vergleich erscheint, sobald von euch beiden Partien analysiert
+              sind.
+            </p>
           )}
         </section>
 
@@ -1902,9 +2805,15 @@ function FriendDetails({
           <section class="card tile span-6">
             <div class="tile-head">
               <h3>Genauigkeit nach Phase</h3>
-              <span class="tile-sub">{mine?.analyzed_games ? "Strich: deine Werte" : ""}</span>
+              <span class="tile-sub">
+                {mine?.analyzed_games ? "Strich: deine Werte" : ""}
+              </span>
             </div>
-            <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? "Du" : undefined} />
+            <BarList
+              rows={phaseRows}
+              ownLabel={name}
+              referenceLabel={mine?.analyzed_games ? "Du" : undefined}
+            />
             <FormStats weekly={weekly} />
           </section>
         )}
@@ -1917,12 +2826,30 @@ function FriendDetails({
       <section class="card tile span-6">
         <div class="tile-head">
           <h3>Zugbilanz von {name}</h3>
-          <span class="tile-sub">{t ? `aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}` : ""}</span>
+          <span class="tile-sub">
+            {t
+              ? `aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}`
+              : ""}
+          </span>
         </div>
         {t ? (
-          <ClassTiles tally={t} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
+          <ClassTiles
+            tally={t}
+            keys={[
+              "Brilliant",
+              "Great",
+              "Best",
+              "Inaccuracy",
+              "Mistake",
+              "Blunder",
+            ]}
+            compact
+          />
         ) : (
-          <p class="muted small">Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.</p>
+          <p class="muted small">
+            Analysiere Partien von {name}, dann siehst du hier brillante Züge,
+            Fehler und Patzer.
+          </p>
         )}
       </section>
 
@@ -1935,7 +2862,11 @@ function FriendDetails({
           {speeds.length > 1 && (
             <div class="segmented small-seg">
               {speeds.map((sp) => (
-                <button key={sp} class={sp === shown ? "active" : ""} onClick={() => setSpeed(sp)}>
+                <button
+                  key={sp}
+                  class={sp === shown ? "active" : ""}
+                  onClick={() => setSpeed(sp)}
+                >
                   {sp}
                 </button>
               ))}
@@ -1950,7 +2881,11 @@ function FriendDetails({
           <h3>Aktivität von {name}</h3>
           <span class="tile-sub">Partien pro Tag</span>
         </div>
-        <Calendar daily={daily} today={localDay()} note="Nur Partien, die in der App gespeichert sind." />
+        <Calendar
+          daily={daily}
+          today={localDay()}
+          note="Nur Partien, die in der App gespeichert sind."
+        />
       </section>
 
       {them.style && (
@@ -1980,34 +2915,61 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
         <h3>Spieler verwalten</h3>
       </div>
       <label class="toggle-row">
-        <input type="checkbox" checked={player.friend} onChange={(e) => void updatePlayer(player.id, { friend: e.currentTarget.checked })} />
+        <input
+          type="checkbox"
+          checked={player.friend}
+          onChange={(e) =>
+            void updatePlayer(player.id, { friend: e.currentTarget.checked })
+          }
+        />
         <span>
           <strong>Freund</strong>
-          <small class="faint">Freunde werden in der Rangliste mit dir verglichen und bekommen eine ausführlichere Seite.</small>
-        </span>
-      </label>
-      <label class="toggle-row">
-        <input type="checkbox" checked={player.hidden} onChange={(e) => void updatePlayer(player.id, { hidden: e.currentTarget.checked })} />
-        <span>
-          <strong>In Rangliste und Vergleich ausblenden</strong>
           <small class="faint">
-            {player.name} bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“.
-            Diese Seite bleibt erreichbar.
+            Freunde werden in der Rangliste mit dir verglichen und bekommen eine
+            ausführlichere Seite.
           </small>
         </span>
       </label>
-      <div class="row" style={{ marginTop: "10px", flexWrap: "wrap", gap: "8px" }}>
+      <label class="toggle-row">
+        <input
+          type="checkbox"
+          checked={player.hidden}
+          onChange={(e) =>
+            void updatePlayer(player.id, { hidden: e.currentTarget.checked })
+          }
+        />
+        <span>
+          <strong>In Rangliste und Vergleich ausblenden</strong>
+          <small class="faint">
+            {player.name} bleibt gespeichert, zählt aber nicht in der Rangliste
+            und steht in der Spielerliste unter „Ausgeblendet“. Diese Seite
+            bleibt erreichbar.
+          </small>
+        </span>
+      </label>
+      <div
+        class="row"
+        style={{ marginTop: "10px", flexWrap: "wrap", gap: "8px" }}
+      >
         {confirm ? (
           <>
             <button
               class="btn"
-              onClick={() => void removePlayer(player.id).then(() => navigate({ view: "players" }))}
+              onClick={() =>
+                void removePlayer(player.id).then(() =>
+                  navigate({ view: "players" }),
+                )
+              }
             >
               Nur Spieler entfernen
             </button>
             <button
               class="btn danger"
-              onClick={() => void removePlayer(player.id, { deleteGames: true }).then(() => navigate({ view: "players" }))}
+              onClick={() =>
+                void removePlayer(player.id, { deleteGames: true }).then(() =>
+                  navigate({ view: "players" }),
+                )
+              }
             >
               <IconTrash /> Spieler und Partien löschen
             </button>
@@ -2022,7 +2984,10 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
         )}
       </div>
       {confirm && (
-        <p class="faint small">Beim Löschen bleiben Partien erhalten, an denen du oder ein anderer Spieler beteiligt seid.</p>
+        <p class="faint small">
+          Beim Löschen bleiben Partien erhalten, an denen du oder ein anderer
+          Spieler beteiligt seid.
+        </p>
       )}
     </section>
   );
@@ -2030,7 +2995,13 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
 
 // ---------- page ----------
 
-export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangliste" }) {
+export function PlayersView({
+  playerId,
+  tab,
+}: {
+  playerId?: string;
+  tab?: "rangliste";
+}) {
   const { players, games, me } = useData();
   if (!players) {
     return (
@@ -2042,21 +3013,31 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
       </div>
     );
   }
-  if (playerId) return <PlayerDetail id={playerId} players={players} games={games} me={me} />;
+  if (playerId)
+    return (
+      <PlayerDetail id={playerId} players={players} games={games} me={me} />
+    );
   return (
     <div>
       <PageHeader />
       {!me.length && (
         <div class="notice" style={{ marginBottom: "14px" }}>
-          Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
+          Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein,
+          damit Direktvergleich und Rangliste dich erkennen.
         </div>
       )}
-      <CoachTip id={tab === "rangliste" ? "ranking" : "players"} title={tab === "rangliste" ? "Wer ist der Beste?" : "Deine Gegner und Freunde"}>
-        {tab === "rangliste"
-          ? "Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum, klare Vorsprünge voll. Daraus entsteht die Gesamtwertung."
-          : "Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?"}
-      </CoachTip>
-      {tab === "rangliste" ? <RankingPanel players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
+      {tab !== "rangliste" && (
+        <CoachTip id="players" title="Deine Gegner und Freunde">
+          Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und
+          schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie
+          packst du sie am besten?
+        </CoachTip>
+      )}
+      {tab === "rangliste" ? (
+        <RankingPanel players={players} games={games} me={me} />
+      ) : (
+        <PlayerList players={players} games={games} me={me} />
+      )}
     </div>
   );
 }
