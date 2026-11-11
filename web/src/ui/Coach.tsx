@@ -26,10 +26,24 @@ const BROWS: Record<Mood, [string, string]> = {
 };
 
 /** Mike's portrait; the mood changes brows and mouth. */
-export function CoachAvatar({ mood = "happy", size = 56 }: { mood?: Mood; size?: number }) {
+export function CoachAvatar({
+  mood = "happy",
+  size = 56,
+}: {
+  mood?: Mood;
+  size?: number;
+}) {
   const [b1, b2] = BROWS[mood];
   return (
-    <svg class="coach-avatar" width={size} height={size} viewBox="0 0 120 120" role="img" aria-label={COACH_NAME}>
+    <svg
+      key={mood}
+      class={`coach-avatar mood-${mood}`}
+      width={size}
+      height={size}
+      viewBox="0 0 120 120"
+      role="img"
+      aria-label={COACH_NAME}
+    >
       <defs>
         <clipPath id="coach-clip">
           <circle cx="60" cy="60" r="60" />
@@ -40,38 +54,76 @@ export function CoachAvatar({ mood = "happy", size = 56 }: { mood?: Mood; size?:
         </linearGradient>
       </defs>
       <g clip-path="url(#coach-clip)">
-        <rect width="120" height="120" fill="url(#coach-bg)" />
-        <path d="M60 22 L96 60 L60 98 L24 60 Z" fill="#ffffff" opacity="0.08" />
-        {/* shirt and collar */}
-        <path d="M12 124 C16 98 36 88 60 88 C84 88 104 98 108 124 Z" fill="#2f3b4a" />
-        <path d="M47 89 L60 104 L73 89 L67 86 L60 95 L53 86 Z" fill="#f4f1ea" />
-        <circle cx="88" cy="100" r="2.6" fill="#8fc35a" />
-        <path d="M85.6 103 h4.8 l1.6 5 h-8 Z" fill="#8fc35a" />
-        {/* neck, ears, head */}
-        <path d="M51 74 h18 v16 q-9 6 -18 0 Z" fill="#e2ad83" />
-        <circle cx="34" cy="58" r="6.5" fill="#efbf95" />
-        <circle cx="86" cy="58" r="6.5" fill="#efbf95" />
-        <ellipse cx="60" cy="56" rx="26" ry="29" fill="#f6cfa6" />
-        {/* hair */}
-        <path d="M33 54 C29 30 44 20 61 20 C79 20 92 30 87 54 C85 44 80 38 72 37 C64 31 49 32 41 40 C37 44 35 48 33 54 Z" fill="#5a3a26" />
-        <path d="M41 40 C47 33 58 31 66 34 C58 36 50 38 44 44 Z" fill="#6e4a32" />
-        {/* brows, eyes, cheeks, mouth */}
-        <path d={b1} stroke="#4a2f1f" stroke-width="3" stroke-linecap="round" fill="none" />
-        <path d={b2} stroke="#4a2f1f" stroke-width="3" stroke-linecap="round" fill="none" />
-        <circle cx="50" cy="56" r="3.6" fill="#2a2522" />
-        <circle cx="70" cy="56" r="3.6" fill="#2a2522" />
-        <circle cx="51.2" cy="54.8" r="1.1" fill="#fff" />
-        <circle cx="71.2" cy="54.8" r="1.1" fill="#fff" />
-        <circle cx="44" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
-        <circle cx="76" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
-        <path d="M58 60 Q60 64 62 60" stroke="#d99a73" stroke-width="2" fill="none" stroke-linecap="round" />
-        <path
-          d={MOUTH[mood]}
-          stroke="#7a3b2e"
-          stroke-width="3"
-          stroke-linecap="round"
-          fill={mood === "wow" ? "#7a3b2e" : "none"}
-        />
+        <g class="coach-figure">
+          <rect width="120" height="120" fill="url(#coach-bg)" />
+          <path
+            d="M60 22 L96 60 L60 98 L24 60 Z"
+            fill="#ffffff"
+            opacity="0.08"
+          />
+          {/* shirt and collar */}
+          <path
+            d="M12 124 C16 98 36 88 60 88 C84 88 104 98 108 124 Z"
+            fill="#2f3b4a"
+          />
+          <path
+            d="M47 89 L60 104 L73 89 L67 86 L60 95 L53 86 Z"
+            fill="#f4f1ea"
+          />
+          <circle cx="88" cy="100" r="2.6" fill="#8fc35a" />
+          <path d="M85.6 103 h4.8 l1.6 5 h-8 Z" fill="#8fc35a" />
+          {/* neck, ears, head */}
+          <path d="M51 74 h18 v16 q-9 6 -18 0 Z" fill="#e2ad83" />
+          <circle cx="34" cy="58" r="6.5" fill="#efbf95" />
+          <circle cx="86" cy="58" r="6.5" fill="#efbf95" />
+          <ellipse cx="60" cy="56" rx="26" ry="29" fill="#f6cfa6" />
+          {/* hair */}
+          <path
+            d="M33 54 C29 30 44 20 61 20 C79 20 92 30 87 54 C85 44 80 38 72 37 C64 31 49 32 41 40 C37 44 35 48 33 54 Z"
+            fill="#5a3a26"
+          />
+          <path
+            d="M41 40 C47 33 58 31 66 34 C58 36 50 38 44 44 Z"
+            fill="#6e4a32"
+          />
+          {/* brows, eyes, cheeks, mouth */}
+          <path
+            d={b1}
+            stroke="#4a2f1f"
+            stroke-width="3"
+            stroke-linecap="round"
+            fill="none"
+          />
+          <path
+            d={b2}
+            stroke="#4a2f1f"
+            stroke-width="3"
+            stroke-linecap="round"
+            fill="none"
+          />
+          <g class="coach-eyes">
+            <circle cx="50" cy="56" r="3.6" fill="#2a2522" />
+            <circle cx="70" cy="56" r="3.6" fill="#2a2522" />
+            <circle cx="51.2" cy="54.8" r="1.1" fill="#fff" />
+            <circle cx="71.2" cy="54.8" r="1.1" fill="#fff" />
+          </g>
+          <circle cx="44" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
+          <circle cx="76" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
+          <path
+            d="M58 60 Q60 64 62 60"
+            stroke="#d99a73"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+          />
+          <path
+            d={MOUTH[mood]}
+            stroke="#7a3b2e"
+            stroke-width="3"
+            stroke-linecap="round"
+            fill={mood === "wow" ? "#7a3b2e" : "none"}
+          />
+        </g>
       </g>
     </svg>
   );
@@ -145,13 +197,26 @@ export function resetTips(): void {
 }
 
 /** A page intro from Mike that explains what the page is for; closing it is remembered on this device. */
-export function CoachTip({ id, title, children, mood = "happy" }: { id: string; title: string; children: ComponentChildren; mood?: Mood }) {
+export function CoachTip({
+  id,
+  title,
+  children,
+  mood = "happy",
+}: {
+  id: string;
+  title: string;
+  children: ComponentChildren;
+  mood?: Mood;
+}) {
   const [hidden, setHidden] = useState(() => hiddenTips().includes(id));
   if (hidden) return null;
   const close = () => {
     setHidden(true);
     try {
-      localStorage.setItem(TIPS_KEY, JSON.stringify([...new Set([...hiddenTips(), id])]));
+      localStorage.setItem(
+        TIPS_KEY,
+        JSON.stringify([...new Set([...hiddenTips(), id])]),
+      );
     } catch {
       // Private mode: the tip just comes back next time.
     }
@@ -162,7 +227,12 @@ export function CoachTip({ id, title, children, mood = "happy" }: { id: string; 
       <div class="coach-bubble">
         <div class="coach-title">{title}</div>
         <div class="coach-text">{children}</div>
-        <button class="coach-close" onClick={close} aria-label="Hinweis schließen" title="Verstanden">
+        <button
+          class="coach-close"
+          onClick={close}
+          aria-label="Hinweis schließen"
+          title="Verstanden"
+        >
           <IconClose />
         </button>
       </div>
@@ -176,8 +246,14 @@ export function NeedNames({ what }: { what: string }) {
     <div class="empty">
       <CoachAvatar size={96} mood="think" />
       <h3>Wer bist du?</h3>
-      <p>Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne. Dann {what}</p>
-      <button class="btn primary big" onClick={() => navigate({ view: "settings" })}>
+      <p>
+        Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne.
+        Dann {what}
+      </p>
+      <button
+        class="btn primary big"
+        onClick={() => navigate({ view: "settings" })}
+      >
         Namen eintragen
       </button>
     </div>

@@ -61,7 +61,10 @@ p {
   gap: 4px;
   border-radius: 28px;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
-  box-shadow: 0 0 0 1px var(--border), inset 0 1px 0 var(--sheen), 0 30px 60px -30px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 0 0 1px var(--border),
+    inset 0 1px 0 var(--sheen),
+    0 30px 60px -30px rgba(0, 0, 0, 0.6);
 }
 
 .nav-brand {
@@ -73,7 +76,9 @@ p {
   width: 40px;
   height: 40px;
   border-radius: 13px;
-  box-shadow: 0 0 0 1px var(--border-strong), 0 8px 20px -8px var(--glow-a);
+  box-shadow:
+    0 0 0 1px var(--border-strong),
+    0 8px 20px -8px var(--glow-a);
 }
 
 .nav-title,
@@ -91,7 +96,9 @@ p {
   background: color-mix(in srgb, var(--text) 5%, transparent);
   box-shadow: inset 0 0 0 1px var(--border);
   color: var(--text-2);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease);
+  transition:
+    background 0.3s var(--ease),
+    color 0.3s var(--ease);
 }
 
 .nav-search:hover {
@@ -126,7 +133,10 @@ kbd {
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--text-3);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  transition:
+    background 0.3s var(--ease),
+    color 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
 }
 
 .nav button.nav-item svg {
@@ -275,7 +285,10 @@ kbd {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--text-3);
-  transition: background 0.3s var(--ease), color 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  transition:
+    background 0.3s var(--ease),
+    color 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
 }
 
 .area-tabs-row button:hover:not(.active) {
@@ -557,7 +570,9 @@ textarea:focus {
     background: color-mix(in srgb, var(--surface) 78%, transparent);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
-    box-shadow: 0 0 0 1px var(--border-strong), 0 18px 40px -12px rgba(0, 0, 0, 0.5);
+    box-shadow:
+      0 0 0 1px var(--border-strong),
+      0 18px 40px -12px rgba(0, 0, 0, 0.5);
     max-width: 560px;
     margin: 0 auto;
   }
@@ -567,7 +582,9 @@ textarea:focus {
     font-size: 11px;
     font-weight: 600;
     gap: 2px;
-    transition: background 0.3s var(--ease), color 0.3s var(--ease);
+    transition:
+      background 0.3s var(--ease),
+      color 0.3s var(--ease);
   }
   .tabbar .tab svg {
     width: 22px;
@@ -578,7 +595,8 @@ textarea:focus {
     background: var(--accent-soft);
   }
   .main {
-    padding: calc(20px + var(--safe-top)) 24px calc(var(--nav-h) + 40px + var(--safe-bottom));
+    padding: calc(20px + var(--safe-top)) 24px
+      calc(var(--nav-h) + 40px + var(--safe-bottom));
   }
   .area-tabs-row {
     display: flex;
@@ -589,7 +607,8 @@ textarea:focus {
 
 @media (max-width: 760px) {
   .main {
-    padding: calc(14px + var(--safe-top)) 16px calc(var(--nav-h) + 36px + var(--safe-bottom));
+    padding: calc(14px + var(--safe-top)) 16px
+      calc(var(--nav-h) + 36px + var(--safe-bottom));
   }
   .page-title {
     font-size: 38px;
@@ -720,7 +739,9 @@ textarea:focus {
 .card,
 .game-list {
   background-image: linear-gradient(180deg, var(--sheen), transparent 120px);
-  box-shadow: var(--shadow), inset 0 1px 0 var(--sheen);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 var(--sheen);
 }
 
 .card h3 {
@@ -753,7 +774,9 @@ textarea:focus {
 
 .btn.primary {
   background: linear-gradient(180deg, var(--cta-hover), var(--cta));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 10px 26px -12px color-mix(in srgb, var(--cta) 80%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 10px 26px -12px color-mix(in srgb, var(--cta) 80%, transparent);
 }
 
 .btn.primary:hover:not(:disabled) {
@@ -819,4 +842,227 @@ input[type="search"] {
 .week-day,
 .plan-day {
   border-radius: 16px;
+}
+
+/* ==========================================================================
+   Minimal layer (2026-11): calm, Trade-Republic-like.
+
+   Overrides the "Grand Salon" look above: pure black (or white) surfaces,
+   no background glows or sheen, one sans typeface everywhere with tight,
+   large numbers, monochrome controls. Colour is reserved for meaning
+   (win/loss, move classes), so it stands out when it appears.
+   ========================================================================== */
+
+:root {
+  --bg: #000000;
+  --bg-elev: #0b0b0c;
+  --surface: #0e0e10;
+  --surface-2: #17171a;
+  --surface-3: #232327;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #ffffff;
+  --text-2: #a3a3a8;
+  --text-3: #6b6b72;
+  --accent: #ffffff;
+  --accent-2: #e6e6e6;
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --accent-text: #000000;
+  --cta: #ffffff;
+  --cta-hover: #e8e8e8;
+  --cta-edge: #cfcfcf;
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --sheen: transparent;
+  --bubble: #17171a;
+  --radius: 20px;
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-lg:
+    0 0 0 1px var(--border-strong), 0 30px 60px -30px rgba(0, 0, 0, 0.8);
+  --font-display: var(--font);
+}
+
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elev: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e7e7ea;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #0a0a0a;
+  --text-2: #5c5c63;
+  --text-3: #8e8e95;
+  --accent: #0a0a0a;
+  --accent-2: #2a2a2a;
+  --accent-soft: rgba(0, 0, 0, 0.06);
+  --accent-text: #ffffff;
+  --cta: #0a0a0a;
+  --cta-hover: #2a2a2a;
+  --bubble: #f4f4f5;
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-lg: 0 0 0 1px var(--border), 0 30px 60px -30px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg: #ffffff;
+    --bg-elev: #fafafa;
+    --surface: #ffffff;
+    --surface-2: #f4f4f5;
+    --surface-3: #e7e7ea;
+    --border: rgba(0, 0, 0, 0.08);
+    --border-strong: rgba(0, 0, 0, 0.16);
+    --text: #0a0a0a;
+    --text-2: #5c5c63;
+    --text-3: #8e8e95;
+    --accent: #0a0a0a;
+    --accent-2: #2a2a2a;
+    --accent-soft: rgba(0, 0, 0, 0.06);
+    --accent-text: #ffffff;
+    --cta: #0a0a0a;
+    --cta-hover: #2a2a2a;
+    --bubble: #f4f4f5;
+    --shadow: 0 0 0 1px var(--border);
+    --shadow-lg: 0 0 0 1px var(--border), 0 30px 60px -30px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.app::before {
+  display: none;
+}
+
+.card {
+  background-image: none;
+}
+
+/* Headlines and big numbers: one typeface, heavy and tight, like a balance. */
+h1,
+.page-title,
+.home-hero h1 {
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+h2,
+h3,
+.coach-title {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+/* ---------- coach Mike: alive, but quiet ---------- */
+
+.coach-avatar {
+  overflow: visible;
+  animation: coach-pop 0.5s var(--ease) both;
+}
+
+.coach-figure {
+  transform-origin: 60px 100px;
+  animation: coach-breathe 4.8s ease-in-out infinite;
+}
+
+.coach-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: coach-blink 5.2s infinite;
+}
+
+.coach-avatar.mood-wow .coach-figure {
+  animation:
+    coach-jump 0.7s var(--ease) 1,
+    coach-breathe 4.8s ease-in-out 0.7s infinite;
+}
+
+.coach-avatar.mood-think .coach-figure {
+  animation: coach-tilt 3.6s ease-in-out infinite;
+}
+
+.coach-avatar.mood-sad .coach-figure {
+  animation: coach-sink 0.6s var(--ease) both;
+}
+
+.coach-bubble {
+  animation: coach-bubble-in 0.45s var(--ease) 0.08s both;
+  transform-origin: left center;
+}
+
+@keyframes coach-pop {
+  from {
+    transform: scale(0.85);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes coach-breathe {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes coach-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes coach-jump {
+  0% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px) rotate(-3deg);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes coach-tilt {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes coach-sink {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes coach-bubble-in {
+  from {
+    transform: translateX(-6px) scale(0.98);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach-avatar,
+  .coach-figure,
+  .coach-eyes,
+  .coach-bubble {
+    animation: none !important;
+  }
 }
