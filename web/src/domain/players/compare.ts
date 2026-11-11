@@ -16,6 +16,7 @@ import { expectedScore } from "../profile/benchmarks";
 import { ERROR_OVERDISPERSION, MIN_GROUP_GAMES } from "../profile/evidence";
 import type { PlayerProfile, SkillScore } from "../profile/models";
 import { PRIOR_MARGIN, SKILL_NAMES } from "../profile/skills";
+import { ADJUST_SE_SHARE, FAIRNESS_NOTE, type SpeedAdjust } from "./fairness";
 import type { HeadToHead } from "./h2h";
 import { FACTOR_WEIGHTS } from "./weights";
 
@@ -137,6 +138,12 @@ export function skillPrior(skills: (SkillScore | undefined)[]): number {
   return sum / weight;
 }
 
+/** Shift an estimate by a time-control correction; the correction's own uncertainty widens the error. */
+export function shifted(e: Estimate | null, delta: number): Estimate | null {
+  if (!e || !delta) return e;
+  return { value: e.value + delta, se: Math.hypot(e.se, ADJUST_SE_SHARE * delta) };
+}
+
 export type Edge = "me" | "them" | "even";
 
 export function edgeOf(pMe: number | null): { edge: Edge; sure: boolean } {
@@ -184,6 +191,8 @@ export interface Matchup {
   ahead: number;
   behind: number;
   even: number;
+  /** Notes on how the numbers were made fair (e.g. time-control correction). */
+  notes: string[];
 }
 
 const SKILL_KEYS = ["opening", "middlegame", "endgame", "tactics", "safety", "conversion", "defense", "time"] as const;
@@ -250,6 +259,8 @@ export function buildMatchup(
   them: PlayerProfile,
   h2h: HeadToHead,
   comparableRatings: boolean,
+  /** Time-control corrections for [me, them] (see fairness.ts). */
+  adjust: [SpeedAdjust, SpeedAdjust] | null = null,
 ): Matchup {
   const rows: MatchupRow[] = [];
   const add = (key: string, label: string, group: MatchupRow["group"], higher: boolean, a: Estimate | null, b: Estimate | null) => {
@@ -258,8 +269,8 @@ export function buildMatchup(
   };
   if (me) {
     add("expectation", "Über Erwartung", "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them));
-    add("accuracy", "Genauigkeit", "Spielqualität", true, accuracyEstimate(me), accuracyEstimate(them));
-    add("blunders", "Patzer pro Partie", "Spielqualität", false, blunderEstimate(me), blunderEstimate(them));
+    add("accuracy", "Genauigkeit", "Spielqualität", true, shifted(accuracyEstimate(me), adjust?.[0].accuracy ?? 0), shifted(accuracyEstimate(them), adjust?.[1].accuracy ?? 0));
+    add("blunders", "Patzer pro Partie", "Spielqualität", false, shifted(blunderEstimate(me), adjust?.[0].blunders ?? 0), shifted(blunderEstimate(them), adjust?.[1].blunders ?? 0));
     for (const k of SKILL_KEYS) {
       const ok = (p: PlayerProfile) => p.analyzed_games >= MIN_COMPARE_ANALYZED;
       const a = ok(me) ? me.skills.find((s) => s.key === k) : undefined;
@@ -297,5 +308,6 @@ export function buildMatchup(
     ahead: known.filter((r) => r.edge === "me").length,
     behind: known.filter((r) => r.edge === "them").length,
     even: known.filter((r) => r.edge === "even").length,
+    notes: me && adjust && (adjust[0].accuracy || adjust[1].accuracy) ? [FAIRNESS_NOTE] : [],
   };
 }

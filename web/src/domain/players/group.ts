@@ -70,7 +70,9 @@ export function groupStanding(ranking: Ranking, limit = 3): GroupStanding | null
     const top = others.reduce((a, b) => (b.pThem > a.pThem ? b : a));
     const point = { ...base, other_id: top.r.id, other_name: top.r.name, other: top.est.value };
     if (1 - top.pThem >= SURE_P) edges.push({ ...point, p: 1 - top.pThem });
-    else if (top.pThem >= SURE_P) learn.push({ ...point, p: top.pThem });
+    // Picking the likeliest of several friends favours luck, so the bar rises
+    // with their number (Bonferroni): with 4 friends, 98,75 % instead of 95 %.
+    else if (top.pThem >= 1 - (1 - SURE_P) / others.length) learn.push({ ...point, p: top.pThem });
   }
   const gap = (g: GroupPoint) => Math.abs(g.other - g.mine) / (Math.abs(g.mine) + 1);
   const order = (a: GroupPoint, b: GroupPoint) => b.p - a.p || gap(b) - gap(a);

@@ -2,6 +2,8 @@
 export * from "./models";
 export { buildMatchup, probBetter } from "./compare";
 export type { Edge, Estimate, Matchup, MatchupRow, Prediction } from "./compare";
+export { qualityGames, speedFairness } from "./fairness";
+export type { QualityGame, SpeedAdjust, SpeedFairness } from "./fairness";
 export { frequentOpponents, headToHead, mainSource } from "./h2h";
 export type { FrequentOpponent, H2HGame, HeadToHead } from "./h2h";
 export { buildRanking, RANK_FACTORS } from "./ranking";
