@@ -10,7 +10,7 @@ import { getTrainingEngine } from "./trainingEngine";
 export const LIVE_LIMITS = { depth: 16, movetimeMs: 1000, multiPv: 2 };
 
 const lines = new Map<string, Promise<PvLine[]>>();
-const verdicts = new Map<string, Promise<MoveData | null>>();
+const verdicts = new Map<string, Promise<TriedMove | null>>();
 // Bounded so a long session of free play does not grow memory without end.
 const MAX_CACHE = 400;
 
@@ -36,7 +36,10 @@ export function positionLines(fen: string, multiPv = LIVE_LIMITS.multiPv): Promi
 }
 
 /** Classifies a move tried in `fenBefore` (cached), e.g. "Exzellent" or "Fehler". */
-export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Promise<MoveData | null> {
+/** A judged move plus the engine's best answer to it, for showing a refutation on the board. */
+export type TriedMove = MoveData & { reply_pv: string[] };
+
+export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Promise<TriedMove | null> {
   const key = `${fenBefore}|${uci}`;
   const hit = verdicts.get(key);
   if (hit) return hit;
@@ -58,7 +61,7 @@ export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Pr
       classification: move.classification,
     });
     if (reasons.length) move.explanation = reasons.join(" ");
-    return move;
+    return { ...move, reply_pv: child[0]?.pv ?? [] };
   })();
   return remember(verdicts, key, p);
 }

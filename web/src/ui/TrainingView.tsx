@@ -13,6 +13,7 @@ import {
   isMastered,
   MINUTE_CHOICES,
   type PlanBlock,
+  type RepertoireExercise,
   retention,
   streak,
   themeLabel,
@@ -113,10 +114,67 @@ function blockDone(b: PlanBlock, t: TrainingState): number {
   return b.exercise_ids.filter((id) => t.progress[id]?.last === t.today).length;
 }
 
+/** The player picks which of their openings to drill; the daily plan never assigns one. */
+function OpeningPick({ t, start }: { t: TrainingState; start: (s: SessionSpec) => void }) {
+  const drills = t.pool.filter((e): e is RepertoireExercise => e.kind === "repertoire");
+  const [color, setColor] = useState<"white" | "black">(drills.some((d) => d.color === "white") ? "white" : "black");
+  const shown = drills.filter((d) => d.color === color);
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = shown.find((d) => d.id === picked) ?? shown[0];
+  if (!drills.length) return null;
+  return (
+    <section class="card tile span-12 opening-pick">
+      <div class="tile-head">
+        <h3>Eröffnung üben</h3>
+        <span class="tile-sub">freiwillig · du wählst</span>
+      </div>
+      <p class="small muted" style={{ marginTop: 0 }}>
+        Such dir aus, welche deiner Eröffnungen du heute festigen willst. Du spielst deine übliche Linie ab Zug 1, Fehler aus deinen Partien sind schon korrigiert.
+      </p>
+      <div class="segmented" role="tablist" style={{ marginBottom: "12px" }}>
+        {(["white", "black"] as const).map((c) => (
+          <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} disabled={!drills.some((d) => d.color === c)} onClick={() => setColor(c)}>
+            Mit {c === "white" ? "Weiß" : "Schwarz"}
+          </button>
+        ))}
+      </div>
+      <div class="opening-chips">
+        {shown.map((d) => {
+          const p = t.progress[d.id];
+          return (
+            <button key={d.id} class={`opening-chip${chosen?.id === d.id ? " on" : ""}`} onClick={() => setPicked(d.id)}>
+              <span class="opening-chip-name">{openingLabel(d.opening)}</span>
+              <span class="opening-chip-meta tnum">
+                {d.games} Partien{d.score_pct !== null ? ` · ${Math.round(d.score_pct)} %` : ""}
+                {p ? (isMastered(p) ? " · sicher" : isDue(p, t.today) ? " · fällig" : "") : " · neu"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {chosen && (
+        <div class="row tile-foot">
+          <span class="small muted">
+            {chosen.moves.length} Halbzüge{chosen.correction ? ` · korrigiert: ${chosen.correction.best_san} statt ${chosen.correction.played_san}` : ""}
+          </span>
+          <span class="spacer" />
+          <button class="btn small primary" onClick={() => start({ title: openingLabel(chosen.opening), ids: [chosen.id] })}>
+            <IconPlay /> Diese Eröffnung üben
+          </button>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => void }) {
   const plan = t.plan;
   if (!plan) return null;
-  const blocks = plan.blocks.filter((b) => b.exercise_ids.some((id) => t.byId.has(id)));
+  // Plans saved before openings became the player's choice may still list drills.
+  const assigned = (id: string) => t.byId.has(id) && t.byId.get(id)!.kind !== "repertoire";
+  const blocks = plan.blocks
+    .map((b) => ({ ...b, exercise_ids: b.exercise_ids.filter(assigned) }))
+    .filter((b) => b.exercise_ids.length > 0);
   const total = blocks.reduce((s, b) => s + b.exercise_ids.length, 0);
   const done = blocks.reduce((s, b) => s + blockDone(b, t), 0);
   // Mixed across blocks (interleaved practice), not block after block.
@@ -176,7 +234,7 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
               onChange={(e) => t.setPrefs({ ...t.prefs, focus: e.currentTarget.value as Category | "auto" })}
             >
               <option value="auto">Automatisch aus deinen Partien</option>
-              {CATEGORY_ORDER.map((c) => (
+              {CATEGORY_ORDER.filter((c) => c !== "repertoire").map((c) => (
                 <option key={c} value={c}>
                   {CATEGORIES[c].label}
                 </option>
@@ -187,6 +245,8 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
       </section>
 
       <WeekStrip t={t} />
+
+      <OpeningPick t={t} start={start} />
 
       {blocks.map((b) => {
         const n = b.exercise_ids.length;
