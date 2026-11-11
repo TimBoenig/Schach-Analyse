@@ -29,9 +29,11 @@ import {
   RATING_SE,
   scoreEstimate,
   scoreSe,
+  shifted,
   skillEstimate,
   skillPrior,
 } from "./compare";
+import { FAIRNESS_NOTE, qualityGames, speedFairness } from "./fairness";
 import { headToHead, mainSource } from "./h2h";
 import { FACTOR_WEIGHTS, SKILL_FACTORS } from "./weights";
 
@@ -192,6 +194,9 @@ export function buildRanking(
   const eligible = inputs.filter((inp) => inp.profile.analyzed_games >= MIN_ANALYZED);
   const priors = Object.fromEntries(SKILL_FACTORS.map((k) => [k, skillPrior(eligible.map((inp) => inp.profile.skills.find((x) => x.key === k)))]));
 
+  // Take each player's mix of time controls out of accuracy and blunders.
+  const fair = speedFairness(inputs.map((inp) => (inp.profile.analyzed_games >= MIN_ANALYZED ? qualityGames(games, inp.usernames, format, date) : [])));
+
   inputs.forEach((inp, i) => {
     const p = inp.profile;
     const rating = ratingOf(i);
@@ -200,8 +205,8 @@ export function buildRanking(
     put("rating", i, sameSite ? { value: rating as number, se: RATING_SE } : null, sameSite ? (speed as string) : "");
     put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, "Partie", "Partien") : "");
     put("score", i, scoreEstimate(p), plural(p.total_games, "Partie", "Partien"));
-    put("accuracy", i, accuracyEstimate(p), analyses(p.analyzed_games));
-    put("blunders", i, blunderEstimate(p), analyses(p.analyzed_games));
+    put("accuracy", i, shifted(accuracyEstimate(p), fair.adjust[i].accuracy), analyses(p.analyzed_games));
+    put("blunders", i, shifted(blunderEstimate(p), fair.adjust[i].blunders), analyses(p.analyzed_games));
     const enough = p.analyzed_games >= MIN_ANALYZED;
     for (const k of SKILL_FACTORS) {
       const s = p.skills.find((x) => x.key === k);
@@ -284,6 +289,7 @@ export function buildRanking(
   if (ratingDropped) {
     notes.push("Wertungen von Lichess und Chess.com sind nicht vergleichbar: die Wertung zählt nur für Spieler derselben Plattform. „Über Erwartung“ und die Genauigkeit vergleichen fair.");
   }
+  if (fair.applied) notes.push(FAIRNESS_NOTE);
   if (rows.some((r) => r.analyzed < MIN_ANALYZED)) {
     notes.push(`Genauigkeit, Patzer und Fähigkeiten zählen erst ab ${MIN_ANALYZED} analysierten Partien eines Spielers.`);
   }

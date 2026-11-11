@@ -11,6 +11,8 @@ import {
   buildBattle,
   buildMatchup,
   buildRanking,
+  qualityGames,
+  speedFairness,
   chase,
   crowns,
   rivalOf,
@@ -1396,6 +1398,11 @@ function Duel({ name, matchup }: { name: string; matchup: Matchup }) {
               <span>Balken = Wahrscheinlichkeit, wer wirklich besser ist{missing ? ` · ${plural(missing, "Wert", "Werte")} ohne genug Daten` : ""}</span>
             </div>
           )}
+          {matchup.notes.map((n) => (
+            <p class="faint small" key={n} style={{ margin: "8px 0 0" }}>
+              {n}
+            </p>
+          ))}
         </div>
       </div>
     </section>
@@ -1598,7 +1605,15 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     const a = mainSource(games, me);
     return Boolean(a) && a !== "file" && a === mainSource(games, names);
   }, [games, me, namesKey]);
-  const matchup = useMemo(() => (data ? buildMatchup(data.mine, data.them, h2h, sameSite) : null), [data, h2h, sameSite]);
+  // Take both players' mix of time controls out of accuracy and blunders.
+  const fairness = useMemo(() => {
+    const f = speedFairness([qualityGames(games, me, fmt, date), qualityGames(games, names, fmt, date)]);
+    return f.applied ? ([f.adjust[0], f.adjust[1]] as const) : null;
+  }, [games, me, namesKey, fmt, date]);
+  const matchup = useMemo(
+    () => (data ? buildMatchup(data.mine, data.them, h2h, sameSite, fairness ? [fairness[0], fairness[1]] : null) : null),
+    [data, h2h, sameSite, fairness],
+  );
   // The time control the two mostly play each other in, to offer tips just for it.
   const duelSpeed = useMemo(() => {
     const all = headToHead(games, me, names);
