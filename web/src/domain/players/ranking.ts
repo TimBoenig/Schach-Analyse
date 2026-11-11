@@ -79,8 +79,6 @@ export interface RankContribution {
   share: number;
   /** Overall points this factor brought: points * share / 100. */
   value: number;
-  /** Most overall points still to win here: (100 - points) * share / 100. */
-  room: number;
 }
 
 export interface RankRow {
@@ -108,6 +106,11 @@ export interface Ranking {
   rows: RankRow[];
   /** Time control the rating factor compares (German label), null without ratings. */
   rating_speed: string | null;
+  /**
+   * How much harder each time control is for accuracy and blunders within this
+   * group (see fairness.ts); empty when fewer than two time controls are shared.
+   */
+  speed_effects: Record<string, { accuracy: number; blunders: number; games: number }>;
   notes: string[];
 }
 
@@ -275,7 +278,7 @@ export function buildRanking(
       .map((f) => {
         const pts = r.cells[f.key].points as number;
         const share = (f.weight / weightSum[i]) * 100;
-        return { key: f.key, points: pts, share, value: (pts * share) / 100, room: ((100 - pts) * share) / 100 };
+        return { key: f.key, points: pts, share, value: (pts * share) / 100 };
       })
       .sort((a, b) => b.value - a.value);
   });
@@ -293,5 +296,53 @@ export function buildRanking(
   if (rows.some((r) => r.analyzed < MIN_ANALYZED)) {
     notes.push(`Genauigkeit, Patzer und Fähigkeiten zählen erst ab ${MIN_ANALYZED} analysierten Partien eines Spielers.`);
   }
-  return { factors: RANK_FACTORS, rows, rating_speed: speed, notes };
+  return { factors: RANK_FACTORS, rows, rating_speed: speed, speed_effects: fair.speeds, notes };
+}
+
+/**
+ * Overall scores of every ranked player if one player's values were different
+ * (`changes`: factor key to new value, same uncertainty). Each changed factor
+ * hands out its points again, since everyone's chance of being better than
+ * that player moves too; all other factors keep their points. Used for the
+ * "what if" simulator and to find what it takes to overtake someone. Null
+ * when the player has no value in a changed factor.
+ */
+export function rescore(ranking: Ranking, id: string, changes: Record<string, number>): Map<string, number | null> | null {
+  const target = ranking.rows.find((r) => r.id === id);
+  if (!target) return null;
+  const fresh = new Map<string, (number | null)[]>();
+  for (const [key, value] of Object.entries(changes)) {
+    const f = ranking.factors.find((x) => x.key === key);
+    if (!f || target.cells[key]?.value === null || target.cells[key]?.value === undefined) return null;
+    const est = ranking.rows.map((r): Estimate | null => {
+      const c = r.cells[key];
+      if (!c || c.value === null || c.se === null) return null;
+      return { value: r.id === id ? value : c.value, se: c.se };
+    });
+    fresh.set(key, chancePoints(est, f.higher_is_better));
+  }
+  const out = new Map<string, number | null>();
+  ranking.rows.forEach((r, i) => {
+    let w = 0;
+    let sum = 0;
+    for (const g of ranking.factors) {
+      if (g.weight <= 0) continue;
+      const pts = fresh.has(g.key) ? (fresh.get(g.key) as (number | null)[])[i] : (r.cells[g.key]?.points ?? null);
+      if (pts === null) continue;
+      w += g.weight;
+      sum += g.weight * pts;
+    }
+    out.set(r.id, w >= MIN_WEIGHT ? sum / w : null);
+  });
+  return out;
+}
+
+/** Places for a set of overall scores, ties sharing the better place (as in the ranking). */
+export function ranksOf(overall: Map<string, number | null>): Map<string, number | null> {
+  const ids = [...overall.keys()];
+  const ranks = assignRanks(
+    ids.map((k) => overall.get(k) ?? null),
+    true,
+  );
+  return new Map(ids.map((k, i) => [k, ranks[i]]));
 }

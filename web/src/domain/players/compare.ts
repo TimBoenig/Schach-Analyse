@@ -213,6 +213,37 @@ function ratingIn(p: PlayerProfile | null, speed: string): number | null {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Expected score of A against B, in 0..1, with its 80 % band: the rating-free
+ * comparison (chance that A is the better player, see buildMatchup) is the
+ * starting point worth QUALITY_PRIOR_GAMES games, the direct games are added
+ * on top. Without a comparison the start is 50 % with less weight.
+ */
+export function forecastScore(
+  quality: number | null,
+  h2h: Pick<HeadToHead, "games" | "wins" | "draws">,
+): { p: number; low: number; high: number; start: number | null } {
+  const start = quality === null ? null : 0.5 + (quality - 0.5) * 2 * QUALITY_SPAN;
+  const k = start !== null ? QUALITY_PRIOR_GAMES : NEUTRAL_PRIOR_GAMES;
+  const points = h2h.wins + h2h.draws / 2;
+  const p = ((start ?? 0.5) * k + points) / (k + h2h.games);
+  const sd = Math.sqrt((p * (1 - p)) / (k + h2h.games + 1));
+  return { p, low: Math.max(0, p - BAND_Z * sd), high: Math.min(1, p + BAND_Z * sd), start };
+}
+
+/** Weighted chance of being the better player from per-factor chances (same weights as the ranking). */
+export function qualityChance(rows: { key: string; p: number | null }[]): number | null {
+  let wsum = 0;
+  let psum = 0;
+  for (const r of rows) {
+    if (r.p === null) continue;
+    const w = FACTOR_WEIGHTS[r.key] ?? 0;
+    wsum += w;
+    psum += w * r.p;
+  }
+  return wsum ? psum / wsum : null;
+}
+
 function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead, comparableRatings: boolean, quality: number | null): Prediction | null {
   const speed = duelSpeed(h2h, me, them);
   let elo: Prediction["elo"] = null;
@@ -228,22 +259,17 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
   }
   if (quality === null && !h2h.games) return null;
   const eloP = elo ? expectedScore(elo.me, elo.them) : null;
-  const qualityP = quality === null ? null : 0.5 + (quality - 0.5) * 2 * QUALITY_SPAN;
-  const prior = qualityP ?? 0.5;
-  const k = qualityP !== null ? QUALITY_PRIOR_GAMES : NEUTRAL_PRIOR_GAMES;
-  const points = h2h.wins + h2h.draws / 2;
-  const p = (prior * k + points) / (k + h2h.games);
-  const sd = Math.sqrt((p * (1 - p)) / (k + h2h.games + 1));
+  const f = forecastScore(quality, h2h);
   const parts: string[] = [];
-  if (qualityP !== null) parts.push("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)");
+  if (f.start !== null) parts.push("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)");
   if (h2h.games) parts.push(plural(h2h.games, "direkten Partie", "direkten Partien"));
   return {
-    pct: p * 100,
-    low: Math.max(0, p - BAND_Z * sd) * 100,
-    high: Math.min(1, p + BAND_Z * sd) * 100,
+    pct: f.p * 100,
+    low: f.low * 100,
+    high: f.high * 100,
     elo,
     elo_pct: eloP === null ? null : eloP * 100,
-    quality_pct: qualityP === null ? null : qualityP * 100,
+    quality_pct: f.start === null ? null : f.start * 100,
     h2h_games: h2h.games,
     basis: `Aus ${parts.join(" und ")}. Die Wertung zählt nicht mit.`,
   };
@@ -280,15 +306,7 @@ export function buildMatchup(
     }
   }
   const known = rows.filter((r) => r.p_me !== null);
-  // Weighted chance of being the better player, the same weights as the ranking.
-  let wsum = 0;
-  let psum = 0;
-  for (const r of known) {
-    const w = FACTOR_WEIGHTS[r.key] ?? 0;
-    wsum += w;
-    psum += w * (r.p_me as number);
-  }
-  const prediction = predict(me, them, h2h, comparableRatings, wsum ? psum / wsum : null);
+  const prediction = predict(me, them, h2h, comparableRatings, qualityChance(known.map((r) => ({ key: r.key, p: r.p_me }))));
   // The rating is shown for orientation only: it never counts as a lead.
   if (prediction?.elo?.from === "Wertung") {
     rows.unshift({
