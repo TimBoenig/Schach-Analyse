@@ -14,6 +14,7 @@ import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
+import { BrilliantFx } from "./BrilliantFx";
 import { Board, type Arrow, type Promotion } from "./Board";
 import { BarList, StackBar } from "./charts";
 import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
@@ -819,7 +820,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         <div class="board-area">
           {playerLine(top, 1)}
           <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
-          <div style={{ gridRow: 2, gridColumn: 2 }}>
+          <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
             <Board
               fen={fen}
               flipped={flipped}
@@ -832,6 +833,10 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               annotate
               onSwipe={(dir) => step(dir === "left" ? 1 : -1)}
             />
+            {/* Stepping onto a brilliant move replays its celebration, in a finished analysis as in exploration. */}
+            {lastMove && (explore ? lastVerdict?.classification : move?.classification) === "Brilliant" && (
+              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} />
+            )}
           </div>
           {playerLine(bottom, 3)}
           <div class="controls" style={{ gridRow: 4 }}>

@@ -12,7 +12,12 @@ import {
   isDue,
   isMastered,
   MINUTE_CHOICES,
+  type Direction,
+  openingProgress,
   type PlanBlock,
+  trainingTrends,
+  TREND_MIN_ATTEMPTS,
+  weeklyRates,
   type RepertoireExercise,
   retention,
   streak,
@@ -480,6 +485,7 @@ function ProgressTab({ t }: { t: TrainingState }) {
   const totalCorrect = allDays.reduce((s, d) => s + d.correct, 0);
   const mastered = stats.reduce((s, c) => s + c.mastered, 0);
   const due = t.pool.filter((e) => isDue(t.progress[e.id], t.today)).length;
+  const trends = trainingTrends(t.log, t.today);
   return (
     <div class="dash">
       <section class="card hero span-12">
@@ -511,8 +517,10 @@ function ProgressTab({ t }: { t: TrainingState }) {
         </div>
         <ColumnChart columns={columns} max={Math.max(5, ...columns.map((c) => c.value ?? 0)) * 1.2} height={140} />
       </section>
+      <TrendCard t={t} />
       <RetentionCard t={t} />
       <TransferCard t={t} />
+      <OpeningProgressCard t={t} />
       <section class="card tile span-12">
         <div class="tile-head">
           <h3>Nach Bereich</h3>
@@ -521,7 +529,9 @@ function ProgressTab({ t }: { t: TrainingState }) {
         <div class="cat-table">
           {stats.map((s) => (
             <div key={s.category} class="cat-row">
-              <span class="cat-name">{CATEGORIES[s.category].label}</span>
+              <span class="cat-name">
+                {CATEGORIES[s.category].label} <TrendMark d={trends.byCategory[s.category]?.direction} />
+              </span>
               <span class="tnum small">{s.rate !== null ? `${Math.round(s.rate)} %` : "–"}</span>
               <div class="progress">
                 <div style={{ width: `${(s.mastered / s.total) * 100}%` }} />
@@ -538,6 +548,85 @@ function ProgressTab({ t }: { t: TrainingState }) {
         </p>
       </section>
     </div>
+  );
+}
+
+const TREND_TEXT: Record<Direction, string> = {
+  up: "besser",
+  down: "schlechter",
+  flat: "stabil",
+  unknown: "",
+};
+
+/** Arrow next to an area, only when the change passed the significance test. */
+function TrendMark({ d }: { d?: Direction }) {
+  if (!d || d === "unknown" || d === "flat") return null;
+  return <span class={`trend-mark ${d}`} title={`Letzte 14 Tage deutlich ${TREND_TEXT[d]} als die 14 davor`}>{d === "up" ? "▲" : "▼"}</span>;
+}
+
+/** Weekly solve rate over two months plus an honest verdict on the last two weeks. */
+function TrendCard({ t }: { t: TrainingState }) {
+  const weeks = weeklyRates(t.log, t.today, 8);
+  const { overall } = trainingTrends(t.log, t.today);
+  if (!weeks.some((w) => w.done)) return null;
+  const columns: Column[] = weeks.map((w) => {
+    const [, m, d] = w.start.split("-").map(Number);
+    return {
+      label: `${d}.${m}.`,
+      value: w.rate,
+      valueText: w.rate !== null ? `${Math.round(w.rate)} %` : "",
+      sub: w.done ? `${w.done}` : undefined,
+      faint: w.done > 0 && w.done < 10,
+    };
+  });
+  const verdict =
+    overall.direction === "unknown"
+      ? `Für eine sichere Aussage brauche ich in den letzten und den 14 Tagen davor je mindestens ${TREND_MIN_ATTEMPTS} Übungen.`
+      : overall.direction === "flat"
+        ? `Deine Lösungsquote ist stabil (${overall.delta! >= 0 ? "+" : ""}${overall.delta} Prozentpunkte, im Rahmen des Zufalls).`
+        : `Deine Lösungsquote ist in den letzten 14 Tagen ${overall.direction === "up" ? "deutlich gestiegen" : "deutlich gefallen"}: ${overall.delta! > 0 ? "+" : ""}${overall.delta} Prozentpunkte.`;
+  return (
+    <section class="card tile span-12">
+      <div class="tile-head">
+        <h3>Entwicklung</h3>
+        <span class="tile-sub">Lösungsquote je Woche · Zahl darunter = Übungen</span>
+      </div>
+      <ColumnChart columns={columns} max={100} height={140} />
+      <p class={`small tile-foot trend-verdict ${overall.direction}`}>{verdict}</p>
+    </section>
+  );
+}
+
+const OPENING_STATE: Record<string, string> = { new: "neu", due: "fällig", mastered: "sicher", learning: "im Aufbau" };
+
+/** Each repertoire line and how far along the repetition boxes it is. */
+function OpeningProgressCard({ t }: { t: TrainingState }) {
+  const rows = openingProgress(t.pool, t.progress, t.today);
+  if (!rows.length) return null;
+  return (
+    <section class="card tile span-12">
+      <div class="tile-head">
+        <h3>Eröffnungen</h3>
+        <span class="tile-sub">wie sicher sitzen deine Linien</span>
+      </div>
+      <div class="cat-table">
+        {rows.map((r) => (
+          <div key={r.id} class="cat-row">
+            <span class="cat-name">
+              {openingLabel(r.opening)} <span class="faint">· {r.color === "white" ? "Weiß" : "Schwarz"}</span>
+            </span>
+            <span class={`tnum small ex-state${r.state === "mastered" ? " ok" : r.state === "due" ? " bad" : ""}`}>{OPENING_STATE[r.state]}</span>
+            <div class="box-steps" aria-label={`Stufe ${r.box} von 5`}>
+              {[1, 2, 3, 4, 5].map((b) => (
+                <span key={b} class={b <= r.box ? "on" : ""} />
+              ))}
+            </div>
+            <span class="tnum small muted">{r.attempts ? `${r.solved}/${r.attempts}` : "–"}</span>
+          </div>
+        ))}
+      </div>
+      <p class="small faint tile-foot">Jede fehlerfreie Runde hebt eine Linie eine Stufe höher, ein Fehler setzt sie zurück. Ab Stufe 3 gilt sie als sicher.</p>
+    </section>
   );
 }
 
