@@ -15,6 +15,11 @@ import {
   puzzleOfTheDay,
   recordAttempt,
   refutationLine,
+  addDays,
+  compareRates,
+  playOnStats,
+  trainingTrends,
+  weeklyRates,
   repertoireDrill,
   streak,
   summarizeTraining,
@@ -276,5 +281,28 @@ describe("refutation line", () => {
     expect(line[1]).toMatchObject({ from: "d8", to: "h4" });
     expect(refutationLine(fen, "g2g4", ["e1e8", "d8h4"]).map((s) => s.san)).toEqual(["g4"]);
     expect(refutationLine(fen, "a1a8", [])).toEqual([]);
+  });
+});
+
+describe("training trends", () => {
+  const day = (done: number, correct: number) => ({ done, correct, by_category: { blunder: [done, correct] as [number, number] } });
+  it("calls a trend only with enough attempts and a significant change", () => {
+    const log: TrainingLog = {};
+    for (let i = 0; i < 14; i++) log[addDays(TODAY, -i)] = day(4, 4);
+    for (let i = 14; i < 28; i++) log[addDays(TODAY, -i)] = day(4, 2);
+    const t = trainingTrends(log, TODAY);
+    expect(t.overall).toMatchObject({ direction: "up", delta: 50 });
+    expect(t.byCategory.blunder?.direction).toBe("up");
+    expect(compareRates([5, 5], [1, 5]).direction).toBe("unknown");
+    expect(compareRates([30, 50], [28, 50]).direction).toBe("flat");
+  });
+
+  it("sums weekly windows ending today", () => {
+    const w = weeklyRates({ [TODAY]: day(10, 7), [addDays(TODAY, -8)]: day(4, 1) }, TODAY, 2);
+    expect(w.map((x) => [x.done, x.rate])).toEqual([[4, 25], [10, 70]]);
+  });
+
+  it("counts sound, brilliant and weak moves when playing on", () => {
+    expect(playOnStats(["Best", "Brilliant", "Mistake", "", "Good"])).toEqual({ moves: 5, sound: 3, brilliant: 1, errors: 1 });
   });
 });

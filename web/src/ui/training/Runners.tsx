@@ -12,15 +12,18 @@ import {
   type PlayoutExercise,
   type PlayoutState,
   type PuzzleExercise,
+  isSoundMove,
   type LineStep,
+  playOnStats,
   refutationLine,
   type RepertoireExercise,
   type Verdict,
 } from "../../domain/training";
 import type { Classification } from "../../domain/types";
 import { Board, type Arrow, type Promotion } from "../Board";
-import { badgeFor, classLabel, formatDate } from "../labels";
+import { classLabel, formatDate } from "../labels";
 import { navigate } from "../router";
+import { BrilliantFx } from "../BrilliantFx";
 import { Coach } from "../Coach";
 
 export interface RunnerProps<T> {
@@ -54,30 +57,6 @@ function squaresOf(fen: string, san: string): { from: string; to: string } | nul
 
 function legalTargetsFor(board: Chess | null, enabled: boolean) {
   return (from: string) => (board && enabled ? board.moves({ square: from as Square, verbose: true }).map((m) => m.to) : []);
-}
-
-/** Celebration over the board when the player finds a brilliant move: ring burst, sparks and the badge popping in. */
-export function BrilliantFx({ square, flipped }: { square: string; flipped: boolean }) {
-  const file = square.charCodeAt(0) - 97;
-  const rank = Number(square[1]) - 1;
-  const x = flipped ? 7 - file : file;
-  const y = flipped ? rank : 7 - rank;
-  return (
-    <div class="brilliant-fx" aria-hidden="true">
-      <div class="brilliant-flash" />
-      <div class="brilliant-spot" style={{ left: `${(x + 0.5) * 12.5}%`, top: `${(y + 0.5) * 12.5}%` }}>
-        <span class="brilliant-ring" />
-        <span class="brilliant-ring r2" />
-        {Array.from({ length: 12 }, (_, i) => (
-          <span key={i} class="brilliant-spark" style={{ "--a": `${i * 30}deg`, "--d": `${i % 2 ? 0.08 : 0}s` }} />
-        ))}
-      </div>
-      <div class="brilliant-banner">
-        <img src={badgeFor("Brilliant") ?? ""} alt="" />
-        <span>Brillant!!</span>
-      </div>
-    </div>
-  );
 }
 
 /** SAN chips of a refutation; the shown step is highlighted and each chip jumps there. */
@@ -342,6 +321,172 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
   );
 }
 
+// ---------- play on past the drilled line ----------
+
+/** How many own moves the player gets after the repertoire line ends. */
+const PLAY_ON_MOVES = 10;
+
+/**
+ * Free play from the end of an opening drill against Stockfish. Every own move
+ * gets its badge; errors are refuted on the board and can be taken back,
+ * brilliant moves are celebrated.
+ */
+function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: boolean; onExit: () => void }) {
+  const [fen, setFen] = useState(startFen);
+  const [last, setLast] = useState<{ from: string; to: string; cls?: Classification } | null>(null);
+  const [classes, setClasses] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<Feedback>(null);
+  const [undoFen, setUndoFen] = useState<string | null>(null);
+  const player = useLinePlayer();
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  const board = useMemo(() => new Chess(fen), [fen]);
+  const userColor = userWhite ? "w" : "b";
+  const stats = playOnStats(classes);
+  const over = board.isGameOver() || stats.moves >= PLAY_ON_MOVES;
+  const shown = player.line ? player.line[player.step] : null;
+
+  const reply = async (b: Chess) => {
+    const r = await engineMove(b.fen());
+    if (!alive.current || !r) return;
+    const m = b.move({ from: r.uci.slice(0, 2), to: r.uci.slice(2, 4), promotion: r.uci[4] as "q" | undefined });
+    setFen(b.fen());
+    setLast({ from: m.from, to: m.to });
+  };
+
+  // The drilled line can end with the player's own move: then Stockfish starts.
+  useEffect(() => {
+    const b = new Chess(startFen);
+    if (b.turn() === userColor || b.isGameOver()) return;
+    setBusy(true);
+    void reply(b).finally(() => alive.current && setBusy(false));
+  }, [startFen]);
+
+  const tryMove = (from: string, to: string, chosen?: Promotion) => {
+    if (busy || over || player.line || board.turn() !== userColor) return false;
+    const before = fen;
+    const b = new Chess(fen);
+    let m;
+    try {
+      m = b.move({ from, to, promotion: promotionFor(b, from, to, chosen) });
+    } catch {
+      return false;
+    }
+    const uci = m.from + m.to + (m.promotion ?? "");
+    setFen(b.fen());
+    setLast({ from: m.from, to: m.to });
+    setBusy(true);
+    setNote({ ok: true, text: `Stockfish prüft ${m.san} …` });
+    void (async () => {
+      try {
+        const v = await judgeTried(before, uci, b.fen());
+        if (!alive.current) return;
+        const cls = (v?.classification ?? "") as Classification;
+        setClasses((c) => [...c, cls]);
+        setLast({ from: m.from, to: m.to, cls });
+        if (cls && !isSoundMove(cls)) {
+          setUndoFen(before);
+          setNote({ ok: false, text: `${m.san} – ${classLabel(cls)}` });
+          const line = refutationLine(before, uci, v?.reply_pv ?? []);
+          if (line.length > 1) player.start(line);
+          await reply(b);
+        } else {
+          setUndoFen(null);
+          setNote(cls ? { ok: true, text: cls === "Brilliant" ? `Brillant!! ${m.san}` : `${m.san} – ${classLabel(cls)}` } : null);
+          if (!b.isGameOver()) await reply(b);
+        }
+      } finally {
+        if (alive.current) setBusy(false);
+      }
+    })();
+    return true;
+  };
+
+  const takeBack = () => {
+    if (!undoFen) return;
+    player.clear();
+    setFen(undoFen);
+    setLast(null);
+    setUndoFen(null);
+    setNote(null);
+  };
+
+  const next = player.line && player.step + 1 < player.line.length ? player.line[player.step + 1] : null;
+  const arrows: Arrow[] = shown && next ? [{ from: next.from, to: next.to, kind: "wrong" }] : [];
+  return (
+    <div class="puzzle">
+      <div class="board-fx-wrap">
+        <Board
+          fen={shown ? shown.fen : fen}
+          flipped={!userWhite}
+          lastMove={shown ? { from: shown.from, to: shown.to } : last}
+          badge={shown ? (shown.tried ? "Mistake" : undefined) : last?.cls || undefined}
+          arrows={arrows}
+          onMove={tryMove}
+          legalTargets={legalTargetsFor(board, !busy && !over && !player.line && board.turn() === userColor)}
+        />
+        {!shown && last?.cls === "Brilliant" && <BrilliantFx key={last.to + classes.length} square={last.to} flipped={!userWhite} />}
+      </div>
+      <div class="side-panel">
+        <div class="card">
+          <div class="ex-cat">Weiterspielen</div>
+          <h3>Ab hier spielst du frei gegen Stockfish</h3>
+          <p class="small muted" style={{ marginTop: 0 }}>
+            Noch {Math.max(0, PLAY_ON_MOVES - stats.moves)} eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.
+          </p>
+          <div class="playon-stats tnum">
+            <span>
+              <strong>{stats.sound}</strong> gesund
+            </span>
+            <span class="bad">
+              <strong>{stats.errors}</strong> Fehler
+            </span>
+            {stats.brilliant > 0 && (
+              <span class="brill">
+                <strong>{stats.brilliant}</strong> brillant
+              </span>
+            )}
+          </div>
+          {note && <Coach mood={note.ok ? "wow" : "think"} tone={note.ok ? "var(--win)" : "var(--loss)"} title={note.text} />}
+          {player.line && (
+            <div class="refutation">
+              <div class="small muted">So wird es bestraft:</div>
+              <LineChips line={player.line} step={player.step} onPick={player.pick} />
+              <div class="row">
+                <button class="btn small ghost" onClick={player.replay} disabled={player.playing}>
+                  Nochmal abspielen
+                </button>
+                <button class="btn small primary" onClick={takeBack}>
+                  Zug zurücknehmen
+                </button>
+                <button class="btn small ghost" onClick={player.clear}>
+                  Trotzdem weiter
+                </button>
+              </div>
+            </div>
+          )}
+          {over && (
+            <p class={stats.errors === 0 ? "feedback-ok" : "feedback-bad"}>
+              {stats.errors === 0 ? "Sauber gespielt, kein einziger Fehler!" : `${stats.sound} von ${stats.moves} Zügen waren gesund.`}
+            </p>
+          )}
+          <div class="row">
+            <button class={`btn${over ? " primary" : ""}`} onClick={onExit}>
+              {over ? "Fertig" : "Beenden"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- repertoire drill ----------
 
 const DRILL_REPLY_MS = 450;
@@ -351,6 +496,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
   const [errors, setErrors] = useState(0);
   const [missesHere, setMissesHere] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const [playOn, setPlayOn] = useState(false);
   const reported = useRef(false);
   const userWhite = ex.color === "white";
   const isUserPly = (p: number) => (p % 2 === 0) === userWhite;
@@ -371,6 +517,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
   }, [ex.id]);
   const done = ply >= moves.length;
   const fen = positions[ply];
+  const plyRef = useRef(ply);
+  plyRef.current = ply;
   const board = useMemo(() => new Chess(fen), [fen]);
 
   useEffect(() => {
@@ -403,9 +551,23 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
       setErrors((e) => e + 1);
       setMissesHere((m) => m + 1);
       setFeedback({ ok: false, text: `${san} ist nicht der Zug aus deinem Repertoire.` });
+      // Tell apart "playable, just not your line" from a real opening error.
+      const b = new Chess(fen);
+      const m = b.move(san);
+      const atPly = ply;
+      void judgeTried(fen, m.from + m.to + (m.promotion ?? ""), b.fen()).then((v) => {
+        if (!v || atPly !== plyRef.current) return;
+        setFeedback(
+          isSoundMove(v.classification)
+            ? { ok: false, text: `${san} ist spielbar (${classLabel(v.classification)}), aber nicht deine Linie.`, detail: `Dein Zug hier: such ihn!` }
+            : { ok: false, text: `${san} – ${classLabel(v.classification)}. Nicht deine Linie und auch schwach.` },
+        );
+      });
     }
     return true;
   };
+
+  if (playOn) return <PlayOn startFen={positions[positions.length - 1]} userWhite={userWhite} onExit={onNext} />;
 
   const expected = !done && isUserPly(ply) ? squaresOf(fen, moves[ply]) : null;
   const arrows: Arrow[] = expected && missesHere >= 2 ? [{ ...expected, kind: "hint" }] : [];
@@ -447,7 +609,11 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
               gespielt – laut Engine ein Fehler. Finde den besseren Zug.
             </p>
           )}
-          {feedback && !done && <Coach mood={feedback.ok ? "happy" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text} />}
+          {feedback && !done && (
+            <Coach mood={feedback.ok ? "happy" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text}>
+              {feedback.detail}
+            </Coach>
+          )}
           {missesHere >= 2 && !done && <p class="small muted">Der Pfeil zeigt dir den Zug.</p>}
           {done && (
             <p class={errors === 0 ? "feedback-ok" : "feedback-bad"}>
@@ -461,6 +627,11 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
           )}
           <p class="small mono drill-moves">{moveText || "Startstellung"}</p>
           <div class="row">
+            {done && (
+              <button class="btn" onClick={() => setPlayOn(true)}>
+                Weiterspielen gegen Stockfish
+              </button>
+            )}
             {done && <NextButton onNext={onNext} label={nextLabel} />}
           </div>
         </div>
@@ -485,6 +656,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
   const [verdict, setVerdict] = useState<Verdict>({ done: false });
   const [lastMove, setLastMove] = useState<{ from: string; to: string } | null>(null);
   const [error, setError] = useState("");
+  const [brilliant, setBrilliant] = useState<string | null>(null);
   const round = useRef(0);
   const promoted = useRef(false);
   const reported = useRef(false);
@@ -523,6 +695,11 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
       return false;
     }
     if (mv.promotion) promoted.current = true;
+    // Judged on the side (cached, does not block the engine reply): a brilliant move gets its celebration.
+    const sq = mv.to;
+    void judgeTried(fen, mv.from + mv.to + (mv.promotion ?? ""), b.fen()).then((v) => {
+      if (alive.current && v?.classification === "Brilliant") setBrilliant(sq + ":" + (userMoves + 1));
+    });
     const moves = userMoves + 1;
     setFen(b.fen());
     setLastMove({ from: mv.from, to: mv.to });
@@ -568,7 +745,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
 
   return (
     <div class="puzzle">
-      <div>
+      <div class="board-fx-wrap">
         <Board
           fen={fen}
           flipped={userColor === "black"}
@@ -576,6 +753,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
           onMove={tryMove}
           legalTargets={legalTargetsFor(board, !thinking && !verdict.done && board.turn() === userColor[0])}
         />
+        {brilliant && <BrilliantFx key={brilliant} square={brilliant.split(":")[0]} flipped={userColor === "black"} />}
       </div>
       <div class="side-panel">
         <div class="card">

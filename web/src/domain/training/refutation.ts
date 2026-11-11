@@ -40,3 +40,27 @@ export function refutationLine(fenBefore: string, triedUci: string, replyPv: str
   }
   return steps;
 }
+
+const SOUND = new Set(["Brilliant", "Great", "Best", "Excellent", "Good", "Book"]);
+
+/** Moves that keep the position healthy; everything from an inaccuracy down gets refuted on the board. */
+export function isSoundMove(classification: string): boolean {
+  return SOUND.has(classification);
+}
+
+export interface PlayOnStats {
+  moves: number;
+  sound: number;
+  brilliant: number;
+  errors: number;
+}
+
+/** Tally of the player's moves while playing an opening on past the drilled line. */
+export function playOnStats(classes: string[]): PlayOnStats {
+  return {
+    moves: classes.length,
+    sound: classes.filter(isSoundMove).length,
+    brilliant: classes.filter((c) => c === "Brilliant").length,
+    errors: classes.filter((c) => c && !isSoundMove(c)).length,
+  };
+}
