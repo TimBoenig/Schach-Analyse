@@ -1,72 +1,93 @@
 /* ---------- tokens ----------
-   One graphite palette (warm neutrals), one accent (chess green), hairline
-   borders instead of drop shadows in dark mode. */
+   "Grand Salon": ink black or warm paper, champagne gold as the one accent,
+   a serif for headlines and big numbers (Instrument Serif) over a clean
+   sans (Geist). Both fonts ship with the app, so they work offline. */
 
 @font-face {
-  font-family: "Manrope";
+  font-family: "Geist";
   font-style: normal;
-  font-weight: 400 800;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("/fonts/manrope-latin.woff2") format("woff2");
+  src: url("/fonts/geist-latin.woff2") format("woff2");
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Manrope";
+  font-family: "Geist";
   font-style: normal;
-  font-weight: 400 800;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("/fonts/manrope-latin-ext.woff2") format("woff2");
+  src: url("/fonts/geist-latin-ext.woff2") format("woff2");
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/instrumentserif-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/instrumentserif-latin-ext.woff2") format("woff2");
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
 :root {
-  --bg: #121211;
-  --bg-elev: #171716;
-  --surface: #1c1c1a;
-  --surface-2: #252523;
-  --surface-3: #30302d;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --text: #f5f4f0;
-  --text-2: #b6b4ad;
-  --text-3: #7f7d77;
-  --accent: #8cc063;
-  --accent-2: #a9d585;
-  --accent-soft: rgba(140, 192, 99, 0.14);
-  --accent-text: #0f1a07;
-  --cta: #8cc063;
-  --cta-hover: #9dcc77;
-  --cta-edge: #5e8c3c;
+  --bg: #0a0b0d;
+  --bg-elev: #0f1013;
+  --surface: #121317;
+  --surface-2: #1a1c21;
+  --surface-3: #25282f;
+  --border: rgba(255, 255, 255, 0.075);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  --text: #f4f1e8;
+  --text-2: #b1b2b8;
+  --text-3: #777a83;
+  --accent: #e3c47f;
+  --accent-2: #f1dba8;
+  --accent-soft: rgba(227, 196, 127, 0.13);
+  --accent-text: #1b1405;
+  --cta: #e3c47f;
+  --cta-hover: #efd59b;
+  --cta-edge: #b8964d;
   --gold: #f2c14e;
-  --good: #96bd78;
-  --best: #8cc063;
+  --good: #8fc98a;
+  --best: #7cc576;
   --inacc: #f2c14e;
   --mistake: #f5a05a;
   --blunder: #f05a46;
   --brilliant: #2bb5ad;
   --great: #6d9bc3;
   --book: #b0916e;
-  --win: #8cc063;
+  --win: #7cc576;
   --loss: #ee5b4a;
-  --draw: #a4a29d;
+  --draw: #9c9ea6;
   --sq-light: #eeeed2;
   --sq-dark: #769656;
   --sq-last: rgba(246, 246, 105, 0.55);
-  --eval-light: #f5f4f0;
-  --eval-dark: #2a2a27;
+  --eval-light: #f4f1e8;
+  --eval-dark: #23252b;
   --arrow-user: #e8710a;
   --arrow-best: #4caf50;
   --arrow-hint: #3d8bfd;
   --arrow-played: #e6913a;
   --glow: transparent;
-  --bubble: #252523;
-  --radius: 18px;
-  --radius-sm: 12px;
+  --glow-a: rgba(227, 196, 127, 0.1);
+  --glow-b: rgba(64, 160, 150, 0.08);
+  --sheen: rgba(255, 255, 255, 0.035);
+  --bubble: #1a1c21;
+  --radius: 22px;
+  --radius-sm: 14px;
   --ring: 0 0 0 1px var(--border);
-  --shadow: 0 0 0 1px var(--border);
-  --shadow-lg: 0 0 0 1px var(--border-strong), 0 32px 80px -24px rgba(0, 0, 0, 0.75);
+  --shadow: 0 0 0 1px var(--border), 0 24px 48px -32px rgba(0, 0, 0, 0.8);
+  --shadow-lg: 0 0 0 1px var(--border-strong), 0 40px 90px -24px rgba(0, 0, 0, 0.85);
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
-  --font: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Instrument Serif", "Iowan Old Style", Georgia, serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --nav-h: 64px;
@@ -75,63 +96,73 @@
 
 /* Light palette: explicit choice, or "system" on a light device. */
 :root[data-theme="light"] {
-  --bg: #f4f3ef;
-  --bg-elev: #fbfaf7;
-  --surface: #ffffff;
-  --surface-2: #f1efea;
-  --surface-3: #e5e2db;
-  --border: rgba(30, 27, 20, 0.08);
-  --border-strong: rgba(30, 27, 20, 0.15);
-  --text: #181713;
-  --text-2: #56534c;
-  --text-3: #8b877e;
-  --accent: #4d8a28;
-  --accent-2: #3e7420;
-  --accent-soft: rgba(77, 138, 40, 0.11);
-  --accent-text: #ffffff;
-  --cta: #4d8a28;
-  --cta-hover: #427a21;
+  --bg: #f4f0e6;
+  --bg-elev: #faf7f0;
+  --surface: #fffdf8;
+  --surface-2: #f1ecdf;
+  --surface-3: #e4ddcb;
+  --border: rgba(40, 32, 12, 0.09);
+  --border-strong: rgba(40, 32, 12, 0.17);
+  --text: #17150f;
+  --text-2: #585347;
+  --text-3: #8c8676;
+  --accent: #8c671b;
+  --accent-2: #6f500f;
+  --accent-soft: rgba(140, 103, 27, 0.11);
+  --accent-text: #fffdf8;
+  --cta: #1b1a16;
+  --cta-hover: #35322a;
+  --good: #4e8f3c;
+  --best: #478a36;
   --eval-light: #ffffff;
-  --eval-dark: #3a3833;
-  --bubble: #f1efea;
+  --eval-dark: #34322c;
+  --glow-a: rgba(200, 160, 70, 0.16);
+  --glow-b: rgba(70, 150, 140, 0.09);
+  --sheen: rgba(255, 255, 255, 0.6);
+  --bubble: #f1ecdf;
   --inacc: #d39e12;
   --mistake: #e8822a;
-  --win: #4d8a28;
+  --win: #478a36;
   --loss: #d63c2b;
   --draw: #7c7975;
-  --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(40, 34, 20, 0.04), 0 8px 24px -16px rgba(40, 34, 20, 0.12);
-  --shadow-lg: 0 0 0 1px var(--border), 0 32px 80px -28px rgba(40, 34, 20, 0.3);
+  --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(60, 45, 10, 0.04), 0 18px 40px -28px rgba(60, 45, 10, 0.28);
+  --shadow-lg: 0 0 0 1px var(--border), 0 40px 90px -30px rgba(60, 45, 10, 0.35);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   :root[data-theme="system"] {
-    --bg: #f4f3ef;
-    --bg-elev: #fbfaf7;
-    --surface: #ffffff;
-    --surface-2: #f1efea;
-    --surface-3: #e5e2db;
-    --border: rgba(30, 27, 20, 0.08);
-    --border-strong: rgba(30, 27, 20, 0.15);
-    --text: #181713;
-    --text-2: #56534c;
-    --text-3: #8b877e;
-    --accent: #4d8a28;
-    --accent-2: #3e7420;
-    --accent-soft: rgba(77, 138, 40, 0.11);
-    --accent-text: #ffffff;
-    --cta: #4d8a28;
-    --cta-hover: #427a21;
+    --bg: #f4f0e6;
+    --bg-elev: #faf7f0;
+    --surface: #fffdf8;
+    --surface-2: #f1ecdf;
+    --surface-3: #e4ddcb;
+    --border: rgba(40, 32, 12, 0.09);
+    --border-strong: rgba(40, 32, 12, 0.17);
+    --text: #17150f;
+    --text-2: #585347;
+    --text-3: #8c8676;
+    --accent: #8c671b;
+    --accent-2: #6f500f;
+    --accent-soft: rgba(140, 103, 27, 0.11);
+    --accent-text: #fffdf8;
+    --cta: #1b1a16;
+    --cta-hover: #35322a;
+    --good: #4e8f3c;
+    --best: #478a36;
     --eval-light: #ffffff;
-    --eval-dark: #3a3833;
-    --bubble: #f1efea;
+    --eval-dark: #34322c;
+    --glow-a: rgba(200, 160, 70, 0.16);
+    --glow-b: rgba(70, 150, 140, 0.09);
+    --sheen: rgba(255, 255, 255, 0.6);
+    --bubble: #f1ecdf;
     --inacc: #d39e12;
     --mistake: #e8822a;
-    --win: #4d8a28;
+    --win: #478a36;
     --loss: #d63c2b;
     --draw: #7c7975;
-    --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(40, 34, 20, 0.04), 0 8px 24px -16px rgba(40, 34, 20, 0.12);
-    --shadow-lg: 0 0 0 1px var(--border), 0 32px 80px -28px rgba(40, 34, 20, 0.3);
+    --shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(60, 45, 10, 0.04), 0 18px 40px -28px rgba(60, 45, 10, 0.28);
+    --shadow-lg: 0 0 0 1px var(--border), 0 40px 90px -30px rgba(60, 45, 10, 0.35);
     color-scheme: light;
   }
 }
@@ -7284,13 +7315,13 @@ button.line-move:hover {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-/* Training week plan */
-.week-strip {
+/* Training week plan (own class names: the start page has a different .week-strip) */
+.plan-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
 }
-.week-day {
+.plan-day {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -7300,14 +7331,14 @@ button.line-move:hover {
   background: var(--surface-2, transparent);
   min-height: 86px;
 }
-.week-day.today {
+.plan-day.today {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent) inset;
 }
-.week-day.done .week-state {
+.plan-day.done .week-state {
   color: var(--win);
 }
-.week-day.missed {
+.plan-day.missed {
   opacity: 0.6;
 }
 .week-dow {
@@ -7324,7 +7355,7 @@ button.line-move:hover {
   margin-top: auto;
 }
 @media (max-width: 720px) {
-  .week-strip {
+  .plan-week {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

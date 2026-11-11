@@ -17,8 +17,8 @@ export default defineConfig({
         scope: "/",
         display: "standalone",
         orientation: "any",
-        background_color: "#121211",
-        theme_color: "#121211",
+        background_color: "#0a0b0d",
+        theme_color: "#0a0b0d",
         icons: [
           { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
@@ -27,7 +27,7 @@ export default defineConfig({
       },
       workbox: {
         // Engine (~7 MB) and opening book must be available offline.
-        globPatterns: ["**/*.{js,css,html,svg,png,json,wasm,txt}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,json,wasm,txt,woff2}"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         navigateFallback: "/index.html",
       },
