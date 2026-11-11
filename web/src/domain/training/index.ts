@@ -38,3 +38,5 @@ export { buildWeekPlan, TARGET_DAYS, themeLabel, themeOf, weekOutdated, weekStar
 export type { DayTheme, WeekDay, WeekPlan } from "./week";
 export { trainingStart, transferReport } from "./transfer";
 export type { GameErrorPoint, TransferMetric, TransferReport, TransferRow } from "./transfer";
+export { REFUTATION_MAX_REPLIES, refutationLine } from "./refutation";
+export type { LineStep } from "./refutation";

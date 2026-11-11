@@ -175,7 +175,9 @@ export function relevance(e: Exercise, today: string, jitter: number): number {
   return 0.55 * recency + 0.3 * Math.min(1, e.wp_loss / 0.4) + 0.15 * jitter;
 }
 
-export function buildDailyPlan({ skills, patterns, pool, progress, prefs, today, theme = null }: PlanInput): DailyPlan {
+export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, prefs, today, theme = null }: PlanInput): DailyPlan {
+  // Opening drills are never assigned: the player picks which opening to practise.
+  const pool = fullPool.filter((e) => e.kind !== "repertoire");
   const byId = new Map(pool.map((e) => [e.id, e]));
   const used = new Set<string>();
   const blocks: PlanBlock[] = [];

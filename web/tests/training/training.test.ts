@@ -14,6 +14,7 @@ import {
   puzzleCategory,
   puzzleOfTheDay,
   recordAttempt,
+  refutationLine,
   repertoireDrill,
   streak,
   summarizeTraining,
@@ -206,6 +207,13 @@ describe("daily plan", () => {
     expect(withPattern.need).toBeGreaterThan(without.need);
   });
 
+  it("never assigns opening drills, even when they are due or the chosen focus", () => {
+    const drill: Exercise = { id: "r:white:Italian Game", kind: "repertoire", category: "repertoire", title: "Italian Game", color: "white", opening: "Italian Game", moves: ["e4"], correction: null, games: 5, score_pct: 50 };
+    const progress = recordAttempt({}, drill.id, false, "2026-10-20");
+    const plan = buildDailyPlan({ skills: SKILLS, patterns: [], pool: [...pool(), drill], progress, prefs: { minutes: 30, focus: "repertoire" }, today: TODAY });
+    expect(plan.blocks.flatMap((b) => b.exercise_ids)).not.toContain(drill.id);
+  });
+
   it("is the same plan all day and a different selection tomorrow", () => {
     const input = { skills: SKILLS, patterns: [], pool: pool(), progress: {}, prefs: { minutes: 20, focus: "auto" as const } };
     const a = buildDailyPlan({ ...input, today: TODAY });
@@ -256,5 +264,17 @@ describe("profile wiring", () => {
     const profile = buildPlayerProfile(profileGames(9, 3), ["tim"]);
     expect(profile.recent_games[0].game_id).toBe("c2");
     expect(profile.recent_games.find((g) => g.game_id === "t8")?.worst[0]).toMatchObject({ move: "9. d5", wp_before: 85, wp_after: 25 });
+  });
+});
+
+describe("refutation line", () => {
+  it("plays the tried move, then the punishing replies, and stops at illegal moves or mate", () => {
+    // 1.f3 e5 2.g4?? Qh4# : the tried move and the mate are shown, nothing after.
+    const fen = "rnbqkbnr/pppp1ppp/8/4p3/8/5P2/PPPPP1PP/RNBQKBNR w KQkq - 0 2";
+    const line = refutationLine(fen, "g2g4", ["d8h4", "a2a3"]);
+    expect(line.map((s) => [s.san, s.tried])).toEqual([["g4", true], ["Qh4#", false]]);
+    expect(line[1]).toMatchObject({ from: "d8", to: "h4" });
+    expect(refutationLine(fen, "g2g4", ["e1e8", "d8h4"]).map((s) => s.san)).toEqual(["g4"]);
+    expect(refutationLine(fen, "a1a8", [])).toEqual([]);
   });
 });
