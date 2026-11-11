@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBattle, chase, crowns, FACTOR_WEIGHTS, headToHead, RANK_FACTORS, type Ranking, type RankRow, rivalOf } from "../../src/domain/players";
+import { buildBattle, crowns, FACTOR_WEIGHTS, headToHead, RANK_FACTORS, type Ranking, type RankRow, rivalOf } from "../../src/domain/players";
 
 function row(id: string, cells: Record<string, [number, number, number?]>, overall: number | null = null, isMe = false): RankRow {
   return {
@@ -17,7 +17,7 @@ function row(id: string, cells: Record<string, [number, number, number?]>, overa
     cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se, points]]) => [k, { value, se, rank: null, points: points ?? null, note: "" }])),
   };
 }
-const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, rows, rating_speed: "Blitz", notes: [] });
+const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
 const h2h = (wins: number, draws: number, losses: number) => ({ ...headToHead([], [], []), games: wins + draws + losses, wins, draws, losses });
 
 describe("weights", () => {
@@ -59,25 +59,16 @@ describe("battle", () => {
     expect(buildBattle(r, "Tim", "Tim")).toBeNull();
   });
 
-  it("hands out crowns, names the rival and what is missing to the next place", () => {
+  it("hands out crowns and names the rival", () => {
     const rows = [
       row("Lena", { accuracy: [80, 1, 90], tactics: [60, 5, 85], endgame: [50, 5, 40] }, 70),
       row("Tim", { accuracy: [75, 1, 50], tactics: [55, 5, 60], endgame: [60, 5, 70] }, 60, true),
       row("Max", { accuracy: [70, 1, 10], tactics: [50, 5, 5], endgame: [55, 5, 40] }, 30),
-    ];
-    rows[1].breakdown = [
-      { key: "accuracy", points: 50, share: 40, value: 20, room: 20 },
-      { key: "endgame", points: 70, share: 30, value: 21, room: 9 },
-      { key: "tactics", points: 60, share: 30, value: 18, room: 12 },
     ];
     const rk = ranking(rows);
     const c = crowns(rk);
     expect(c.find((x) => x.key === "precision")).toMatchObject({ holder_name: "Lena", clear: true });
     expect(c.find((x) => x.key === "endgame")).toMatchObject({ holder_name: "Tim", clear: false });
     expect(rivalOf(rk, "Tim")!.id).toBe("Lena");
-    const ch = chase(rk, "Tim")!;
-    expect(ch).toMatchObject({ target: { id: "Lena" }, gap: 10, lead: 30, below: { id: "Max" } });
-    expect(ch.levers.map((l) => l.key)).toEqual(["accuracy", "tactics", "endgame"]);
-    expect(chase(rk, "Lena")!.target).toBeNull();
   });
 });

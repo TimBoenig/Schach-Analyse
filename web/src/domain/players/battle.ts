@@ -1,5 +1,5 @@
 // Battles between two players of the friends group, and the competitive
-// extras of the ranking (rival, the chase for the next place, category crowns).
+// extras of the ranking (rival, category crowns).
 //
 // A battle is fought in rounds, one per area of the game. Each round is won by
 // whoever is *probably* better there (the same chance-of-being-better as the
@@ -94,7 +94,7 @@ function marginOf(p: number): BattleRound["margin"] {
  * cell mixes games against everyone. A's chance of being truly better is the
  * chance their true score against B is above 50 %.
  */
-function pairEstimate(h: HeadToHead | null | undefined): { a: number; p: number } | null {
+export function pairEstimate(h: Pick<HeadToHead, "games" | "wins" | "draws"> | null | undefined): { a: number; p: number } | null {
   if (!h || !h.games) return null;
   const pts = h.wins + h.draws / 2;
   // +1/+2 keeps a 2:0 from looking certain.
@@ -211,40 +211,6 @@ export function crowns(ranking: Ranking): Crown[] {
     });
   }
   return out;
-}
-
-export interface Chase {
-  /** Player directly above (null: already first). */
-  target: { id: string; name: string; rank: number } | null;
-  /** Overall points missing to the player above. */
-  gap: number;
-  /** Lead over the player directly below (null: last). */
-  lead: number | null;
-  below: { id: string; name: string } | null;
-  /** Factors with the most overall points still to win, biggest first. */
-  levers: { key: string; label: string; room: number }[];
-}
-
-/** What separates a player from the next place, and where the points are. */
-export function chase(ranking: Ranking, id: string): Chase | null {
-  const ranked = ranking.rows.filter((r) => r.overall !== null);
-  const i = ranked.findIndex((r) => r.id === id);
-  if (i < 0) return null;
-  const me = ranked[i];
-  const above = ranked.slice(0, i).reverse().find((r) => (r.overall as number) > (me.overall as number)) ?? null;
-  const below = ranked.slice(i + 1).find((r) => (r.overall as number) < (me.overall as number)) ?? null;
-  const label = new Map(ranking.factors.map((f) => [f.key, f.label]));
-  return {
-    target: above ? { id: above.id, name: above.name, rank: above.rank as number } : null,
-    gap: above ? (above.overall as number) - (me.overall as number) : 0,
-    lead: below ? (me.overall as number) - (below.overall as number) : null,
-    below: below ? { id: below.id, name: below.name } : null,
-    levers: [...me.breakdown]
-      .filter((c) => c.room >= 1)
-      .sort((a, b) => b.room - a.room)
-      .slice(0, 3)
-      .map((c) => ({ key: c.key, label: label.get(c.key) ?? c.key, room: c.room })),
-  };
 }
 
 /** The friend closest to a player in the overall score: the natural opponent for a battle. */

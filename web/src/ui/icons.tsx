@@ -67,3 +67,24 @@ export const IconGauge = () => (<svg {...base}><path d="M4 18a8 8 0 1 1 16 0M12 
 export const IconPalette = () => (<svg {...base}><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.6-.8 1.6-1.6 0-1.2-1-1.5-1-2.6 0-.9.7-1.6 1.6-1.6H17a4 4 0 0 0 4-4c0-4.6-4-8.2-9-8.2z" /><circle cx="7.5" cy="11" r="1" /><circle cx="10" cy="7" r="1" /><circle cx="15" cy="7.5" r="1" /></svg>);
 export const IconInfo = () => (<svg {...base}><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>);
 export const IconTimer = () => (<svg {...base}><circle cx="12" cy="14" r="7" /><path d="M12 14V10M9 3h6" /></svg>);
+export const IconTrophy = () => (
+  <svg {...base}><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8.5 20h7M10 17h4" /></svg>
+);
+export const IconCrown = () => (
+  <svg {...base}><path d="M3.5 8l4.5 4 4-6 4 6 4.5-4-2 10h-13zM6 21h12" /></svg>
+);
+export const IconFlame = () => (
+  <svg {...base}><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.5-5.4 3.6-8.3.9 1.6 1.4 2.8 1.4 4.2C12.6 9 14 7 14 4c3 2.2 4.5 6 4.5 10.3 0 4-2.6 6.7-6.5 6.7z" /></svg>
+);
+export const IconShield = () => (
+  <svg {...base}><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6zM9 12l2 2 4-4" /></svg>
+);
+export const IconStar = () => (
+  <svg {...base}><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 16.9l-5.3 2.7 1-5.8-4.2-4.1 5.9-.9z" /></svg>
+);
+export const IconRise = () => (
+  <svg {...base}><path d="M3 17l6-6 4 4 8-8M15 7h6v6" /></svg>
+);
+export const IconSwords = () => (
+  <svg {...base}><path d="M4 4l9.5 9.5M4 4v4l9 9M4 4h4l9 9M20 4l-6 6M20 4v4l-3 3M20 4h-4l-3 3M14.5 17.5l3 3M17.5 14.5l3 3M6.5 17.5l-3 3M9.5 17.5l-3-3" /></svg>
+);
