@@ -1,3 +1,4 @@
+import { Chess } from "chess.js";
 import { describe, expect, it } from "vitest";
 
 import { buildPlayerProfile, extractFeatures, MoveEvent, type SkillScore } from "../../src/domain/profile";
@@ -15,6 +16,8 @@ import {
   puzzleOfTheDay,
   recordAttempt,
   refutationLine,
+  LIBRARY_DRILLS,
+  OPENING_LIBRARY,
   addDays,
   compareRates,
   playOnStats,
@@ -304,5 +307,21 @@ describe("training trends", () => {
 
   it("counts sound, brilliant and weak moves when playing on", () => {
     expect(playOnStats(["Best", "Brilliant", "Mistake", "", "Good"])).toEqual({ moves: 5, sound: 3, brilliant: 1, errors: 1 });
+  });
+});
+
+describe("opening library", () => {
+  it("has legal lines, unique ids and is never part of the daily plan", () => {
+    const ids = new Set<string>();
+    for (const d of LIBRARY_DRILLS) {
+      const b = new Chess();
+      for (const san of d.moves) expect(() => b.move(san), `${d.id} ${san}`).not.toThrow();
+      expect(d.moves.length).toBeGreaterThanOrEqual(9);
+      expect(ids.has(d.id)).toBe(false);
+      ids.add(d.id);
+    }
+    expect(OPENING_LIBRARY.length).toBeGreaterThanOrEqual(15);
+    const plan = buildDailyPlan({ skills: SKILLS, patterns: [], pool: [...pool(), ...LIBRARY_DRILLS], progress: {}, prefs: { minutes: 60, focus: "auto" }, today: TODAY });
+    expect(plan.blocks.flatMap((b) => b.exercise_ids).some((id) => id.startsWith("lib:"))).toBe(false);
   });
 });

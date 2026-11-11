@@ -14,6 +14,7 @@ import {
   MINUTE_CHOICES,
   type Direction,
   openingProgress,
+  OPENING_LIBRARY,
   type PlanBlock,
   trainingTrends,
   TREND_MIN_ATTEMPTS,
@@ -109,65 +110,141 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
         <div style={{ width: `${(index / exercises.length) * 100}%` }} />
       </div>
       {ex.kind === "puzzle" && <PuzzleRunner key={ex.id} ex={ex} {...props} />}
-      {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} {...props} />}
+      {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} learn={needsLearning(ex, t.progress[ex.id])} {...props} />}
       {ex.kind === "playout" && <PlayoutRunner key={ex.id} ex={ex} {...props} />}
     </div>
   );
+}
+
+/**
+ * Lines the player does not know yet start in learn mode with the book moves
+ * shown: never solved, just failed, or an own opening that scores badly.
+ */
+function needsLearning(ex: RepertoireExercise, p: TrainingState["progress"][string] | undefined): boolean {
+  if (!p || p.solved === 0 || p.box === 0) return true;
+  return !ex.library && ex.score_pct !== null && ex.score_pct < 45 && p.box < 2;
 }
 
 function blockDone(b: PlanBlock, t: TrainingState): number {
   return b.exercise_ids.filter((id) => t.progress[id]?.last === t.today).length;
 }
 
-/** The player picks which of their openings to drill; the daily plan never assigns one. */
+/** The player picks which opening to drill (own lines or the library); the daily plan never assigns one. */
 function OpeningPick({ t, start }: { t: TrainingState; start: (s: SessionSpec) => void }) {
   const drills = t.pool.filter((e): e is RepertoireExercise => e.kind === "repertoire");
-  const [color, setColor] = useState<"white" | "black">(drills.some((d) => d.color === "white") ? "white" : "black");
-  const shown = drills.filter((d) => d.color === color);
+  const own = drills.filter((d) => !d.library);
+  const [source, setSource] = useState<"own" | "library">(own.length ? "own" : "library");
+  const [color, setColor] = useState<"white" | "black">(own.some((d) => d.color === "white") || !own.length ? "white" : "black");
   const [picked, setPicked] = useState<string | null>(null);
-  const chosen = shown.find((d) => d.id === picked) ?? shown[0];
-  if (!drills.length) return null;
-  return (
-    <section class="card tile span-12 opening-pick">
-      <div class="tile-head">
-        <h3>Eröffnung üben</h3>
-        <span class="tile-sub">freiwillig · du wählst</span>
-      </div>
-      <p class="small muted" style={{ marginTop: 0 }}>
-        Such dir aus, welche deiner Eröffnungen du heute festigen willst. Du spielst deine übliche Linie ab Zug 1, Fehler aus deinen Partien sind schon korrigiert.
-      </p>
-      <div class="segmented" role="tablist" style={{ marginBottom: "12px" }}>
-        {(["white", "black"] as const).map((c) => (
-          <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} disabled={!drills.some((d) => d.color === c)} onClick={() => setColor(c)}>
-            Mit {c === "white" ? "Weiß" : "Schwarz"}
-          </button>
-        ))}
-      </div>
-      <div class="opening-chips">
-        {shown.map((d) => {
-          const p = t.progress[d.id];
-          return (
+  const stateOf = (id: string) => {
+    const p = t.progress[id];
+    return !p ? "neu" : isMastered(p) ? "sicher" : isDue(p, t.today) ? "fällig" : p.box === 0 ? "lernen" : "im Aufbau";
+  };
+
+  const sourceTabs = (
+    <div class="segmented" role="tablist" style={{ marginBottom: "10px" }}>
+      {(
+        [
+          ["own", `Meine Eröffnungen (${own.length})`],
+          ["library", `Bibliothek (${OPENING_LIBRARY.length})`],
+        ] as const
+      ).map(([k, label]) => (
+        <button key={k} role="tab" aria-selected={source === k} class={source === k ? "active" : ""} onClick={() => setSource(k)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+  const colorTabs = (
+    <div class="segmented" role="tablist" style={{ marginBottom: "12px" }}>
+      {(["white", "black"] as const).map((c) => (
+        <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => setColor(c)}>
+          Mit {c === "white" ? "Weiß" : "Schwarz"}
+        </button>
+      ))}
+    </div>
+  );
+
+  let body;
+  if (source === "own") {
+    const shown = own.filter((d) => d.color === color);
+    const chosen = shown.find((d) => d.id === picked) ?? shown[0];
+    body = (
+      <>
+        <p class="small muted" style={{ marginTop: 0 }}>
+          Deine übliche Linie ab Zug 1, Fehler aus deinen Partien sind schon korrigiert. Läuft eine Eröffnung bei dir schlecht, zeige ich dir zuerst die Buchzüge.
+        </p>
+        {shown.length === 0 && <p class="small faint">Noch keine Linie mit dieser Farbe (braucht mindestens zwei Partien mit derselben Eröffnung).</p>}
+        <div class="opening-chips">
+          {shown.map((d) => (
             <button key={d.id} class={`opening-chip${chosen?.id === d.id ? " on" : ""}`} onClick={() => setPicked(d.id)}>
               <span class="opening-chip-name">{openingLabel(d.opening)}</span>
               <span class="opening-chip-meta tnum">
-                {d.games} Partien{d.score_pct !== null ? ` · ${Math.round(d.score_pct)} %` : ""}
-                {p ? (isMastered(p) ? " · sicher" : isDue(p, t.today) ? " · fällig" : "") : " · neu"}
+                {d.games} Partien{d.score_pct !== null ? ` · ${Math.round(d.score_pct)} %` : ""} · {stateOf(d.id)}
               </span>
             </button>
+          ))}
+        </div>
+        {chosen && (
+          <div class="row tile-foot">
+            <span class="small muted">
+              {chosen.moves.length} Halbzüge{chosen.correction ? ` · korrigiert: ${chosen.correction.best_san} statt ${chosen.correction.played_san}` : ""}
+            </span>
+            <span class="spacer" />
+            <button class="btn small primary" onClick={() => start({ title: openingLabel(chosen.opening), ids: [chosen.id] })}>
+              <IconPlay /> Diese Eröffnung üben
+            </button>
+          </div>
+        )}
+      </>
+    );
+  } else {
+    const openings = OPENING_LIBRARY.filter((o) => o.color === color);
+    const lib = new Map(drills.filter((d) => d.library).map((d) => [d.id, d]));
+    body = (
+      <div class="library-grid">
+        {openings.map((o) => {
+          const ids = o.lines.map((_, i) => `lib:${o.key}:${i}`).filter((id) => lib.has(id));
+          const sure = ids.filter((id) => isMastered(t.progress[id])).length;
+          return (
+            <div key={o.key} class="library-card">
+              <div class="library-head">
+                <strong>{o.name}</strong>
+                <span class="small faint">{o.group}</span>
+              </div>
+              <p class="small muted">{o.idea}</p>
+              <div class="box-steps" aria-label={`${sure} von ${ids.length} Linien sicher`}>
+                {ids.map((id) => (
+                  <span key={id} class={isMastered(t.progress[id]) ? "on" : t.progress[id] ? "half" : ""} />
+                ))}
+              </div>
+              <div class="library-lines">
+                {ids.map((id, i) => (
+                  <button key={id} class="ex-row" onClick={() => start({ title: `${o.name}: ${o.lines[i].name}`, ids: [id] })}>
+                    <span class="ex-row-title">{o.lines[i].name}</span>
+                    <span class={`ex-state${isMastered(t.progress[id]) ? " ok" : ""}`}>{stateOf(id)}</span>
+                  </button>
+                ))}
+              </div>
+              <button class="btn small primary" onClick={() => start({ title: o.name, ids })}>
+                <IconPlay /> Alle {ids.length} {ids.length === 1 ? "Linie" : "Linien"} lernen
+              </button>
+            </div>
           );
         })}
       </div>
-      {chosen && (
-        <div class="row tile-foot">
-          <span class="small muted">
-            {chosen.moves.length} Halbzüge{chosen.correction ? ` · korrigiert: ${chosen.correction.best_san} statt ${chosen.correction.played_san}` : ""}
-          </span>
-          <span class="spacer" />
-          <button class="btn small primary" onClick={() => start({ title: openingLabel(chosen.opening), ids: [chosen.id] })}>
-            <IconPlay /> Diese Eröffnung üben
-          </button>
-        </div>
-      )}
+    );
+  }
+
+  return (
+    <section class="card tile span-12 opening-pick">
+      <div class="tile-head">
+        <h3>Eröffnung lernen</h3>
+        <span class="tile-sub">du wählst · neue Linien starten im Lernmodus</span>
+      </div>
+      {sourceTabs}
+      {colorTabs}
+      {body}
     </section>
   );
 }
@@ -406,7 +483,7 @@ function ExercisesTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) 
   const card = (c: Category, list: boolean) => {
     const s = stats.get(c)!;
     const info = CATEGORIES[c];
-    const items = list ? t.pool.filter((e) => e.category === c) : [];
+    const items = list ? t.pool.filter((e) => e.category === c && !(e.kind === "repertoire" && e.library)) : [];
     const playouts = t.pool.filter((e) => e.category === c && e.kind === "playout").length;
     return (
       <section key={c} id={`cat-${c}`} class={`card tile ${list ? "span-6" : "span-4"} cat-card`}>
@@ -601,7 +678,8 @@ const OPENING_STATE: Record<string, string> = { new: "neu", due: "fällig", mast
 
 /** Each repertoire line and how far along the repetition boxes it is. */
 function OpeningProgressCard({ t }: { t: TrainingState }) {
-  const rows = openingProgress(t.pool, t.progress, t.today);
+  // Library lines appear once they were practised; untouched ones would only be noise.
+  const rows = openingProgress(t.pool, t.progress, t.today).filter((r) => !r.id.startsWith("lib:") || r.attempts > 0);
   if (!rows.length) return null;
   return (
     <section class="card tile span-12">

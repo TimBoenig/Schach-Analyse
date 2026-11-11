@@ -1394,3 +1394,53 @@ h3,
 .box-steps span.on {
   background: var(--accent);
 }
+
+/* ---------- training: opening library, learn mode ---------- */
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+.library-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+}
+.library-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.library-card p {
+  margin: 0;
+}
+.library-lines {
+  display: grid;
+  gap: 4px;
+}
+.box-steps span.half {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.learn-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+.learn-mode.on {
+  color: var(--text);
+  background: var(--accent-soft);
+}
+.consequence-btn {
+  margin: 8px 0;
+}

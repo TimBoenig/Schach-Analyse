@@ -77,6 +77,8 @@ function useLinePlayer(onDone?: () => void) {
   const [line, setLine] = useState<LineStep[] | null>(null);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // A refutation is only offered; it plays when the player asks for it.
+  const [pending, setPending] = useState<LineStep[] | null>(null);
   useEffect(() => {
     if (!line || !playing) return;
     if (step >= line.length - 1) {
@@ -91,8 +93,11 @@ function useLinePlayer(onDone?: () => void) {
     line,
     step,
     playing,
-    start: (l: LineStep[]) => {
-      setLine(l);
+    pending,
+    offer: (l: LineStep[]) => setPending(l.length > 1 ? l : null),
+    show: () => {
+      if (!pending) return;
+      setLine(pending);
       setStep(0);
       setPlaying(true);
     },
@@ -106,6 +111,7 @@ function useLinePlayer(onDone?: () => void) {
     },
     clear: () => {
       setLine(null);
+      setPending(null);
       setPlaying(false);
     },
   };
@@ -175,6 +181,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
 
   const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (solved || checking || fen !== ex.fen || player.line) return false;
+    player.clear();
     const b = new Chess(ex.fen);
     let san = "";
     let uci = "";
@@ -212,8 +219,8 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
         // Show why on the board: the move and how the engine punishes it, instead of a paragraph.
         const line = refutationLine(ex.fen, uci, v?.reply_pv ?? []);
         setFeedback({ ok: false, text: v ? `${san} – ${classLabel(v.classification)}` : `${san} ist nicht der gesuchte Zug` });
-        if (line.length > 1) player.start(line);
-        else window.setTimeout(() => setFen(ex.fen), 1200);
+        player.offer(line);
+        window.setTimeout(() => setFen(ex.fen), 1200);
       });
     }
     return true;
@@ -256,6 +263,11 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             <Coach mood={feedback.ok ? "wow" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text}>
               {feedback.detail}
             </Coach>
+          )}
+          {player.pending && !player.line && !solved && (
+            <button class="btn small consequence-btn" onClick={player.show}>
+              Warum? Konsequenz zeigen
+            </button>
           )}
           {player.line && (
             <div class="refutation">
@@ -370,6 +382,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
 
   const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (busy || over || player.line || board.turn() !== userColor) return false;
+    player.clear();
     const before = fen;
     const b = new Chess(fen);
     let m;
@@ -394,7 +407,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
           setUndoFen(before);
           setNote({ ok: false, text: `${m.san} – ${classLabel(cls)}` });
           const line = refutationLine(before, uci, v?.reply_pv ?? []);
-          if (line.length > 1) player.start(line);
+          player.offer(line);
           await reply(b);
         } else {
           setUndoFen(null);
@@ -454,6 +467,18 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
             )}
           </div>
           {note && <Coach mood={note.ok ? "wow" : "think"} tone={note.ok ? "var(--win)" : "var(--loss)"} title={note.text} />}
+          {player.pending && !player.line && (
+            <div class="row">
+              <button class="btn small consequence-btn" onClick={player.show}>
+                Warum? Konsequenz zeigen
+              </button>
+              {undoFen && (
+                <button class="btn small ghost" onClick={takeBack}>
+                  Zug zurücknehmen
+                </button>
+              )}
+            </div>
+          )}
           {player.line && (
             <div class="refutation">
               <div class="small muted">So wird es bestraft:</div>
@@ -491,8 +516,10 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
 
 const DRILL_REPLY_MS = 450;
 
-export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<RepertoireExercise>) {
+export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = false }: RunnerProps<RepertoireExercise> & { learn?: boolean }) {
   const [ply, setPly] = useState(0);
+  // Learn mode: every move is shown first (like a repertoire trainer), the test round follows without help.
+  const [learning, setLearning] = useState(learn);
   const [errors, setErrors] = useState(0);
   const [missesHere, setMissesHere] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -523,7 +550,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
 
   useEffect(() => {
     if (done) {
-      if (!reported.current) {
+      if (!learning && !reported.current) {
         reported.current = true;
         onResult(errors === 0);
       }
@@ -532,7 +559,15 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
     if (isUserPly(ply)) return;
     const t = window.setTimeout(() => setPly((p) => p + 1), DRILL_REPLY_MS);
     return () => window.clearTimeout(t);
-  }, [ply, done]);
+  }, [ply, done, learning]);
+
+  const startTest = () => {
+    setLearning(false);
+    setPly(0);
+    setErrors(0);
+    setMissesHere(0);
+    setFeedback(null);
+  };
 
   const tryMove = (from: string, to: string, chosen?: Promotion) => {
     if (done || !isUserPly(ply)) return false;
@@ -548,9 +583,10 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
       setMissesHere(0);
       setPly(ply + 1);
     } else {
-      setErrors((e) => e + 1);
+      if (!learning) setErrors((e) => e + 1);
       setMissesHere((m) => m + 1);
-      setFeedback({ ok: false, text: `${san} ist nicht der Zug aus deinem Repertoire.` });
+      setFeedback({ ok: false, text: learning ? `Nicht ganz: Spiele den Zug mit dem Pfeil.` : `${san} ist nicht der Zug aus deinem Repertoire.` });
+      if (learning) return true;
       // Tell apart "playable, just not your line" from a real opening error.
       const b = new Chess(fen);
       const m = b.move(san);
@@ -570,7 +606,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
   if (playOn) return <PlayOn startFen={positions[positions.length - 1]} userWhite={userWhite} onExit={onNext} />;
 
   const expected = !done && isUserPly(ply) ? squaresOf(fen, moves[ply]) : null;
-  const arrows: Arrow[] = expected && missesHere >= 2 ? [{ ...expected, kind: "hint" }] : [];
+  const arrows: Arrow[] = expected && (learning || missesHere >= 2) ? [{ ...expected, kind: learning ? "best" : "hint" }] : [];
   const last = ply > 0 ? squaresOf(positions[ply - 1], moves[ply - 1]) : null;
   const atCorrection = ex.correction && ply === ex.correction.ply && !done;
   const moveText = moves
@@ -597,9 +633,20 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
             {openingLabel(ex.opening)} mit {userWhite ? "Weiß" : "Schwarz"}
           </h3>
           <p class="small muted" style={{ marginTop: 0 }}>
-            Deine Hauptvariante aus {ex.games} Partien{ex.score_pct !== null ? ` (${Math.round(ex.score_pct)} % Punkte)` : ""}. Spiele deine Züge,
-            der Gegner antwortet automatisch.
+            {ex.library
+              ? "Hauptlinie aus der Eröffnungsbibliothek."
+              : `Deine Hauptvariante aus ${ex.games} Partien${ex.score_pct !== null ? ` (${Math.round(ex.score_pct)} % Punkte)` : ""}.`}{" "}
+            Spiele deine Züge, der Gegner antwortet automatisch.
           </p>
+          {ex.idea && <p class="note-box small">Idee: {ex.idea}</p>}
+          <div class={`learn-mode${learning ? " on" : ""}`}>
+            {learning ? "Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach." : "Abfrage: ohne Hilfe."}
+            {!done && (
+              <button class="btn small ghost" onClick={learning ? startTest : () => setLearning(true)}>
+                {learning ? "Ohne Hilfe abfragen" : "Züge zeigen"}
+              </button>
+            )}
+          </div>
           <div class="progress" style={{ marginBottom: "10px" }}>
             <div style={{ width: `${(ply / Math.max(1, moves.length)) * 100}%` }} />
           </div>
@@ -614,8 +661,9 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
               {feedback.detail}
             </Coach>
           )}
-          {missesHere >= 2 && !done && <p class="small muted">Der Pfeil zeigt dir den Zug.</p>}
-          {done && (
+          {missesHere >= 2 && !done && !learning && <p class="small muted">Der Pfeil zeigt dir den Zug.</p>}
+          {done && learning && <p class="feedback-ok">Linie einmal mit Hilfe durchgespielt. Jetzt aus dem Gedächtnis!</p>}
+          {done && !learning && (
             <p class={errors === 0 ? "feedback-ok" : "feedback-bad"}>
               {errors === 0 ? "Fehlerfrei durchgespielt!" : `Durchgespielt mit ${errors} ${errors === 1 ? "Fehlversuch" : "Fehlversuchen"}. Morgen kommt die Linie wieder.`}
             </p>
@@ -627,12 +675,17 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel }: RunnerProp
           )}
           <p class="small mono drill-moves">{moveText || "Startstellung"}</p>
           <div class="row">
-            {done && (
+            {done && learning && (
+              <button class="btn primary" onClick={startTest}>
+                Jetzt ohne Hilfe abfragen
+              </button>
+            )}
+            {done && !learning && (
               <button class="btn" onClick={() => setPlayOn(true)}>
                 Weiterspielen gegen Stockfish
               </button>
             )}
-            {done && <NextButton onNext={onNext} label={nextLabel} />}
+            {done && !learning && <NextButton onNext={onNext} label={nextLabel} />}
           </div>
         </div>
       </div>
