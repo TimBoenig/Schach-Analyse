@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
+import { BRAND, BRAND_DOMAIN } from "../brand";
 import { getSetting, setSetting } from "../storage/db";
 import { refreshSyncStatus } from "../storage/sync";
 import { useSyncStatus } from "./AccountView";
@@ -128,7 +129,7 @@ function BackupCard() {
           ".",
       });
     } catch {
-      setMsg({ text: "Die Datei ist keine lesbare Sicherung der Schach-Analyse.", error: true });
+      setMsg({ text: `Die Datei ist keine lesbare Sicherung von ${BRAND}.`, error: true });
     } finally {
       setBusy(null);
     }
@@ -238,9 +239,9 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
         <AppearanceCard />
         <AccountCard />
         <div class="card settings-card">
-          <SettingsHead icon={<IconInfo />} title="Über die App" />
+          <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
           <p class="small muted" style={{ margin: 0 }}>
-            Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
+            {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
             auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
             (CC0).
           </p>

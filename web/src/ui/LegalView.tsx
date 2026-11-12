@@ -3,6 +3,7 @@
 // the GPL of chessground and Stockfish (source must be reachable).
 import type { JSX } from "preact";
 
+import { BRAND } from "../brand";
 import { PageHeader } from "./Layout";
 import { navigate, type LegalTab } from "./router";
 
@@ -126,7 +127,7 @@ function Lizenzen() {
         </li>
       </ul>
       <p class="faint small">
-        Schach-Analyse ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.
+        {BRAND} ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.
       </p>
     </section>
   );

@@ -2,6 +2,8 @@ import preact from "@preact/preset-vite";
 import { defineConfig } from "vitest/config";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { BRAND } from "./src/brand";
+
 export default defineConfig({
   plugins: [
     preact(),
@@ -9,8 +11,8 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icons/*.png", "icons/*.svg", "pieces/*.svg", "badges/*.svg"],
       manifest: {
-        name: "Schach Analyse",
-        short_name: "Schach",
+        name: BRAND,
+        short_name: BRAND,
         description: "Partien analysieren, Stärken und Schwächen erkennen, gezielt trainieren – offline auf dem Gerät.",
         lang: "de",
         start_url: "/",

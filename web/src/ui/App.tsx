@@ -23,6 +23,7 @@ import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
+import { BRAND } from "../brand";
 
 const TAB_AREAS = MAIN_AREAS;
 const SETTINGS_AREA = AREAS.find((a) => a.id === "settings")!;
@@ -201,9 +202,9 @@ export function App() {
     <ShellContext.Provider value={{ route, openPalette: () => setOverlay("palette") }}>
     <div class="app">
       <nav class="nav" aria-label="Hauptnavigation">
-        <div class="nav-brand">
+        <div class="nav-brand" title={BRAND}>
           <img class="nav-logo" src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
-          <span class="nav-title">Schach-Analyse</span>
+          <span class="nav-title">{BRAND}</span>
         </div>
         <button class="nav-search" onClick={() => setOverlay("palette")} aria-label="Befehle und Suche">
           <IconSearch />

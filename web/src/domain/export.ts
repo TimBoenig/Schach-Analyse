@@ -4,6 +4,7 @@
 // and the training progress. A CSV of the games and a PGN file cover
 // spreadsheets and other chess programs.
 
+import { BRAND } from "../brand";
 import { trFilter } from "./i18n";
 import { dateWindow, getUserColor, inDateFilter, outcomeFor, parseMoves, parseSummary } from "./metrics";
 import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile } from "./profile";
@@ -66,7 +67,8 @@ export interface FullExport {
 const SKIP_SETTING = (key: string) => key.startsWith("sync.") || key.startsWith("training.") || key.startsWith("coach.");
 
 const HINWEIS =
-  "Vollständiger Export der Schach-Analyse. games: alle Partien mit PGN und jedem analysierten Zug " +
+  `Vollständiger Export aus ${BRAND}. ` +
+  "games: alle Partien mit PGN und jedem analysierten Zug " +
   "(Bewertung aus Sicht von Weiß, Klassifizierung, beste Fortsetzung). reviews: Partie-Auswertung je Partie. " +
   "profile: Statistiken, Fähigkeiten, Stärken, Schwächen, Spielstil, Muster, Eröffnungen, Einblicke, " +
   "Verläufe und Trainingsplan für den gewählten Zeitraum. training: Übungsfortschritt und Tagespläne. " +
@@ -153,7 +155,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typ
  */
 export function parseBackup(text: string): ParsedBackup {
   const data: unknown = JSON.parse(text);
-  if (!isRecord(data) || !Array.isArray(data.games)) throw new Error("Keine Sicherung der Schach-Analyse.");
+  if (!isRecord(data) || !Array.isArray(data.games)) throw new Error(`Keine Sicherung von ${BRAND}.`);
   const games = data.games.filter(
     (g): g is StoredGame => isRecord(g) && typeof g.id === "string" && typeof g.pgn === "string" && !g.deleted,
   );

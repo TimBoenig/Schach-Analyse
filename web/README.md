@@ -1,4 +1,4 @@
-# Schach Analyse – Web-App (PWA)
+# EndGameKing – Web-App (PWA)
 
 Browser-Version von Chess Analyzer Pro für iPad, iPhone und Android. Läuft als
 installierbare Progressive Web App: Stockfish rechnet als WebAssembly lokal auf
@@ -8,7 +8,7 @@ Einstellungen zwischen Geräten ab.
 
 ## Installieren auf iPad / iPhone
 
-1. Die veröffentlichte Adresse in **Safari** öffnen.
+1. <https://endgameking.com> in **Safari** öffnen.
 2. **Teilen** → **Zum Home-Bildschirm**.
 3. Die App startet danach im Vollbild und offline.
 

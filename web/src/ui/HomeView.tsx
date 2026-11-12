@@ -25,6 +25,7 @@ import {
   type PuzzleExercise,
   puzzleOfTheDay,
 } from "../domain/training";
+import { BRAND } from "../brand";
 import { syncAvailable } from "../storage/sync";
 import { Journey } from "./home/Journey";
 import { LeagueTeaser } from "./home/LeagueTeaser";
@@ -417,6 +418,10 @@ export function HomeView() {
     return (
       <div class="welcome">
         <div class="welcome-hero card">
+          <p class="brand-mark">
+            <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
+            {BRAND}
+          </p>
           <CoachAvatar size={112} mood="wow" />
           <h1>Hi, ich bin {COACH_NAME}!</h1>
           <p class="muted">

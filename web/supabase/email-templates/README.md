@@ -10,8 +10,9 @@ Dashboard → Authentication → URL Configuration:
 
 | Feld | Wert |
 |---|---|
-| Site URL | `https://schach-analyse.vercel.app` |
-| Redirect URLs | `https://schach-analyse.vercel.app/**` |
+| Site URL | `https://endgameking.com` |
+| Redirect URLs | `https://endgameking.com/**` |
+| | `https://www.endgameking.com/**` |
 | | `http://localhost:5173/**` (nur für lokale Entwicklung) |
 
 Die App bittet Supabase, nach dem Klick zurück auf die eigene Adresse zu
@@ -26,9 +27,9 @@ setzen und den Inhalt der HTML-Datei in „Message body“ einfügen:
 
 | Vorlage | Betreff | Datei |
 |---|---|---|
-| Confirm signup | `Willkommen bei Schach-Analyse – bitte bestätigen` | `confirm-signup.html` |
-| Reset Password | `Neues Passwort für Schach-Analyse` | `reset-password.html` |
-| Magic Link | `Dein Anmeldelink für Schach-Analyse` | `magic-link.html` |
+| Confirm signup | `Willkommen bei EndGameKing – bitte bestätigen` | `confirm-signup.html` |
+| Reset Password | `Neues Passwort für EndGameKing` | `reset-password.html` |
+| Magic Link | `Dein Anmeldelink für EndGameKing` | `magic-link.html` |
 | Change Email Address | `Neue E-Mail-Adresse bestätigen` | `change-email.html` |
 
 
@@ -47,7 +48,7 @@ oft im Spam. Für echte Nutzer braucht es einen SMTP-Dienst, z. B. Resend
 2. API-Key anlegen.
 3. Supabase → Authentication → Emails → SMTP Settings → „Enable custom SMTP“:
    Host `smtp.resend.com`, Port `465`, User `resend`, Passwort = API-Key,
-   Absender z. B. `Schach-Analyse <konto@deine-domain.de>`.
+   Absender `EndGameKing <konto@endgameking.com>`.
 4. Authentication → Rate Limits: „Emails sent per hour“ auf z. B. 100 erhöhen.
 
 ## 4. Konto selbst löschen
