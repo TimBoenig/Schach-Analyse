@@ -833,3 +833,24 @@ button.ar-row:hover {
 .welcome-steps li::before {
   color: var(--accent-text);
 }
+
+/* ---------- brand: wordmark on the welcome card ---------- */
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin: 0 0 20px;
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.brand-mark img {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 1px var(--border);
+}

@@ -1,4 +1,5 @@
 // Collects everything for the export from storage and hands the file to the browser.
+import { FILE_PREFIX } from "../brand";
 import { type ExportSetting, gamesCsv, gamesInPeriod, gamesPgn, parseBackup } from "../domain/export";
 import { localDay } from "../domain/training";
 import { getSetting, listGames, listSettingRecords, putGames, putSettingRecords } from "../storage/db";
@@ -19,7 +20,7 @@ function download(content: string, name: string, type: string): void {
 }
 
 function fileName(ext: string): string {
-  return `schach-analyse-${localDay()}.${ext}`;
+  return `${FILE_PREFIX}-${localDay()}.${ext}`;
 }
 
 /** Builds and downloads the chosen export; resolves with the number of games in it. */
@@ -90,6 +91,6 @@ export async function exportForAi(dateFilter: string, detail: AiExportDetail = "
     .filter((s) => !s.deleted && s.key.startsWith("training."))
     .map((s) => ({ key: s.key, value: s.value, updated_at: s.updated_at }));
   const r = await buildAiExportInWorker({ games, usernames, dateFilter, settings, today: localDay(), now: Date.now(), detail });
-  if (r.games) download(r.text, `schach-analyse-ki-${localDay()}.md`, "text/markdown;charset=utf-8");
+  if (r.games) download(r.text, `${FILE_PREFIX}-ki-${localDay()}.md`, "text/markdown;charset=utf-8");
   return { games: r.games, analyzed: r.analyzed };
 }

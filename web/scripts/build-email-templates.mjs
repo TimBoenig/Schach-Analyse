@@ -8,6 +8,9 @@ const OUT = fileURLToPath(new URL("../supabase/email-templates/", import.meta.ur
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const SERIF = "'Instrument Serif',Georgia,'Times New Roman',serif";
 const GOLD = "#c9a45c";
+// Keep in step with src/brand.ts (this script runs in plain Node, without the TS build).
+const BRAND = "EndGameKing";
+const SITE_URL = "https://endgameking.com";
 
 const benefit = (title, text) => `
 <tr><td style="padding:0 0 12px;">
@@ -27,8 +30,8 @@ function mail({ title, preheader, lead, button, extra = "", note }) {
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:500px;background:#ffffff;border-radius:18px;overflow:hidden;">
 <tr><td style="background:#0d0e11;padding:22px 30px;border-bottom:3px solid ${GOLD};">
-<span style="font:24px/1 ${SERIF};color:${GOLD};">&#9822;</span>
-<span style="font:22px/1 ${SERIF};color:#f4f1e8;letter-spacing:.3px;padding-left:8px;">Schach-Analyse</span>
+<span style="font:24px/1 ${SERIF};color:${GOLD};">&#9818;</span>
+<span style="font:22px/1 ${SERIF};color:#f4f1e8;letter-spacing:.3px;padding-left:8px;">${BRAND}</span>
 </td></tr>
 <tr><td style="padding:34px 30px 6px;">
 <h1 style="margin:0 0 14px;font:400 30px/1.15 ${SERIF};color:#14120e;">${title}</h1>
@@ -43,7 +46,7 @@ ${extra}
 <p style="margin:0;padding-top:16px;border-top:1px solid #ece8df;font:12px/1.6 ${SANS};color:#8a8a8a;">Funktioniert der Knopf nicht? Kopiere diesen Link in deinen Browser:<br><a href="{{ .ConfirmationURL }}" style="color:#6b6b6b;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
 </td></tr>
 </table>
-<p style="margin:16px 0 0;font:12px/1.6 ${SANS};color:#9a9a9a;">Schach-Analyse &middot; deine Partien, dein Profil, dein Training<br>Diese Mail wurde automatisch verschickt, weil jemand diese Adresse in der App eingegeben hat.</p>
+<p style="margin:16px 0 0;font:12px/1.6 ${SANS};color:#9a9a9a;"><a href="${SITE_URL}" style="color:#9a9a9a;text-decoration:none;">${BRAND}.com</a> &middot; deine Partien, dein Profil, dein Training<br>Diese Mail wurde automatisch verschickt, weil jemand diese Adresse in der App eingegeben hat.</p>
 </td></tr></table>
 </body></html>
 `;
@@ -62,7 +65,7 @@ const templates = {
   "magic-link.html": mail({
     title: "Dein Anmeldelink",
     preheader: "Ein Klick und du bist angemeldet, ganz ohne Passwort.",
-    lead: "Tippe auf den Knopf und du bist in Schach-Analyse angemeldet. Der Link gilt eine Stunde und nur einmal.",
+    lead: `Tippe auf den Knopf und du bist bei ${BRAND} angemeldet. Der Link gilt eine Stunde und nur einmal.`,
     button: "Jetzt anmelden",
     note: "Du wolltest dich nicht anmelden? Dann ignoriere diese Mail einfach. Ohne den Link kommt niemand in dein Konto.",
   }),
@@ -75,7 +78,7 @@ const templates = {
   }),
   "change-email.html": mail({
     title: "Neue E-Mail-Adresse bestätigen",
-    preheader: "Bestätige deine neue Adresse für Schach-Analyse.",
+    preheader: `Bestätige deine neue Adresse für ${BRAND}.`,
     lead: "Du möchtest dein Konto künftig mit <strong>{{ .NewEmail }}</strong> nutzen. Bestätige die Änderung mit einem Klick.",
     button: "Neue Adresse bestätigen",
     note: "Das warst du nicht? Dann ignoriere diese Mail, es ändert sich nichts.",

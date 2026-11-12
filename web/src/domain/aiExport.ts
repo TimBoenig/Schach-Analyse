@@ -9,6 +9,7 @@
 // each costly move. Every game carries a short number (P001 = newest) that all
 // sections use, so the model can cite examples precisely.
 
+import { BRAND, BRAND_DOMAIN } from "../brand";
 import { pvToSan } from "./analyzer";
 import { explainMove } from "./explain";
 import { gamesInPeriod, type ExportSetting } from "./export";
@@ -55,7 +56,7 @@ export interface AiExportResult {
 
 /** The short message to paste next to the uploaded file. */
 export const AI_EXPORT_PROMPT =
-  "Im Anhang ist der Export meiner Schach-Analyse. Lies die ganze Datei und erstelle die ausführliche Analyse, " +
+  `Im Anhang ist der Export meiner Schachpartien aus ${BRAND}. Lies die ganze Datei und erstelle die ausführliche Analyse, ` +
   "die in Abschnitt 1 („Auftrag an die KI“) beschrieben ist. Halte dich an die Legende in Abschnitt 2.";
 
 // ---- formatting ----
@@ -199,9 +200,9 @@ function header(input: AiExportInput, items: GameItem[], profile: PlayerProfile 
   const range = w ? ` (${w.start != null ? iso(w.start) : "Anfang"} bis ${iso(w.end ?? nowSec)})` : "";
   const analyzed = items.filter((i) => i.analyzed).length;
   return [
-    "# Schach-Analyse: Datenpaket für eine KI-Auswertung",
+    `# ${BRAND}: Datenpaket für eine KI-Auswertung`,
     "",
-    `> Erstellt am ${input.today} mit der App „Schach-Analyse“ aus Stockfish-Analysen der eigenen Partien.`,
+    `> Erstellt am ${input.today} mit ${BRAND} (${BRAND_DOMAIN}) aus Stockfish-Analysen der eigenen Partien.`,
     `> Spieler: **${input.usernames.join(", ") || "?"}** · Zeitraum: ${trFilter(input.dateFilter || "All Time")}${range}`,
     `> ${items.length} eigene Partien, davon ${analyzed} mit der Engine analysiert${profile?.rating ? ` · aktuelle Wertung ${profile.rating.rating} (${trSpeed(profile.rating.speed)})` : ""}.`,
     ">",
