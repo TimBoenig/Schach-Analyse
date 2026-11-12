@@ -26,7 +26,32 @@ setzen und den Inhalt der HTML-Datei in „Message body“ einfügen:
 
 | Vorlage | Betreff | Datei |
 |---|---|---|
-| Confirm signup | `Bestätige deine E-Mail-Adresse` | `confirm-signup.html` |
+| Confirm signup | `Willkommen bei Schach-Analyse – bitte bestätigen` | `confirm-signup.html` |
 | Reset Password | `Neues Passwort für Schach-Analyse` | `reset-password.html` |
 | Magic Link | `Dein Anmeldelink für Schach-Analyse` | `magic-link.html` |
 | Change Email Address | `Neue E-Mail-Adresse bestätigen` | `change-email.html` |
+
+
+Die HTML-Dateien entstehen aus `web/scripts/build-email-templates.mjs`
+(`node scripts/build-email-templates.mjs`); Änderungen bitte dort machen.
+
+## 3. Eigener Mail-Versand (wichtig vor der Veröffentlichung)
+
+Ohne eigenen Mailserver verschickt Supabase höchstens **2 Mails pro Stunde**
+für das ganze Projekt, als Absender steht „Supabase Auth“, und die Mails landen
+oft im Spam. Für echte Nutzer braucht es einen SMTP-Dienst, z. B. Resend
+(3.000 Mails/Monat kostenlos):
+
+1. Bei resend.com registrieren, eine eigene Domain hinzufügen und die DNS-Einträge
+   (SPF, DKIM) setzen. Ohne eigene Domain geht es nur zu Testzwecken.
+2. API-Key anlegen.
+3. Supabase → Authentication → Emails → SMTP Settings → „Enable custom SMTP“:
+   Host `smtp.resend.com`, Port `465`, User `resend`, Passwort = API-Key,
+   Absender z. B. `Schach-Analyse <konto@deine-domain.de>`.
+4. Authentication → Rate Limits: „Emails sent per hour“ auf z. B. 100 erhöhen.
+
+## 4. Konto selbst löschen
+
+Den Knopf „Konto löschen“ gibt es in der App. Damit er das Konto wirklich
+entfernt (und nicht nur die Online-Daten), einmal
+`web/supabase/migrations/20261112_delete_account.sql` im SQL-Editor ausführen.

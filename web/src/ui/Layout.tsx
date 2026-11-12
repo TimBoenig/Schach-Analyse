@@ -127,6 +127,7 @@ export const AREAS: Area[] = [
       { label: "Analyse", about: "", route: { view: "settings", tab: "analyse" }, match: is("settings", (r) => r.tab === "analyse") },
       { label: "Daten & Export", about: "", route: { view: "settings", tab: "daten" }, match: is("settings", (r) => r.tab === "daten") },
       { label: "Konto", about: "", route: { view: "account" }, match: is("account") },
+      { label: "Rechtliches", about: "", route: { view: "legal" }, match: is("legal") },
     ],
   },
 ];

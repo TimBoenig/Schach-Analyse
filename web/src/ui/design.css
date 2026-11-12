@@ -3102,3 +3102,55 @@ div.lg-fame-card {
     stroke-dashoffset: 0;
   }
 }
+
+/* ---------- Konto: Vorteile, Mail-Status, Gefahrenzone ---------- */
+.benefit-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.benefit-list li { display: flex; gap: 12px; align-items: flex-start; }
+.benefit-list li > div { display: flex; flex-direction: column; gap: 2px; }
+.benefit-tick {
+  flex: none; width: 22px; height: 22px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+  background: var(--accent-soft); color: var(--accent);
+}
+.benefit-list.done .benefit-tick { background: var(--accent); color: var(--accent-text); }
+.unsaved-note {
+  margin: 12px 0 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--accent-soft); color: var(--text);
+}
+.account-name { display: block; font-size: 1.05rem; }
+.account-name .link-btn { font-weight: 400; }
+.account-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.danger-text { color: var(--loss); }
+.danger-zone {
+  padding: 12px 14px; border-radius: 12px; margin-bottom: 12px;
+  border: 1px solid color-mix(in srgb, var(--loss) 45%, transparent);
+  background: color-mix(in srgb, var(--loss) 8%, transparent);
+}
+.mail-sent { text-align: center; padding: 8px 4px; }
+.mail-sent h3 { margin: 10px 0 6px; }
+.mail-sent-icon {
+  width: 56px; height: 56px; margin: 0 auto; border-radius: 50%;
+  display: grid; place-items: center; font-size: 26px;
+  background: var(--accent-soft); color: var(--accent);
+}
+.mail-tips { text-align: left; margin: 12px auto 16px; max-width: 420px; padding-left: 18px; display: grid; gap: 4px; }
+.legal-links { text-align: center; margin: 4px 0 0; }
+.legal-links a { color: inherit; }
+.tile-sub.ok { color: var(--win); }
+
+/* ---------- Start: Hinweis Konto / Installieren ---------- */
+.nudge {
+  display: flex; align-items: center; gap: 14px; justify-content: space-between;
+  flex-wrap: wrap; padding: 14px 16px; margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.nudge-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.nudge-actions { display: flex; gap: 8px; flex: none; }
+
+/* ---------- Rechtliches ---------- */
+.legal-text { padding: 22px 24px; max-width: 760px; line-height: 1.65; }
+.legal-text h2 { margin-top: 0; }
+.legal-text h3 { margin: 20px 0 6px; font-size: 1rem; }
+.legal-text p { margin: 0 0 10px; color: var(--text-2); }
+.legal-text a { color: var(--accent); }
+.placeholder-field { color: var(--loss); font-style: italic; }

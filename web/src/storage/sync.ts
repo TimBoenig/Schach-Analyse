@@ -388,6 +388,90 @@ export async function deleteCloudData(): Promise<void> {
   await signOut();
 }
 
+/**
+ * Passwordless sign-in: mails a one-click link. Creates the account on first
+ * use, so it doubles as the quickest way to register.
+ */
+export async function signInWithLink(email: string): Promise<void> {
+  const { error } = await (await requireClient()).auth.signInWithOtp({
+    email: email.trim(),
+    options: { emailRedirectTo: accountUrl(), shouldCreateUser: true },
+  });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+/** Sends the confirmation mail of a fresh registration again. */
+export async function resendConfirmation(email: string): Promise<void> {
+  const { error } = await (await requireClient()).auth.resend({
+    type: "signup",
+    email: email.trim(),
+    options: { emailRedirectTo: accountUrl() },
+  });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+export interface AccountInfo {
+  email: string;
+  displayName: string;
+  createdAt: number;
+}
+
+export async function accountInfo(): Promise<AccountInfo | null> {
+  const user = await currentUser();
+  if (!user) return null;
+  const meta = (user.user_metadata ?? {}) as { display_name?: string };
+  return {
+    email: user.email ?? "",
+    displayName: meta.display_name ?? "",
+    createdAt: user.created_at ? Date.parse(user.created_at) : 0,
+  };
+}
+
+export async function setDisplayName(name: string): Promise<void> {
+  const { error } = await (await requireClient()).auth.updateUser({ data: { display_name: name.trim().slice(0, 40) } });
+  if (error) throw new Error(translateAuthError(error.message));
+}
+
+/** Number of games this account keeps online (not counting deleted ones). */
+export async function cloudGameCount(): Promise<number | null> {
+  const sb = await supabase();
+  const user = await currentUser();
+  if (!sb || !user) return null;
+  const { count, error } = await sb
+    .from("sync_records")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("kind", "game")
+    .eq("deleted", false);
+  return error ? null : (count ?? 0);
+}
+
+/**
+ * Deletes the account itself together with its online data. Returns false
+ * when the server has no delete function yet; then only the online data is
+ * removed (the login stays until the operator deletes it).
+ */
+export async function deleteAccount(): Promise<boolean> {
+  const sb = await requireClient();
+  const { error } = await sb.rpc("delete_account");
+  if (error) {
+    if (/could not find|does not exist|PGRST202/i.test(`${error.code} ${error.message}`)) {
+      await deleteCloudData();
+      return false;
+    }
+    throw new Error(describeSyncError(error));
+  }
+  await putSettingRecords(
+    [
+      { key: "sync.owner", value: "", updated_at: 0 },
+      { key: "sync.lastSeq", value: 0, updated_at: 0 },
+    ],
+    true,
+  );
+  await signOut().catch(() => undefined);
+  return true;
+}
+
 /** Calls `cb` on sign-in, sign-out and when a password-reset link was opened. */
 export async function onAuthEvent(cb: (event: AuthChangeEvent) => void): Promise<() => void> {
   const sb = await supabase();
@@ -404,7 +488,9 @@ function translateAuthError(msg: string): string {
   if (/invalid login/i.test(msg)) return "E-Mail oder Passwort ist falsch.";
   if (/not confirmed/i.test(msg)) return "Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Bestätigungsmail.";
   if (/already registered|already been registered/i.test(msg)) return "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.";
+  if (/email rate limit/i.test(msg)) return "Gerade wurden zu viele E-Mails verschickt. Bitte versuche es in einer Stunde noch einmal oder melde dich mit Passwort an.";
   if (/rate limit|too many|security purposes/i.test(msg)) return "Zu viele Versuche. Bitte warte kurz und probiere es dann noch einmal.";
+  if (/signups not allowed|signup.*disabled/i.test(msg)) return "Neue Konten sind gerade nicht möglich. Bitte versuche es später noch einmal.";
   if (/invalid.*email|email.*invalid/i.test(msg)) return "Diese E-Mail-Adresse ist ungültig.";
   if (/same password|different from the old/i.test(msg)) return "Das neue Passwort muss sich vom alten unterscheiden.";
   if (/failed to fetch|network|load failed/i.test(msg)) return "Keine Verbindung zum Sync-Server. Bitte prüfe deine Internetverbindung.";
