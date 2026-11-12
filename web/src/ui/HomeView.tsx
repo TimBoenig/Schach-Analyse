@@ -26,17 +26,20 @@ import {
   puzzleOfTheDay,
 } from "../domain/training";
 import { syncAvailable } from "../storage/sync";
+import { Journey } from "./home/Journey";
+import { LeagueTeaser } from "./home/LeagueTeaser";
 import { HomeNudge } from "./HomeNudge";
+import { CountUp, Hero, HeroStat, ResultRibbon } from "./kit";
 import { PageHeader } from "./Layout";
-import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring, Sparkline } from "./charts";
-import { Coach, CoachAvatar, COACH_NAME, type Mood } from "./Coach";
+import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring } from "./charts";
+import { CoachAvatar, COACH_NAME, type Mood } from "./Coach";
 import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
 import { formatDate, shortOpening } from "./labels";
 import { navigate } from "./router";
 import { PuzzleRunner } from "./training/Runners";
-import { loadTodayTraining, loadTrainingProgress, recordTrainingResult, type TodayTraining } from "./training/useTraining";
+import { loadFullProfile, loadTodayTraining, loadTrainingProgress, recordTrainingResult, type TodayTraining } from "./training/useTraining";
 import { useBulletPrefs } from "./useAnalysisPrefs";
-import { FilterBar, useProfile } from "./useProfile";
+import { useProfile } from "./useProfile";
 
 // One tap for the periods that matter day to day; the filter bar below has the rest.
 const QUICK: [string, string][] = [
@@ -49,18 +52,17 @@ const QUICK: [string, string][] = [
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
-function kpiText(k: KpiChange, v: number | null): string {
-  if (v === null) return "–";
+function kpiFormat(k: KpiChange): (v: number) => string {
   switch (k.key) {
     case "games":
     case "rating":
-      return String(Math.round(v));
+      return (v) => String(Math.round(v));
     case "blunders":
-      return de(v, 2);
+      return (v) => de(v, 2);
     case "accuracy":
-      return de(v, 1);
+      return (v) => de(v, 1);
     default:
-      return `${Math.round(v)} %`;
+      return (v) => `${Math.round(v)} %`;
   }
 }
 
@@ -76,30 +78,63 @@ function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
   return CATEGORY_ORDER.find((c) => CATEGORIES[c].skills.includes(skill) && pool.some((e) => e.category === c));
 }
 
-function KpiStrip({ kpis, label }: { kpis: KpiChange[]; label: string }) {
+const RESULT_WORD = (score: number | null) => (score === 1 ? "Sieg" : score === 0 ? "Niederlage" : score === null ? "offen" : "Remis");
+
+/** Run of equal results at the newest end, e.g. "3 Siege in Folge"; null below two. */
+function streakText(games: { score: number | null }[]): string | null {
+  const first = games[0]?.score;
+  if (first === null || first === undefined) return null;
+  let n = 0;
+  while (n < games.length && games[n].score === first) n++;
+  if (n < 2) return null;
+  return `${n} ${first === 1 ? "Siege" : first === 0 ? "Niederlagen" : "Remis"} in Folge`;
+}
+
+/** The last results as tiles and the period's key figures, each with its change. */
+function FormCard({ profile, kpis, label }: { profile: PlayerProfile; kpis: KpiChange[]; label: string }) {
+  const last = profile.recent_games.slice(0, 12);
+  const streak = streakText(last);
   return (
-    <section class="card kpi-strip span-12" aria-label={`Kennzahlen ${label}`}>
-      {kpis.map((k) => {
-        const t = trendOf(k);
-        return (
-          <div class="kpi-cell" key={k.key}>
-            <div class="kpi-label">{k.label}</div>
-            <div class="kpi-value tnum">{kpiText(k, k.value)}</div>
-            <div class="kpi-delta small">
-              {k.delta !== null ? (
-                <>
-                  <span class={`pill ${k.key === "games" ? "draw" : t === "up" ? "win" : t === "down" ? "loss" : "draw"}`}>
-                    {deltaText(k)}
-                  </span>{" "}
-                  <span class="faint">vorher {kpiText(k, k.previous)}</span>
-                </>
-              ) : (
-                <span class="faint">kein Vergleich</span>
-              )}
+    <section class="card tile span-12 form-card">
+      <div class="tile-head">
+        <h3>Deine Form</h3>
+        <span class="tile-sub">
+          letzte {last.length} Partien{streak ? ` · ${streak}` : ""}
+        </span>
+        <span class="spacer" />
+        <span class="tile-sub">Kennzahlen: {label}</span>
+      </div>
+      {last.length ? (
+        <ResultRibbon
+          games={[...last].reverse().map((g) => ({ id: g.game_id, score: g.score, title: `${formatDate(g.date)} gegen ${g.opponent}: ${RESULT_WORD(g.score)}` }))}
+          onPick={(id) => navigate({ view: "analysis", gameId: id })}
+        />
+      ) : (
+        <p class="muted small">Keine Partien in diesem Zeitraum.</p>
+      )}
+      <div class="ar-stat-row" aria-label={`Kennzahlen ${label}`}>
+        {kpis.map((k) => {
+          const t = trendOf(k);
+          return (
+            <div class="ar-stat" key={k.key}>
+              <span class="kpi-label">{k.label}</span>
+              <span class="ar-stat-value">
+                <CountUp value={k.value} format={kpiFormat(k)} />
+              </span>
+              <span class="small">
+                {k.delta !== null ? (
+                  <>
+                    <span class={`pill ${k.key === "games" ? "draw" : t === "up" ? "win" : t === "down" ? "loss" : "draw"}`}>{deltaText(k)}</span>{" "}
+                    <span class="faint">vorher {k.previous === null ? "–" : kpiFormat(k)(k.previous)}</span>
+                  </>
+                ) : (
+                  <span class="faint">kein Vergleich</span>
+                )}
+              </span>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -258,76 +293,6 @@ export function RecentGames({ profile }: { profile: PlayerProfile }) {
 
 const TODAY_LABEL = () => new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
 
-/** The last results as a row of tiles, oldest left, plus rating trend and accuracy. */
-function FormCard({ profile }: { profile: PlayerProfile }) {
-  const last = profile.recent_games.slice(0, 10);
-  const chain = [...last].reverse();
-  const wins = last.filter((g) => g.score === 1).length;
-  const draws = last.filter((g) => g.score === 0.5).length;
-  const losses = last.filter((g) => g.score === 0).length;
-  const accs = last.map((g) => g.accuracy).filter((a): a is number => a !== null);
-  const recentAcc = accs.length ? accs.reduce((s, a) => s + a, 0) / accs.length : null;
-  const overallAcc = profile.analyzed_games ? profile.overview.avg_accuracy : null;
-  const rc = profile.rating;
-  const series = (profile.trends.ratings ?? {}) as Record<string, [number, number][]>;
-  const key = rc && series[trSpeed(rc.speed)] ? trSpeed(rc.speed) : Object.keys(series).sort((a, b) => series[b].length - series[a].length)[0];
-  const points = (series[key] ?? []).slice(-20).map(([, r]) => r);
-  const ratingDelta = points.length >= 2 ? points[points.length - 1] - points[0] : null;
-  return (
-    <section class="card tile span-4 form-card">
-      <div class="tile-head">
-        <h3>Deine Form</h3>
-        <span class="tile-sub">letzte {last.length} Partien</span>
-      </div>
-      {last.length ? (
-        <>
-          <div class="form-chain" role="img" aria-label={`${wins} Siege, ${draws} Remis, ${losses} Niederlagen`}>
-            {chain.map((g) => (
-              <button
-                key={g.game_id}
-                class={`form-dot ${g.score === 1 ? "win" : g.score === 0 ? "loss" : g.score === null ? "open" : "draw"}`}
-                title={`${formatDate(g.date)} gegen ${g.opponent}: ${g.score === 1 ? "Sieg" : g.score === 0 ? "Niederlage" : g.score === null ? "offen" : "Remis"}`}
-                onClick={() => navigate({ view: "analysis", gameId: g.game_id })}
-              >
-                {g.score === 1 ? "S" : g.score === 0 ? "N" : g.score === null ? "·" : "R"}
-              </button>
-            ))}
-          </div>
-          <div class="small muted">
-            <strong class="ok">{wins} Siege</strong> · {draws} Remis · <span class="bad">{losses} Niederlagen</span>
-          </div>
-          <div class="form-rows">
-            {rc && (
-              <div class="form-row">
-                <div>
-                  <span class="kpi-label">Wertung {key}</span>
-                  <strong class="tnum form-big">{points.length ? points[points.length - 1] : rc.rating}</strong>
-                  {ratingDelta !== null && (
-                    <span class={`pill ${ratingDelta > 0 ? "win" : ratingDelta < 0 ? "loss" : "draw"}`}>
-                      {ratingDelta > 0 ? "+" : ratingDelta < 0 ? "−" : "±"}
-                      {Math.abs(ratingDelta)}
-                    </span>
-                  )}
-                </div>
-                <Sparkline values={points} />
-              </div>
-            )}
-            <div class="form-row">
-              <div>
-                <span class="kpi-label">Genauigkeit zuletzt</span>
-                <strong class="tnum form-big">{recentAcc !== null ? `${de(recentAcc)} %` : "–"}</strong>
-              </div>
-              <span class="small faint">{overallAcc !== null ? `Schnitt im Zeitraum ${de(overallAcc)} %` : "noch nichts analysiert"}</span>
-            </div>
-          </div>
-        </>
-      ) : (
-        <p class="muted small">Keine Partien in diesem Zeitraum.</p>
-      )}
-    </section>
-  );
-}
-
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
 /** This week day by day: games played and the score on each day. */
@@ -390,6 +355,8 @@ export function HomeView() {
   const { profile, comparison, games, usernames, loading, error, filters, setFilters } = useProfile({ compare: true });
   const [today, setToday] = useState<TodayTraining | null>(null);
   const [progress, setProgress] = useState<ProgressMap | null>(null);
+  // The rating journey looks at the whole history, whatever period is picked above.
+  const [full, setFull] = useState<PlayerProfile | null>(null);
 
   const refreshToday = () => void loadTodayTraining().then(setToday).catch(() => setToday(null));
   useEffect(() => {
@@ -398,6 +365,11 @@ export function HomeView() {
   }, []);
 
   const names = usernames ?? [];
+  useEffect(() => {
+    if (!profile) return;
+    if (filters.date === "All Time" && filters.color === "All Colors" && filters.format === "All Formats") setFull(profile);
+    else void loadFullProfile().then(setFull).catch(() => setFull(null));
+  }, [profile]);
   const { skipBullet } = useBulletPrefs();
   const daily = useMemo(() => dailyActivity(games, names), [games, usernames]);
   const calendar = useMemo(() => activityCalendar(daily, localDay(), 1), [daily]);
@@ -448,7 +420,6 @@ export function HomeView() {
           </div>
         }
       />
-      <FilterBar filters={filters} onChange={setFilters} hideDate />
     </>
   );
 
@@ -553,52 +524,76 @@ export function HomeView() {
     notes[0] ??
     (today?.streak ? `Stark, ${today.streak} Tage in Folge trainiert! Weiter so.` : `Schön, dass du da bist${names[0] ? `, ${names[0]}` : ""}!`);
   const lastGame = profile.recent_games[0];
+  const rc = profile.rating;
+  const ratingKpi = cmp.kpis.find((k) => k.key === "rating");
+  const fullRc = full?.rating ?? null;
+  const journeySeries = fullRc ? (((full?.trends.ratings ?? {}) as Record<string, [number, number][]>)[trSpeed(fullRc.speed)] ?? []) : [];
+  const topWeakness = (full ?? comparison.current).weaknesses[0];
+  const leverCat = topWeakness ? skillCategory(topWeakness.key, (full ?? comparison.current).exercises) : undefined;
+  const lever = topWeakness ? { title: topWeakness.title, go: () => navigate(leverCat ? { view: "training", tab: "uebungen", category: leverCat } : { view: "training" }) } : null;
 
   return (
     <div class="home" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
       <HomeNudge games={games.length} />
       <div class="dash">
-        <section class="card span-8 home-hero">
-          <Coach mood={heroMood} size={72} class="big" title={heroTitle}>
-            {comparison.fallback && <p class="small">Ich vergleiche deine letzten 30 Tage mit den 30 Tagen davor.</p>}
-            {notes.length > 1 ? (
-              <ul class="fact-list">
-                {notes.slice(1).map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
-            ) : notes.length === 0 ? (
-              <p>
-                {comparison.current.total_games
+        <Hero
+          class="home-hero"
+          kicker={
+            <span class="home-kicker">
+              <CoachAvatar size={26} mood={heroMood} /> {COACH_NAME} · {vsLabel}
+            </span>
+          }
+          title={heroTitle}
+          sub={
+            notes.length > 1
+              ? notes.slice(1, 3).join(" ")
+              : notes.length === 0
+                ? comparison.current.total_games
                   ? "Noch keine deutlichen Veränderungen. Mit mehr analysierten Partien kann ich dir genauer sagen, wohin die Reise geht."
-                  : "In diesem Zeitraum hast du noch keine Partie gespielt. Spiel ein paar Partien und lade sie hoch, dann schaue ich sie mir an."}
-              </p>
-            ) : null}
-          </Coach>
-          <WeekStrip week={calendar[calendar.length - 1]} today={localDay()} />
-          <div class="today-strip">
-            <Ring value={done} total={planned || 1} size={58}>
-              <strong class="tnum">{planned ? `${done}/${planned}` : done}</strong>
-            </Ring>
-            <div class="today-text">
-              <span class="kpi-label">Heute</span>
-              <strong>{planned ? (done >= planned ? "Tagesplan geschafft" : `${planned - done} Übungen offen`) : done ? `${done} Übungen gelöst` : "Noch nicht trainiert"}</strong>
-              <span class="small muted">
-                {today?.streak ? `${today.streak} ${today.streak === 1 ? "Tag" : "Tage"} in Folge` : "Starte heute eine Serie"}
-                {today?.week.done ? ` · diese Woche ${today.week.correct} von ${today.week.done} richtig` : ""}
-              </span>
-            </div>
-            <div class="hero-actions">
-              <button class="btn primary big" onClick={() => navigate({ view: "training" })}>
-                <IconPlay /> {done && planned && done >= planned ? "Weiter üben" : "Tagesplan starten"}
-              </button>
-              {open.length > 0 && (
-                <button class="btn" onClick={() => void enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
-                  {open.length} {open.length === 1 ? "Partie" : "Partien"} analysieren
+                  : "In diesem Zeitraum hast du noch keine Partie gespielt. Spiel ein paar Partien und lade sie hoch, dann schaue ich sie mir an."
+                : undefined
+          }
+          aside={
+            rc ? (
+              <HeroStat
+                big={<CountUp value={rc.rating} />}
+                label={`Wertung ${trSpeed(rc.speed)}`}
+                sub={ratingKpi?.delta ? `${ratingKpi.delta > 0 ? "+" : "−"}${Math.abs(Math.round(ratingKpi.delta))} · ${comparison.label}` : comparison.label}
+                onClick={() => navigate({ view: "profile" })}
+                title="Zu deinem Profil"
+              />
+            ) : acc?.value != null ? (
+              <HeroStat big={<CountUp value={acc.value} format={(v) => de(v, 1)} />} label="Genauigkeit" sub={comparison.label} onClick={() => navigate({ view: "profile" })} />
+            ) : undefined
+          }
+        >
+          {journeySeries.length >= 2 && fullRc && <Journey series={journeySeries} speed={trSpeed(fullRc.speed)} lever={lever} />}
+          <div class="home-today">
+            <div class="today-strip">
+              <Ring value={done} total={planned || 1} size={58}>
+                <strong class="tnum">{planned ? `${done}/${planned}` : done}</strong>
+              </Ring>
+              <div class="today-text">
+                <span class="kpi-label">Heute</span>
+                <strong>{planned ? (done >= planned ? "Tagesplan geschafft" : `${planned - done} Übungen offen`) : done ? `${done} Übungen gelöst` : "Noch nicht trainiert"}</strong>
+                <span class="small muted">
+                  {today?.streak ? `${today.streak} ${today.streak === 1 ? "Tag" : "Tage"} in Folge` : "Starte heute eine Serie"}
+                  {today?.week.done ? ` · diese Woche ${today.week.correct} von ${today.week.done} richtig` : ""}
+                </span>
+              </div>
+              <div class="hero-actions">
+                <button class="btn primary big" onClick={() => navigate({ view: "training" })}>
+                  <IconPlay /> {done && planned && done >= planned ? "Weiter üben" : "Tagesplan starten"}
                 </button>
-              )}
+                {open.length > 0 && (
+                  <button class="btn" onClick={() => void enqueue(open)} title={`Offene Partien im Zeitraum ${period}`}>
+                    {open.length} {open.length === 1 ? "Partie" : "Partien"} analysieren
+                  </button>
+                )}
+              </div>
             </div>
+            <WeekStrip week={calendar[calendar.length - 1]} today={localDay()} />
           </div>
           <div class="hero-links">
             <button class="link-chip" onClick={() => navigate(lastGame ? { view: "analysis", gameId: lastGame.game_id } : { view: "games" })}>
@@ -610,13 +605,12 @@ export function HomeView() {
             <button class="link-chip" onClick={() => navigate({ view: "board" })}>
               <IconFreeBoard /> Analysebrett
             </button>
-            <span class="tile-sub hero-sub">{vsLabel}</span>
           </div>
-        </section>
+        </Hero>
 
-        <FormCard profile={profile} />
+        <FormCard profile={profile} kpis={cmp.kpis} label={comparison.label} />
 
-        <KpiStrip kpis={cmp.kpis} label={comparison.label} />
+        <LeagueTeaser games={games} me={names} />
 
         <DailyPuzzle
           ex={puzzle}

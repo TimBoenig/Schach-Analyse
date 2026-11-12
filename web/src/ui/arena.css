@@ -1,0 +1,525 @@
+/* ==========================================================================
+   Arena layer (2026-11): the league look for the whole app.
+
+   Loaded after design.css. Three parts:
+   1. motion every page gets for free (cards rise in on scroll, bars and
+      lines grow once), switched on by ui/motion.ts via `html.motion`;
+   2. the shared kit of ui/kit.tsx (hero, track, ribbon, meters, choices);
+   3. the pages built from it.
+   Only transform, opacity and clip-path move, so nothing reflows.
+   ========================================================================== */
+
+/* ---------- 1. motion ---------- */
+
+html.motion .dash > .card,
+html.motion .dash > .section-head,
+html.motion .reveal {
+  transition:
+    opacity 0.55s var(--ease),
+    transform 0.65s var(--ease);
+}
+html.motion .dash > .card:not([data-in]),
+html.motion .dash > .section-head:not([data-in]),
+html.motion .reveal:not([data-in]) {
+  opacity: 0;
+  transform: translateY(18px);
+}
+html.motion [data-rv="1"] {
+  transition-delay: 70ms;
+}
+html.motion [data-rv="2"] {
+  transition-delay: 140ms;
+}
+html.motion [data-rv="3"] {
+  transition-delay: 210ms;
+}
+html.motion [data-rv="4"] {
+  transition-delay: 280ms;
+}
+html.motion [data-rv="5"] {
+  transition-delay: 350ms;
+}
+html.motion [data-rv="6"] {
+  transition-delay: 420ms;
+}
+
+/* Bars, columns and stacked bars grow once their card has arrived. */
+html.motion .bar-fill,
+html.motion .change-fill {
+  transform-origin: left center;
+  transition: transform 0.9s var(--ease) 0.2s;
+}
+html.motion .change-row.down .change-fill {
+  transform-origin: right center;
+}
+html.motion .card:not([data-in]) .bar-fill,
+html.motion .card:not([data-in]) .change-fill {
+  transform: scaleX(0);
+}
+html.motion .column-bar {
+  transform-origin: center bottom;
+  transition: transform 0.8s var(--ease) 0.2s;
+}
+html.motion .card:not([data-in]) .column-bar {
+  transform: scaleY(0);
+}
+html.motion .stack-bar {
+  transition: clip-path 1s var(--ease) 0.2s;
+  clip-path: inset(0 0 0 0 round 999px);
+}
+html.motion .card:not([data-in]) .stack-bar {
+  clip-path: inset(0 100% 0 0 round 999px);
+}
+
+/* Lines draw themselves, areas and dots follow. */
+html.motion .chart .line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1.3s var(--ease) 0.25s;
+}
+html.motion .card:not([data-in]) .chart .line {
+  stroke-dashoffset: 1;
+}
+html.motion .chart .area-fill,
+html.motion .chart .line-dot {
+  transition: opacity 0.6s ease 0.9s;
+}
+html.motion .card:not([data-in]) .chart .area-fill,
+html.motion .card:not([data-in]) .chart .line-dot {
+  opacity: 0;
+}
+html.motion .radar-area,
+html.motion .radar-dot {
+  transform-box: view-box;
+  transform-origin: center;
+  transition:
+    transform 0.9s var(--ease) 0.25s,
+    opacity 0.5s ease 0.25s;
+}
+html.motion .card:not([data-in]) .radar-area,
+html.motion .card:not([data-in]) .radar-dot {
+  transform: scale(0.2);
+  opacity: 0;
+}
+html.motion .donut svg,
+html.motion .ring svg {
+  transition:
+    transform 0.9s var(--ease) 0.15s,
+    opacity 0.5s ease 0.15s;
+}
+html.motion .card:not([data-in]) .donut svg,
+html.motion .card:not([data-in]) .ring svg {
+  transform: rotate(-90deg) scale(0.86);
+  opacity: 0;
+}
+
+/* Cards answer to the pointer. */
+@media (hover: hover) {
+  .dash > .card.tile,
+  .dash > .card.lg-hero {
+    transition:
+      opacity 0.55s var(--ease),
+      transform 0.65s var(--ease),
+      box-shadow 0.3s var(--ease);
+  }
+  .dash > .card.tile:hover {
+    box-shadow: 0 0 0 1px var(--border-strong);
+  }
+}
+
+/* ---------- 2. kit ---------- */
+
+.lg-hero-text {
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.lg-hero-title {
+  text-wrap: balance;
+}
+.lg-hero-title em {
+  font-style: normal;
+  color: var(--text-3);
+}
+.lg-hero-me.as-button {
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.lg-hero-me.as-button:hover {
+  background: var(--surface-3);
+}
+.lg-hero-place .unit {
+  font-size: 0.5em;
+  letter-spacing: -0.02em;
+  color: var(--text-2);
+}
+
+.lg-track-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.lg-track-btn .pl-avatar {
+  transition:
+    transform 0.25s var(--ease),
+    box-shadow 0.25s var(--ease);
+}
+.lg-track-btn:hover .pl-avatar,
+.lg-track-pos.picked .pl-avatar {
+  transform: scale(1.12);
+}
+.lg-track-pos.picked .pl-avatar {
+  box-shadow:
+    0 0 0 3px var(--surface),
+    0 0 0 5px var(--tone);
+}
+.lg-track-pos.picked .lg-track-label {
+  color: var(--text);
+  font-weight: 650;
+}
+.lg-track .pl-avatar svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Tones for things that are not people: the parts of a game, goals, marks. */
+.tone-a {
+  --tone: var(--p0);
+  --tone-ink: var(--p-ink);
+}
+.tone-b {
+  --tone: var(--p1);
+  --tone-ink: var(--p-ink);
+}
+.tone-c {
+  --tone: var(--p2);
+  --tone-ink: var(--p-ink);
+}
+.tone-d {
+  --tone: var(--p3);
+  --tone-ink: var(--p-ink);
+}
+.tone-e {
+  --tone: var(--p4);
+  --tone-ink: var(--p-ink);
+}
+.tone-f {
+  --tone: var(--p5);
+  --tone-ink: var(--p-ink);
+}
+.tone-quiet {
+  --tone: var(--surface-3);
+  --tone-ink: var(--text-2);
+}
+.tone-win {
+  --tone: var(--win);
+  --tone-ink: var(--p-ink);
+}
+.tone-loss {
+  --tone: var(--loss);
+  --tone-ink: var(--p-ink);
+}
+
+.ar-ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ar-ribbon-tile {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--p-ink);
+  background: var(--surface-3);
+  cursor: pointer;
+  animation: lg-pop 0.45s var(--ease) both;
+  animation-delay: calc(var(--i, 0) * 45ms + 120ms);
+  transition: transform 0.2s var(--ease);
+}
+.ar-ribbon-tile:hover {
+  transform: translateY(-3px);
+}
+.ar-ribbon-tile.win {
+  background: var(--win);
+}
+.ar-ribbon-tile.loss {
+  background: var(--loss);
+}
+.ar-ribbon-tile.draw {
+  background: var(--draw);
+}
+.ar-ribbon-tile.open {
+  color: var(--text-3);
+}
+
+.ar-meter {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.ar-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--tone, var(--text));
+  transition: width 1s var(--ease);
+}
+.ar-meter-ref {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 2px;
+  background: var(--text-3);
+}
+
+.ar-wdl {
+  display: flex;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.ar-wdl > span {
+  transition: width 1s var(--ease);
+}
+.ar-wdl .win {
+  background: var(--win);
+}
+.ar-wdl .draw {
+  background: var(--draw);
+}
+.ar-wdl .loss {
+  background: var(--loss);
+}
+
+.ar-choice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.ar-choice-label {
+  min-width: 86px;
+}
+
+/* A fact in big type with its unit and a line of context. */
+.ar-stat {
+  display: grid;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.ar-stat .kpi-label {
+  margin: 0;
+}
+.ar-stat-value {
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+.ar-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+button.ar-stat {
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    transform 0.2s var(--ease);
+}
+button.ar-stat:hover {
+  background: var(--surface-3);
+  transform: translateY(-2px);
+}
+
+/* The sentence a what-if or a picked marker answers with. */
+.ar-answer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 13px 16px;
+  border-radius: 16px;
+  font-size: 15px;
+  background: var(--surface-2);
+}
+.ar-answer.on {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  animation: lg-rise 0.3s var(--ease) both;
+}
+.ar-answer .pos {
+  color: var(--win);
+}
+.ar-answer .neg {
+  color: var(--loss);
+}
+.ar-answer p {
+  margin: 0;
+  flex: 1 1 280px;
+}
+
+.ar-block {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+.ar-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+.ar-block-head strong {
+  font-size: 15px;
+}
+
+@media (max-width: 720px) {
+  .ar-choice-label {
+    min-width: 100%;
+  }
+  .ar-ribbon-tile {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ar-ribbon-tile,
+  .ar-answer.on {
+    animation: none !important;
+  }
+  .ar-meter-fill,
+  .ar-wdl > span {
+    transition: none !important;
+  }
+}
+
+/* ---------- 3. pages: start ---------- */
+
+.card.lg-hero.home-hero {
+  display: block;
+  padding: 26px 26px 22px;
+}
+.home-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.home-kicker .coach-avatar {
+  flex-shrink: 0;
+}
+.home-today {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+  align-items: stretch;
+}
+.home-today .today-strip {
+  margin-top: 0;
+  border-radius: 16px;
+}
+.home-today .week-strip {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.home-today .week-day {
+  background: var(--surface-3);
+}
+.journey .lg-track {
+  margin-top: 4px;
+}
+.journey-goal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.journey-goal .btn.icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 17px;
+  line-height: 1;
+}
+.form-card {
+  display: grid;
+  gap: 14px;
+}
+.form-card .tile-head {
+  margin-bottom: 0;
+}
+.league-teaser .lg-track {
+  margin-top: 26px;
+}
+.league-teaser.empty-teaser {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 18px;
+}
+.league-teaser-icon {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.league-teaser-icon svg {
+  width: 24px;
+  height: 24px;
+}
+.league-teaser-text {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.league-teaser-text h3,
+.league-teaser-text p {
+  margin: 0;
+}
+.league-teaser-text p {
+  margin-top: 4px;
+}
+
+@media (max-width: 900px) {
+  .home-today {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .card.lg-hero.home-hero {
+    padding: 22px 16px 18px;
+  }
+}

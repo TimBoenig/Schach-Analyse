@@ -57,6 +57,7 @@ import { filterGames, parsePlayedAt } from "../../domain/metrics";
 import type { PlayerProfile } from "../../domain/profile";
 import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
+import { ScaleTrack, type TrackMarker, useEntrance, WhatIfSlider } from "../kit";
 import { CoachAvatar } from "../Coach";
 import { IconBolt, IconCrown, IconEye, IconEyeOff, IconFlame, IconReset, IconRise, IconShield, IconSpark, IconStar, IconSwords, IconTrophy } from "../icons";
 import { SPEED_DE } from "../labels";
@@ -77,16 +78,6 @@ type Tones = Record<string, string>;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const winPct = (p: number) => (p > 0 && p < 0.005 ? "<1 %" : pct0(p * 100));
 const avg = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
-
-/** Mounts with everything at zero, then lets CSS move it into place once. */
-function useEntrance(): boolean {
-  const [on, setOn] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
-    return () => cancelAnimationFrame(id);
-  }, []);
-  return on;
-}
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -140,50 +131,10 @@ function bounds(key: string, base: number, down: number, up: number): [number, n
   return [base - down, base + up];
 }
 
-// Height of one lane: avatar, label and some air, so a lower avatar never covers the label above.
-const LANE = 68;
-
-/** Every ranked player on one line from 0 to 100 points, avatars stacked where they would overlap. */
+/** Every ranked player on one line from 0 to 100 points. */
 function Track({ rows, overall, tones }: { rows: RankRow[]; overall: (r: RankRow) => number | null; tones: Tones }) {
-  const [ref, w] = useWidth<HTMLDivElement>(600);
-  const on = useEntrance();
-  // Room one avatar with its label needs, in percent of the track.
-  const gap = (76 / Math.max(w, 1)) * 100;
-  const lanes: number[] = [];
-  const placed = rows
-    .map((r) => ({ r, x: clamp(overall(r) ?? 0, 0, 100) }))
-    .sort((a, b) => a.x - b.x)
-    .map((p) => {
-      let lane = lanes.findIndex((last) => p.x - last >= gap);
-      if (lane < 0) {
-        lane = lanes.length;
-        lanes.push(p.x);
-      } else lanes[lane] = p.x;
-      return { ...p, lane };
-    });
-  return (
-    <div class="lg-track" ref={ref} style={{ height: `${Math.max(1, lanes.length) * LANE + 34}px` }}>
-      <div class="lg-track-line" aria-hidden="true">
-        {[0, 25, 50, 75, 100].map((t) => (
-          <span key={t} class={`lg-track-tick${t % 50 ? " minor" : ""}`} style={{ left: `${t}%` }}>
-            <span class="faint">{t}</span>
-          </span>
-        ))}
-      </div>
-      {placed.map((p) => (
-        // Upper lanes paint on top, so a stem from below runs behind the labels.
-        <div key={p.r.id} class={`lg-track-pos${p.r.is_me ? " me" : ""}`} style={{ transform: `translateX(${on ? p.x : 0}%)`, zIndex: 10 - p.lane }}>
-          <div class="lg-track-dot" style={{ transform: `translate(-50%, ${p.lane * LANE}px)` }}>
-            {p.lane > 0 && <span class={`lg-track-stem ${tones[p.r.id]}`} style={{ height: `${p.lane * LANE - 22}px`, top: `${22 - p.lane * LANE}px` }} />}
-            <Avatar name={p.r.name} tone={tones[p.r.id]} size="lg" ring={p.r.is_me} />
-            <span class="lg-track-label">
-              {p.r.name} <strong class="tnum">{Math.round(p.x)}</strong>
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+  const markers: TrackMarker[] = rows.map((r) => ({ id: r.id, label: r.name, value: clamp(overall(r) ?? 0, 0, 100), tone: tones[r.id], me: r.is_me }));
+  return <ScaleTrack markers={markers} />;
 }
 
 function WhatIf({
@@ -208,30 +159,25 @@ function WhatIf({
           const base = me.cells[k.key].value as number;
           const [lo, hi] = bounds(k.key, base, k.down, k.up);
           const value = clamp(sim[k.key] ?? base, lo, hi);
-          const moved = Math.abs(value - base) >= k.step / 2;
           return (
-            <label class="lg-slider" key={k.key}>
-              <span class="lg-slider-head">
-                <span>{k.label}</span>
-                <strong class="tnum">{formatFactor(k.key, value)}</strong>
-                {moved && <span class={`lg-slider-delta ${(k.key === "blunders" ? value < base : value > base) ? "up" : "down"}`}>{signed(value - base, k.digits)}</span>}
-              </span>
-              <input
-                type="range"
-                min={lo}
-                max={hi}
-                step={k.step}
-                value={value}
-                aria-label={`${k.label} ausprobieren`}
-                onInput={(e) => {
-                  const v = Number(e.currentTarget.value);
-                  const next = { ...sim };
-                  if (Math.abs(v - base) < k.step / 2) delete next[k.key];
-                  else next[k.key] = v;
-                  onSim(next);
-                }}
-              />
-            </label>
+            <WhatIfSlider
+              key={k.key}
+              label={k.label}
+              value={value}
+              base={base}
+              min={lo}
+              max={hi}
+              step={k.step}
+              text={formatFactor(k.key, value)}
+              deltaText={signed(value - base, k.digits)}
+              good={k.key === "blunders" ? value < base : value > base}
+              onInput={(v) => {
+                const next = { ...sim };
+                if (Math.abs(v - base) < k.step / 2) delete next[k.key];
+                else next[k.key] = v;
+                onSim(next);
+              }}
+            />
           );
         })}
       </div>

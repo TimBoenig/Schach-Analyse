@@ -13,6 +13,7 @@ import { avg, fmtDe, pyRound, stdev } from "./num";
 import { expectedScore, mainRatingSources, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
+import { gameFacts } from "./lab";
 import { buildMoveTally, monthKey } from "./moves";
 import { buildOpeningInsights, openingMain } from "./openings";
 import { detectPatterns } from "./patterns";
@@ -132,6 +133,7 @@ export function buildPlayerProfile(
     exercises: [],
     recent_games: recentGames(feats),
     error_series: errorSeries(analyzed),
+    facts: gameFacts(feats),
     rating: ratingContext(feats),
     deep: null,
     openings: null,

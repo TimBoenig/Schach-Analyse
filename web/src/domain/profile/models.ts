@@ -3,6 +3,7 @@
 
 import type { Exercise } from "../training/exercises";
 import type { DeepInsights } from "./insights";
+import type { GameFact } from "./lab";
 import type { MoveTally } from "./moves";
 import type { OpeningInsights } from "./openings";
 
@@ -129,6 +130,8 @@ export interface PlayerProfile {
   recent_games: GameDigest[];
   /** Every analysed game's error counts, oldest first (training transfer check). */
   error_series: GameErrorPoint[];
+  /** Every finished game as a few facts, for the interactive cards (condition finder, blunder cost). */
+  facts: GameFact[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */
