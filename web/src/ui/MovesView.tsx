@@ -10,7 +10,7 @@ import { Coach, NeedNames } from "./Coach";
 import { ErrorTiles } from "./InsightsView";
 import { CountUp, Hero, HeroStat } from "./kit";
 import { PageHeader } from "./Layout";
-import { type MovesSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type MovesSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
 import { ClassBadge, ClassTiles, monthName, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
@@ -220,146 +220,148 @@ export function MovesView() {
           )}
         </section>
 
-        <SectionHead section={sec("verlauf")} />
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>Zugqualität im Verlauf</h3>
-            <span class="tile-sub">pro Monat · Monate ab {MIN_TREND_MOVES} Zügen</span>
-          </div>
-          {months.length >= 2 ? (
-            <div class="trend-pair">
-              <div>
-                <div class="kpi-label">Bester Zug oder besser</div>
-                <AreaChart points={topPoints} format={(v) => `${Math.round(v)} %`} height={170} />
-              </div>
-              <div>
-                <div class="kpi-label">Grobe Fehler je 100 Züge</div>
-                <AreaChart points={errPoints} format={(v) => de(v)} height={170} color="var(--blunder)" />
-              </div>
+        <Section section={sec("verlauf")}>
+          <section class="card tile span-12">
+            <div class="tile-head">
+              <h3>Zugqualität im Verlauf</h3>
+              <span class="tile-sub">pro Monat · Monate ab {MIN_TREND_MOVES} Zügen</span>
             </div>
-          ) : (
-            <p class="muted small">Für einen Verlauf braucht es analysierte Partien aus mindestens zwei Monaten.</p>
-          )}
-          <p class="small faint tile-foot">Links soll die Kurve steigen, rechts fallen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer.</p>
-        </section>
+            {months.length >= 2 ? (
+              <div class="trend-pair">
+                <div>
+                  <div class="kpi-label">Bester Zug oder besser</div>
+                  <AreaChart points={topPoints} format={(v) => `${Math.round(v)} %`} height={170} />
+                </div>
+                <div>
+                  <div class="kpi-label">Grobe Fehler je 100 Züge</div>
+                  <AreaChart points={errPoints} format={(v) => de(v)} height={170} color="var(--blunder)" />
+                </div>
+              </div>
+            ) : (
+              <p class="muted small">Für einen Verlauf braucht es analysierte Partien aus mindestens zwei Monaten.</p>
+            )}
+            <p class="small faint tile-foot">Links soll die Kurve steigen, rechts fallen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer.</p>
+          </section>
+        </Section>
 
-        <SectionHead section={sec("phasen")} />
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Genauigkeit nach Phase</h3>
-          </div>
-          <BarList rows={phaseRows} referenceLabel={typicalLabel} />
-        </section>
+        <Section section={sec("phasen")}>
+          <section class="card tile span-6">
+            <div class="tile-head">
+              <h3>Genauigkeit nach Phase</h3>
+            </div>
+            <BarList rows={phaseRows} referenceLabel={typicalLabel} />
+          </section>
 
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Nach Partiephase</h3>
-            <span class="tile-sub">alle Bewertungen je Phase</span>
-          </div>
-          <div class="phase-tally">
-            {t.phases
-              .filter((p) => p.moves)
-              .map((p) => {
-                const serious = sumOf(p.counts, SERIOUS_CLASSES);
-                return (
-                  <div key={p.key} style={{ opacity: p.moves < MIN_BUCKET_MOVES ? 0.55 : 1 }}>
-                    <div class="bar-head">
-                      <span class="bar-label">{p.label}</span>
-                      <span class="faint small tnum">{plural(p.moves, "Zug", "Züge")}</span>
+          <section class="card tile span-6">
+            <div class="tile-head">
+              <h3>Nach Partiephase</h3>
+              <span class="tile-sub">alle Bewertungen je Phase</span>
+            </div>
+            <div class="phase-tally">
+              {t.phases
+                .filter((p) => p.moves)
+                .map((p) => {
+                  const serious = sumOf(p.counts, SERIOUS_CLASSES);
+                  return (
+                    <div key={p.key} style={{ opacity: p.moves < MIN_BUCKET_MOVES ? 0.55 : 1 }}>
+                      <div class="bar-head">
+                        <span class="bar-label">{p.label}</span>
+                        <span class="faint small tnum">{plural(p.moves, "Zug", "Züge")}</span>
+                      </div>
+                      <StackBar segments={detailSegments(p.counts)} legend={false} height={12} />
+                      <div class="bar-note">
+                        {de((serious / p.moves) * 100)} grobe Fehler pro 100 Züge {PHASE_IN[p.key] ?? ""}
+                        {p.counts.Brilliant + p.counts.Great ? ` · ${p.counts.Brilliant + p.counts.Great} Glanzzüge` : ""}
+                      </div>
                     </div>
-                    <StackBar segments={detailSegments(p.counts)} legend={false} height={12} />
-                    <div class="bar-note">
-                      {de((serious / p.moves) * 100)} grobe Fehler pro 100 Züge {PHASE_IN[p.key] ?? ""}
-                      {p.counts.Brilliant + p.counts.Great ? ` · ${p.counts.Brilliant + p.counts.Great} Glanzzüge` : ""}
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-          <TallyLegend />
-        </section>
+                  );
+                })}
+            </div>
+            <TallyLegend />
+          </section>
+        </Section>
 
         {profile.deep && (
-          <>
-            <SectionHead section={sec("fehler")} />
+          <Section section={sec("fehler")}>
             <ErrorTiles d={profile.deep} />
-          </>
+          </Section>
         )}
 
-        <SectionHead section={sec("glanz")} />
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>Rekorde</h3>
-          </div>
-          <Records t={t} />
-        </section>
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Deine Glanzzüge</h3>
-            <span class="tile-sub">brillant und großartig · neueste zuerst</span>
-          </div>
-          {t.highlights.length ? (
-            <div class="op-games">
-              {t.highlights.slice(0, allHighlights ? undefined : HIGHLIGHTS_SHOWN).map((m) => (
-                <button
-                  key={`${m.game_id}-${m.ply_index}`}
-                  class="op-game hl-move"
-                  onClick={() => navigate({ view: "analysis", gameId: m.game_id, ply: m.ply_index + 1 })}
-                >
-                  <ClassBadge c={m.classification} size={22} />
-                  <span class="op-opp">
-                    <strong>{m.move}</strong>
-                    <span class="faint"> gegen {m.opponent}</span>
-                  </span>
-                  <span class="faint small">{formatDate(m.date)}</span>
-                  <span class="small op-acc">{PHASE_IN[m.phase]?.replace(/^(in der|im) /, "") ?? ""}</span>
-                </button>
-              ))}
-              {t.highlights.length > HIGHLIGHTS_SHOWN && (
-                <button class="btn small tile-foot-btn" onClick={() => setAllHighlights((v) => !v)}>
-                  {allHighlights ? "Weniger anzeigen" : `Alle ${t.highlights.length} anzeigen`}
-                </button>
-              )}
+        <Section section={sec("glanz")}>
+          <section class="card tile span-12">
+            <div class="tile-head">
+              <h3>Rekorde</h3>
             </div>
-          ) : (
-            <p class="muted small">
-              Noch keine brillanten oder großartigen Züge. Sie erscheinen hier, sobald du einen findest.
-            </p>
-          )}
-        </section>
+            <Records t={t} />
+          </section>
 
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Deine glänzendsten Partien</h3>
-            <span class="tile-sub">meiste Glanzzüge</span>
-          </div>
-          {t.top_games.length ? (
-            <div class="op-games">
-              {t.top_games.map((g) => (
-                <button key={g.game_id} class="op-game hl-game" onClick={() => navigate({ view: "analysis", gameId: g.game_id })}>
-                  <span class="hl-count">
-                    {g.brilliant > 0 && (
-                      <span>
-                        <ClassBadge c="Brilliant" size={16} /> {g.brilliant}
-                      </span>
-                    )}
-                    {g.great > 0 && (
-                      <span>
-                        <ClassBadge c="Great" size={16} /> {g.great}
-                      </span>
-                    )}
-                  </span>
-                  <span class="op-opp">gegen {g.opponent}</span>
-                  <span class="faint small">{formatDate(g.date)}</span>
-                  <span class="small op-acc tnum">{de(g.accuracy, 0)} %</span>
-                </button>
-              ))}
+          <section class="card tile span-6">
+            <div class="tile-head">
+              <h3>Deine Glanzzüge</h3>
+              <span class="tile-sub">brillant und großartig · neueste zuerst</span>
             </div>
-          ) : (
-            <p class="muted small">Sobald eine Partie einen Glanzzug hat, steht sie hier.</p>
-          )}
-        </section>
+            {t.highlights.length ? (
+              <div class="op-games">
+                {t.highlights.slice(0, allHighlights ? undefined : HIGHLIGHTS_SHOWN).map((m) => (
+                  <button
+                    key={`${m.game_id}-${m.ply_index}`}
+                    class="op-game hl-move"
+                    onClick={() => navigate({ view: "analysis", gameId: m.game_id, ply: m.ply_index + 1 })}
+                  >
+                    <ClassBadge c={m.classification} size={22} />
+                    <span class="op-opp">
+                      <strong>{m.move}</strong>
+                      <span class="faint"> gegen {m.opponent}</span>
+                    </span>
+                    <span class="faint small">{formatDate(m.date)}</span>
+                    <span class="small op-acc">{PHASE_IN[m.phase]?.replace(/^(in der|im) /, "") ?? ""}</span>
+                  </button>
+                ))}
+                {t.highlights.length > HIGHLIGHTS_SHOWN && (
+                  <button class="btn small tile-foot-btn" onClick={() => setAllHighlights((v) => !v)}>
+                    {allHighlights ? "Weniger anzeigen" : `Alle ${t.highlights.length} anzeigen`}
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p class="muted small">
+                Noch keine brillanten oder großartigen Züge. Sie erscheinen hier, sobald du einen findest.
+              </p>
+            )}
+          </section>
+
+          <section class="card tile span-6">
+            <div class="tile-head">
+              <h3>Deine glänzendsten Partien</h3>
+              <span class="tile-sub">meiste Glanzzüge</span>
+            </div>
+            {t.top_games.length ? (
+              <div class="op-games">
+                {t.top_games.map((g) => (
+                  <button key={g.game_id} class="op-game hl-game" onClick={() => navigate({ view: "analysis", gameId: g.game_id })}>
+                    <span class="hl-count">
+                      {g.brilliant > 0 && (
+                        <span>
+                          <ClassBadge c="Brilliant" size={16} /> {g.brilliant}
+                        </span>
+                      )}
+                      {g.great > 0 && (
+                        <span>
+                          <ClassBadge c="Great" size={16} /> {g.great}
+                        </span>
+                      )}
+                    </span>
+                    <span class="op-opp">gegen {g.opponent}</span>
+                    <span class="faint small">{formatDate(g.date)}</span>
+                    <span class="small op-acc tnum">{de(g.accuracy, 0)} %</span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p class="muted small">Sobald eine Partie einen Glanzzug hat, steht sie hier.</p>
+            )}
+          </section>
+        </Section>
       </div>
     </div>
   );

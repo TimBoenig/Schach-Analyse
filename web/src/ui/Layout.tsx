@@ -5,7 +5,7 @@
 // same spot.
 import type { ComponentChildren, JSX } from "preact";
 import { createContext } from "preact";
-import { useContext } from "preact/hooks";
+import { useContext, useEffect, useRef } from "preact/hooks";
 
 import {
   IconGames,
@@ -155,10 +155,31 @@ export function AreaTabs({ about = true }: { about?: boolean }) {
   const { route } = useContext(ShellContext);
   const area = areaOf(route);
   const current = subPageOf(route);
+  const row = useRef<HTMLElement>(null);
+  // On a phone the row can be wider than the screen: keep the open tab in
+  // view and mark the side that holds more, so CSS can fade it out.
+  useEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const mark = () => {
+      const start = el.scrollLeft > 4;
+      const end = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+      el.dataset.more = start && end ? "both" : start ? "start" : end ? "end" : "";
+    };
+    const active = el.querySelector<HTMLElement>("button.active");
+    if (active) el.scrollLeft = active.offsetLeft - (el.clientWidth - active.offsetWidth) / 2;
+    mark();
+    el.addEventListener("scroll", mark, { passive: true });
+    window.addEventListener("resize", mark);
+    return () => {
+      el.removeEventListener("scroll", mark);
+      window.removeEventListener("resize", mark);
+    };
+  }, [current?.label, area.id]);
   if (area.sub.length < 2) return null;
   return (
     <div class="area-tabs">
-      <nav class="area-tabs-row" aria-label={`${area.label}: Bereiche`}>
+      <nav class="area-tabs-row" ref={row} aria-label={`${area.label}: Bereiche`}>
         {area.sub.map((s) => {
           const on = s === current;
           return (

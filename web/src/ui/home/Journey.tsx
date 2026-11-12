@@ -7,6 +7,7 @@ import { nextMilestone, PACE_DAYS, ratingJourney } from "../../domain/profile";
 import { getSetting, setSetting } from "../../storage/db";
 import { IconCrown, IconPlay, IconReset, IconTrophy } from "../icons";
 import { ScaleTrack, type TrackMarker } from "../kit";
+import { useNarrow } from "../useNarrow";
 
 export const GOAL_KEY = "goal.rating";
 const GOAL_STEP = 50;
@@ -22,6 +23,39 @@ function etaText(days: number): string {
   return `${months} ${months === 1 ? "Monat" : "Monaten"}`;
 }
 
+/**
+ * The journey on a phone: one bar from the first rating to the goal. Four
+ * dots with labels need three stacked lanes on a narrow track; a filled bar
+ * says the same in two lines.
+ */
+function JourneyBar({ start, current, peak, goal }: { start: number; current: number; peak: number; goal: number }) {
+  const lo = Math.min(start, current);
+  const hi = Math.max(goal, peak, current);
+  const pct = (v: number) => `${Math.min(100, Math.max(0, ((v - lo) / (hi - lo || 1)) * 100))}%`;
+  return (
+    <div class="journey-bar" role="img" aria-label={`Start ${start}, jetzt ${current}, Bestwert ${peak}, Ziel ${goal}`}>
+      <div class="journey-bar-track">
+        <span class="journey-bar-fill" style={{ width: pct(current) }} />
+        {peak > current && <span class="journey-bar-peak" style={{ left: pct(peak) }} />}
+        <span class="journey-bar-goal" style={{ left: pct(goal) }} />
+        <span class="journey-bar-me" style={{ left: pct(current) }} />
+      </div>
+      <div class="journey-bar-labels">
+        <span>
+          Start <strong class="tnum">{start}</strong>
+        </span>
+        <span class="journey-bar-now">
+          Du <strong class="tnum">{current}</strong>
+          {peak > current && <span class="faint"> · Bestwert {peak}</span>}
+        </span>
+        <span>
+          Ziel <strong class="tnum">{goal}</strong>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function Journey({ series, speed, lever }: { series: [number, number][]; speed: string; lever?: { title: string; go: () => void } | null }) {
   // Stored per time control, so a blitz goal is not held against the rapid rating.
   const [goals, setGoals] = useState<Record<string, number>>({});
@@ -30,6 +64,7 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
   }, []);
   const own = goals[speed] ?? null;
   const j = useMemo(() => ratingJourney(series, own), [series, own]);
+  const narrow = useNarrow();
   if (!j) return null;
 
   const setGoal = (value: number | null) => {
@@ -62,7 +97,7 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
         <strong>Dein Weg zu {j.goal}</strong>
         <span class="faint small">Wertung {speed}</span>
       </div>
-      <ScaleTrack markers={markers} min={min} max={max} ticks={ticks} />
+      {narrow ? <JourneyBar start={j.start} current={j.current} peak={j.peak} goal={j.goal} /> : <ScaleTrack markers={markers} min={min} max={max} ticks={ticks} />}
       <div class={`ar-answer${j.reached ? " on" : ""}`} role="status">
         <p>
           {j.reached ? (

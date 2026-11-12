@@ -59,11 +59,14 @@ import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
 import { ScaleTrack, type TrackMarker, useEntrance, WhatIfSlider } from "../kit";
 import { CoachAvatar } from "../Coach";
-import { IconBolt, IconCrown, IconEye, IconEyeOff, IconFlame, IconReset, IconRise, IconShield, IconSpark, IconStar, IconSwords, IconTrophy } from "../icons";
+import { IconBolt, IconChevron, IconCrown, IconEye, IconEyeOff, IconFilter, IconFlame, IconReset, IconRise, IconShield, IconSpark, IconStar, IconSwords, IconTrophy } from "../icons";
 import { SPEED_DE } from "../labels";
 import { navigate, toHash } from "../router";
-import { SectionHead, SectionNav, type StatSection } from "../StatsLayout";
+import { Section, SectionNav, type StatSection } from "../StatsLayout";
+import { trFilter } from "../../domain/i18n";
 import { useBulletPrefs } from "../useAnalysisPrefs";
+import { useNarrow } from "../useNarrow";
+import { formatOptionLabel } from "../useProfile";
 import { AnalyzeFriends, Avatar, de, formatFactor, half, pct0, PlayerFilters, plural, profileFor, RefreshAll, signed, toneOf, Who } from "./common";
 
 export const LEAGUE_SECTIONS: StatSection[] = [
@@ -1420,6 +1423,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
   const allFriends = players.filter((p) => p.friend);
   const friends = rankedFriends(players);
   const { excludeBullet, ready } = useBulletPrefs();
+  const narrow = useNarrow();
   const fmt = statsFormat(format, excludeBullet);
   // Profiles per player and filter, so hiding or showing a friend only re-ranks
   // and needs no new profile from the worker. Cleared when the games change.
@@ -1517,14 +1521,38 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
     );
   }
 
-  return (
-    <div class="league" style={{ opacity: loading && !ranking ? 0.6 : 1 }}>
+  const toolbar = (
+    <>
       <div class="rank-toolbar">
         <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
         <RefreshAll players={friends} label="Freunde aktualisieren" />
         <AnalyzeFriends players={friends} games={games} short />
       </div>
       <RankingMembers friends={allFriends} tones={tones} />
+    </>
+  );
+
+  return (
+    <div class="league" style={{ opacity: loading && !ranking ? 0.6 : 1 }}>
+      {narrow ? (
+        // Phones: filters, refresh and the member chips fold into one line above the league.
+        <details class="filter-fold league-fold">
+          <summary>
+            <IconFilter />
+            <span class="filter-fold-text">
+              {[format !== "All Formats" || excludeBullet ? formatOptionLabel(format, excludeBullet) : null, date !== "All Time" ? trFilter(date) : null]
+                .filter((v) => v !== null)
+                .join(" · ") || "Alle Partien"}{" "}
+              · {friends.length + 1} Spieler
+            </span>
+            <span class="filter-fold-hint">Anpassen</span>
+            <IconChevron />
+          </summary>
+          {toolbar}
+        </details>
+      ) : (
+        toolbar
+      )}
       {error && <p class="error">{error}</p>}
       {!friends.length ? (
         <div class="empty">
@@ -1542,43 +1570,48 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
         <>
           <SectionNav sections={LEAGUE_SECTIONS} />
           <div class={`dash${loading ? " busy" : ""}`}>
-            <SectionHead section={LEAGUE_SECTIONS[0]} />
-            <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />
-            <Standings ranking={ranking} tones={tones} types={view.types} />
-            <TournamentCard t={view.tournament} tones={tones} />
-            <ClimbCard
-              plan={view.plan}
-              onTry={(changes) => {
-                setSim(changes);
-                scrollToId("lg-hero");
-              }}
-            />
+            <Section section={LEAGUE_SECTIONS[0]} defaultOpen>
+              <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />
+              <Standings ranking={ranking} tones={tones} types={view.types} />
+              <TournamentCard t={view.tournament} tones={tones} />
+              <ClimbCard
+                plan={view.plan}
+                onTry={(changes) => {
+                  setSim(changes);
+                  scrollToId("lg-hero");
+                }}
+              />
+            </Section>
 
-            <SectionHead section={LEAGUE_SECTIONS[1]} />
-            <CrosstableCard
-              cross={cross}
-              tones={tones}
-              forecast={forecast}
-              onPick={(a, b) => {
-                setPair([a, b]);
-                scrollToId("lg-battle");
-              }}
-            />
-            <HighlightsCard cross={cross} tones={tones} />
-            <BattleArena ranking={ranking} h2hOf={h2hOf} tones={tones} pair={pair} onPair={setPair} />
+            <Section section={LEAGUE_SECTIONS[1]}>
+              <CrosstableCard
+                cross={cross}
+                tones={tones}
+                forecast={forecast}
+                onPick={(a, b) => {
+                  setPair([a, b]);
+                  scrollToId("lg-battle");
+                }}
+              />
+              <HighlightsCard cross={cross} tones={tones} />
+              <BattleArena ranking={ranking} h2hOf={h2hOf} tones={tones} pair={pair} onPair={setPair} />
+            </Section>
 
-            <SectionHead section={LEAGUE_SECTIONS[2]} />
-            <StrengthMatrix ranking={ranking} tones={tones} standing={view.standing} />
-            <QualityMapCard map={view.qmap} tones={tones} />
-            <TypesCard ranking={ranking} types={view.types} tones={tones} />
+            <Section section={LEAGUE_SECTIONS[2]}>
+              <StrengthMatrix ranking={ranking} tones={tones} standing={view.standing} />
+              <QualityMapCard map={view.qmap} tones={tones} />
+              <TypesCard ranking={ranking} types={view.types} tones={tones} />
+            </Section>
 
-            <SectionHead section={LEAGUE_SECTIONS[3]} />
-            <FormRace rows={curve} tones={tones} span={formSpan} onSpan={setFormSpan} dataWeeks={dataWeeks} />
-            <FormTable rows={momentum} tones={tones} ratings={ratingForm} />
+            <Section section={LEAGUE_SECTIONS[3]}>
+              <FormRace rows={curve} tones={tones} span={formSpan} onSpan={setFormSpan} dataWeeks={dataWeeks} />
+              <FormTable rows={momentum} tones={tones} ratings={ratingForm} />
+            </Section>
 
-            <SectionHead section={LEAGUE_SECTIONS[4]} />
-            <HallOfFame records={records} tones={tones} />
-            <ScoringCard ranking={ranking} />
+            <Section section={LEAGUE_SECTIONS[4]}>
+              <HallOfFame records={records} tones={tones} />
+              <ScoringCard ranking={ranking} />
+            </Section>
           </div>
         </>
       )}

@@ -1,0 +1,694 @@
+/* ==========================================================================
+   Phone layer (2026-11): loaded last.
+
+   The pages were designed on wide screens and merely stack on a phone. This
+   layer makes that column short and legible: sections fold to a table of
+   contents, the header keeps to three rows, charts get labels that fit and
+   every tap target is finger-sized.
+   ========================================================================== */
+
+/* ---------- folded sections (StatsLayout.Section, phones only) ---------- */
+
+.dash > .section-head.section-fold {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border-top: 0;
+  scroll-margin-top: calc(10px + var(--safe-top));
+}
+
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 68px;
+  margin: 0;
+  padding: 14px 14px 14px 20px;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.section-toggle:active {
+  background: var(--surface-2);
+}
+
+.section-toggle-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.section-fold .section-toggle h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.section-toggle .tile-sub {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-3);
+}
+
+.section-toggle-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text-2);
+  transition: transform 0.25s var(--ease, ease);
+}
+
+.section-toggle-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Open: the heading reads as a headline above its cards, not as one more card. */
+.section-fold.open .section-toggle {
+  min-height: 56px;
+  padding: 10px 2px 2px 4px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.section-fold.open .section-toggle h2 {
+  font-size: 22px;
+}
+
+.section-fold.open .section-toggle-icon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-toggle-icon {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  /* The folded headings are the page index; a second, sticky one would only repeat them. */
+  .section-nav {
+    display: none;
+  }
+}
+
+/* ---------- header: title, tabs and filters in three tidy rows ---------- */
+
+/* A tab row wider than the screen fades out towards the side that holds more. */
+.area-tabs-row[data-more="end"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+}
+.area-tabs-row[data-more="start"] {
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent);
+}
+.area-tabs-row[data-more="both"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent);
+}
+
+@media (max-width: 560px) {
+  .area-tabs-row button,
+  .area-tabs-row button:first-child {
+    padding: 8px 13px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+}
+
+/* Filters fold into one line that says what is shown (useProfile.FilterBar). */
+.filter-fold {
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.filter-fold > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 12px 0 14px;
+  list-style: none;
+  cursor: pointer;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.filter-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.filter-fold > summary svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.filter-fold > summary svg:last-child {
+  color: var(--text-3);
+  transition: transform 0.2s var(--ease, ease);
+}
+
+.filter-fold[open] > summary svg:last-child {
+  transform: rotate(90deg);
+}
+
+.filter-fold-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-fold.active .filter-fold-text {
+  color: var(--text);
+}
+
+.filter-fold.active > summary svg:first-child {
+  color: var(--text);
+}
+
+.filter-fold-hint {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.filter-fold > .filters {
+  margin: 0;
+  padding: 2px 8px 8px;
+  overflow: visible;
+}
+
+/* ---------- start page ---------- */
+
+/* The rating journey as one bar (home/Journey.tsx, phones). */
+.journey-bar {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.journey-bar-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.journey-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--text);
+}
+
+.journey-bar-me,
+.journey-bar-peak,
+.journey-bar-goal {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+.journey-bar-me {
+  width: 20px;
+  height: 20px;
+  background: var(--text);
+  box-shadow: 0 0 0 4px var(--surface-2);
+}
+
+.journey-bar-peak {
+  width: 8px;
+  height: 8px;
+  background: var(--inaccuracy, #f0b54a);
+  box-shadow: 0 0 0 2px var(--surface-2);
+}
+
+.journey-bar-goal {
+  width: 14px;
+  height: 14px;
+  /* The goal sits on the bar's end: keep the dot inside the track. */
+  margin-left: -7px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 3px var(--best, #5fbf6a);
+}
+
+.journey-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.journey-bar-labels strong {
+  color: var(--text);
+}
+
+.journey-bar-now {
+  text-align: center;
+}
+
+@media (max-width: 560px) {
+  /* Recent games: result, opponent and accuracy on one line each, nothing cut. */
+  .recent-row {
+    grid-template-columns: 82px minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 56px;
+    padding: 8px 2px;
+  }
+  .recent-row .pill {
+    justify-self: stretch;
+    padding-left: 0;
+    padding-right: 0;
+    text-align: center;
+  }
+  .recent-acc {
+    grid-column: auto;
+    display: grid;
+    justify-items: end;
+    text-align: right;
+    line-height: 1.35;
+  }
+  .recent-sep {
+    display: none;
+  }
+}
+
+/* ---------- games list ---------- */
+
+.game-item .players.versus {
+  gap: 8px;
+}
+
+.game-item .players.versus .versus-name {
+  font-size: 15.5px;
+}
+
+.game-item .players.versus .versus-elo {
+  flex: none;
+  font-weight: 500;
+  overflow: visible;
+}
+
+@media (max-width: 560px) {
+  /* Both names on one phone line (games of friends): the ratings give way. */
+  .game-item .players .player-elo {
+    display: none;
+  }
+  .game-item {
+    min-height: 68px;
+  }
+  .game-item .meta {
+    gap: 7px;
+  }
+  .game-item .meta .pill {
+    flex: none;
+  }
+  /* Search first, then the quick filter; the selects pair up below. */
+  .games-filters > input[type="search"] {
+    order: -2;
+  }
+  .games-filters > .segmented {
+    order: -1;
+  }
+  .games-filters > select:last-of-type:nth-of-type(odd) {
+    grid-column: auto;
+  }
+  .games-filters > .check-chip {
+    justify-content: center;
+    min-height: 38px;
+  }
+  .games-filters > .check-chip input {
+    width: 18px;
+    height: 18px;
+  }
+  .recent-row .pill {
+    display: flex;
+    justify-content: center;
+  }
+}
+
+/* ---------- charts ---------- */
+
+/* A number above a column must stay readable where the dashed average crosses it. */
+.column-value {
+  position: relative;
+  z-index: 2;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+/* Many columns on a narrow card: only the touched column carries its number. */
+.columns-wrap.dense .column-value {
+  visibility: hidden;
+}
+.columns-wrap.dense .column.labelled .column-value {
+  visibility: visible;
+}
+.columns-wrap.dense .columns,
+.columns-wrap.dense .column-labels {
+  gap: 3px;
+}
+.columns-wrap.dense .column-labels > div {
+  font-size: 11px;
+}
+
+@media (max-width: 560px) {
+  /* Result tiles in even rows of seven instead of a ragged wrap. */
+  .ar-ribbon {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .ar-ribbon-tile {
+    width: auto;
+    height: 36px;
+  }
+
+  /* Two selects side by side: the longest option still has to fit. */
+  /* The native arrow brings its own room, so the padding beside it can be small. */
+  .filters select {
+    padding-left: 12px;
+    padding-right: 10px;
+    font-size: 13px;
+    text-overflow: ellipsis;
+  }
+}
+
+/* ---------- controls that wrapped or were cut on phones ---------- */
+
+@media (max-width: 560px) {
+  /* A pill-shaped switch with a second row looks broken: swipe sideways instead. */
+  .segmented:not(.full):not(.stacked) {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .segmented:not(.full):not(.stacked)::-webkit-scrollbar {
+    display: none;
+  }
+  .segmented:not(.full):not(.stacked) button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .segmented button {
+    min-height: 36px;
+  }
+  /* Two-way switches fill the row so both halves are easy to hit. */
+  .color-switch,
+  .op-arena-bar .color-switch {
+    display: flex;
+    width: 100%;
+    margin-right: 0;
+  }
+  .color-switch button,
+  .segmented.color-switch:not(.full):not(.stacked) button {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+
+  /* Training today: the two settings get a full row each, so their values are readable. */
+  .plan-arena-bar .field {
+    flex: 1 1 100%;
+  }
+  .plan-arena-bar .field select {
+    width: 100%;
+  }
+  .plan-arena-bar .btn.ghost {
+    margin-left: auto;
+  }
+
+  /* Training week: seven rows instead of tiles too narrow for "Wiederholung & Partien". */
+  .plan-week {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .plan-day {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    min-height: 46px;
+    padding: 8px 14px;
+  }
+  .plan-day .week-dow {
+    flex: 0 0 26px;
+  }
+  .plan-day .week-theme {
+    flex: 1;
+    min-width: 0;
+  }
+  .plan-day .week-state {
+    margin: 0 0 0 auto;
+    white-space: nowrap;
+  }
+
+  /* Opening progress rows: name, state, steps and tries on one line. */
+  .cat-row:has(.box-steps) {
+    grid-template-columns: minmax(0, 1fr) auto auto 34px;
+    gap: 10px;
+  }
+  .cat-row:has(.box-steps) > :last-child {
+    text-align: right;
+  }
+
+  /* Record tiles two abreast, not five long rows. */
+  .records {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .records .record:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* Suggested opponents: name above its numbers, the button beside both. */
+  .suggest-row > span:first-child {
+    display: grid;
+    min-width: 0;
+  }
+  .suggest-row > span:first-child strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .suggest-row .btn {
+    flex: none;
+  }
+
+  /* Brilliant moves: the move and the opponent get the row, the date moves under them. */
+  .op-game.hl-move {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "badge move phase"
+      "badge date phase";
+    row-gap: 0;
+  }
+  .op-game.hl-move > :nth-child(1) {
+    grid-area: badge;
+  }
+  .op-game.hl-move > :nth-child(2) {
+    grid-area: move;
+  }
+  .op-game.hl-move > :nth-child(3) {
+    grid-area: date;
+  }
+  .op-game.hl-move > :nth-child(4) {
+    grid-area: phase;
+  }
+}
+
+/* ---------- finger-sized tap targets ---------- */
+
+@media (max-width: 760px) {
+  .page-legal a {
+    display: inline-block;
+    padding: 12px 8px;
+  }
+  .lg-round-head {
+    min-height: 40px;
+  }
+  .crumb {
+    min-height: 36px;
+  }
+  .link-btn {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .cal-day {
+    min-height: 34px;
+  }
+  .op-game {
+    min-height: 44px;
+  }
+  .check-chip {
+    min-height: 38px;
+  }
+}
+
+/* ---------- openings ---------- */
+
+@media (max-width: 560px) {
+  /* Theory timeline: the opening's full name above its bar instead of "Französische V…". */
+  .theory {
+    gap: 8px;
+  }
+  .theory-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "name val"
+      "track track";
+    gap: 6px 10px;
+    min-height: 48px;
+  }
+  .theory-name {
+    grid-area: name;
+  }
+  .theory-track {
+    grid-area: track;
+  }
+  .theory-val {
+    grid-area: val;
+  }
+  .theory-scale {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  /* Tree controls wrap on the narrowest phones instead of pushing the page sideways. */
+  .explorer-nav {
+    flex-wrap: wrap;
+  }
+  .explorer-nav .btn.small {
+    margin-left: auto;
+  }
+  .explorer-head {
+    gap: 10px;
+  }
+}
+
+/* ---------- profile ---------- */
+
+@media (max-width: 560px) {
+  /* "118,0 / 121,7" stays on one line in a half-width cell. */
+  .hero .hero-cell .kpi-big {
+    font-size: 27px;
+    white-space: nowrap;
+  }
+  .hero .hero-cell .kpi-unit {
+    font-size: 14px;
+  }
+}
+
+/* ---------- league ---------- */
+
+@media (max-width: 560px) {
+  /* Table: a shorter bar leaves the name its room ("MaxPower" instead of "MaxPo…"). */
+  .lg-row-main {
+    grid-template-columns: 20px auto minmax(0, 1fr) minmax(64px, 88px);
+    gap: 8px;
+    padding: 10px 8px;
+  }
+  .lg-row-score {
+    gap: 8px;
+  }
+  /* Form: name and trend on top, the last results on their own line. */
+  .lg-form-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "who trend"
+      "last last"
+      "sub sub";
+    gap: 6px 10px;
+  }
+}
+
+/* League: filters, refresh and member chips inside the fold (players/League.tsx). */
+.league-fold {
+  margin-bottom: 14px;
+}
+.league-fold > .rank-toolbar,
+.league-fold > .rank-members {
+  margin: 0;
+  padding: 4px 12px 12px;
+}
+.league-fold > .rank-toolbar > .filters {
+  flex-basis: 100%;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------- the narrowest phones (Galaxy Fold, small Androids) ---------- */
+
+@media (max-width: 560px) {
+  /* The greeting scales with the screen, so search and settings stay beside it. */
+  .home-greeting > span:first-child {
+    font-size: clamp(30px, 11vw, 44px);
+  }
+}
+
+@media (max-width: 380px) {
+  /* Games list: a slimmer accuracy box leaves the name and the meta line their room. */
+  .game-item .meta {
+    gap: 5px;
+    font-size: 12px;
+  }
+  .game-item {
+    column-gap: 9px;
+    padding-right: 10px;
+  }
+  .game-item .acc-box {
+    padding: 8px 6px;
+  }
+  .game-item .acc {
+    font-size: 22px;
+  }
+  .game-item .acc-label {
+    font-size: 10.5px;
+  }
+  /* Start: the date may wrap and the greeting shrinks before the buttons drop a line. */
+  .home-head .page-title .home-greeting {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .home-head .page-title .spacer {
+    display: none;
+  }
+  .home-date {
+    white-space: normal;
+  }
+  .filter-fold-hint {
+    display: none;
+  }
+  .filters select {
+    padding-left: 10px;
+    padding-right: 6px;
+    font-size: 12.5px;
+  }
+}
