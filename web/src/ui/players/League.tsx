@@ -28,6 +28,7 @@ import {
   type GroupPoint,
   groupForm,
   groupMomentum,
+  MOMENTUM_WEEKS,
   groupRecords,
   type GroupRecord,
   type GroupStanding,
@@ -52,6 +53,7 @@ import {
   type Tournament,
   type TrackedPlayer,
 } from "../../domain/players";
+import { filterGames, parsePlayedAt } from "../../domain/metrics";
 import type { PlayerProfile } from "../../domain/profile";
 import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
@@ -1196,8 +1198,19 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
 
 const SHORT_DATE = (t: number) => new Date(t * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 
-function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
+/** Spans the form curve offers, in weeks. */
+const FORM_SPANS: [string, number][] = [
+  ["8 W", 8],
+  ["12 W", 12],
+  ["6 M", 26],
+  ["1 J", 52],
+];
+
+function FormRace({ rows, tones, span, onSpan, dataWeeks }: { rows: MomentumRow[]; tones: Tones; span: number; onSpan: (weeks: number) => void; dataWeeks: number }) {
   const [focus, setFocus] = useState<string | null>(null);
+  // Spans the history can fill, plus the first one that covers all of it.
+  const cover = FORM_SPANS.find(([, w]) => w >= dataWeeks)?.[1] ?? FORM_SPANS[FORM_SPANS.length - 1][1];
+  const spans = FORM_SPANS.filter(([, w]) => w <= cover || w === span);
   const [ref, w] = useWidth<HTMLDivElement>(560);
   const vals = rows.flatMap((r) => r.weeks.map((wk) => wk.smooth)).filter((v): v is number => v !== null);
   const weeks = rows[0]?.weeks ?? [];
@@ -1221,6 +1234,8 @@ function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
     });
     return d;
   };
+  // About five date labels, the newest always, none crowding it.
+  const labelStep = Math.max(1, Math.ceil(weeks.length / 5));
   const step = Math.max(1, Math.round((hi - lo) / 4));
   const yt: number[] = [];
   for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) yt.push(v);
@@ -1228,7 +1243,14 @@ function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
     <section class="card tile span-7 lg-race">
       <div class="tile-head">
         <h3>Formkurve</h3>
-        <span class="tile-sub">Genauigkeit der letzten 12 Wochen, fair nach Bedenkzeit</span>
+        <span class="tile-sub">Genauigkeit pro Woche, fair nach Bedenkzeit</span>
+      </div>
+      <div class="segmented small-seg chart-range" role="group" aria-label="Zeitraum der Formkurve">
+        {spans.map(([l, w]) => (
+          <button key={l} class={span === w ? "active" : ""} onClick={() => onSpan(w)}>
+            {l}
+          </button>
+        ))}
       </div>
       {vals.length ? (
         <>
@@ -1243,7 +1265,7 @@ function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
                 </g>
               ))}
               {weeks.map((wk, i) =>
-                i % 3 === 0 || i === weeks.length - 1 ? (
+                (i % labelStep === 0 && weeks.length - 1 - i >= labelStep / 2) || i === weeks.length - 1 ? (
                   <text key={wk.start} class="axis" x={sx(i)} y={h - 8} text-anchor="middle">
                     {SHORT_DATE(wk.start)}
                   </text>
@@ -1252,7 +1274,13 @@ function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
               {rows.map((r) => (
                 <g key={r.id} class={`ln ${tones[r.id]}${focus && focus !== r.id ? " dim" : ""}${r.is_me ? " me" : ""}`}>
                   <path d={path(r)} />
-                  {r.weeks.map((wk, i) => (wk.smooth !== null && wk.accuracy !== null ? <circle key={i} cx={sx(i)} cy={sy(wk.smooth)} r={2.6} /> : null))}
+                  {r.weeks.map((wk, i) =>
+                    wk.smooth !== null && wk.accuracy !== null ? (
+                      <circle key={i} cx={sx(i)} cy={sy(wk.smooth)} r={2.6}>
+                        <title>{`${r.name}, Woche ab ${SHORT_DATE(wk.start)}: ${de(wk.smooth, 1)} % (Schnitt über drei Wochen), ${plural(wk.games, "Partie", "Partien")} in der Woche`}</title>
+                      </circle>
+                    ) : null,
+                  )}
                 </g>
               ))}
             </svg>
@@ -1266,7 +1294,7 @@ function FormRace({ rows, tones }: { rows: MomentumRow[]; tones: Tones }) {
           </div>
         </>
       ) : (
-        <p class="muted small">In den letzten 12 Wochen gibt es noch zu wenige analysierte Partien für eine Formkurve.</p>
+        <p class="muted small">In diesem Zeitraum gibt es noch zu wenige analysierte Partien für eine Formkurve.</p>
       )}
       <p class="faint small tile-foot">Gleitender Schnitt über drei Wochen. Tippe auf einen Namen, um ihn hervorzuheben.</p>
     </section>
@@ -1513,7 +1541,19 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
       standing: groupStanding(ranking),
     };
   }, [ranking, h2hOf]);
+  const [formSpan, setFormSpan] = useState(MOMENTUM_WEEKS);
+  // Weeks back to the group's oldest game, so the curve offers no empty spans.
+  const dataWeeks = useMemo(() => {
+    let oldest = Infinity;
+    for (const g of group) for (const [game] of filterGames(games, g.usernames)) oldest = Math.min(oldest, parsePlayedAt(game) ?? Infinity);
+    return Number.isFinite(oldest) ? Math.ceil((Date.now() / 1000 - oldest) / (7 * 86400)) : 0;
+  }, [group, games]);
   const momentum = useMemo(() => (ranking ? groupMomentum(group, games, { format: fmt, date, effects: ranking.speed_effects }) : []), [ranking, group, games, fmt, date]);
+  // The curve's own span; the trend table keeps its fixed 30-day windows.
+  const curve = useMemo(
+    () => (ranking ? (formSpan === MOMENTUM_WEEKS ? momentum : groupMomentum(group, games, { format: fmt, date, effects: ranking.speed_effects, weeks: formSpan })) : []),
+    [ranking, momentum, formSpan, group, games, fmt, date],
+  );
   const records = useMemo(() => groupRecords(group, games, fmt, date), [group, games, fmt, date]);
   const ratingForm = useMemo(() => groupForm(group, games), [group, games]);
   const forecast = useMemo(() => (ranking ? (a: string, b: string) => (ranking.rows.some((r) => r.id === a) && ranking.rows.some((r) => r.id === b) ? pairForecast(ranking, a, b, h2hOf(a, b)).p : null) : () => null), [ranking, h2hOf]);
@@ -1587,7 +1627,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
             <TypesCard ranking={ranking} types={view.types} tones={tones} />
 
             <SectionHead section={LEAGUE_SECTIONS[3]} />
-            <FormRace rows={momentum} tones={tones} />
+            <FormRace rows={curve} tones={tones} span={formSpan} onSpan={setFormSpan} dataWeeks={dataWeeks} />
             <FormTable rows={momentum} tones={tones} ratings={ratingForm} />
 
             <SectionHead section={LEAGUE_SECTIONS[4]} />

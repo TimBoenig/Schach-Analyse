@@ -850,7 +850,7 @@ function transferText(row: TransferRow): string {
 function TransferCard({ t }: { t: TrainingState }) {
   const report = transferReport(t.profile?.error_series ?? [], trainingStart(Object.keys(t.log).filter((d) => t.log[d].done)));
   if (!report.start) return null;
-  const fmt = (row: TransferRow, v: number | null) => (v === null ? "–" : row.metric === "accuracy" ? `${v.toFixed(1)} %` : v.toFixed(1));
+  const fmt = (row: TransferRow, v: number | null) => (v === null ? "–" : row.metric === "accuracy" ? `${v.toFixed(1).replace(".", ",")} %` : v.toFixed(1).replace(".", ","));
   return (
     <section class="card tile span-6">
       <div class="tile-head">

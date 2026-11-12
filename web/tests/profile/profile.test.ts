@@ -50,6 +50,13 @@ describe("player profile", () => {
     expect(profile.analyzed_games).toBe(24);
     expect(new Set(profile.skills.map((s) => s.key))).toEqual(new Set(Object.keys(SKILL_NAMES)));
     expect(profile.skills.every((s) => s.score >= 0 && s.score <= 100)).toBe(true);
+    // Shown in German sentences: decimal commas, and no "(…(19/54))" when a
+    // caller wraps the detail in brackets.
+    for (const s of profile.skills) {
+      expect(s.detail).not.toMatch(/\d\.\d/);
+      expect(s.detail).not.toMatch(/\(\d+\/\d+\)/);
+    }
+    expect(profile.skills.find((s) => s.key === "conversion")?.detail).toMatch(/^\d+ % der klar gewonnenen Stellungen \(ab \+3\) auch gewonnen, \d+ von \d+$/);
     const strengthKeys = new Set(profile.strengths.map((i) => i.key));
     expect(profile.weaknesses.some((i) => strengthKeys.has(i.key))).toBe(false);
 

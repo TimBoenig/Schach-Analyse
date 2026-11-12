@@ -17,6 +17,8 @@
 import { filterGames } from "../metrics/filters";
 import { type RawGame } from "../metrics/models";
 import { parsePlayedAt } from "../metrics/played";
+import { detectSpeedCategory } from "../metrics/speed";
+import { trSpeed } from "../i18n";
 import type { PlayerProfile } from "../profile/models";
 import { SKILL_NAMES } from "../profile/skills";
 import {
@@ -171,6 +173,29 @@ function chancePoints(est: (Estimate | null)[], higher: boolean): (number | null
   });
 }
 
+/**
+ * Platform with the most rated games of the player in one time control (German
+ * label), ties going to the one played last: the same rule the profile uses
+ * for its "current rating" (mainRatingSources).
+ */
+function speedSource(games: RawGame[], usernames: string[], speedLabel: string): string | null {
+  const by = new Map<string, { n: number; last: number }>();
+  for (const [g, color] of filterGames(games, usernames)) {
+    if (trSpeed(speedOf(g)) !== speedLabel) continue;
+    if (!(Number(color === "white" ? g.white_elo : g.black_elo) > 0)) continue;
+    const src = String(g.source || "file").toLowerCase();
+    const e = by.get(src) ?? { n: 0, last: 0 };
+    e.n += 1;
+    e.last = Math.max(e.last, parsePlayedAt(g) ?? 0);
+    by.set(src, e);
+  }
+  let best: [string, { n: number; last: number }] | null = null;
+  for (const entry of by) if (!best || entry[1].n > best[1].n || (entry[1].n === best[1].n && entry[1].last > best[1].last)) best = entry;
+  return best?.[0] ?? null;
+}
+
+const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other");
+
 const analyses = (n: number) => plural(n, "Analyse", "Analysen");
 
 export function buildRanking(
@@ -188,8 +213,12 @@ export function buildRanking(
 
   // Ratings only compare within one platform: the one most rated players are on.
   const ratingOf = (i: number) => (speed ? Number(((inputs[i].profile.overview.ratings ?? {}) as Record<string, number>)[speed]) || null : null);
+  // The platform the shown rating comes from: the profile takes, per time
+  // control, the platform with the most rated games, which need not be the
+  // platform most of the player's games come from.
+  const ratingSources = inputs.map((inp, i) => (speed ? speedSource(games, inp.usernames, speed) : null) ?? sources[i]);
   const bySource = new Map<string, number>();
-  inputs.forEach((_, i) => ratingOf(i) !== null && bySource.set(sources[i], (bySource.get(sources[i]) ?? 0) + 1));
+  inputs.forEach((_, i) => ratingOf(i) !== null && bySource.set(ratingSources[i], (bySource.get(ratingSources[i]) ?? 0) + 1));
   const ratingSource = [...bySource.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   let ratingDropped = false;
 
@@ -203,7 +232,7 @@ export function buildRanking(
   inputs.forEach((inp, i) => {
     const p = inp.profile;
     const rating = ratingOf(i);
-    const sameSite = rating !== null && sources[i] === ratingSource;
+    const sameSite = rating !== null && ratingSources[i] === ratingSource;
     if (rating !== null && !sameSite) ratingDropped = true;
     put("rating", i, sameSite ? { value: rating as number, se: RATING_SE } : null, sameSite ? (speed as string) : "");
     put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, "Partie", "Partien") : "");

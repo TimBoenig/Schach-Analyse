@@ -226,6 +226,32 @@ describe("climbing a place", () => {
     expect(passes(mid, Object.fromEntries(combo.map((l) => [l.key, l.to])))).toBe(true);
   });
 
+  it("compares ratings on the platform the shown rating comes from", () => {
+    // Kai plays most games on Lichess (Rapid, unrated here) but his Blitz rating
+    // is from Chess.com, the platform of the others: it must be compared.
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const rows = (user: string, n: number, speed: string, source: string, elo: string | null, prefix: string): RawGame[] =>
+      Array.from({ length: n }, (_, i) => ({
+        ...gameRow(`${prefix}${i}`, buildMoves(PUNISHED), { user, utc: `2026.06.${pad(i + 1)} 18:00:00` }),
+        speed_category: speed,
+        source,
+        white_elo: elo,
+        black_elo: elo,
+      }));
+    const games = [
+      ...rows("Kai", 20, "Rapid", "lichess", null, "k1"),
+      ...rows("Kai", 8, "Blitz", "chesscom", "1400", "k2"),
+      ...rows("Max", 12, "Blitz", "chesscom", "1600", "m"),
+      ...rows("Ida", 12, "Blitz", "chesscom", "1500", "i"),
+    ];
+    const input = (id: string): RankInput => ({ id, name: id, is_me: id === "Kai", usernames: [id], profile: buildPlayerProfile(games, [id]) });
+    const ranking = buildRanking([input("Kai"), input("Max"), input("Ida")], games, { now: Date.parse("2026-06-25T00:00:00Z") / 1000 });
+    const kai = ranking.rows.find((r) => r.id === "Kai")!;
+    expect(kai.source).toBe("lichess");
+    expect(kai.cells.rating).toMatchObject({ value: 1400, rank: 3 });
+    expect(ranking.notes.some((n) => n.includes("nicht vergleichbar"))).toBe(false);
+  });
+
   it("re-scores exactly like the ranking and keeps the rating out of it", () => {
     const pad = (n: number) => String(n).padStart(2, "0");
     const match = (user: string, opp: string, wins: number, losses: number, prefix: string): RawGame[] =>
