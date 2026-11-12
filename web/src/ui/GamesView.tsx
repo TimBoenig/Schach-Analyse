@@ -10,7 +10,7 @@ import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
 import { IconPlay, IconPlus, IconStop, IconSync } from "./icons";
-import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
+import { SPEED_DE, accClass, balanceText, formatDate, monthLabel, outcomeFor, resultText, shortOpening, streakText } from "./labels";
 import { isTyping } from "./keys";
 import { CountUp, Hero, HeroStat, ResultRibbon, WdlBar } from "./kit";
 import { navigate } from "./router";
@@ -297,12 +297,10 @@ const OUTCOME_WORD = { win: "Sieg", draw: "Remis", loss: "Niederlage" } as const
 /** What the newest results add up to, as the headline of the page. */
 function formHeadline(recent: (keyof typeof OUTCOME_SCORE)[]): string {
   if (!recent.length) return "Deine Partien";
-  let run = 1;
-  while (run < recent.length && recent[run] === recent[0]) run++;
-  if (run >= 2) return `${run} ${recent[0] === "win" ? "Siege" : recent[0] === "loss" ? "Niederlagen" : "Remis"} in Folge`;
-  const last = recent.slice(0, 10);
-  const points = last.reduce((sum, o) => sum + OUTCOME_SCORE[o], 0);
-  return `${String(points).replace(".5", ",5")} Punkte aus den letzten ${last.length} Partien`;
+  const scores: number[] = recent.map((o) => OUTCOME_SCORE[o]);
+  const last = scores.slice(0, 10);
+  const points = last.reduce<number>((sum, v) => sum + v, 0);
+  return streakText(scores) ?? `${String(points).replace(".", ",")} ${points === 1 ? "Punkt" : "Punkte"} aus den letzten ${last.length} Partien`;
 }
 
 /** The list's opening card: the current run, the last results as tiles and the balance of everything shown. */
@@ -320,7 +318,7 @@ function SummaryHero({ s, games, usernames }: { s: Summary; games: StoredGame[];
       title={formHeadline(recent.map((x) => x.o))}
       sub={
         <>
-          {s.wins} Siege · {s.draws} Remis · {s.losses} Niederlagen
+          {balanceText(s.wins, s.draws, s.losses)}
           {s.accuracy !== null ? ` · Ø Genauigkeit ${s.accuracy.toFixed(1).replace(".", ",")} %` : ""}
         </>
       }

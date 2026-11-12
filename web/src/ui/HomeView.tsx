@@ -34,7 +34,7 @@ import { PageHeader } from "./Layout";
 import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring } from "./charts";
 import { CoachAvatar, COACH_NAME, type Mood } from "./Coach";
 import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
-import { formatDate, shortOpening } from "./labels";
+import { formatDate, shortOpening, streakText } from "./labels";
 import { navigate } from "./router";
 import { PuzzleRunner } from "./training/Runners";
 import { loadFullProfile, loadTodayTraining, loadTrainingProgress, recordTrainingResult, type TodayTraining } from "./training/useTraining";
@@ -80,20 +80,10 @@ function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
 
 const RESULT_WORD = (score: number | null) => (score === 1 ? "Sieg" : score === 0 ? "Niederlage" : score === null ? "offen" : "Remis");
 
-/** Run of equal results at the newest end, e.g. "3 Siege in Folge"; null below two. */
-function streakText(games: { score: number | null }[]): string | null {
-  const first = games[0]?.score;
-  if (first === null || first === undefined) return null;
-  let n = 0;
-  while (n < games.length && games[n].score === first) n++;
-  if (n < 2) return null;
-  return `${n} ${first === 1 ? "Siege" : first === 0 ? "Niederlagen" : "Remis"} in Folge`;
-}
-
 /** The last results as tiles and the period's key figures, each with its change. */
 function FormCard({ profile, kpis, label }: { profile: PlayerProfile; kpis: KpiChange[]; label: string }) {
   const last = profile.recent_games.slice(0, 12);
-  const streak = streakText(last);
+  const streak = streakText(last.map((g) => g.score));
   return (
     <section class="card tile span-12 form-card">
       <div class="tile-head">

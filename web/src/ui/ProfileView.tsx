@@ -190,7 +190,7 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
             <strong>So stark spielen die Teile deines Spiels</strong>
             <span class="faint small">als Wertung gelesen · Punkt antippen</span>
           </div>
-          <ScaleTrack markers={markers} min={min} max={max} ticks={ticks} picked={picked} onPick={(id) => setPicked(id === "me" || id === picked ? null : id)} />
+          <ScaleTrack rows room={104} markers={markers} min={min} max={max} ticks={ticks} picked={picked} onPick={(id) => setPicked(id === "me" || id === picked ? null : id)} />
           <div class={`ar-answer${sel ? " on" : ""}`} role="status">
             {sel && selSkill ? (
               <>

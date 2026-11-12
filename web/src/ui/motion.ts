@@ -39,16 +39,31 @@ export function initMotion(): void {
   );
 
   const seen = new WeakSet<Element>();
+  const onScreen = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return r.top < window.innerHeight && r.bottom > 0;
+  };
   const watch = (el: Element) => {
     if (seen.has(el)) return;
     seen.add(el);
     io.observe(el);
     window.setTimeout(() => {
       // Only cards on screen are forced; the rest wait for their scroll.
-      const r = el.getBoundingClientRect();
-      if (r.top < window.innerHeight && r.bottom > 0) show(el);
+      if (onScreen(el)) show(el);
     }, FAILSAFE_MS);
   };
+  // A short last card can sit inside the observer's bottom margin for good:
+  // at the end of the page there is no further scroll that would lift it out.
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (window.scrollY + window.innerHeight < document.documentElement.scrollHeight - 2) return;
+      document.querySelectorAll(SELECTOR).forEach((el) => {
+        if (onScreen(el)) show(el);
+      });
+    },
+    { passive: true },
+  );
   const scan = (node: ParentNode) => node.querySelectorAll(SELECTOR).forEach(watch);
 
   new MutationObserver((records) => {

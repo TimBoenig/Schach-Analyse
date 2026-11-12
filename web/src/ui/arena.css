@@ -484,9 +484,11 @@ button.ar-stat:hover {
 .league-teaser .lg-track {
   margin-top: 26px;
 }
-.league-teaser.empty-teaser {
+.card.league-teaser.empty-teaser {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
+  min-height: 0;
   align-items: center;
   gap: 14px 18px;
 }
@@ -768,4 +770,66 @@ html.motion .game-list .game-item {
   .track-wide {
     margin: 0 58px;
   }
+}
+
+/* A marker is a full-width row shifted along the track, so its box reaches past
+   the card on the right. Clipping at the card keeps the page from scrolling sideways. */
+.card:has(.lg-track) {
+  overflow-x: clip;
+}
+
+/* A track as rows: the narrow-screen form of a track with many markers. */
+.ar-rows {
+  display: grid;
+  gap: 4px;
+}
+.ar-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 10.5em) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 12px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+button.ar-row {
+  cursor: pointer;
+}
+.ar-row.picked,
+button.ar-row:hover {
+  background: var(--surface-2);
+}
+.ar-row.me .ar-row-label {
+  font-weight: 650;
+}
+.ar-row.faint > * {
+  opacity: 0.5;
+}
+.ar-row-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.track-wide:has(.ar-rows) {
+  margin: 0;
+}
+.player-card .ar-rows {
+  margin: 0 0 12px;
+}
+/* The quiet tone equals the meter's own groove; give its fill a visible grey. */
+.ar-meter.tone-quiet .ar-meter-fill {
+  background: var(--text-3);
+}
+
+/* ---------- onboarding ---------- */
+
+/* The step number sat white on the white call-to-action colour of the dark theme. */
+.welcome-steps li::before {
+  color: var(--accent-text);
 }

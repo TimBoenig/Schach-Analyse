@@ -12,6 +12,7 @@ import type { BarRow, Column } from "./charts";
 import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { CountUp, Hero, HeroStat, WdlBar } from "./kit";
+import { balanceText } from "./labels";
 import { navigate } from "./router";
 import { ConditionFinder } from "./stats/Lab";
 import { NeedNames } from "./Coach";
@@ -442,12 +443,12 @@ export function InsightsView() {
           kicker={`Ergebnisse · ${plural(o.games, "Partie", "Partien")}`}
           title={
             <>
-              Du holst <CountUp value={overall} format={(v) => `${Math.round(v)} %`} /> der Punkte
+              Du holst <CountUp value={overall} format={(v) => `${Math.round(v)}\u00a0%`} /> der Punkte
             </>
           }
           sub={
             <>
-              {o.wins} Siege · {o.draws} Remis · {o.losses} Niederlagen
+              {balanceText(o.wins, o.draws, o.losses)}
               {expDiff !== null && Math.abs(expDiff) >= 0.5
                 ? ` · ${de1(Math.abs(expDiff))} Punkte ${expDiff > 0 ? "mehr" : "weniger"}, als deine Wertung erwarten lässt`
                 : expDiff !== null

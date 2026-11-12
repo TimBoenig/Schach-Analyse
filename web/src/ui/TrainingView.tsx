@@ -725,6 +725,7 @@ function ProgressTab({ t }: { t: TrainingState }) {
             </div>
             <div class="track-wide">
               <ScaleTrack
+                rows
                 room={150}
                 markers={rated.map((c) => ({
                   id: c.category,

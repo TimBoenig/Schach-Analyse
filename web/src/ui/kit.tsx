@@ -5,6 +5,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { useWidth } from "./charts";
+import { balanceText } from "./labels";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -136,6 +137,8 @@ export interface TrackMarker {
 const LANE = 68;
 // Room one dot with its label needs, in pixels.
 const MARKER_ROOM = 76;
+// Below this width a track that offers rows switches to them.
+const ROWS_BELOW = 560;
 
 /** Markers on one line from `min` to `max`, stacked into lanes where they would overlap. */
 export function ScaleTrack({
@@ -146,6 +149,7 @@ export function ScaleTrack({
   picked,
   onPick,
   room = MARKER_ROOM,
+  rows = false,
 }: {
   markers: TrackMarker[];
   min?: number;
@@ -155,9 +159,41 @@ export function ScaleTrack({
   onPick?: (id: string) => void;
   /** Width one marker with its label needs, in pixels; raise it for long labels. */
   room?: number;
+  /** Many markers with long names: on a narrow screen list them as rows instead of stacking lanes. */
+  rows?: boolean;
 }) {
   const [ref, w] = useWidth<HTMLDivElement>(600);
   const on = useEntrance();
+  if (rows && w < ROWS_BELOW) {
+    return (
+      <div class="ar-rows" ref={ref}>
+        {[...markers]
+          .sort((a, b) => b.value - a.value)
+          .map((m) => {
+            const body = (
+              <>
+                <span class={`pl-avatar sm ${m.tone}${m.me ? " ring" : ""}`} aria-hidden="true">
+                  {m.mark ?? (m.label.trim()[0] ?? "?").toUpperCase()}
+                </span>
+                <span class="ar-row-label">{m.label}</span>
+                <Meter value={m.value - min} max={max - min} tone={m.tone} />
+                <strong class="tnum">{m.valueText ?? Math.round(m.value)}</strong>
+              </>
+            );
+            const cls = `ar-row${m.me ? " me" : ""}${m.faint ? " faint" : ""}${picked === m.id ? " picked" : ""}`;
+            return onPick ? (
+              <button key={m.id} class={cls} title={m.title} aria-pressed={picked === m.id} onClick={() => onPick(m.id)}>
+                {body}
+              </button>
+            ) : (
+              <div key={m.id} class={cls} title={m.title}>
+                {body}
+              </div>
+            );
+          })}
+      </div>
+    );
+  }
   const gap = (room / Math.max(w, 1)) * 100;
   const pct = (v: number) => clamp(((v - min) / (max - min || 1)) * 100, 0, 100);
   const lanes: number[] = [];
@@ -268,7 +304,7 @@ const RIBBON: Record<string, { cls: string; ch: string }> = { "1": { cls: "win",
 export function ResultRibbon({ games, onPick }: { games: RibbonGame[]; onPick: (id: string) => void }) {
   const count = (s: number) => games.filter((g) => g.score === s).length;
   return (
-    <div class="ar-ribbon" role="group" aria-label={`${count(1)} Siege, ${count(0.5)} Remis, ${count(0)} Niederlagen`}>
+    <div class="ar-ribbon" role="group" aria-label={balanceText(count(1), count(0.5), count(0), ", ")}>
       {games.map((g, i) => {
         const r = RIBBON[String(g.score)] ?? { cls: "open", ch: "·" };
         return (
@@ -301,7 +337,7 @@ export function WdlBar({ wins, draws, losses }: { wins: number; draws: number; l
   const total = wins + draws + losses || 1;
   const part = (n: number) => `${on ? (n / total) * 100 : 0}%`;
   return (
-    <span class="ar-wdl" role="img" aria-label={`${wins} Siege, ${draws} Remis, ${losses} Niederlagen`}>
+    <span class="ar-wdl" role="img" aria-label={balanceText(wins, draws, losses, ", ")}>
       <span class="win" style={{ width: part(wins) }} />
       <span class="draw" style={{ width: part(draws) }} />
       <span class="loss" style={{ width: part(losses) }} />
