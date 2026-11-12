@@ -7,3 +7,5 @@ export const BRAND_DOMAIN = "endgameking.com";
 export const SITE_URL = `https://${BRAND_DOMAIN}`;
 /** Prefix of downloaded files (backup, CSV, PGN, AI export). */
 export const FILE_PREFIX = "endgameking";
+/** Contact address shown in the Impressum and privacy notice; must receive mail. */
+export const SUPPORT_EMAIL = `support@${BRAND_DOMAIN}`;

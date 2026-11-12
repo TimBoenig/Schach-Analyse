@@ -231,6 +231,9 @@ export function App() {
         <button class="nav-keys" onClick={() => setOverlay("keys")}>
           Tastenkürzel <kbd>?</kbd>
         </button>
+        <a class="nav-legal" href="#/rechtliches">
+          Impressum
+        </a>
       </nav>
       <nav class="tabbar" aria-label="Hauptnavigation">
         {TAB_AREAS.map((a) => areaButton(a, "tab"))}
@@ -254,6 +257,10 @@ export function App() {
           {route.view === "account" && <AccountView />}
           {route.view === "legal" && <LegalView tab={route.tab ?? "impressum"} />}
         </ErrorBoundary>
+        {/* Phones and tablets have no side rail, so the legal links sit under every page. */}
+        <footer class="page-legal faint small">
+          <a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a>
+        </footer>
       </main>
       <ErrorBoundary area="Das Menü">
         {overlay === "palette" && (

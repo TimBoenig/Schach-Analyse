@@ -854,3 +854,36 @@ button.ar-row:hover {
   border-radius: 9px;
   box-shadow: 0 0 0 1px var(--border);
 }
+
+/* ---------- legal links: reachable from every page (Impressum, § 5 DDG) ---------- */
+
+.nav-legal {
+  display: block;
+  text-align: center;
+  padding: 2px 0 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-decoration: none;
+}
+
+.nav-legal:hover,
+.nav-legal:focus-visible {
+  color: var(--text);
+}
+
+.page-legal {
+  display: none;
+  text-align: center;
+  padding: 28px 0 0;
+}
+
+.page-legal a {
+  color: inherit;
+}
+
+@media (max-width: 1023px) {
+  .page-legal {
+    display: block;
+  }
+}
