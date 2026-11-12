@@ -86,8 +86,10 @@ export async function loadTodayTraining(): Promise<TodayTraining> {
 
 /** The stored week plan, or a fresh one when a new calendar week has started. */
 function currentWeek(stored: WeekPlan | null, p: PlayerProfile, today: string): WeekPlan {
-  if (!weekOutdated(stored, today)) return stored!;
-  const withExercises = new Set(p.exercises.map((e) => e.category));
+  // Weeks stored before openings became the player's own choice could still name opening days.
+  if (!weekOutdated(stored, today) && !stored!.days.some((d) => d.theme === "repertoire")) return stored!;
+  // Openings are picked by the player, never assigned, so they get no day in the week either.
+  const withExercises = new Set(p.exercises.filter((e) => e.kind !== "repertoire").map((e) => e.category));
   // The week follows the profile, not the manual focus, which only steers single days.
   const ranking = categoryNeeds(p.skills, p.patterns, "auto")
     .map((n) => n.category)
@@ -132,7 +134,7 @@ export function useTraining() {
           if (fresh !== wk) void setSetting(K.week, fresh);
           wk = fresh;
         }
-        if (p && (planOutdated(pl, pf, today) || pl?.theme === undefined)) {
+        if (p && (planOutdated(pl, pf, today) || pl?.theme === undefined || pl.theme !== themeOf(wk, today))) {
           pl = buildDailyPlan({ skills: p.skills, patterns: p.patterns, pool: p.exercises, progress: prog, prefs: pf, today, theme: themeOf(wk, today) });
           void setSetting(K.plan, pl);
         }

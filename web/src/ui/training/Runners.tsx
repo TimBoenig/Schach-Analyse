@@ -1,7 +1,7 @@
 import { Chess, type Square } from "chess.js";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { judgeTried } from "../../app/liveEval";
+import { judgeTried, positionLines } from "../../app/liveEval";
 import { engineMove } from "../../app/trainingEngine";
 import { solvesPuzzle } from "../../domain/live";
 import { trClassification, trPhase } from "../../domain/i18n";
@@ -53,6 +53,16 @@ function squaresOf(fen: string, san: string): { from: string; to: string } | nul
   } catch {
     return null;
   }
+}
+
+/**
+ * The engine's answer to a position, taken from the same cached analysis that judges the
+ * player's move: one engine run per move instead of two, so the reply comes quickly.
+ */
+async function replyFor(fen: string): Promise<{ uci: string; cp: number | null; mate: number | null } | null> {
+  const lines = await positionLines(fen);
+  if (lines[0]?.pv.length) return { uci: lines[0].pv[0], cp: lines[0].cp, mate: lines[0].mate };
+  return engineMove(fen);
 }
 
 function legalTargetsFor(board: Chess | null, enabled: boolean) {
@@ -128,23 +138,53 @@ function NextButton({ onNext, label }: { onNext: () => void; label: string }) {
 // ---------- puzzle from the player's own game ----------
 
 export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<PuzzleExercise>) {
+  // The line to play: own move, opponent reply, own move … (older puzzles: just the solution).
+  const line = useMemo(() => (ex.moves?.length ? ex.moves : [ex.solution]), [ex.id]);
+  const positions = useMemo(() => {
+    const out = [ex.fen];
+    const b = new Chess(ex.fen);
+    for (const u of line) {
+      try {
+        b.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] });
+      } catch {
+        break;
+      }
+      out.push(b.fen());
+    }
+    return out;
+  }, [ex.id]);
+  const steps = Math.ceil((positions.length - 1) / 2);
+  // Index into `line` of the own move asked for now (always even).
+  const [at, setAt] = useState(0);
   const [fen, setFen] = useState(ex.fen);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [hint, setHint] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [solved, setSolved] = useState(false);
   const [checking, setChecking] = useState(false);
-  // The solving move with its verdict, so the board can show its badge (and celebrate a brilliant one).
-  const [hit, setHit] = useState<{ from: string; to: string; cls: Classification } | null>(null);
+  // The last move on the board with its verdict, so the board can show a badge (and celebrate a brilliant one).
+  const [hit, setHit] = useState<{ from: string; to: string; cls?: Classification } | null>(null);
   // Wrong tries stay on the board as red arrows, so the player sees what was already ruled out.
   const [wrong, setWrong] = useState<{ from: string; to: string }[]>([]);
   const failed = useRef(false);
   const reported = useRef(false);
+  const alive = useRef(true);
   const player = useLinePlayer();
   const shown = player.line ? player.line[player.step] : null;
   const boardFen = shown ? shown.fen : fen;
+  const here = positions[at] ?? ex.fen;
   const board = useMemo(() => new Chess(fen), [fen]);
   const userWhite = sideOf(ex.fen) === "white";
+  const ready = !solved && !reveal && !checking && fen === here && !player.line;
+
+  useEffect(() => {
+    alive.current = true;
+    // Warm the engine for this position while the player thinks: a wrong try is then judged in about a second.
+    void positionLines(ex.fen);
+    return () => {
+      alive.current = false;
+    };
+  }, [ex.id]);
 
   const report = (ok: boolean) => {
     if (reported.current) return;
@@ -152,7 +192,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
     onResult(ok);
   };
 
-  // Other moves the analysis already accepts, shown once the puzzle is over.
+  // Other first moves the analysis already accepts, shown once the puzzle is over.
   const others = useMemo(() => {
     return ex.accept
       .filter((u) => u.slice(0, 4) !== ex.solution.slice(0, 4))
@@ -166,23 +206,45 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       .filter((x): x is string => Boolean(x));
   }, [ex]);
 
-  const solve = (from: string, to: string, cls: Classification, text: string) => {
+  const finish = (from: string, to: string, cls: Classification, text: string) => {
     setSolved(true);
     setHit({ from, to, cls });
     setFeedback({ ok: true, text: cls === "Brilliant" ? `Brillant!! ${text}` : text });
-    report(!failed.current && !hint && !reveal);
+    report(!failed.current && !hint);
+  };
+
+  /** A correct own move: the opponent answers from the line, or the puzzle is solved. */
+  const correct = (from: string, to: string, san: string, offLine: boolean) => {
+    const last = offLine || at + 2 >= positions.length - 1;
+    if (last) {
+      const text = at === 0 && !offLine ? `${san} ist der beste Zug.` : offLine ? `${san} ist laut Engine genauso stark.` : `${san} – Aufgabe gelöst!`;
+      finish(from, to, "Best", text);
+      return;
+    }
+    setHit({ from, to, cls: "Best" });
+    setFeedback({ ok: true, text: `${san} – richtig! Weiter …` });
+    setHint(false);
+    setWrong([]);
+    const reply = line[at + 1];
+    window.setTimeout(() => {
+      if (!alive.current) return;
+      setFen(positions[at + 2]);
+      setHit({ from: reply.slice(0, 2), to: reply.slice(2, 4) });
+      setAt(at + 2);
+      setFeedback({ ok: true, text: `${san} – richtig! Und jetzt?` });
+    }, 450);
   };
 
   const retry = () => {
     player.clear();
-    setFen(ex.fen);
+    setFen(here);
     setFeedback(null);
   };
 
   const tryMove = (from: string, to: string, chosen?: Promotion) => {
-    if (solved || checking || fen !== ex.fen || player.line) return false;
+    if (!ready) return false;
     player.clear();
-    const b = new Chess(ex.fen);
+    const b = new Chess(here);
     let san = "";
     let uci = "";
     try {
@@ -193,46 +255,77 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       return false;
     }
     setFen(b.fen());
+    setHit({ from, to });
     const after = b.fen();
-    const ok = ex.accept.some((a) => a === uci || (a.length === 4 && a === uci.slice(0, 4)));
-    if (ok) {
-      solve(from, to, "Best", uci.slice(0, 4) === ex.solution.slice(0, 4) ? `${san} ist der beste Zug.` : `${san} ist genauso gut wie ${ex.solution_san}.`);
+    const same = (a: string) => a === uci || (a.length === 4 && a === uci.slice(0, 4));
+    const listed = at === 0 ? ex.accept.some(same) : same(line[at]);
+    if (listed || b.isCheckmate()) {
+      const offLine = !same(line[at]) && !b.isCheckmate();
+      if (at === 0 && offLine) {
+        finish(from, to, "Best", `${san} ist genauso gut wie ${ex.solution_san}.`);
+      } else {
+        correct(from, to, san, b.isCheckmate() && !same(line[at]));
+      }
       // The stored answer says nothing about brilliance; the (cached) engine verdict upgrades the badge.
-      void judgeTried(ex.fen, uci, after).then((v) => {
-        if (v?.classification === "Brilliant") {
+      void judgeTried(here, uci, after).then((v) => {
+        if (alive.current && v?.classification === "Brilliant") {
           setHit({ from, to, cls: "Brilliant" });
           setFeedback((f) => (f && f.ok ? { ...f, text: `Brillant!! ${f.text}` } : f));
         }
       });
-    } else {
-      // Not a stored answer: let the engine decide, since another move can be just as good.
-      setChecking(true);
-      setFeedback({ ok: true, text: `Stockfish prüft ${san} …` });
-      void judgeTried(ex.fen, uci, after).then((v) => {
-        setChecking(false);
-        if (v && solvesPuzzle(v)) {
-          solve(from, to, v.classification === "Brilliant" ? "Brilliant" : "Best", `${san} ist laut Engine genauso stark wie ${ex.solution_san}.`);
-          return;
-        }
-        failed.current = true;
-        setWrong((w) => [...w, { from, to }]);
-        // Show why on the board: the move and how the engine punishes it, instead of a paragraph.
-        const line = refutationLine(ex.fen, uci, v?.reply_pv ?? []);
-        setFeedback({ ok: false, text: v ? `${san} – ${classLabel(v.classification)}` : `${san} ist nicht der gesuchte Zug` });
-        player.offer(line);
-        window.setTimeout(() => setFen(ex.fen), 1200);
-      });
+      return true;
     }
+    // Not the stored answer: let the engine decide, since another move can be just as good.
+    setChecking(true);
+    setFeedback({ ok: true, text: `Stockfish prüft ${san} …` });
+    void judgeTried(here, uci, after).then((v) => {
+      if (!alive.current) return;
+      setChecking(false);
+      if (v && solvesPuzzle(v)) {
+        if (v.classification === "Brilliant") finish(from, to, "Brilliant", `${san} ist laut Engine genauso stark.`);
+        else correct(from, to, san, true);
+        return;
+      }
+      failed.current = true;
+      setWrong((w) => [...w, { from, to }]);
+      setHit({ from, to, cls: (v?.classification as Classification) || "Mistake" });
+      // Show why on the board: the move and how the engine punishes it, instead of a paragraph.
+      setFeedback({ ok: false, text: v ? `${san} – ${classLabel(v.classification)}. Versuch es nochmal.` : `${san} ist nicht der gesuchte Zug.` });
+      player.offer(refutationLine(here, uci, v?.reply_pv ?? []));
+      window.setTimeout(() => {
+        if (!alive.current) return;
+        setFen((f) => (f === after ? here : f));
+        setHit(null);
+      }, 600);
+    });
     return true;
+  };
+
+  /** Shows the solution: the rest of the line is played on the board, move by move. */
+  const showSolution = () => {
+    setReveal(true);
+    report(false);
+    player.clear();
+    let i = at;
+    const tick = () => {
+      if (!alive.current || i >= positions.length - 1) return;
+      const u = line[i];
+      setFen(positions[i + 1]);
+      setHit({ from: u.slice(0, 2), to: u.slice(2, 4), cls: i % 2 === 0 ? "Best" : undefined });
+      i += 1;
+      window.setTimeout(tick, 800);
+    };
+    setFen(here);
+    window.setTimeout(tick, 300);
   };
 
   const next = player.line && player.step + 1 < player.line.length ? player.line[player.step + 1] : null;
   const arrows: Arrow[] = [];
   if (shown && next) arrows.push({ from: next.from, to: next.to, kind: "wrong" });
-  if (!player.line && fen === ex.fen) arrows.push(...wrong.map((w) => ({ ...w, kind: "wrong" as const })));
-  if (reveal && !solved) arrows.push({ from: ex.solution.slice(0, 2), to: ex.solution.slice(2, 4), kind: "best" });
+  if (!player.line && fen === here && !solved && !reveal) arrows.push(...wrong.map((w) => ({ ...w, kind: "wrong" as const })));
   const lastMove = shown ? { from: shown.from, to: shown.to } : hit;
   const badge: Classification | undefined = shown ? (shown.tried ? "Mistake" : undefined) : hit?.cls;
+  const ownStep = at / 2 + 1;
 
   return (
     <div class="puzzle">
@@ -243,17 +336,28 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           arrows={arrows}
           lastMove={lastMove}
           badge={badge}
-          highlight={hint && !solved ? [ex.solution.slice(0, 2)] : []}
+          highlight={hint && ready ? [line[at].slice(0, 2)] : []}
           onMove={tryMove}
-          legalTargets={legalTargetsFor(board, fen === ex.fen && !solved && !player.line)}
+          legalTargets={legalTargetsFor(board, ready)}
         />
         {hit?.cls === "Brilliant" && <BrilliantFx key={hit.to} square={hit.to} flipped={!userWhite} />}
       </div>
       <div class="side-panel">
         <div class="card">
           <div class="ex-cat">{CATEGORIES[ex.category].label}</div>
-          <h3>{userWhite ? "Weiß" : "Schwarz"} am Zug</h3>
+          <div class="puzzle-turn">
+            <span class={`turn-dot ${userWhite ? "w" : "b"}`} />
+            <h3>{userWhite ? "Weiß" : "Schwarz"} am Zug</h3>
+            {steps > 1 && (
+              <span class="puzzle-steps" aria-label={`Zug ${Math.min(ownStep, steps)} von ${steps}`}>
+                {Array.from({ length: steps }, (_, i) => (
+                  <span key={i} class={i < at / 2 || solved ? "on" : i === at / 2 && !reveal ? "cur" : ""} />
+                ))}
+              </span>
+            )}
+          </div>
           <p style={{ marginTop: 0 }}>{ex.prompt}</p>
+          {steps > 1 && at === 0 && !solved && <p class="small muted">Diese Aufgabe hat {steps} Züge: Nach deinem Zug antwortet der Gegner.</p>}
           <p class="small muted">
             Aus deiner Partie gegen <strong>{ex.opponent || "?"}</strong>
             {ex.date ? ` (${formatDate(ex.date)})` : ""}. Gespielt: <strong>{ex.played_san}</strong> ({trClassification(ex.classification)},{" "}
@@ -264,7 +368,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
               {feedback.detail}
             </Coach>
           )}
-          {player.pending && !player.line && !solved && (
+          {player.pending && !player.line && !solved && !reveal && (
             <button class="btn small consequence-btn" onClick={player.show}>
               Warum? Konsequenz zeigen
             </button>
@@ -285,7 +389,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           )}
           {(solved || reveal) && others.length > 0 && (
             <p class="small">
-              Ebenfalls richtig: <strong>{others.join(", ")}</strong>
+              Im ersten Zug ebenfalls richtig: <strong>{others.join(", ")}</strong>
             </p>
           )}
           {(solved || reveal) && ex.line_san.length > 1 && (
@@ -295,7 +399,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           )}
           {reveal && !solved && (
             <p>
-              Lösung: <strong>{ex.solution_san}</strong>
+              Lösung: <strong>{ex.line_san.slice(0, Math.max(1, positions.length - 1)).join(" ") || ex.solution_san}</strong>
             </p>
           )}
           <div class="row">
@@ -311,13 +415,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
                 >
                   Tipp
                 </button>
-                <button
-                  class="btn"
-                  onClick={() => {
-                    setReveal(true);
-                    report(false);
-                  }}
-                >
+                <button class="btn" onClick={showSolution}>
                   Lösung zeigen
                 </button>
               </>
@@ -365,11 +463,13 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
   const shown = player.line ? player.line[player.step] : null;
 
   const reply = async (b: Chess) => {
-    const r = await engineMove(b.fen());
+    const r = await replyFor(b.fen());
     if (!alive.current || !r) return;
     const m = b.move({ from: r.uci.slice(0, 2), to: r.uci.slice(2, 4), promotion: r.uci[4] as "q" | undefined });
     setFen(b.fen());
     setLast({ from: m.from, to: m.to });
+    // Analyse the new position while the player thinks, so the next verdict is quick.
+    if (!b.isGameOver()) void positionLines(b.fen());
   };
 
   // The drilled line can end with the player's own move: then Stockfish starts.
@@ -748,11 +848,14 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
       return false;
     }
     if (mv.promotion) promoted.current = true;
-    // Judged on the side (cached, does not block the engine reply): a brilliant move gets its celebration.
     const sq = mv.to;
-    void judgeTried(fen, mv.from + mv.to + (mv.promotion ?? ""), b.fen()).then((v) => {
-      if (alive.current && v?.classification === "Brilliant") setBrilliant(sq + ":" + (userMoves + 1));
-    });
+    const judge = () =>
+      // Judged after the reply (it reuses that analysis): a brilliant move gets its celebration.
+      void judgeTried(before, mv.from + mv.to + (mv.promotion ?? ""), afterFen).then((v) => {
+        if (alive.current && v?.classification === "Brilliant") setBrilliant(sq + ":" + moves);
+      });
+    const before = fen;
+    const afterFen = b.fen();
     const moves = userMoves + 1;
     setFen(b.fen());
     setLastMove({ from: mv.from, to: mv.to });
@@ -766,9 +869,10 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
     const thisRound = round.current;
     void (async () => {
       try {
-        const reply = await engineMove(b.fen());
+        const reply = await replyFor(b.fen());
         if (!alive.current || thisRound !== round.current) return;
         if (!reply) throw new Error("Die Engine hat keinen Zug gefunden.");
+        judge();
         // The engine scores for itself (side to move); flip to the player's view.
         state.score = { cp: reply.cp !== null ? -reply.cp : null, mate: reply.mate !== null ? -reply.mate : null };
         const em = b.move({ from: reply.uci.slice(0, 2), to: reply.uci.slice(2, 4), promotion: reply.uci[4] as "q" | undefined });
@@ -776,6 +880,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
         setLastMove({ from: em.from, to: em.to });
         state.over = over(b);
         finish(judgePlayout(ex.goal, state));
+        if (!state.over) void positionLines(b.fen());
       } catch (e) {
         if (alive.current) setError(e instanceof Error ? e.message : String(e));
       } finally {

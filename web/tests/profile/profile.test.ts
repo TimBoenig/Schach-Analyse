@@ -59,10 +59,11 @@ describe("player profile", () => {
     const winning = profile.patterns.find((p) => p.key === "errors_when_winning");
     expect(winning?.examples[0]?.ply_index).toBe(16);
 
-    // Every thrown game yields a puzzle whose solution is legal in its position;
-    // the error came right after the opponent's blunder, so it trains punishing.
+    // The 18 thrown games all reach the same position, which becomes one puzzle (no
+    // twins); its solution is legal there and, coming right after the opponent's
+    // blunder, it trains punishing.
     const puzzles = profile.exercises.filter((e): e is PuzzleExercise => e.kind === "puzzle");
-    expect(puzzles).toHaveLength(18);
+    expect(puzzles).toHaveLength(1);
     for (const pz of puzzles) {
       const board = new Board(pz.fen);
       const mv = moveFromUci(pz.solution);

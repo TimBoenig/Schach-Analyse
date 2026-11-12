@@ -9,11 +9,12 @@ export {
   countByCategory,
   lineToSan,
   puzzleCategory,
+  puzzleLine,
   repertoireDrill,
 } from "./exercises";
 export type { Category, CategoryInfo, Exercise, PlayoutExercise, PlayoutGoal, PuzzleExercise, RepertoireExercise } from "./exercises";
-export { buildDailyPlan, categoryNeeds, DEFAULT_PREFS, EXERCISE_MINUTES, interleave, MINUTE_CHOICES, planOutdated, relevance } from "./plan";
-export type { CategoryNeed, DailyPlan, PlanBlock, PlanInput, TrainingPrefs } from "./plan";
+export { buildDailyPlan, categoryNeeds, DEFAULT_PREFS, EXERCISE_MINUTES, interleave, MINUTE_CHOICES, planOutdated, relevance, sessionParts } from "./plan";
+export type { CategoryNeed, DailyPlan, PlanBlock, PlanInput, SessionPart, TrainingPrefs } from "./plan";
 export {
   addDays,
   categoryProgress,

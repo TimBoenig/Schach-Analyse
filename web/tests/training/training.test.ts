@@ -95,7 +95,8 @@ describe("exercise pool", () => {
   it("keeps exercise ids stable between profile builds", () => {
     const ids = () => buildPlayerProfile(profileGames(4, 2), ["tim"]).exercises.map((e) => e.id);
     expect(ids()).toEqual(ids());
-    expect(ids()).toContain("p:t0:16");
+    // Identical fixture games reach the same position: it becomes one puzzle, not four twins.
+    expect(ids().filter((id) => /^p:t\d:16$/.test(id))).toHaveLength(1);
   });
 });
 

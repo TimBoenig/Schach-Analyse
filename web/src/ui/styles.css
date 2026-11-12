@@ -7886,3 +7886,135 @@ button.line-move:hover {
   background: color-mix(in srgb, var(--loss) 12%, transparent);
   border-color: color-mix(in srgb, var(--loss) 40%, transparent);
 }
+
+/* ---------- daily session structure (warm-up → main theme → mixed) ---------- */
+.plan-steps,
+.session-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.plan-steps {
+  display: grid;
+  gap: 14px;
+}
+.plan-steps li {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.plan-steps li.done {
+  opacity: 0.7;
+}
+.plan-step-num,
+.session-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-weight: 700;
+  font-size: 13px;
+  flex: none;
+}
+.plan-steps li.done .plan-step-num,
+.session-steps li.done .session-step-num {
+  background: var(--win);
+  color: var(--accent-text);
+}
+.plan-step-body .row {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.plan-step-body .block-reason {
+  margin: 0 0 8px;
+}
+.session-steps {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+}
+.session-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  opacity: 0.65;
+}
+.session-steps li.cur {
+  opacity: 1;
+  border-color: var(--accent);
+}
+.session-steps li.cur .session-step-num {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+.session-steps li.done {
+  opacity: 0.85;
+}
+.session-step-text {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.session-summary {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 10px;
+}
+.session-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+/* multi-move puzzles */
+.puzzle-turn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.puzzle-turn h3 {
+  margin: 0;
+}
+.turn-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+}
+.turn-dot.w {
+  background: var(--eval-light);
+}
+.turn-dot.b {
+  background: var(--eval-dark);
+}
+.puzzle-steps {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.puzzle-steps span {
+  width: 18px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+.puzzle-steps span.on {
+  background: var(--win);
+}
+.puzzle-steps span.cur {
+  background: var(--accent);
+}
