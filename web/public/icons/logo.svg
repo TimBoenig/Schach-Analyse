@@ -1,32 +1,27 @@
-<!-- Schach-Analyse logo: knight with a rising analysis line. Source for the PNG icons in this folder. -->
+<!-- EndGameKing logo: a king with a golden cross. Source for the PNG icons in this folder. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#3d3a36"/>
-      <stop offset="1" stop-color="#262421"/>
+      <stop offset="0" stop-color="#24262b"/>
+      <stop offset="1" stop-color="#0a0b0d"/>
+    </linearGradient>
+    <linearGradient id="ivory" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9d5ca"/>
     </linearGradient>
     <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#a6d46a"/>
-      <stop offset="1" stop-color="#6fa23e"/>
+      <stop offset="0" stop-color="#ecd08f"/>
+      <stop offset="1" stop-color="#c9a45c"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g transform="translate(-26 0)">
-  <g transform="translate(56 50) scale(4)">
-    <path d="M30 82 L74 82 L73 62 C72 46 68 34 60 26 L56 22 L54 12 L47 20 C42 20 36 23 31 30 L22 42 C20 45 20 48 23 50 L26 52 C29 53 32 52 35 50 L43 46 C42 54 36 60 32 68 C30 72 30 77 30 82 Z" fill="url(#gold)"/>
-    <path d="M57 27 C64 36 68 48 68 62" fill="none" stroke="#4c7a25" stroke-width="2.6" stroke-linecap="round" opacity="0.55"/>
-    <circle cx="44" cy="32" r="2.6" fill="#1a1e26"/>
-    <rect x="25" y="83" width="54" height="8" rx="3" fill="url(#gold)"/>
+  <g fill="url(#gold)">
+    <rect x="243" y="84" width="26" height="86" rx="8"/>
+    <rect x="218" y="106" width="76" height="26" rx="8"/>
   </g>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <g stroke="#262421" stroke-width="46">
-      <polyline points="292,338 342,288 378,312 440,244"/>
-      <path d="M404 236 L446 236 L446 278"/>
-    </g>
-    <g stroke="#ffffff" stroke-width="24">
-      <polyline points="292,338 342,288 378,312 440,244"/>
-      <path d="M404 236 L446 236 L446 278"/>
-    </g>
-  </g>
+  <g fill="url(#ivory)">
+    <path d="M256 196 C232 160 150 164 150 232 C150 280 196 300 206 344 L306 344 C316 300 362 280 362 232 C362 164 280 160 256 196 Z"/>
+    <rect x="190" y="356" width="132" height="26" rx="13"/>
+    <path d="M176 394 L336 394 C348 394 358 402 360 414 L364 432 C366 442 358 450 348 450 L164 450 C154 450 146 442 148 432 L152 414 C154 402 164 394 176 394 Z"/>
   </g>
 </svg>
