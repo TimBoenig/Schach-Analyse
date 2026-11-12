@@ -14,6 +14,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { IconAccount, IconSearch } from "./icons";
 import { AREAS, type Area, areaOf, MAIN_AREAS, ShellContext } from "./Layout";
 import { InsightsView } from "./InsightsView";
+import { LegalView } from "./LegalView";
 import { MovesView } from "./MovesView";
 import { OpeningsView } from "./OpeningsView";
 import { isTyping, MOD } from "./keys";
@@ -250,6 +251,7 @@ export function App() {
           )}
           {route.view === "settings" && <SettingsView tab={route.tab} />}
           {route.view === "account" && <AccountView />}
+          {route.view === "legal" && <LegalView tab={route.tab ?? "impressum"} />}
         </ErrorBoundary>
       </main>
       <ErrorBoundary area="Das Menü">

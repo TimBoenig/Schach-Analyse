@@ -18,7 +18,10 @@ export type Route =
   | { view: "players"; playerId?: string; tab?: "rangliste" }
   | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings"; tab?: SettingsTab }
-  | { view: "account" };
+  | { view: "account" }
+  | { view: "legal"; tab?: LegalTab };
+
+export type LegalTab = "impressum" | "datenschutz" | "lizenzen";
 
 export function parseHash(hash: string): Route {
   // Links from account e-mails come back as "#access_token=…" or "#error=…".
@@ -54,6 +57,10 @@ export function parseHash(hash: string): Route {
     }
     case "konto":
       return { view: "account" };
+    case "rechtliches": {
+      const tab = (["impressum", "datenschutz", "lizenzen"] as const).find((t) => t === parts[1]);
+      return { view: "legal", tab };
+    }
     default:
       return { view: "home" };
   }
@@ -83,6 +90,8 @@ export function toHash(r: Route): string {
       return r.tab ? `#/einstellungen/${r.tab}` : "#/einstellungen";
     case "account":
       return "#/konto";
+    case "legal":
+      return r.tab && r.tab !== "impressum" ? `#/rechtliches/${r.tab}` : "#/rechtliches";
     case "games":
       return r.import ? "#/import" : "#/partien";
     default:

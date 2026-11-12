@@ -25,6 +25,8 @@ import {
   type PuzzleExercise,
   puzzleOfTheDay,
 } from "../domain/training";
+import { syncAvailable } from "../storage/sync";
+import { HomeNudge } from "./HomeNudge";
 import { PageHeader } from "./Layout";
 import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring, Sparkline } from "./charts";
 import { Coach, CoachAvatar, COACH_NAME, type Mood } from "./Coach";
@@ -482,6 +484,14 @@ export function HomeView() {
               Partien importieren
             </button>
           </div>
+          {syncAvailable() && (
+            <p class="small muted" style={{ marginBottom: 0 }}>
+              Schon ein Konto?{" "}
+              <button class="link-btn" onClick={() => navigate({ view: "account" })}>
+                Anmelden und alles zurückholen
+              </button>
+            </p>
+          )}
         </div>
       </div>
     );
@@ -547,6 +557,7 @@ export function HomeView() {
   return (
     <div class="home" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
+      <HomeNudge games={games.length} />
       <div class="dash">
         <section class="card span-8 home-hero">
           <Coach mood={heroMood} size={72} class="big" title={heroTitle}>
