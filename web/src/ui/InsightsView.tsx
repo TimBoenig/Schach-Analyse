@@ -17,7 +17,8 @@ import { navigate } from "./router";
 import { ConditionFinder } from "./stats/Lab";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
-import { type InsightsSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type InsightsSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
@@ -348,6 +349,7 @@ function Tile({ title, sub, span, children }: { title: string; sub?: string; spa
 
 export function InsightsView() {
   const { profile, usernames, loading, error, filters, setFilters } = useProfile();
+  const narrow = useNarrow();
 
   const header = (
     <>
@@ -432,6 +434,10 @@ export function InsightsView() {
 
   const sec = (id: InsightsSection) => sectionOf("insights", id);
   const pt = precisionTiles(d.precision, overall);
+  // Seven weekdays as columns leave no room for "32 Partien · ±16" under each
+  // on a phone; there the same buckets are rows with the note beside them.
+  const scoreChart = (buckets: (ScoreBucket | ScoreStat)[]) =>
+    narrow ? <BarList rows={scoreRows(buckets, overall)} referenceLabel="Dein Schnitt" /> : <ColumnChart columns={scoreColumns(buckets)} max={100} reference={scoreRef} />;
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
@@ -506,78 +512,82 @@ export function InsightsView() {
           )}
         </section>
 
-        <SectionHead section={sec("entwicklung")} />
-        <EvolutionTiles d={d} />
+        <Section section={sec("entwicklung")}>
+          <EvolutionTiles d={d} />
+        </Section>
 
-        <SectionHead section={sec("ergebnisse")} />
-        {pt.expectation}
-        <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
-          {d.game_types.length ? (
-            <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
-          ) : (
-            <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
-          )}
-        </Tile>
-        <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={4}>
-          <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
-        </Tile>
-        {pt.color}
-        {pt.length}
+        <Section section={sec("ergebnisse")}>
+          {pt.expectation}
+          <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
+            {d.game_types.length ? (
+              <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
+            ) : (
+              <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
+            )}
+          </Tile>
+          <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={4}>
+            <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
+          </Tile>
+          {pt.color}
+          {pt.length}
+        </Section>
 
-        <SectionHead section={sec("verlauf")} />
-        {pt.curve}
-        {pt.turnarounds}
-        {pt.consistency}
-        {pt.byResult}
+        <Section section={sec("verlauf")}>
+          {pt.curve}
+          {pt.turnarounds}
+          {pt.consistency}
+          {pt.byResult}
+        </Section>
 
-        <SectionHead section={sec("gewohnheiten")} />
-        <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={6}>
-          {clocked ? (
-            <ColumnChart columns={thinkCols} />
-          ) : (
-            <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
-          )}
-        </Tile>
+        <Section section={sec("gewohnheiten")}>
+          <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={6}>
+            {clocked ? (
+              <ColumnChart columns={thinkCols} />
+            ) : (
+              <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
+            )}
+          </Tile>
 
-        <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={6}>
-          {pressureRows.length ? (
-            <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
-          ) : (
-            <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
-          )}
-        </Tile>
+          <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={6}>
+            {pressureRows.length ? (
+              <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
+            ) : (
+              <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
+            )}
+          </Tile>
 
-        <Tile title="Tageszeit" sub="Punkte-Quote" span={6}>
-          {timed ? (
-            <ColumnChart columns={scoreColumns(d.by_daytime)} max={100} reference={scoreRef} />
-          ) : (
-            <p class="muted small">Deine Partien enthalten keine Uhrzeit. Bei Chess.com und Lichess ist sie dabei.</p>
-          )}
-        </Tile>
+          <Tile title="Tageszeit" sub="Punkte-Quote" span={6}>
+            {timed ? (
+              scoreChart(d.by_daytime)
+            ) : (
+              <p class="muted small">Deine Partien enthalten keine Uhrzeit. Bei Chess.com und Lichess ist sie dabei.</p>
+            )}
+          </Tile>
 
-        <Tile title="Wochentag" sub="Punkte-Quote" span={6}>
-          {timed ? (
-            <ColumnChart columns={scoreColumns(d.by_weekday)} max={100} reference={scoreRef} />
-          ) : (
-            <p class="muted small">Deine Partien enthalten keine Uhrzeit.</p>
-          )}
-        </Tile>
+          <Tile title="Wochentag" sub="Punkte-Quote" span={6}>
+            {timed ? (
+              scoreChart(d.by_weekday)
+            ) : (
+              <p class="muted small">Deine Partien enthalten keine Uhrzeit.</p>
+            )}
+          </Tile>
 
-        <Tile title="Nach dem letzten Ergebnis" sub="Tilt-Check" span={6}>
-          {afterRows.length ? (
-            <BarList rows={afterRows} referenceLabel="Dein Schnitt" />
-          ) : (
-            <p class="muted small">Noch keine Partien direkt hintereinander gespielt (Abstand unter zwei Stunden).</p>
-          )}
-        </Tile>
+          <Tile title="Nach dem letzten Ergebnis" sub="Tilt-Check" span={6}>
+            {afterRows.length ? (
+              <BarList rows={afterRows} referenceLabel="Dein Schnitt" />
+            ) : (
+              <p class="muted small">Noch keine Partien direkt hintereinander gespielt (Abstand unter zwei Stunden).</p>
+            )}
+          </Tile>
 
-        <Tile title="Partie in der Serie" sub="Punkte-Quote" span={6}>
-          {d.by_session_game.some((b) => b.games) ? (
-            <ColumnChart columns={scoreColumns(d.by_session_game)} max={100} reference={scoreRef} />
-          ) : (
-            <p class="muted small">Für Serien braucht es Partien mit Uhrzeit.</p>
-          )}
-        </Tile>
+          <Tile title="Partie in der Serie" sub="Punkte-Quote" span={6}>
+            {d.by_session_game.some((b) => b.games) ? (
+              scoreChart(d.by_session_game)
+            ) : (
+              <p class="muted small">Für Serien braucht es Partien mit Uhrzeit.</p>
+            )}
+          </Tile>
+        </Section>
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { CountUp, Hero, HeroStat } from "./kit";
 import { Explorer } from "./openings/Explorer";
 import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
+import { Section, type StatSection } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
@@ -35,6 +36,9 @@ const RESULT_LEGEND = [
   { label: "Remis", color: "var(--draw)" },
   { label: "Niederlagen", color: "var(--loss)" },
 ];
+
+/** On phones the four deep-dive cards fold into one line below the tree. */
+const MORE: StatSection = { id: "repertoire", title: "Mehr zum Repertoire", sub: "Landkarte, Baustellen, Theorie und erster Zug", cards: [] };
 
 function scoreClass(v: number | null): string {
   if (v === null) return "";
@@ -480,6 +484,7 @@ export function OpeningsView() {
           <Explorer root={o.tree[color]} color={color} path={path} onPath={setPath} />
         </section>
 
+        <Section section={MORE} phoneOnly>
         <section class="card tile span-7">
           <div class="tile-head">
             <h3>Repertoire-Landkarte</h3>
@@ -519,7 +524,7 @@ export function OpeningsView() {
             <BlackReplies vs={o.black_vs} overall={overall} />
           )}
         </section>
-
+        </Section>
       </div>
     </div>
   );

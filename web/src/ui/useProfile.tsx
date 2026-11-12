@@ -7,7 +7,9 @@ import { dateWindow, isRangeFilter, previousDateFilter, rangeFilter } from "../d
 import type { PlayerProfile } from "../domain/profile";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
+import { IconChevron, IconFilter } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
+import { useNarrow } from "./useNarrow";
 
 export const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
 
@@ -249,7 +251,8 @@ export function FilterBar({
   hideDate?: boolean;
 }) {
   const { excludeBullet } = useBulletPrefs();
-  return (
+  const narrow = useNarrow();
+  const selects = (
     <div class="filters">
       <Select
         value={filters.format}
@@ -261,5 +264,24 @@ export function FilterBar({
       {!hideDate && <PeriodSelect value={filters.date} onChange={(date) => onChange({ ...filters, date })} />}
       <Select value={filters.color} options={COLORS} onChange={(color) => onChange({ ...filters, color })} label="Farbe" />
     </div>
+  );
+  if (!narrow) return selects;
+  // Phones: one line says what is shown; the three selects open below it on
+  // a tap, instead of taking two rows above every page for good.
+  const active = [
+    filters.format !== DEFAULT_FILTERS.format || excludeBullet ? formatOptionLabel(filters.format, excludeBullet) : null,
+    !hideDate && filters.date !== DEFAULT_FILTERS.date ? trFilter(filters.date) : null,
+    filters.color !== DEFAULT_FILTERS.color ? trFilter(filters.color) : null,
+  ].filter((v): v is string => v !== null);
+  return (
+    <details class={`filter-fold${active.length ? " active" : ""}`}>
+      <summary>
+        <IconFilter />
+        <span class="filter-fold-text">{active.length ? active.join(" · ") : hideDate ? "Alle Partien" : "Alle Partien · gesamter Zeitraum"}</span>
+        <span class="filter-fold-hint">Filter</span>
+        <IconChevron />
+      </summary>
+      {selects}
+    </details>
   );
 }

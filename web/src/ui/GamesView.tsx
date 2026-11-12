@@ -16,6 +16,7 @@ import { CountUp, Hero, HeroStat, ResultRibbon, WdlBar } from "./kit";
 import { navigate } from "./router";
 import { Coach, CoachAvatar } from "./Coach";
 import { useBulletPrefs } from "./useAnalysisPrefs";
+import { useNarrow } from "./useNarrow";
 import { PeriodSelect } from "./useProfile";
 
 type Source = "chesscom" | "lichess" | "pgn";
@@ -368,10 +369,13 @@ function GameRow({
   usernames,
   queue,
   index,
+  narrow,
 }: {
   g: StoredGame;
   usernames: string[];
   queue: QueueState | null;
+  /** Phone: name the opponent and the outcome instead of both players and the raw result. */
+  narrow: boolean;
   /** Place in the list; the first rows rise in one after another. */
   index: number;
 }) {
@@ -381,22 +385,34 @@ function GameRow({
   const outcome = outcomeFor(g.result, color);
   const isCurrent = queue?.current === g.id;
   const isMe = (name: string) => usernames.some((u) => u.toLowerCase() === name.toLowerCase());
+  // Two names with ratings do not fit a phone line; the user knows their own
+  // name, so the row shows who they played and with which colour.
+  const versus = narrow && color !== null;
+  const opponent = color === "white" ? { name: g.black, elo: g.black_elo } : { name: g.white, elo: g.white_elo };
   return (
     <div class={`game-item ${outcome ?? ""}`} role="button" style={{ "--i": Math.min(index, STAGGER_ROWS) }} onClick={() => navigate({ view: "analysis", gameId: g.id })}>
       <div class="stripe" />
-      <div class="players">
-        <span class="side-dot white" />
-        <span class={isMe(g.white) ? "me" : ""}>
-          {g.white}
-          {g.white_elo ? <span class="faint"> {g.white_elo}</span> : null}
-        </span>
-        <span class="faint">–</span>
-        <span class="side-dot black" />
-        <span class={isMe(g.black) ? "me" : ""}>
-          {g.black}
-          {g.black_elo ? <span class="faint"> {g.black_elo}</span> : null}
-        </span>
-      </div>
+      {versus ? (
+        <div class="players versus">
+          <span class={`side-dot ${color}`} title={color === "white" ? "Du hattest Weiß" : "Du hattest Schwarz"} />
+          <span class="versus-name">{opponent.name}</span>
+          {opponent.elo ? <span class="faint versus-elo">{opponent.elo}</span> : null}
+        </div>
+      ) : (
+        <div class="players">
+          <span class="side-dot white" />
+          <span class={isMe(g.white) ? "me" : ""}>
+            {g.white}
+            {g.white_elo ? <span class="faint player-elo"> {g.white_elo}</span> : null}
+          </span>
+          <span class="faint">–</span>
+          <span class="side-dot black" />
+          <span class={isMe(g.black) ? "me" : ""}>
+            {g.black}
+            {g.black_elo ? <span class="faint player-elo"> {g.black_elo}</span> : null}
+          </span>
+        </div>
+      )}
       <div class="right">
         {acc !== undefined && st === "completed" ? (
           <>
@@ -432,9 +448,10 @@ function GameRow({
         )}
       </div>
       <div class="meta">
-        <span class={`pill ${outcome ?? ""}`}>{resultText(g.result)}</span>
+        <span class={`pill ${outcome ?? ""}`}>{versus && outcome ? OUTCOME_WORD[outcome] : resultText(g.result)}</span>
         {g.speed_category && <span>{SPEED_DE[g.speed_category] ?? g.speed_category}</span>}
-        <span>{formatDate(g.date)}</span>
+        {/* The month header above already names the year. */}
+        <span>{narrow ? formatDate(g.date).replace(/\.\d{4}$/, ".") : formatDate(g.date)}</span>
         {g.opening && <span class="opening">· {shortOpening(g.opening)}</span>}
       </div>
     </div>
@@ -467,6 +484,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [scope, setScope] = useState<"mine" | "all">("mine");
   const [justImported, setJustImported] = useState<string[]>([]);
   const [hideBullet, setHideBulletState] = useState(false);
+  const narrow = useNarrow();
   const [quick, setQuick] = useState<{ busy: boolean; text: string; error?: boolean } | null>(null);
   useEffect(() => void getSetting<boolean>(HIDE_BULLET_KEY, false).then(setHideBulletState), []);
   const setHideBullet = (v: boolean) => {
@@ -547,7 +565,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       );
       lastMonth = m;
     }
-    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} index={rows.length} />);
+    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} index={rows.length} narrow={narrow} />);
   }
 
   return (
@@ -640,7 +658,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <SummaryHero s={summary} games={filtered} usernames={usernames} />}
 
       {games && games.length > 0 && (
-        <div class="filters">
+        <div class="filters games-filters">
           <div class="segmented">
             {(
               [
@@ -680,7 +698,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <input
             ref={searchRef}
             type="search"
-            placeholder="Spieler oder Eröffnung suchen  ( / )"
+            placeholder={narrow ? "Spieler oder Eröffnung suchen" : "Spieler oder Eröffnung suchen  ( / )"}
             value={search}
             onInput={(e) => setSearch(e.currentTarget.value)}
             style={{ flex: "1 1 200px", width: "auto" }}
