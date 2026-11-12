@@ -8,7 +8,8 @@ import {
   type Category,
   categoryProgress,
   type Exercise,
-  interleave,
+  sessionParts,
+  type SessionPart,
   isDue,
   isMastered,
   MINUTE_CHOICES,
@@ -42,14 +43,24 @@ const WEEKDAY = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 interface SessionSpec {
   title: string;
   ids: string[];
+  /** Ordered parts of the daily session (warm-up, main theme, mixed); absent for single-topic sessions. */
+  parts?: SessionPart[];
 }
 
 function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onExit: () => void }) {
-  const exercises = useMemo(() => spec.ids.map((id) => t.byId.get(id)).filter((e): e is Exercise => Boolean(e)), [spec]);
+  const parts = useMemo(() => spec.parts ?? [{ key: "all", title: spec.title, sub: "", ids: spec.ids }], [spec]);
+  const exercises = useMemo(
+    () => parts.flatMap((p) => p.ids.map((id) => ({ ex: t.byId.get(id), part: p.key }))).filter((x): x is { ex: Exercise; part: string } => Boolean(x.ex)),
+    [spec],
+  );
   const [index, setIndex] = useState(0);
   const [results, setResults] = useState<Record<string, boolean>>({});
-  const ex = exercises[index];
+  const cur = exercises[index];
+  const ex = cur?.ex;
   const solved = Object.values(results).filter(Boolean).length;
+  const partIndex = cur ? parts.findIndex((p) => p.key === cur.part) : parts.length;
+  // A short break screen between the parts of the daily session, so the structure is felt.
+  const [pause, setPause] = useState<string | null>(null);
 
   const header = (
     <div class="page-title">
@@ -65,9 +76,29 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
       )}
     </div>
   );
+  const stepper = parts.length > 1 && (
+    <ol class="session-steps">
+      {parts.map((p, i) => {
+        const ids = p.ids.filter((id) => t.byId.has(id));
+        const n = ids.filter((id) => id in results).length;
+        return (
+          <li key={p.key} class={i < partIndex ? "done" : i === partIndex ? "cur" : ""}>
+            <span class="session-step-num">{i < partIndex ? "✓" : i + 1}</span>
+            <span class="session-step-text">
+              <strong>{p.title}</strong>
+              <span class="small faint tnum">
+                {n} / {ids.length}
+              </span>
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
 
   if (!ex) {
     const done = Object.keys(results).length;
+    const missed = exercises.filter((x) => results[x.ex.id] === false).map((x) => x.ex);
     return (
       <div>
         {header}
@@ -86,9 +117,65 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
             {done > 0 && (
               <p>
                 Du hast {solved} von {done} {done === 1 ? "Übung" : "Übungen"} auf Anhieb gelöst.{" "}
-                {solved < done ? "Die anderen schauen wir uns morgen noch einmal an, so bleibt es hängen." : "Sauber!"}
+                {solved < done ? "Die anderen kommen morgen noch einmal dran, so bleibt es hängen." : "Sauber!"}
               </p>
             )}
+          </Coach>
+          {done > 0 && parts.length > 1 && (
+            <div class="session-summary">
+              {parts.map((p) => {
+                const ids = p.ids.filter((id) => id in results);
+                if (!ids.length) return null;
+                const ok = ids.filter((id) => results[id]).length;
+                return (
+                  <div key={p.key} class="session-summary-row">
+                    <span>
+                      <strong>{p.title}</strong> <span class="small faint">{p.sub}</span>
+                    </span>
+                    <span class={`tnum ${ok === ids.length ? "feedback-ok" : ok * 2 < ids.length ? "feedback-bad" : ""}`}>
+                      {ok} / {ids.length}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {missed.length > 0 && (
+            <p class="small muted">
+              Morgen wieder dabei: {missed.slice(0, 6).map((m) => m.title).join(", ")}
+              {missed.length > 6 ? ` und ${missed.length - 6} weitere` : ""}.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (pause) {
+    const p = parts.find((x) => x.key === pause)!;
+    const before = parts[parts.indexOf(p) - 1];
+    const prevIds = before ? before.ids.filter((id) => id in results) : [];
+    const prevOk = prevIds.filter((id) => results[id]).length;
+    return (
+      <div>
+        {header}
+        {stepper}
+        <div class="card session-done">
+          <Coach
+            mood="happy"
+            size={64}
+            class="big"
+            title={`Teil ${parts.indexOf(p) + 1}: ${p.title}`}
+            actions={
+              <button class="btn primary big" onClick={() => setPause(null)}>
+                <IconPlay /> Weiter
+              </button>
+            }
+          >
+            <p>
+              {before && prevIds.length ? `${before.title}: ${prevOk} von ${prevIds.length} auf Anhieb. ` : ""}
+              {p.sub}, {p.ids.length} {p.ids.length === 1 ? "Aufgabe" : "Aufgaben"}.
+            </p>
           </Coach>
         </div>
       </div>
@@ -100,12 +187,17 @@ function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onE
       setResults((r) => ({ ...r, [ex.id]: ok }));
       t.record(ex, ok);
     },
-    onNext: () => setIndex((i) => i + 1),
+    onNext: () => {
+      const nxt = exercises[index + 1];
+      if (nxt && parts.length > 1 && nxt.part !== cur.part) setPause(nxt.part);
+      setIndex((i) => i + 1);
+    },
     nextLabel: index + 1 < exercises.length ? "Nächste Übung" : "Fertig",
   };
   return (
     <div>
       {header}
+      {stepper}
       <div class="progress session-progress">
         <div style={{ width: `${(index / exercises.length) * 100}%` }} />
       </div>
@@ -259,8 +351,11 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
     .filter((b) => b.exercise_ids.length > 0);
   const total = blocks.reduce((s, b) => s + b.exercise_ids.length, 0);
   const done = blocks.reduce((s, b) => s + blockDone(b, t), 0);
-  // Mixed across blocks (interleaved practice), not block after block.
-  const open = interleave(blocks.map((b) => b.exercise_ids.filter((id) => t.byId.has(id) && t.progress[id]?.last !== t.today)));
+  // Warm-up, main theme, then the rest mixed: see sessionParts.
+  const isOpen = (id: string) => t.byId.has(id) && t.progress[id]?.last !== t.today;
+  const parts = sessionParts(blocks, isOpen);
+  const allParts = sessionParts(blocks, (id) => t.byId.has(id));
+  const open = parts.flatMap((p) => p.ids);
   const days = streak(t.log, t.today);
   const today = t.log[t.today];
 
@@ -280,7 +375,7 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
           </div>
           <div class="row" style={{ marginTop: "12px" }}>
             {open.length > 0 ? (
-              <button class="btn primary big" onClick={() => start({ title: "Training von heute", ids: open })}>
+              <button class="btn primary big" onClick={() => start({ title: "Training von heute", ids: open, parts })}>
                 <IconPlay /> {done ? "Weiter trainieren" : "Training starten"}
               </button>
             ) : (
@@ -326,40 +421,42 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
         </div>
       </section>
 
+      <section class="card tile span-12 plan-steps-card">
+        <div class="tile-head">
+          <h3>Ablauf heute</h3>
+          <span class="tile-sub">in dieser Reihenfolge · zusammen ca. {plan.minutes} Min.</span>
+        </div>
+        <ol class="plan-steps">
+          {allParts.map((p, i) => {
+            const n = p.ids.length;
+            const d = p.ids.filter((id) => !isOpen(id)).length;
+            const reason = p.key === "warmup" ? blocks.find((b) => b.category === "review")?.reason : p.key === "main" ? blocks.find((b) => b.category !== "review")?.reason : "";
+            return (
+              <li key={p.key} class={d >= n ? "done" : ""}>
+                <span class="plan-step-num">{d >= n ? "✓" : i + 1}</span>
+                <div class="plan-step-body">
+                  <div class="row">
+                    <strong>{p.title}</strong>
+                    <span class="small faint">{p.sub}</span>
+                    <span class="spacer" />
+                    <span class="small tnum">
+                      {d} / {n}
+                    </span>
+                  </div>
+                  {reason && <p class="small muted block-reason">{reason}</p>}
+                  <div class="progress">
+                    <div style={{ width: `${(d / n) * 100}%` }} />
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
       <WeekStrip t={t} />
 
       <OpeningPick t={t} start={start} />
-
-      {blocks.map((b) => {
-        const n = b.exercise_ids.length;
-        const d = blockDone(b, t);
-        const rest = b.exercise_ids.filter((id) => t.byId.has(id) && t.progress[id]?.last !== t.today);
-        return (
-          <section key={b.key} class={`card tile span-4 block-card${d >= n ? " done" : ""}`}>
-            <div class="tile-head">
-              <h3>{b.title}</h3>
-              <span class="tile-sub">ca. {b.minutes} Min.</span>
-            </div>
-            <p class="small muted block-reason">{b.reason}</p>
-            <div class="progress">
-              <div style={{ width: `${(d / n) * 100}%` }} />
-            </div>
-            <div class="row tile-foot">
-              <span class="small tnum">
-                {d} / {n}
-              </span>
-              <span class="spacer" />
-              {rest.length > 0 ? (
-                <button class="btn small primary" onClick={() => start({ title: b.title, ids: rest })}>
-                  Starten
-                </button>
-              ) : (
-                <span class="small feedback-ok">Erledigt</span>
-              )}
-            </div>
-          </section>
-        );
-      })}
 
       {plan.tips.length > 0 && (
         <section class="card tile span-12">

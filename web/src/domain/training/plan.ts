@@ -279,7 +279,6 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
   };
 }
 
-/** True when the stored plan no longer matches today or the preferences. */
 /**
  * Session order for the day: round-robin over the blocks instead of block after block.
  * Interleaved practice is harder in the moment but sticks better and transfers better
@@ -292,6 +291,38 @@ export function interleave(blocks: string[][]): string[] {
   return out;
 }
 
+export interface SessionPart {
+  key: string;
+  title: string;
+  /** One line on what this part is for. */
+  sub: string;
+  ids: string[];
+}
+
+/**
+ * The day's session in a fixed order, like a lesson: warm up with due repetitions,
+ * then the day's main theme as one block (so the player can settle into it), then
+ * everything else mixed (interleaved: harder in the moment, but it sticks better and
+ * transfers to games, where nobody announces what kind of position comes next).
+ * `open` filters out exercises already done today.
+ */
+export function sessionParts(blocks: PlanBlock[], open: (id: string) => boolean = () => true): SessionPart[] {
+  const parts: SessionPart[] = [];
+  const review = blocks.filter((b) => b.category === "review");
+  const rest = blocks.filter((b) => b.category !== "review");
+  const reviewIds = review.flatMap((b) => b.exercise_ids).filter(open);
+  if (reviewIds.length) parts.push({ key: "warmup", title: "Aufwärmen", sub: "Fällige Wiederholungen", ids: reviewIds });
+  const [main, ...others] = rest;
+  if (main) {
+    const ids = main.exercise_ids.filter(open);
+    if (ids.length) parts.push({ key: "main", title: main.title, sub: "Hauptthema heute", ids });
+  }
+  const mixed = interleave(others.map((b) => b.exercise_ids.filter(open)));
+  if (mixed.length) parts.push({ key: "mix", title: "Gemischt", sub: others.map((b) => b.title.replace(/^Stärke halten: /, "")).join(" · "), ids: mixed });
+  return parts;
+}
+
+/** True when the stored plan no longer matches today or the preferences. */
 export function planOutdated(plan: DailyPlan | null, prefs: TrainingPrefs, today: string): boolean {
   return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus;
 }

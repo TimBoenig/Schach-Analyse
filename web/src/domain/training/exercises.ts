@@ -110,6 +110,12 @@ export interface PuzzleExercise extends Base {
   accept: string[];
   /** Engine continuation in SAN, starting with the solution. */
   line_san: string[];
+  /**
+   * Moves to play on the board (UCI): the solution, then opponent reply and own move in
+   * turn, like a multi-move puzzle. Only forcing follow-ups are kept, so every own move
+   * after the first has one clear answer. Absent in puzzles stored before this existed.
+   */
+  moves?: string[];
   prompt: string;
   game_id: string;
   ply_index: number;
@@ -164,6 +170,11 @@ export const PUZZLE_MIN_WP_LOSS = 0.2;
 export const OPENING_MIN_WP_LOSS = 0.08;
 // Positions this clearly won (player's winning chance) are worth playing out.
 export const PLAYOUT_MIN_WP = 0.85;
+// Below this winning chance even the best move leaves the game lost: "find the best
+// move" there trains nothing useful, so such positions are skipped.
+export const PUZZLE_MIN_BEST_WP = 0.1;
+// Own moves per puzzle at most (solution included), as in typical tactics trainers.
+export const PUZZLE_MAX_STEPS = 3;
 // A repertoire node needs this many games to count as "your line".
 export const DRILL_MIN_GAMES = 2;
 export const DRILL_MAX_PLIES = 24;
@@ -195,7 +206,46 @@ export function lineToSan(fen: string, uciLine: string[], limit = 6): string[] {
   return out;
 }
 
+/**
+ * The playable puzzle line from the engine PV: the solution, then (opponent reply, own
+ * move) pairs while the own follow-up is forcing (check, capture, promotion) or answers
+ * a check. A quiet follow-up has many reasonable moves, so the puzzle stops
+ * before it instead of demanding the engine's exact choice.
+ */
+export function puzzleLine(fen: string, pv: string[], maxSteps = PUZZLE_MAX_STEPS): string[] {
+  const out: string[] = [];
+  try {
+    const board = new Board(fen);
+    const legal = (uci: string) => {
+      const mv = moveFromUci(uci);
+      return board.legalMoves().find((l) => l.from === mv.from && l.to === mv.to && (l.promotion ?? null) === (mv.promotion ?? null)) ?? null;
+    };
+    const first = pv[0] ? legal(pv[0]) : null;
+    if (!first) return out;
+    board.push(first);
+    out.push(pv[0]);
+    for (let i = 1; i + 1 < pv.length && out.length < maxSteps * 2 - 1; i += 2) {
+      const reply = legal(pv[i]);
+      if (!reply) break;
+      const replySan = board.san(reply);
+      board.push(reply);
+      const own = legal(pv[i + 1]);
+      if (!own) break;
+      const ownSan = board.san(own);
+      const forcing = /[x+#=]/.test(ownSan) || replySan.includes("+");
+      if (!forcing) break;
+      board.push(own);
+      out.push(pv[i], pv[i + 1]);
+      if (ownSan.includes("#")) break;
+    }
+  } catch {
+    // Broken FEN or PV: the single solution move is still a puzzle.
+  }
+  return out;
+}
+
 function isPuzzleMove(m: MoveEvent): boolean {
+  if (m.wp_before < PUZZLE_MIN_BEST_WP) return false;
   if (m.is_book || !m.best_move_uci || m.best_move_uci === m.uci || !m.fen_before) return false;
   if (m.is_serious_error && m.wp_drop >= PUZZLE_MIN_WP_LOSS) return true;
   return m.phase === "opening" && ERROR_CLASSES.has(m.classification) && m.wp_drop >= OPENING_MIN_WP_LOSS;
@@ -218,6 +268,7 @@ function puzzle(f: GameFeatures, m: MoveEvent): PuzzleExercise | null {
     solution_san: san,
     accept: [solution, ...m.alt_moves.filter((u) => u !== solution && u !== m.uci)],
     line_san: lineToSan(m.fen_before, pv),
+    moves: puzzleLine(m.fen_before, pv),
     prompt: PROMPTS[category],
     game_id: f.game_id,
     ply_index: m.ply_index,
@@ -237,9 +288,15 @@ function puzzles(analyzed: GameFeatures[]): PuzzleExercise[] {
   // Newest games first: recent errors say most about the player today.
   candidates.sort((a, b) => (b.f.played_at || 0) - (a.f.played_at || 0) || b.m.wp_drop - a.m.wp_drop);
   const out: PuzzleExercise[] = [];
+  // The same position reached in several games would otherwise come up as twin puzzles.
+  const seen = new Set<string>();
   for (const { f, m } of candidates) {
+    const pos = m.fen_before.split(" ").slice(0, 4).join(" ");
+    if (seen.has(pos)) continue;
     const p = puzzle(f, m);
-    if (p) out.push(p);
+    if (!p) continue;
+    seen.add(pos);
+    out.push(p);
     if (out.length >= MAX_PUZZLES) break;
   }
   return out;
