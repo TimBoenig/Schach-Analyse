@@ -11,8 +11,10 @@ import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./char
 import type { BarRow, Column } from "./charts";
 import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
+import { CountUp, Hero, HeroStat, WdlBar } from "./kit";
 import { navigate } from "./router";
-import { CoachTip, NeedNames } from "./Coach";
+import { ConditionFinder } from "./stats/Lab";
+import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
 import { type InsightsSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
@@ -349,9 +351,6 @@ export function InsightsView() {
   const header = (
     <>
       <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
-      <CoachTip id="insights" title="Was du hier findest">
-        Hier siehst du, wo du Punkte holst und wo du sie liegen lässt: Entwicklung, Gegner und Partietyp, Partieverlauf sowie Zeit und Gewohnheiten. Fehler und Zugbewertungen findest du unter „Züge & Fehler“.
-      </CoachTip>
     </>
   );
 
@@ -404,6 +403,9 @@ export function InsightsView() {
   }
 
   const overall = profile.overview.score_pct as number;
+  const o = profile.overview;
+  const rc = profile.rating;
+  const expDiff = rc && rc.expected_score !== null ? rc.score - rc.expected_score : null;
   const scoreRef = { value: overall, label: `Dein Schnitt ${Math.round(overall)} %` };
   const afterRows: BarRow[] = d.after_result
     .filter((b) => b.games > 0)
@@ -435,7 +437,33 @@ export function InsightsView() {
       {header}
       <SectionNav sections={STAT_SECTIONS.insights} />
       <div class="dash">
-        <SectionHead section={sec("blick")} />
+        <SectionHead section={sec("blick")} quiet />
+        <Hero
+          kicker={`Ergebnisse · ${plural(o.games, "Partie", "Partien")}`}
+          title={
+            <>
+              Du holst <CountUp value={overall} format={(v) => `${Math.round(v)} %`} /> der Punkte
+            </>
+          }
+          sub={
+            <>
+              {o.wins} Siege · {o.draws} Remis · {o.losses} Niederlagen
+              {expDiff !== null && Math.abs(expDiff) >= 0.5
+                ? ` · ${de1(Math.abs(expDiff))} Punkte ${expDiff > 0 ? "mehr" : "weniger"}, als deine Wertung erwarten lässt`
+                : expDiff !== null
+                  ? " · genau so viele Punkte, wie deine Wertung erwarten lässt"
+                  : ""}
+            </>
+          }
+          aside={
+            rc?.performance ? (
+              <HeroStat big={<CountUp value={rc.performance} />} label="Performance" sub={`so stark waren deine Ergebnisse · Wertung ${rc.rating}`} />
+            ) : undefined
+          }
+        >
+          <WdlBar wins={o.wins} draws={o.draws} losses={o.losses} />
+          {profile.facts.length > 0 && <ConditionFinder facts={profile.facts} />}
+        </Hero>
         {d.feedback.length > 0 && (
           <section class="card tile span-12 feedback-card">
             <div class="tile-head">

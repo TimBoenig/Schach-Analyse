@@ -9,11 +9,10 @@ import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
-import { Donut, Gauge, Legend } from "./charts";
-import type { Segment } from "./charts";
 import { IconPlay, IconPlus, IconStop, IconSync } from "./icons";
 import { SPEED_DE, accClass, formatDate, monthLabel, outcomeFor, resultText, shortOpening } from "./labels";
 import { isTyping } from "./keys";
+import { CountUp, Hero, HeroStat, ResultRibbon, WdlBar } from "./kit";
 import { navigate } from "./router";
 import { Coach, CoachAvatar } from "./Coach";
 import { useBulletPrefs } from "./useAnalysisPrefs";
@@ -291,52 +290,92 @@ function summarize(games: StoredGame[], usernames: string[]): Summary {
   return s;
 }
 
-function SummaryStrip({ s }: { s: Summary }) {
+const RIBBON_GAMES = 14;
+const OUTCOME_SCORE = { win: 1, draw: 0.5, loss: 0 } as const;
+const OUTCOME_WORD = { win: "Sieg", draw: "Remis", loss: "Niederlage" } as const;
+
+/** What the newest results add up to, as the headline of the page. */
+function formHeadline(recent: (keyof typeof OUTCOME_SCORE)[]): string {
+  if (!recent.length) return "Deine Partien";
+  let run = 1;
+  while (run < recent.length && recent[run] === recent[0]) run++;
+  if (run >= 2) return `${run} ${recent[0] === "win" ? "Siege" : recent[0] === "loss" ? "Niederlagen" : "Remis"} in Folge`;
+  const last = recent.slice(0, 10);
+  const points = last.reduce((sum, o) => sum + OUTCOME_SCORE[o], 0);
+  return `${String(points).replace(".5", ",5")} Punkte aus den letzten ${last.length} Partien`;
+}
+
+/** The list's opening card: the current run, the last results as tiles and the balance of everything shown. */
+function SummaryHero({ s, games, usernames }: { s: Summary; games: StoredGame[]; usernames: string[] }) {
   const decided = s.wins + s.draws + s.losses;
-  const wdl: Segment[] = [
-    { label: "Siege", value: s.wins, color: "var(--win)" },
-    { label: "Remis", value: s.draws, color: "var(--draw)" },
-    { label: "Niederlagen", value: s.losses, color: "var(--loss)" },
-  ];
+  // `games` is newest first; only decided own games count for the run.
+  const recent = games
+    .map((g) => ({ g, o: outcomeFor(g.result, getUserColor(g, usernames)) }))
+    .filter((x): x is { g: StoredGame; o: keyof typeof OUTCOME_SCORE } => x.o !== null)
+    .slice(0, RIBBON_GAMES);
   return (
-    <section class="card hero summary-hero">
-      <div class="hero-cell">
-        <div class="kpi-label">Deine Partien</div>
-        <div class="kpi-big tnum">{s.games}</div>
-        <div class="small muted">{s.analyzed} analysiert</div>
-      </div>
-      <div class="hero-cell with-chart">
-        <Donut
-          segments={wdl}
-          center={decided ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}
-          sub="Punkte"
-          size={96}
-          thickness={11}
-        />
-        <div class="hero-side">
-          <div class="kpi-label">Bilanz</div>
-          <Legend items={wdl.map((x) => ({ label: x.label, color: x.color, value: String(x.value) }))} />
-        </div>
-      </div>
-      <div class="hero-cell with-chart">
-        <Gauge value={s.accuracy} size={96} thickness={10} label="Genauigkeit" />
-        <div class="hero-side">
-          <div class="kpi-label">Ø Genauigkeit</div>
-          <div class="small muted">über deine analysierten Partien</div>
-        </div>
-      </div>
-    </section>
+    <Hero
+      class="reveal games-hero"
+      kicker={`Deine Partien · ${s.games} · ${s.analyzed} analysiert`}
+      title={formHeadline(recent.map((x) => x.o))}
+      sub={
+        <>
+          {s.wins} Siege · {s.draws} Remis · {s.losses} Niederlagen
+          {s.accuracy !== null ? ` · Ø Genauigkeit ${s.accuracy.toFixed(1).replace(".", ",")} %` : ""}
+        </>
+      }
+      aside={decided ? <HeroStat big={<CountUp value={((s.wins + s.draws / 2) / decided) * 100} format={(v) => `${Math.round(v)} %`} />} label="Punkte-Quote" sub="aller gezeigten Partien" /> : undefined}
+    >
+      <ResultRibbon
+        games={[...recent].reverse().map(({ g, o }) => {
+          const white = getUserColor(g, usernames) === "white";
+          return { id: g.id, score: OUTCOME_SCORE[o], title: `${formatDate(g.date)} gegen ${white ? g.black : g.white}: ${OUTCOME_WORD[o]}` };
+        })}
+        onPick={(id) => navigate({ view: "analysis", gameId: id })}
+      />
+      <WdlBar wins={s.wins} draws={s.draws} losses={s.losses} />
+    </Hero>
   );
 }
+
+const SPARK_W = 92;
+const SPARK_H = 30;
+
+/**
+ * The game at a glance: the player's winning chance move by move, green above
+ * the middle line and red below it, so a thrown win or a comeback shows in the list.
+ */
+function GameSpark({ g, color }: { g: StoredGame; color: "white" | "black" }) {
+  const moves = Array.isArray(g.moves_json) ? g.moves_json : [];
+  if (moves.length < 4) return null;
+  const wp = moves.map((m) => (color === "white" ? m.win_chance_after : 1 - m.win_chance_after));
+  const x = (i: number) => (i / (wp.length - 1)) * SPARK_W;
+  const y = (v: number) => SPARK_H - Math.min(1, Math.max(0, v)) * SPARK_H;
+  const mid = SPARK_H / 2;
+  const half = (clamp: (v: number) => number) => `M0,${mid} ${wp.map((v, i) => `L${x(i).toFixed(1)},${y(clamp(v)).toFixed(1)}`).join(" ")} L${SPARK_W},${mid} Z`;
+  return (
+    <svg class="game-spark" width={SPARK_W} height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label="Verlauf deiner Gewinnchance">
+      <path class="up" d={half((v) => Math.max(v, 0.5))} />
+      <path class="down" d={half((v) => Math.min(v, 0.5))} />
+      <line x1="0" x2={SPARK_W} y1={mid} y2={mid} />
+    </svg>
+  );
+}
+
+// Rows that take part in the opening stagger; the rest appear at once.
+const STAGGER_ROWS = 10;
 
 function GameRow({
   g,
   usernames,
   queue,
+  index,
 }: {
   g: StoredGame;
   usernames: string[];
   queue: QueueState | null;
+  /** Place in the list; the first rows rise in one after another. */
+  index: number;
 }) {
   const color = getUserColor(g, usernames);
   const st = status(g);
@@ -345,7 +384,7 @@ function GameRow({
   const isCurrent = queue?.current === g.id;
   const isMe = (name: string) => usernames.some((u) => u.toLowerCase() === name.toLowerCase());
   return (
-    <div class={`game-item ${outcome ?? ""}`} role="button" onClick={() => navigate({ view: "analysis", gameId: g.id })}>
+    <div class={`game-item ${outcome ?? ""}`} role="button" style={{ "--i": Math.min(index, STAGGER_ROWS) }} onClick={() => navigate({ view: "analysis", gameId: g.id })}>
       <div class="stripe" />
       <div class="players">
         <span class="side-dot white" />
@@ -363,8 +402,11 @@ function GameRow({
       <div class="right">
         {acc !== undefined && st === "completed" ? (
           <>
-            <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1).replace(".", ",")}</div>
-            <div class="acc-label">Genauigkeit</div>
+            {color && <GameSpark g={g} color={color} />}
+            <div class="acc-box">
+              <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1).replace(".", ",")}</div>
+              <div class="acc-label">Genauigkeit</div>
+            </div>
           </>
         ) : isCurrent ? (
           <span class="row" style={{ gap: "6px" }}>
@@ -507,7 +549,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       );
       lastMonth = m;
     }
-    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} />);
+    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} index={rows.length} />);
   }
 
   return (
@@ -597,7 +639,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         </div>
       )}
 
-      {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <SummaryStrip s={summary} />}
+      {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <SummaryHero s={summary} games={filtered} usernames={usernames} />}
 
       {games && games.length > 0 && (
         <div class="filters">

@@ -127,6 +127,8 @@ export interface TrackMarker {
   mark?: ComponentChildren;
   /** The player's own marker: ringed and drawn on top. */
   me?: boolean;
+  /** Drawn pale: the value rests on little data. */
+  faint?: boolean;
   title?: string;
 }
 
@@ -189,7 +191,7 @@ export function ScaleTrack({
         );
         return (
           // Upper lanes paint on top, so a stem from below runs behind the labels.
-          <div key={p.m.id} class={`lg-track-pos${p.m.me ? " me" : ""}${picked === p.m.id ? " picked" : ""}`} style={{ transform: `translateX(${on ? p.x : 0}%)`, zIndex: 10 - p.lane }}>
+          <div key={p.m.id} class={`lg-track-pos${p.m.me ? " me" : ""}${p.m.faint ? " faint" : ""}${picked === p.m.id ? " picked" : ""}`} style={{ transform: `translateX(${on ? p.x : 0}%)`, zIndex: 10 - p.lane }}>
             <div class="lg-track-dot" style={{ transform: `translate(-50%, ${p.lane * LANE}px)` }}>
               {p.lane > 0 && <span class={`lg-track-stem ${p.m.tone}`} style={{ height: `${p.lane * LANE - 22}px`, top: `${22 - p.lane * LANE}px` }} />}
               {onPick ? (

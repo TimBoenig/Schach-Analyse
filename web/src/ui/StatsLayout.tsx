@@ -103,8 +103,13 @@ export function SectionNav({ sections }: { sections: StatSection[] }) {
   );
 }
 
-/** Heading of one section inside a `.dash` grid; the cards follow as siblings. */
-export function SectionHead({ section, children }: { section: StatSection; children?: ComponentChildren }) {
+/**
+ * Heading of one section inside a `.dash` grid; the cards follow as siblings.
+ * `quiet` keeps only the jump target: a section that opens with a hero needs
+ * no second headline above it.
+ */
+export function SectionHead({ section, children, quiet }: { section: StatSection; children?: ComponentChildren; quiet?: boolean }) {
+  if (quiet) return <div class="section-anchor span-12" id={`s-${section.id}`} />;
   return (
     <div class="section-head span-12" id={`s-${section.id}`}>
       <h2>{section.title}</h2>

@@ -523,3 +523,181 @@ button.ar-stat:hover {
     padding: 22px 16px 18px;
   }
 }
+
+/* ---------- pages: profile ---------- */
+
+.lg-track-pos.faint .pl-avatar {
+  opacity: 0.5;
+}
+.player-card-detail {
+  display: block;
+  margin-top: 4px;
+}
+.player-card .lg-hero-sub {
+  max-width: 70ch;
+}
+
+/* ---------- pages: statistics you can play with ---------- */
+
+.player-card .lg-track {
+  margin: 0 58px;
+}
+.finder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.finder-picks {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+.finder-auto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.finder-result {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--surface-2);
+  transition:
+    background 0.3s,
+    box-shadow 0.3s;
+}
+.finder-result.on {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.finder-result .kpi-label {
+  margin: 0;
+}
+.finder-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 44px;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.finder-score .lg-slider-delta {
+  letter-spacing: 0;
+}
+.finder-result .pos {
+  color: var(--win);
+}
+.finder-result .neg {
+  color: var(--loss);
+}
+.finder-foot {
+  margin: 0;
+}
+.lg-hero > .ar-wdl {
+  height: 14px;
+}
+
+.cost-rows {
+  display: grid;
+  gap: 10px;
+}
+.cost-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 62px 96px;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.cost-row strong {
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  text-align: right;
+}
+.lg-sliders.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lg-hero .tally-share {
+  margin: 0 0 14px;
+}
+
+@media (max-width: 900px) {
+  .finder-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .player-card .lg-track {
+    margin: 0 34px;
+  }
+  .cost-row {
+    grid-template-columns: 96px minmax(0, 1fr) 54px;
+  }
+  .cost-row .faint {
+    grid-column: 2 / -1;
+    margin-top: -8px;
+  }
+}
+
+/* ---------- section anchors ---------- */
+
+/* A heading that only keeps its jump target: no row, no gap of its own. */
+.section-anchor {
+  height: 0;
+  margin: -9px 0;
+  scroll-margin-top: 90px;
+  pointer-events: none;
+}
+
+/* ---------- games ---------- */
+
+.games-hero .ar-ribbon {
+  margin: 4px 0 16px;
+}
+.game-item .right:has(.game-spark) {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+.game-item .acc-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.game-spark {
+  flex: none;
+  overflow: visible;
+}
+.game-spark .up {
+  fill: color-mix(in srgb, var(--good) 55%, transparent);
+}
+.game-spark .down {
+  fill: color-mix(in srgb, var(--blunder) 55%, transparent);
+}
+.game-spark line {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+html.motion .game-list .game-item {
+  animation: ar-row-in 0.42s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 34ms);
+}
+@keyframes ar-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (max-width: 720px) {
+  .game-spark {
+    display: none;
+  }
+}
