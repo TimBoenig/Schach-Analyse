@@ -1,14 +1,16 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import { STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
+import { STRENGTH_MAX, STRENGTH_MIN, strengthMap, STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, monthStart, RadarChart, ratingSeriesPoints } from "./charts";
 import type { BarRow, Segment } from "./charts";
+import { IconPlay } from "./icons";
+import { CountUp, Hero as PageHero, HeroStat, ScaleTrack, type TrackMarker } from "./kit";
 import { navigate } from "./router";
-import { CoachTip, NeedNames } from "./Coach";
+import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
-import { openSection, type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
@@ -114,7 +116,117 @@ export function StyleAxes({ axes }: { axes: StyleAxis[] }) {
   );
 }
 
-function Hero({ profile }: { profile: PlayerProfile }) {
+// Two letters per part of the game: Eröffnung and Endspiel share their first one.
+const STRENGTH_MARK: Record<string, string> = { opening: "Er", middlegame: "Mi", endgame: "En", tactics: "Ta", safety: "Si", conversion: "Ve", consistency: "Ko" };
+// One colour per part of the game, the same wherever it shows up.
+const STRENGTH_TONE: Record<string, string> = { opening: "tone-d", middlegame: "tone-e", endgame: "tone-c", tactics: "tone-b", safety: "tone-a", conversion: "tone-f", consistency: "tone-quiet" };
+const STRENGTH_ROOM = 150;
+const STRENGTH_GRID = 200;
+
+/**
+ * The page's opening card: who you are as a player in one line, and every part
+ * of your game placed on the rating scale ("your endgame plays like 1850").
+ */
+function PlayerCard({ profile }: { profile: PlayerProfile }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const rc = profile.rating;
+  const o = profile.overview;
+  const map = strengthMap(profile.skills);
+  const top = map[0];
+  const bottom = map[map.length - 1];
+  const title = profile.style ? (
+    <>
+      <em>Dein Stil:</em> {profile.style.label}
+    </>
+  ) : top && bottom && top.key !== bottom.key ? (
+    <>
+      Stark im Bereich {top.name}, <em>Luft nach oben:</em> {bottom.name}
+    </>
+  ) : (
+    "Dein Schachprofil"
+  );
+
+  const values = [...map.map((s) => s.rating), ...(rc ? [rc.rating] : [])];
+  const min = Math.max(STRENGTH_MIN, Math.floor((Math.min(...values) - STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
+  const max = Math.min(STRENGTH_MAX, Math.ceil((Math.max(...values) + STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
+  const ticks: number[] = [];
+  for (let t = min; t <= max; t += STRENGTH_GRID) ticks.push(t);
+  const like = (r: { rating: number; capped: number }) => (r.capped > 0 ? `über ${STRENGTH_MAX}` : r.capped < 0 ? `unter ${STRENGTH_MIN}` : String(r.rating));
+  const markers: TrackMarker[] = [
+    ...map.map((s) => ({
+      id: s.key,
+      label: RADAR_LABELS[s.key] ?? s.name,
+      value: s.rating,
+      valueText: like(s),
+      tone: STRENGTH_TONE[s.key] ?? "tone-quiet",
+      mark: STRENGTH_MARK[s.key],
+      faint: !s.reliable,
+      title: `${s.name}: spielt wie Wertung ${like(s)}`,
+    })),
+    ...(rc ? [{ id: "me", label: "Du", value: rc.rating, tone: "tone-me", me: true, title: `Deine Wertung (${trSpeed(rc.speed)})` }] : []),
+  ];
+  const sel = map.find((s) => s.key === picked) ?? null;
+  const selSkill = sel ? profile.skills.find((s) => s.key === sel.key) : undefined;
+  const cat = sel ? skillCategory(sel.key, profile.exercises) : undefined;
+  const gap = sel && rc && !sel.capped ? sel.rating - rc.rating : null;
+
+  return (
+    <PageHero
+      class="player-card"
+      kicker={`Dein Profil · ${o.games} ${o.games === 1 ? "Partie" : "Partien"} · ${profile.analyzed_games} analysiert`}
+      title={title}
+      sub={profile.style?.description}
+      aside={
+        rc ? (
+          <HeroStat big={<CountUp value={rc.rating} />} label={`Wertung ${trSpeed(rc.speed)}`} sub={rc.performance ? `Performance ${rc.performance}` : undefined} />
+        ) : profile.analyzed_games ? (
+          <HeroStat big={<CountUp value={o.avg_accuracy} format={(v) => v.toFixed(1).replace(".", ",")} />} label="Genauigkeit" sub="über alle analysierten Partien" />
+        ) : undefined
+      }
+    >
+      {map.length >= 2 && (
+        <div class="ar-block">
+          <div class="ar-block-head">
+            <strong>So stark spielen die Teile deines Spiels</strong>
+            <span class="faint small">als Wertung gelesen · Punkt antippen</span>
+          </div>
+          <ScaleTrack rows room={104} markers={markers} min={min} max={max} ticks={ticks} picked={picked} onPick={(id) => setPicked(id === "me" || id === picked ? null : id)} />
+          <div class={`ar-answer${sel ? " on" : ""}`} role="status">
+            {sel && selSkill ? (
+              <>
+                <p>
+                  <strong>{sel.name}</strong>: {Math.round(sel.score)} von 100 Punkten ({selSkill.grade}). So spielen typischerweise Spieler mit Wertung{" "}
+                  <strong class="tnum">{like(sel)}</strong>
+                  {gap !== null && Math.abs(gap) >= 50 ? (
+                    <>
+                      , das sind <span class={`tnum ${gap > 0 ? "pos" : "neg"}`}>{Math.abs(gap)} Punkte {gap > 0 ? "über" : "unter"}</span> deiner eigenen
+                    </>
+                  ) : gap !== null ? (
+                    ", also etwa auf deinem Niveau"
+                  ) : null}
+                  .{!sel.reliable ? " Noch wenige Daten, der Wert kann sich noch deutlich bewegen." : ""}
+                  <span class="small faint player-card-detail"> {selSkill.detail}</span>
+                </p>
+                {cat && (
+                  <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
+                    <IconPlay /> {CATEGORIES[cat].label} üben
+                  </button>
+                )}
+              </>
+            ) : (
+              <p>
+                Am stärksten: <strong>{top.name}</strong> (wie {like(top)}). Am meisten Luft: <strong>{bottom.name}</strong> (wie {like(bottom)}).{" "}
+                <span class="faint">Geschätzte Richtwerte für Online-Partien; blasse Punkte haben noch wenige Daten.</span>
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </PageHero>
+  );
+}
+
+function Overview({ profile }: { profile: PlayerProfile }) {
   const o = profile.overview;
   const rc: RatingContext | null = profile.rating;
   const speedName = rc ? trSpeed(rc.speed) : "";
@@ -217,9 +329,6 @@ export function ProfileView() {
   const header = (
     <>
       <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
-      <CoachTip id="profile" title="Dein Schachprofil">
-        Das ist dein Steckbrief als Spieler. Ich bewerte deine Fähigkeiten von 0 bis 100 und vergleiche sie mit Spielern deiner Wertung. Blasse Werte haben noch wenige Daten, die werden mit mehr Partien genauer.
-      </CoachTip>
     </>
   );
 
@@ -313,8 +422,9 @@ export function ProfileView() {
       <SectionNav sections={sections} />
 
       <div class="dash">
-        <SectionHead section={sec("ueberblick")} />
-        <Hero profile={profile} />
+        <SectionHead section={sec("ueberblick")} quiet />
+        <PlayerCard profile={profile} />
+        <Overview profile={profile} />
 
         {profile.is_empty ? (
           <div class="card notice span-12">
@@ -413,26 +523,6 @@ export function ProfileView() {
                 reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
               />
             </Card>
-
-            <section class="card tile span-12 next-links">
-              <span class="small muted">Weiter in der Statistik:</span>
-              <button class="btn small" onClick={() => openSection("moves", "phasen")}>
-                Genauigkeit nach Phase
-              </button>
-              <button class="btn small" onClick={() => navigate({ view: "moves" })}>
-                Zugbilanz
-              </button>
-              <button class="btn small" onClick={() => openSection("insights", "ergebnisse")}>
-                Ergebnisse nach Gegner, Farbe, Bedenkzeit
-              </button>
-              <button class="btn small" onClick={() => navigate({ view: "openings" })}>
-                Eröffnungen
-              </button>
-              <span class="spacer" />
-              <button class="btn primary small" onClick={() => navigate({ view: "training" })}>
-                Zu deinen Trainingsschwerpunkten
-              </button>
-            </section>
           </>
         )}
       </div>

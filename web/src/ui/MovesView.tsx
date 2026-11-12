@@ -6,13 +6,15 @@ import { useState } from "preact/hooks";
 import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES } from "../domain/profile";
 import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
 import { AreaChart, BarList, type BarRow, monthStart, StackBar } from "./charts";
-import { Coach, CoachTip, NeedNames } from "./Coach";
+import { Coach, NeedNames } from "./Coach";
 import { ErrorTiles } from "./InsightsView";
+import { CountUp, Hero, HeroStat } from "./kit";
 import { PageHeader } from "./Layout";
 import { type MovesSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
 import { ClassBadge, ClassTiles, monthName, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
+import { BlunderCostBlock } from "./stats/Lab";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
@@ -81,10 +83,6 @@ export function MovesView() {
   const header = (
     <>
       <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
-      <CoachTip id="moves" title="Alle deine Züge auf einen Blick">
-        Hier zähle ich jede Bewertung aus all deinen analysierten Partien, von brillant bis Patzer, und zeige dir, wann, wo und
-        womit deine Fehler passieren. Tippe auf einen Glanzzug, um ihn noch einmal auf dem Brett zu sehen.
-      </CoachTip>
     </>
   );
 
@@ -136,6 +134,8 @@ export function MovesView() {
   }
 
   const h = headline(t);
+  const topShare = t.moves ? (sumOf(t.counts, TOP_CLASSES) / t.moves) * 100 : 0;
+  const blundersPerGame = t.games ? t.counts.Blunder / t.games : 0;
   const segments = detailSegments(t.counts);
   const sec = (id: MovesSection) => sectionOf("moves", id);
   const rc = profile.rating;
@@ -164,22 +164,23 @@ export function MovesView() {
       {header}
       <SectionNav sections={STAT_SECTIONS.moves} />
       <div class="dash">
-        <SectionHead section={sec("bilanz")} />
-        <section class="card tile span-12">
-          <div class="tile-head">
-            <h3>Alle Bewertungen</h3>
-            <span class="tile-sub">
-              {plural(t.games, "analysierte Partie", "analysierte Partien")} · {plural(t.moves, "Zug", "Züge")}
-            </span>
-          </div>
-          <Coach mood={h.mood} size={44} tone={t.counts.Brilliant ? "var(--brilliant)" : undefined}>
-            {h.text}
-          </Coach>
+        <SectionHead section={sec("bilanz")} quiet />
+        <Hero
+          kicker={`Zugbilanz · ${plural(t.moves, "Zug", "Züge")} aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}`}
+          title={
+            <>
+              <CountUp value={topShare} /> von 100 Zügen sind <em>der beste Zug</em>
+            </>
+          }
+          sub={h.text}
+          aside={<HeroStat big={<CountUp value={blundersPerGame} format={(v) => de(v, 2)} />} label="Patzer pro Partie" sub={`${t.counts.Blunder} in ${plural(t.games, "Partie", "Partien")}`} />}
+        >
           <div class="tally-share">
             <StackBar segments={segments} height={18} legend={false} />
           </div>
           <ClassTiles tally={t} />
-        </section>
+          <BlunderCostBlock facts={profile.facts} />
+        </Hero>
 
         <section class="card tile span-6">
           <div class="tile-head">

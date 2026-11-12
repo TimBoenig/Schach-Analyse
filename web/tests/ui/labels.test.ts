@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lineScoreWhite } from "../../src/domain/analyzer";
-import { accClass, loadedAgo, monthLabel, outcomeFor, shortOpening } from "../../src/ui/labels";
+import { accClass, balanceText, loadedAgo, monthLabel, outcomeFor, shortOpening, streakText } from "../../src/ui/labels";
 
 describe("game list labels", () => {
   it.each([
@@ -57,5 +57,27 @@ describe("player freshness", () => {
     expect(loadedAgo(new Date(2026, 10, 5, 0, 30).getTime(), now)).toBe("heute geladen");
     expect(loadedAgo(new Date(2026, 10, 4, 23, 30).getTime(), now)).toBe("gestern geladen");
     expect(loadedAgo(new Date(2026, 10, 1, 12, 0).getTime(), now)).toBe("vor 4 Tagen geladen");
+  });
+});
+
+describe("balanceText", () => {
+  it.each([
+    [1, 0, 1, "1 Sieg · 0 Remis · 1 Niederlage"],
+    [2, 1, 0, "2 Siege · 1 Remis · 0 Niederlagen"],
+  ])("uses the singular only for exactly one (%i/%i/%i)", (w, d, l, text) => {
+    expect(balanceText(w, d, l)).toBe(text);
+  });
+});
+
+describe("streakText", () => {
+  it.each([
+    [[1, 1, 1, 0], "3 Siege in Folge"],
+    [[0, 0, 1], "2 Niederlagen in Folge"],
+    [[0.5, 0.5], "2 Remis in Folge"],
+    [[1, 0, 1], null],
+    [[null, 1, 1], null],
+    [[], null],
+  ])("counts only the newest run of equal results: %j", (scores, text) => {
+    expect(streakText(scores)).toBe(text);
   });
 });

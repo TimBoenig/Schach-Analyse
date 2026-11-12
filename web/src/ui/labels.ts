@@ -115,6 +115,24 @@ export function monthLabel(date: string): string {
   return month >= 1 && month <= 12 ? `${MONTHS_DE[month - 1]} ${m[1]}` : m[1];
 }
 
+/** "1 Sieg · 2 Remis · 1 Niederlage": the balance in words, with the singular where it applies. */
+export function balanceText(wins: number, draws: number, losses: number, sep = " · "): string {
+  return [`${wins} ${wins === 1 ? "Sieg" : "Siege"}`, `${draws} Remis`, `${losses} ${losses === 1 ? "Niederlage" : "Niederlagen"}`].join(sep);
+}
+
+/**
+ * Run of equal results at the newest end, e.g. "3 Siege in Folge"; null below
+ * two. Scores are newest first: 1 win, 0.5 draw, 0 loss, null unfinished.
+ */
+export function streakText(scores: (number | null)[]): string | null {
+  const first = scores[0];
+  if (first === null || first === undefined) return null;
+  let n = 0;
+  while (n < scores.length && scores[n] === first) n++;
+  if (n < 2) return null;
+  return `${n} ${first === 1 ? "Siege" : first === 0 ? "Niederlagen" : "Remis"} in Folge`;
+}
+
 export type Outcome = "win" | "loss" | "draw" | null;
 
 /** Result from the user's point of view, null when unknown or not the user's game. */

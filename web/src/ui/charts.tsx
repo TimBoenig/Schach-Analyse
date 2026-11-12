@@ -629,9 +629,9 @@ export function AreaChart({
             </text>
           ) : null,
         )}
-        <path d={area} fill={`url(#${gid})`} />
+        <path class="area-fill" d={area} fill={`url(#${gid})`} />
         {reference && <line class="ref-line" x1={padL} x2={W - padR} y1={y(reference.value)} y2={y(reference.value)} />}
-        <path class="line" d={line} />
+        <path class="line" d={line} pathLength={1} />
         {points.length <= 24 &&
           points.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.value)} r="3" class="line-dot" />)}
         {h && hover !== null && (

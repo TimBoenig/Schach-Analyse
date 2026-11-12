@@ -16,7 +16,8 @@ import { BarList, Legend } from "./charts";
 import type { BarRow } from "./charts";
 import { formatDate } from "./labels";
 import { navigate } from "./router";
-import { Coach, CoachTip, NeedNames } from "./Coach";
+import { Coach, NeedNames } from "./Coach";
+import { CountUp, Hero, HeroStat } from "./kit";
 import { Explorer } from "./openings/Explorer";
 import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
@@ -266,15 +267,7 @@ export function OpeningsView() {
     explorerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const header = (
-    <>
-      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
-      <CoachTip id="openings2" title="Dein Eröffnungsrepertoire">
-        Oben siehst du deine Eröffnungen als Karten mit ihrer typischen Stellung. Tippe eine an, dann springt der Eröffnungsbaum
-        dorthin: Zug für Zug siehst du, was du spielst, was deine Gegner antworten und wo es schiefgeht.
-      </CoachTip>
-    </>
-  );
+  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />;
 
   if (usernames && !usernames.length) {
     return (
@@ -336,6 +329,10 @@ export function OpeningsView() {
   const best = lines
     .filter((l) => scoreDeviation(l, 50) > 0)
     .sort((a, b) => (b.score_pct as number) - (a.score_pct as number))[0];
+  // …and only one clearly below 50 % as the one that costs points.
+  const worst = lines
+    .filter((l) => scoreDeviation(l, 50) < 0)
+    .sort((a, b) => (a.score_pct as number) - (b.score_pct as number))[0];
   const facts = showAllFacts ? o.facts : o.facts.slice(0, 3);
   const sorted = sortLines(lines, sort);
   const cards = allCards ? sorted : sorted.slice(0, CARDS);
@@ -347,8 +344,35 @@ export function OpeningsView() {
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
       <div class="dash">
-        <section class="card op-hero span-12">
-          <div class="op-hero-main">
+        <Hero
+          class="op-arena"
+          kicker={`Eröffnungen mit ${colorDe} · ${plural(games, "Partie", "Partien")}`}
+          title={
+            best ? (
+              <>
+                <em>Deine Waffe mit {colorDe}:</em> {openingLabel(best.name)}
+              </>
+            ) : worst ? (
+              <>
+                <em>Dein Sorgenkind mit {colorDe}:</em> {openingLabel(worst.name)}
+              </>
+            ) : (
+              `Dein Repertoire mit ${colorDe}`
+            )
+          }
+          sub={
+            best || worst ? (
+              <>
+                {best && `${pctText(best.score_pct)} der Punkte aus ${plural(best.games, "Partie", "Partien")}. `}
+                {worst && `${best ? "Am meisten kostet dich" : "Hier holst du nur"} ${best ? `${openingLabel(worst.name)}: ` : ""}${pctText(worst.score_pct)} aus ${plural(worst.games, "Partie", "Partien")}.`}
+              </>
+            ) : (
+              `Noch sticht keine Eröffnung klar heraus. Ab etwa ${MIN_GAMES} Partien je Eröffnung werden die Befunde belastbar.`
+            )
+          }
+          aside={<HeroStat big={<CountUp value={scorePct} format={(v) => `${Math.round(v)} %`} />} label="Punkte-Quote" sub={`mit ${colorDe}`} />}
+        >
+          <div class="op-arena-bar">
             <div class="segmented color-switch" role="tablist" aria-label="Farbe">
               {(["white", "black"] as const).map((c) => (
                 <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => pickColor(c)}>
@@ -357,53 +381,64 @@ export function OpeningsView() {
                 </button>
               ))}
             </div>
-            <div class="op-hero-kpis">
-              <div>
-                <span class="kpi-label">Punkte-Quote</span>
-                <strong class={`tnum ${scoreClass(scorePct)}`}>{pctText(scorePct)}</strong>
-                <span class="small faint">
-                  aus {plural(games, "Partie", "Partien")} mit {colorDe}
-                </span>
-              </div>
-              <div>
-                <span class="kpi-label">Eröffnungen</span>
-                <strong class="tnum">{lines.length}</strong>
-                <span class="small faint">{best ? `Stärkste: ${openingLabel(best.name)}` : `${lines.filter((l) => l.games >= MIN_GAMES).length} mit genug Partien`}</span>
-              </div>
-              <div>
-                <span class="kpi-label">Nach der Eröffnung</span>
-                <strong class={`tnum ${scoreClass(wpAfter)}`}>{pctText(wpAfter)}</strong>
-                <span class="small faint">deine Ø Gewinnchance</span>
-              </div>
-              <div>
-                <span class="kpi-label">Theorie verlassen</span>
-                <strong class="tnum">{bookExit !== null ? `Zug ${Math.round(bookExit)}` : "–"}</strong>
-                <span class="small faint">im Schnitt</span>
-              </div>
+            {best && (
+              <button class="chip" onClick={() => showInTree(best.line, best.name)}>
+                Waffe im Baum zeigen
+              </button>
+            )}
+            {worst && (
+              <button class="chip" onClick={() => showInTree(worst.line, worst.name)}>
+                Sorgenkind im Baum zeigen
+              </button>
+            )}
+          </div>
+          <div class="ar-stat-row">
+            <div class="ar-stat">
+              <span class="kpi-label">Eröffnungen</span>
+              <span class="ar-stat-value">
+                <CountUp value={lines.length} />
+              </span>
+              <span class="small faint">{lines.filter((l) => l.games >= MIN_GAMES).length} mit genug Partien</span>
+            </div>
+            <div class="ar-stat">
+              <span class="kpi-label">Nach der Eröffnung</span>
+              <span class={`ar-stat-value ${scoreClass(wpAfter)}`}>
+                <CountUp value={wpAfter} format={(v) => `${Math.round(v)} %`} />
+              </span>
+              <span class="small faint">deine Ø Gewinnchance</span>
+            </div>
+            <div class="ar-stat">
+              <span class="kpi-label">Theorie verlassen</span>
+              <span class="ar-stat-value">
+                <CountUp value={bookExit} format={(v) => `Zug ${Math.round(v)}`} />
+              </span>
+              <span class="small faint">im Schnitt</span>
+            </div>
+            <div class="ar-stat">
+              <span class="kpi-label">Baustellen</span>
+              <span class={`ar-stat-value${leaks.length ? " bad" : ""}`}>
+                <CountUp value={leaks.length} />
+              </span>
+              <span class="small faint">{leaks.length ? "Züge, die immer wieder schiefgehen" : "keine wiederkehrenden Fehler"}</span>
             </div>
           </div>
-          <div class="op-hero-coach">
-            <Coach mood={mood} size={56} title="Das Wichtigste zu deinen Eröffnungen">
-              {facts.length ? (
+          {facts.length > 0 && (
+            <div class="op-arena-facts">
+              <Coach mood={mood} size={48} title="Das Wichtigste zu deinen Eröffnungen">
                 <ol class="fact-list compact">
                   {facts.map((f) => (
                     <li key={f}>{f}</li>
                   ))}
                 </ol>
-              ) : (
-                <span>
-                  Noch keine deutlichen Unterschiede zwischen deinen Eröffnungen. Ab etwa {MIN_GAMES} Partien je Eröffnung werden die
-                  Befunde belastbar.
-                </span>
+              </Coach>
+              {o.facts.length > 3 && (
+                <button class="btn small ghost" onClick={() => setShowAllFacts(!showAllFacts)}>
+                  {showAllFacts ? "Weniger" : `Alle ${o.facts.length} Befunde`}
+                </button>
               )}
-            </Coach>
-            {o.facts.length > 3 && (
-              <button class="btn small ghost" onClick={() => setShowAllFacts(!showAllFacts)}>
-                {showAllFacts ? "Weniger" : `Alle ${o.facts.length} Befunde`}
-              </button>
-            )}
-          </div>
-        </section>
+            </div>
+          )}
+        </Hero>
 
         <section class="card tile span-12">
           <div class="tile-head">
