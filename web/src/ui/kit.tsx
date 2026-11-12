@@ -145,6 +145,7 @@ export function ScaleTrack({
   ticks = [0, 25, 50, 75, 100],
   picked,
   onPick,
+  room = MARKER_ROOM,
 }: {
   markers: TrackMarker[];
   min?: number;
@@ -152,10 +153,12 @@ export function ScaleTrack({
   ticks?: number[];
   picked?: string | null;
   onPick?: (id: string) => void;
+  /** Width one marker with its label needs, in pixels; raise it for long labels. */
+  room?: number;
 }) {
   const [ref, w] = useWidth<HTMLDivElement>(600);
   const on = useEntrance();
-  const gap = (MARKER_ROOM / Math.max(w, 1)) * 100;
+  const gap = (room / Math.max(w, 1)) * 100;
   const pct = (v: number) => clamp(((v - min) / (max - min || 1)) * 100, 0, 100);
   const lanes: number[] = [];
   const placed = markers

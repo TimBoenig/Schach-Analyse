@@ -32,12 +32,36 @@ import { PageHeader } from "./Layout";
 import { ColumnChart, type Column } from "./charts";
 import { IconPlay } from "./icons";
 import { navigate, type TrainingTab } from "./router";
-import { Coach, NeedNames } from "./Coach";
+import { COACH_NAME, Coach, CoachAvatar, NeedNames } from "./Coach";
+import { CountUp, Hero, HeroStat, Meter, ScaleTrack } from "./kit";
 import { Examples, skillCategory } from "./ProfileView";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
 import { type TrainingState, useTraining } from "./training/useTraining";
 
 const SESSION_SIZE = 10;
+const TRACK_MIN_ATTEMPTS = 3;
+// Two letters that tell the areas apart inside a dot (two of them start with "Endspiel").
+const CATEGORY_MARK: Record<Category, string> = {
+  blunder: "Bl",
+  chance: "Ch",
+  opening: "Ef",
+  repertoire: "Re",
+  endgame: "En",
+  basics: "Gr",
+  conversion: "Vo",
+  defense: "Ve",
+};
+// One fixed colour per training area, so an area keeps its colour wherever it is drawn.
+const CATEGORY_TONE: Record<Category, string> = {
+  blunder: "tone-a",
+  chance: "tone-b",
+  opening: "tone-c",
+  repertoire: "tone-d",
+  endgame: "tone-e",
+  basics: "tone-f",
+  conversion: "tone-win",
+  defense: "tone-quiet",
+};
 const WEEKDAY = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
 interface SessionSpec {
@@ -361,42 +385,33 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
 
   return (
     <div class="dash">
-      <section class="card tile span-12 plan-hero">
-        <div class="plan-hero-main">
-          <Coach mood={open.length ? "happy" : "wow"} size={64} class="big" title={open.length ? plan.headline : "Plan für heute erledigt. Stark!"}>
-            <span class="small">Dein Plan für heute · {plan.minutes} Minuten. Ich habe die Übungen aus deinen eigenen Partien ausgesucht.</span>
-          </Coach>
-          <div class="progress plan-progress">
-            <div style={{ width: `${total ? (done / total) * 100 : 0}%` }} />
-          </div>
-          <div class="small muted">
+      <Hero
+        class="plan-arena"
+        kicker={
+          <span class="home-kicker">
+            <CoachAvatar mood={open.length ? "happy" : "wow"} size={26} /> {COACH_NAME} · Dein Plan für heute · {plan.minutes} Minuten
+          </span>
+        }
+        title={open.length ? plan.headline : "Plan für heute erledigt. Stark!"}
+        sub={open.length ? "Alle Übungen stammen aus deinen eigenen Partien." : "Komm morgen wieder, dann warten neue Aufgaben auf dich."}
+        aside={<HeroStat big={<CountUp value={days} />} label={days === 1 ? "Tag in Folge" : "Tage in Folge"} sub={days ? "Serie halten" : "Heute starten"} />}
+      >
+        <div class="plan-arena-run">
+          <Meter value={done} max={total || 1} tone="tone-win" />
+          <span class="small muted tnum">
             {done} von {total} Übungen erledigt
             {today ? ` · ${today.correct} auf Anhieb gelöst` : ""}
-          </div>
-          <div class="row" style={{ marginTop: "12px" }}>
-            {open.length > 0 ? (
-              <button class="btn primary big" onClick={() => start({ title: "Training von heute", ids: open, parts })}>
-                <IconPlay /> {done ? "Weiter trainieren" : "Training starten"}
-              </button>
-            ) : (
-              <span class="feedback-ok">Komm morgen wieder, dann habe ich neue Aufgaben für dich.</span>
-            )}
-            <button class="btn ghost small" onClick={t.rebuild}>
-              Plan neu erstellen
-            </button>
-          </div>
+          </span>
         </div>
-        <div class="plan-hero-side">
-          <div class="streak">
-            <span class="kpi-big tnum">{days}</span>
-            <span class="small muted">{days === 1 ? "Tag" : "Tage"} in Folge</span>
-          </div>
+        <div class="plan-arena-bar">
+          {open.length > 0 && (
+            <button class="btn primary big" onClick={() => start({ title: "Training von heute", ids: open, parts })}>
+              <IconPlay /> {done ? "Weiter trainieren" : "Training starten"}
+            </button>
+          )}
           <label class="field compact">
             <span>Zeit pro Tag</span>
-            <select
-              value={String(t.prefs.minutes)}
-              onChange={(e) => t.setPrefs({ ...t.prefs, minutes: Number(e.currentTarget.value) })}
-            >
+            <select value={String(t.prefs.minutes)} onChange={(e) => t.setPrefs({ ...t.prefs, minutes: Number(e.currentTarget.value) })}>
               {MINUTE_CHOICES.map((m) => (
                 <option key={m} value={m}>
                   {m} Minuten
@@ -406,10 +421,7 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
           </label>
           <label class="field compact">
             <span>Schwerpunkt</span>
-            <select
-              value={t.prefs.focus}
-              onChange={(e) => t.setPrefs({ ...t.prefs, focus: e.currentTarget.value as Category | "auto" })}
-            >
+            <select value={t.prefs.focus} onChange={(e) => t.setPrefs({ ...t.prefs, focus: e.currentTarget.value as Category | "auto" })}>
               <option value="auto">Automatisch aus deinen Partien</option>
               {CATEGORY_ORDER.filter((c) => c !== "repertoire").map((c) => (
                 <option key={c} value={c}>
@@ -418,8 +430,11 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
               ))}
             </select>
           </label>
+          <button class="btn ghost small" onClick={t.rebuild}>
+            Plan neu erstellen
+          </button>
         </div>
-      </section>
+      </Hero>
 
       <section class="card tile span-12 plan-steps-card">
         <div class="tile-head">
@@ -633,8 +648,27 @@ function ExercisesTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) 
       </section>
     );
   };
+  const dueIds = t.pool.filter((e) => isDue(t.progress[e.id], t.today)).map((e) => e.id);
+  const fresh = t.pool.filter((e) => !t.progress[e.id]).length;
   return (
     <div class="dash">
+      <Hero
+        kicker="Übungen · aus deinen eigenen Partien"
+        title={
+          <>
+            {t.pool.length} <em>{t.pool.length === 1 ? "Übung wartet" : "Übungen warten"} auf dich</em>
+          </>
+        }
+        sub={`${fresh} davon hast du noch nie gesehen. Jede Stellung stammt aus einer deiner Partien oder aus deinen Eröffnungen.`}
+        aside={
+          <HeroStat
+            big={<CountUp value={dueIds.length} />}
+            label={dueIds.length === 1 ? "Wiederholung fällig" : "Wiederholungen fällig"}
+            sub={dueIds.length ? "antippen und loslegen" : "heute alles erledigt"}
+            onClick={dueIds.length ? () => start({ title: "Fällige Wiederholungen", ids: dueIds.slice(0, SESSION_SIZE) }) : undefined}
+          />
+        }
+      />
       {TILE_ORDER.map((c) => card(c, false))}
       {LIST_ORDER.map((c) => card(c, true))}
     </div>
@@ -660,30 +694,55 @@ function ProgressTab({ t }: { t: TrainingState }) {
   const mastered = stats.reduce((s, c) => s + c.mastered, 0);
   const due = t.pool.filter((e) => isDue(t.progress[e.id], t.today)).length;
   const trends = trainingTrends(t.log, t.today);
+  const run = streak(t.log, t.today);
+  // A rate from one or two tries says nothing; such areas stay off the track.
+  const rated = stats.filter((c) => c.rate !== null && c.attempts >= TRACK_MIN_ATTEMPTS);
   return (
     <div class="dash">
-      <section class="card hero span-12">
-        <div class="hero-cell">
-          <div class="kpi-label">Serie</div>
-          <div class="kpi-big tnum">{streak(t.log, t.today)}</div>
-          <div class="small muted">Tage in Folge</div>
-        </div>
-        <div class="hero-cell">
-          <div class="kpi-label">Übungen gesamt</div>
-          <div class="kpi-big tnum">{totalDone}</div>
-          <div class="small muted">{totalDone ? `${Math.round((totalCorrect / totalDone) * 100)} % auf Anhieb gelöst` : "noch keine"}</div>
-        </div>
-        <div class="hero-cell">
-          <div class="kpi-label">Sicher beherrscht</div>
-          <div class="kpi-big tnum">{mastered}</div>
-          <div class="small muted">von {t.pool.length} Übungen</div>
-        </div>
-        <div class="hero-cell">
-          <div class="kpi-label">Heute fällig</div>
-          <div class="kpi-big tnum">{due}</div>
-          <div class="small muted">Wiederholungen</div>
-        </div>
-      </section>
+      <Hero
+        kicker={`Dein Fortschritt · ${totalDone} ${totalDone === 1 ? "Übung" : "Übungen"} gemacht`}
+        title={
+          totalDone ? (
+            <>
+              {mastered} <em>von {t.pool.length} Übungen</em> sitzen sicher
+            </>
+          ) : (
+            "Dein Fortschritt beginnt mit der ersten Übung"
+          )
+        }
+        sub={
+          totalDone
+            ? `${Math.round((totalCorrect / totalDone) * 100)} % auf Anhieb gelöst · ${due} ${due === 1 ? "Wiederholung" : "Wiederholungen"} heute fällig`
+            : "Starte den Tagesplan, dann siehst du hier, was hängen bleibt."
+        }
+        aside={<HeroStat big={<CountUp value={run} />} label={run === 1 ? "Tag in Folge" : "Tage in Folge"} sub="deine Serie" />}
+      >
+        {rated.length >= 2 && (
+          <>
+            <div class="tile-head">
+              <h3>Wo du am sichersten bist</h3>
+              <span class="tile-sub">Anteil auf Anhieb gelöst · Punkt antippen zum Üben</span>
+            </div>
+            <div class="track-wide">
+              <ScaleTrack
+                room={150}
+                markers={rated.map((c) => ({
+                  id: c.category,
+                  label: CATEGORIES[c.category].label,
+                  value: c.rate as number,
+                  valueText: `${Math.round(c.rate as number)} %`,
+                  tone: CATEGORY_TONE[c.category],
+                  mark: CATEGORY_MARK[c.category],
+                  faint: c.attempts < TREND_MIN_ATTEMPTS,
+                  title: `${c.solved} von ${c.attempts} Versuchen gelöst`,
+                }))}
+                onPick={(id) => navigate({ view: "training", tab: "uebungen", category: id })}
+              />
+            </div>
+            {rated.some((c) => c.attempts < TREND_MIN_ATTEMPTS) && <p class="small faint tile-foot">Blasse Punkte: noch unter {TREND_MIN_ATTEMPTS} Versuchen, also nur ein erster Eindruck.</p>}
+          </>
+        )}
+      </Hero>
       <section class="card tile span-12">
         <div class="tile-head">
           <h3>Letzte 14 Tage</h3>
@@ -774,10 +833,15 @@ function TrendCard({ t }: { t: TrainingState }) {
 const OPENING_STATE: Record<string, string> = { new: "neu", due: "fällig", mastered: "sicher", learning: "im Aufbau" };
 
 /** Each repertoire line and how far along the repetition boxes it is. */
+// Lines shown before "show all": the list grows with every opening played.
+const OPENING_ROWS = 8;
+
 function OpeningProgressCard({ t }: { t: TrainingState }) {
   // Library lines appear once they were practised; untouched ones would only be noise.
   const rows = openingProgress(t.pool, t.progress, t.today).filter((r) => !r.id.startsWith("lib:") || r.attempts > 0);
+  const [all, setAll] = useState(false);
   if (!rows.length) return null;
+  const shown = all ? rows : rows.slice(0, OPENING_ROWS);
   return (
     <section class="card tile span-12">
       <div class="tile-head">
@@ -785,7 +849,7 @@ function OpeningProgressCard({ t }: { t: TrainingState }) {
         <span class="tile-sub">wie sicher sitzen deine Linien</span>
       </div>
       <div class="cat-table">
-        {rows.map((r) => (
+        {shown.map((r) => (
           <div key={r.id} class="cat-row">
             <span class="cat-name">
               {openingLabel(r.opening)} <span class="faint">· {r.color === "white" ? "Weiß" : "Schwarz"}</span>
@@ -800,6 +864,11 @@ function OpeningProgressCard({ t }: { t: TrainingState }) {
           </div>
         ))}
       </div>
+      {rows.length > OPENING_ROWS && (
+        <button class="btn small ghost" style={{ marginTop: "10px" }} onClick={() => setAll(!all)}>
+          {all ? "Weniger anzeigen" : `Alle ${rows.length} Linien`}
+        </button>
+      )}
       <p class="small faint tile-foot">Jede fehlerfreie Runde hebt eine Linie eine Stufe höher, ein Fehler setzt sie zurück. Ab Stufe 3 gilt sie als sicher.</p>
     </section>
   );

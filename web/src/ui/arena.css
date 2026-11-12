@@ -701,3 +701,71 @@ html.motion .game-list .game-item {
     display: none;
   }
 }
+
+/* ---------- openings ---------- */
+
+.op-arena-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 16px;
+}
+.op-arena-bar .color-switch {
+  margin-right: auto;
+}
+.op-arena-facts {
+  margin-top: 16px;
+}
+.op-arena-facts .coach-bubble {
+  background: var(--surface-2);
+}
+.op-arena-facts .coach-bubble::before {
+  border-top-color: var(--surface-2);
+}
+.ar-stat-value.good {
+  color: var(--win);
+}
+.ar-stat-value.bad {
+  color: var(--loss);
+}
+
+/* ---------- training ---------- */
+
+.plan-arena-run {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 16px;
+}
+.plan-arena-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.plan-arena-bar .btn.primary {
+  margin-right: auto;
+}
+.plan-arena-bar .field {
+  margin: 0;
+  min-width: 170px;
+}
+@media (max-width: 720px) {
+  .plan-arena-bar .btn.primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .plan-arena-bar .field {
+    flex: 1;
+    min-width: 0;
+  }
+}
+/* Long labels under the dots: keep the outermost ones inside the card. */
+.track-wide {
+  margin: 0 72px;
+}
+@media (max-width: 720px) {
+  .track-wide {
+    margin: 0 58px;
+  }
+}
