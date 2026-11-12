@@ -56,3 +56,11 @@ oft im Spam. Für echte Nutzer braucht es einen SMTP-Dienst, z. B. Resend
 Den Knopf „Konto löschen“ gibt es in der App. Damit er das Konto wirklich
 entfernt (und nicht nur die Online-Daten), einmal
 `web/supabase/migrations/20261112_delete_account.sql` im SQL-Editor ausführen.
+
+## 5. Postfach support@endgameking.com
+
+Die Adresse steht im Impressum und in der Datenschutzerklärung, sie muss
+also Mails empfangen können. Resend verschickt nur. Zum Empfangen in
+Cloudflare → endgameking.com → Email → Email Routing einschalten und
+`support@endgameking.com` an das eigene Postfach weiterleiten lassen
+(kostenlos; Cloudflare setzt die MX-Einträge selbst).

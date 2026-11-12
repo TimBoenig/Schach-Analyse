@@ -3,48 +3,71 @@
 // the GPL of chessground and Stockfish (source must be reachable).
 import type { JSX } from "preact";
 
-import { BRAND } from "../brand";
+import { BRAND, SUPPORT_EMAIL } from "../brand";
 import { PageHeader } from "./Layout";
 import { navigate, type LegalTab } from "./router";
 
 /**
- * Operator details for the Impressum (§ 5 DDG). Fill these in before the site
- * goes public; while a field is empty the page shows a visible placeholder.
+ * Operator details for the Impressum (§ 5 DDG, § 18 MStV). The address must be
+ * one where post and court documents reach the operator ("ladungsfähig").
  */
 export const OPERATOR = {
-  name: "",
-  street: "",
-  city: "",
-  email: "",
+  name: "Tim Bönig",
+  street: "Katzbachstraße 23",
+  city: "22547 Hamburg",
+  email: SUPPORT_EMAIL,
 };
 
 const SOURCE_URL = "https://github.com/TimBoenig/Schach-Analyse";
 
-function Field({ value, label }: { value: string; label: string }) {
-  return value ? <>{value}</> : <span class="placeholder-field">[{label} eintragen]</span>;
+function Mail() {
+  return <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>;
+}
+
+function Address() {
+  return (
+    <p>
+      {OPERATOR.name}
+      <br />
+      {OPERATOR.street}
+      <br />
+      {OPERATOR.city}
+      <br />
+      Deutschland
+    </p>
+  );
 }
 
 function Impressum() {
   return (
     <section class="card legal-text">
       <h2>Impressum</h2>
-      <p>Angaben gemäß § 5 DDG</p>
+      <p>Angaben gemäß § 5 Digitale-Dienste-Gesetz (DDG)</p>
+      <Address />
+      <h3>Kontakt</h3>
       <p>
-        <Field value={OPERATOR.name} label="Vor- und Nachname" />
-        <br />
-        <Field value={OPERATOR.street} label="Straße und Hausnummer" />
-        <br />
-        <Field value={OPERATOR.city} label="PLZ und Ort" />
+        E-Mail: <Mail />
       </p>
+      <h3>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h3>
       <p>
-        Kontakt: <Field value={OPERATOR.email} label="E-Mail-Adresse" />
+        {OPERATOR.name}, Anschrift wie oben.
       </p>
-      <p>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: siehe oben.</p>
-      <h3>Haftung</h3>
+      <h3>Haftung für Inhalte</h3>
       <p>
-        Bewertungen, Einstufungen und Trainingsvorschläge entstehen automatisch durch eine Schach-Engine und sind
-        Hilfsmittel, keine Garantie für Richtigkeit. Für Inhalte verlinkter Seiten (chess.com, Lichess) sind deren
-        Betreiber verantwortlich.
+        {BRAND} ist ein privates, kostenloses Angebot ohne Werbung. Bewertungen, Einstufungen und Trainingsvorschläge
+        entstehen automatisch durch eine Schach-Engine. Sie sind Hilfsmittel und ohne Gewähr für Richtigkeit und
+        Vollständigkeit.
+      </p>
+      <h3>Haftung für Links</h3>
+      <p>
+        Für Inhalte verlinkter Seiten (zum Beispiel chess.com, Lichess, GitHub) sind ausschließlich deren Betreiber
+        verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar. Werden uns solche bekannt,
+        entfernen wir den Link umgehend.
+      </p>
+      <h3>Urheberrecht</h3>
+      <p>
+        Der Quellcode steht unter der GNU General Public License v3 (siehe Lizenzen). Schachpartien und Ergebnisse
+        stammen von den jeweiligen Spielern und Plattformen.
       </p>
     </section>
   );
@@ -56,43 +79,89 @@ function Datenschutz() {
       <h2>Datenschutzerklärung</h2>
       <p>
         Kurz gesagt: Die App läuft auf deinem Gerät. Ohne Konto verlässt nichts außer deinen Abrufen bei chess.com oder
-        Lichess dein Gerät. Es gibt keine Werbung, kein Tracking und keine Analyse-Cookies.
+        Lichess dein Gerät. Es gibt keine Werbung, kein Tracking, keine Cookies und keine Analyse-Dienste.
       </p>
-      <h3>Verantwortlicher</h3>
+
+      <h3>1. Verantwortlicher</h3>
+      <Address />
       <p>
-        <Field value={OPERATOR.name} label="Name" />, <Field value={OPERATOR.email} label="E-Mail" /> (siehe{" "}
-        <a href="#/rechtliches">Impressum</a>).
+        E-Mail: <Mail />
       </p>
-      <h3>Daten auf deinem Gerät</h3>
+
+      <h3>2. Aufruf der Website (Hosting)</h3>
       <p>
-        Partien, Analysen, Einstellungen und Trainingsfortschritt speichert die App im Browser-Speicher (IndexedDB,
-        localStorage) auf deinem Gerät. Die Engine-Analyse läuft ebenfalls lokal. Du kannst alles unter Einstellungen →
-        Daten & Export herunterladen oder löschen.
+        Die Seite wird von Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, USA, ausgeliefert. Beim Aufruf
+        verarbeitet Vercel technisch notwendige Daten: IP-Adresse, Zeitpunkt, aufgerufene Datei, Browser und
+        Betriebssystem. Das ist nötig, um die Seite auszuliefern und vor Angriffen zu schützen (Art. 6 Abs. 1 lit. f
+        DSGVO). Die Protokolle speichert Vercel nur für kurze Zeit. Vercel ist nach dem EU-US Data Privacy Framework
+        zertifiziert; zusätzlich gilt ein Auftragsverarbeitungsvertrag mit EU-Standardvertragsklauseln. Die
+        Namensauflösung der Domain (DNS) läuft über Cloudflare, Inc., USA, ebenfalls nach dem Data Privacy Framework
+        zertifiziert.
       </p>
-      <h3>Hosting</h3>
+
+      <h3>3. Daten auf deinem Gerät</h3>
       <p>
-        Die Seite wird über Vercel Inc. ausgeliefert. Beim Aufruf verarbeitet Vercel technisch notwendige Daten wie
-        IP-Adresse und Zeitpunkt, um die Seite bereitzustellen und vor Missbrauch zu schützen (Art. 6 Abs. 1 lit. f
-        DSGVO). Vercel ist nach dem EU-US Data Privacy Framework zertifiziert.
+        Partien, Analysen, Einstellungen und Trainingsfortschritt speichert die App im Speicher deines Browsers
+        (IndexedDB, localStorage, Offline-Cache). Die Engine-Analyse läuft ebenfalls lokal. Diese Speicherung ist
+        unbedingt nötig, damit die App tut, was du von ihr willst (§ 25 Abs. 2 Nr. 2 TDDDG). Darum gibt es kein
+        Cookie-Banner. Du kannst alles unter Einstellungen → Daten & Export herunterladen oder löschen, oder die
+        Website-Daten im Browser entfernen.
       </p>
-      <h3>Import von chess.com und Lichess</h3>
+
+      <h3>4. Import von chess.com und Lichess</h3>
       <p>
-        Wenn du Partien importierst, ruft dein Browser die öffentlichen Schnittstellen von chess.com bzw. Lichess direkt
-        mit dem eingegebenen Benutzernamen ab. Dabei gelten deren Datenschutzbestimmungen.
+        Wenn du Partien importierst oder Freunde hinzufügst, ruft dein Browser die öffentlichen Schnittstellen von
+        chess.com (Chess.com, LLC, USA) bzw. Lichess (lichess.org, Frankreich) direkt auf. Dabei sehen diese Dienste deine
+        IP-Adresse und den eingegebenen Benutzernamen; es gelten ihre Datenschutzbestimmungen. Die Abrufe startest du
+        selbst (Art. 6 Abs. 1 lit. b DSGVO).
       </p>
-      <h3>Konto und Synchronisierung (freiwillig)</h3>
+
+      <h3>5. Daten anderer Spieler</h3>
       <p>
-        Legst du ein Konto an, speichern wir deine E-Mail-Adresse, ein gehashtes Passwort und eine kompakte Kopie deiner
-        Partien, Analysen und Einstellungen bei Supabase Inc. auf Servern in Frankfurt (EU). Zweck ist die Sicherung und
-        der Abgleich zwischen deinen Geräten (Art. 6 Abs. 1 lit. b DSGVO). Für Bestätigungs- und Anmeldelinks erhältst
-        du E-Mails an diese Adresse. Du kannst Online-Daten und Konto jederzeit selbst unter Einstellungen → Konto
-        löschen.
+        Fügst du Freunde oder Gegner hinzu, lädt die App deren öffentlich einsehbare Partien und Benutzernamen und wertet
+        sie für dich aus. Das geschieht auf deinem Gerät und, falls du ein Konto nutzt, in deiner Sicherung. Grundlage
+        ist das berechtigte Interesse, öffentlich zugängliche Partien zu analysieren (Art. 6 Abs. 1 lit. f DSGVO). Wer
+        nicht möchte, dass seine Partien hier ausgewertet werden, kann sich unter <Mail /> melden.
       </p>
-      <h3>Deine Rechte</h3>
+
+      <h3>6. Konto und Synchronisierung (freiwillig)</h3>
       <p>
-        Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung, Datenübertragbarkeit und
-        Widerspruch sowie das Recht, dich bei einer Datenschutz-Aufsichtsbehörde zu beschweren.
+        Legst du ein Konto an, speichern wir deine E-Mail-Adresse, optional einen Anzeigenamen, ein gehashtes Passwort
+        und eine kompakte Kopie deiner Partien, Analysen und Einstellungen. Zweck ist die Sicherung und der Abgleich
+        zwischen deinen Geräten (Art. 6 Abs. 1 lit. b DSGVO). Anbieter ist Supabase Inc., USA, mit Servern in
+        Frankfurt am Main (EU); es gilt ein Auftragsverarbeitungsvertrag mit EU-Standardvertragsklauseln. Die Daten
+        bleiben gespeichert, bis du sie löschst. Unter Einstellungen → Konto kannst du die Online-Daten oder das ganze
+        Konto jederzeit selbst sofort löschen.
       </p>
+
+      <h3>7. E-Mails</h3>
+      <p>
+        Für Bestätigungs-, Anmelde- und Passwort-Links schicken wir dir E-Mails an die angegebene Adresse
+        (Art. 6 Abs. 1 lit. b DSGVO). Der Versand läuft über Resend (Plus Five Five, Inc., USA) auf Grundlage eines
+        Auftragsverarbeitungsvertrags mit EU-Standardvertragsklauseln. Newsletter oder Werbung verschicken wir nicht.
+      </p>
+
+      <h3>8. Kontakt per E-Mail</h3>
+      <p>
+        Schreibst du an <Mail />, verarbeiten wir deine Adresse und Nachricht, um dir zu antworten (Art. 6 Abs. 1 lit. f
+        DSGVO). Wir löschen sie, sobald die Anfrage erledigt ist und keine Aufbewahrungspflicht besteht.
+      </p>
+
+      <h3>9. Deine Rechte</h3>
+      <p>
+        Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der
+        Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch gegen Verarbeitungen auf Grundlage
+        berechtigter Interessen (Art. 21). Eine kurze E-Mail an <Mail /> genügt. Du kannst dich außerdem bei einer
+        Datenschutz-Aufsichtsbehörde beschweren, zum Beispiel beim Hamburgischen Beauftragten für Datenschutz und
+        Informationsfreiheit.
+      </p>
+
+      <h3>10. Keine automatisierten Entscheidungen</h3>
+      <p>
+        Die Engine-Bewertungen dienen nur deinem Training. Es gibt keine automatisierten Entscheidungen mit rechtlicher
+        Wirkung und kein Profiling zu Werbezwecken.
+      </p>
+      <p class="faint small">Stand: November 2026</p>
     </section>
   );
 }

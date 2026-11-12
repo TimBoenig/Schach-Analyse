@@ -28,6 +28,7 @@ import {
   type AccountInfo,
   type SyncStatus,
 } from "../storage/sync";
+import { SUPPORT_EMAIL } from "../brand";
 import { navigate } from "./router";
 import { PageHeader } from "./Layout";
 import { Coach, CoachAvatar } from "./Coach";
@@ -343,7 +344,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                     const full = await deleteAccount();
                     if (!full) {
                       setMsg({
-                        text: "Deine Online-Daten sind gelöscht. Die Anmeldung selbst konnte der Server noch nicht entfernen; schreib uns dafür kurz über das Impressum.",
+                        text: `Deine Online-Daten sind gelöscht. Die Anmeldung selbst konnte der Server noch nicht entfernen; schreib dafür kurz an ${SUPPORT_EMAIL}.`,
                         error: true,
                       });
                     }
@@ -582,7 +583,7 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
               </div>
               {mode === "register" && (
                 <p class="faint small" style={{ marginBottom: 0 }}>
-                  Mit der Registrierung stimmst du der <a href="#/rechtliches/datenschutz">Datenschutzerklärung</a> zu.
+                  Wie wir mit deinen Daten umgehen, steht in der <a href="#/rechtliches/datenschutz">Datenschutzerklärung</a>.
                 </p>
               )}
             </form>

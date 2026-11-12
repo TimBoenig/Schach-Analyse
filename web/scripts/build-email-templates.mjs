@@ -46,7 +46,7 @@ ${extra}
 <p style="margin:0;padding-top:16px;border-top:1px solid #ece8df;font:12px/1.6 ${SANS};color:#8a8a8a;">Funktioniert der Knopf nicht? Kopiere diesen Link in deinen Browser:<br><a href="{{ .ConfirmationURL }}" style="color:#6b6b6b;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
 </td></tr>
 </table>
-<p style="margin:16px 0 0;font:12px/1.6 ${SANS};color:#9a9a9a;"><a href="${SITE_URL}" style="color:#9a9a9a;text-decoration:none;">${BRAND}.com</a> &middot; deine Partien, dein Profil, dein Training<br>Diese Mail wurde automatisch verschickt, weil jemand diese Adresse in der App eingegeben hat.</p>
+<p style="margin:16px 0 0;font:12px/1.6 ${SANS};color:#9a9a9a;"><a href="${SITE_URL}" style="color:#9a9a9a;text-decoration:none;">${BRAND}.com</a> &middot; deine Partien, dein Profil, dein Training &middot; <a href="${SITE_URL}/#/rechtliches" style="color:#9a9a9a;">Impressum</a><br>Diese Mail wurde automatisch verschickt, weil jemand diese Adresse in der App eingegeben hat.</p>
 </td></tr></table>
 </body></html>
 `;
