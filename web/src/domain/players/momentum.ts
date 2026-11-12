@@ -76,9 +76,10 @@ export function groupMomentum(
     date = "All Time",
     now = Date.now() / 1000,
     effects = {},
-  }: { format?: string; date?: string; now?: number; effects?: Record<string, { accuracy: number }> } = {},
+    weeks: span = MOMENTUM_WEEKS,
+  }: { format?: string; date?: string; now?: number; effects?: Record<string, { accuracy: number }>; weeks?: number } = {},
 ): MomentumRow[] {
-  const firstWeek = mondayOf(now) - (MOMENTUM_WEEKS - 1) * WEEK;
+  const firstWeek = mondayOf(now) - (span - 1) * WEEK;
   return members.map((m) => {
     const own = filterGames(games, m.usernames, "All Colors", format, "All Sources", date)
       .map(([g, color]) => ({ g, color, at: parsePlayedAt(g) }))
@@ -104,14 +105,14 @@ export function groupMomentum(
     }
 
     const weeks: FormWeek[] = [];
-    for (let w = 0; w < MOMENTUM_WEEKS; w++) {
+    for (let w = 0; w < span; w++) {
       const start = firstWeek + w * WEEK;
       const vals = acc.filter((x) => x.at >= start && x.at < start + WEEK).map((x) => x.value);
       weeks.push({ start, games: vals.length, accuracy: vals.length >= MIN_WEEK_GAMES ? mean(vals) : null, smooth: null });
     }
     weeks.forEach((wk) => {
-      const span = acc.filter((x) => x.at >= wk.start - 2 * WEEK && x.at < wk.start + WEEK);
-      wk.smooth = span.length >= 3 && wk.games > 0 ? mean(span.map((x) => x.value)) : null;
+      const around = acc.filter((x) => x.at >= wk.start - 2 * WEEK && x.at < wk.start + WEEK);
+      wk.smooth = around.length >= 3 && wk.games > 0 ? mean(around.map((x) => x.value)) : null;
     });
 
     const cut = now - TREND_DAYS * 86400;

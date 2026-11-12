@@ -414,7 +414,7 @@ export class StatsAccumulator {
         move_display: "0 Patzer",
         classification: "Clean Game",
         description:
-          rec.game_acc > 0 ? `Genauigkeit: ${rec.game_acc.toFixed(1)}% • 0 Patzer` : "0 Patzer",
+          rec.game_acc > 0 ? `Genauigkeit: ${rec.game_acc.toFixed(1).replace(".", ",")} % • 0 Patzer` : "0 Patzer",
         fen_before: startFen,
       });
     }
@@ -462,10 +462,10 @@ export class StatsAccumulator {
         move_number: 1,
         move_display: rec.eco || "Eröffnung",
         classification:
-          rec.game_acc > 0 ? `${rec.game_acc.toFixed(1)}% Gen.` : rec.eco || "Eröffnung",
+          rec.game_acc > 0 ? `${rec.game_acc.toFixed(1).replace(".", ",")} % Gen.` : rec.eco || "Eröffnung",
         description:
           rec.game_acc > 0
-            ? `${rec.opening} • ${rec.game_acc.toFixed(1)}% Genauigkeit`
+            ? `${rec.opening} • ${rec.game_acc.toFixed(1).replace(".", ",")} % Genauigkeit`
             : rec.opening,
         fen_before: startFen,
       });

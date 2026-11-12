@@ -35,7 +35,7 @@ function pct(v: number | null | undefined, digits = 0): string {
 }
 
 function signed(v: number, digits = 1): string {
-  return `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(digits)}`;
+  return `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(digits).replace(".", ",")}`;
 }
 
 /** Evidence line under a skill bar: uncertainty and the raw measurement when blending moved it. */
@@ -167,8 +167,8 @@ function Hero({ profile }: { profile: PlayerProfile }) {
         {rc && rc.expected_score !== null && diff !== null ? (
           <>
             <div class="kpi-big tnum">
-              {rc.score.toFixed(1)}
-              <span class="kpi-unit"> / {rc.expected_score.toFixed(1)}</span>
+              {rc.score.toFixed(1).replace(".", ",")}
+              <span class="kpi-unit"> / {rc.expected_score.toFixed(1).replace(".", ",")}</span>
             </div>
             <div class="expect-bar" aria-hidden="true">
               <div class="fill" style={{ width: `${Math.min(100, (rc.score / Math.max(rc.rated_games, 1)) * 100)}%` }} />
@@ -190,7 +190,7 @@ function Hero({ profile }: { profile: PlayerProfile }) {
           reference={rc?.typical_accuracy}
           label="Genauigkeit"
           size={108}
-          format={(v) => v.toFixed(1)}
+          format={(v) => v.toFixed(1).replace(".", ",")}
         />
         <div class="hero-side">
           <div class="kpi-label">Genauigkeit</div>

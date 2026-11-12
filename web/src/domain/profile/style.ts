@@ -3,7 +3,7 @@
 
 import type { GameFeatures } from "./features";
 import type { SkillScore, StyleAxis, StyleProfile } from "./models";
-import { avg, fmt, pyRound } from "./num";
+import { avg, fmtDe, pyRound } from "./num";
 import { scale } from "./skills";
 
 // A style read from a handful of games is mostly the openings and opponents of
@@ -95,19 +95,19 @@ export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StylePr
   const [label, description] = styleLabel(v.aggression, v.tactical, v.trading, v.risk, v.endgame, skillMap);
 
   const facts = [
-    `${fmt(checksPm * 40, 1)} Schachgebote pro 40 Züge`,
-    `${fmt(tradesPg, 1)} gleichwertige Abtausche pro Partie`,
-    `Damentausch bis Zug 20 in ${fmt(earlyQueenTrade * 100, 0)} % der Partien`,
-    `Endspiel erreicht in ${fmt(endgameRate * 100, 0)} % der Partien`,
-    `Remisquote ${fmt(drawRate * 100, 0)} %`,
+    `${fmtDe(checksPm * 40, 1)} Schachgebote pro 40 Züge`,
+    `${fmtDe(tradesPg, 1)} gleichwertige Abtausche pro Partie`,
+    `Damentausch bis Zug 20 in ${fmtDe(earlyQueenTrade * 100, 0)} % der Partien`,
+    `Endspiel erreicht in ${fmtDe(endgameRate * 100, 0)} % der Partien`,
+    `Remisquote ${fmtDe(drawRate * 100, 0)} %`,
   ];
   const castled = games.filter((f) => f.castle_side);
   if (castled.length) {
     const short = castled.filter((f) => f.castle_side === "kingside").length / castled.length;
     facts.push(
-      `Rochade in ${fmt((castled.length / games.length) * 100, 0)} % der Partien ` +
-        `(${fmt(short * 100, 0)} % kurz), im Schnitt im ` +
-        `${fmt(avg(castled.map((f) => f.castle_move ?? 0)), 0)}. Zug`,
+      `Rochade in ${fmtDe((castled.length / games.length) * 100, 0)} % der Partien ` +
+        `(${fmtDe(short * 100, 0)} % kurz), im Schnitt im ` +
+        `${fmtDe(avg(castled.map((f) => f.castle_move ?? 0)), 0)}. Zug`,
     );
   }
   return { label, description, axes, facts };

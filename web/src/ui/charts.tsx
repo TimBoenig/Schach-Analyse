@@ -269,7 +269,7 @@ export function Gauge({
   thickness = 12,
   color = "var(--accent)",
   label,
-  format = (v: number) => v.toFixed(1),
+  format = (v: number) => v.toFixed(1).replace(".", ","),
 }: {
   value: number | null;
   reference?: number | null;
@@ -493,6 +493,33 @@ export function clipRange(points: Point[], days: number | null): Point[] {
   return points.filter((p) => p.t === undefined || p.t >= end - days * 86400);
 }
 
+/**
+ * Horizontal position of each point, 0..1. Dated points sit at their time, so
+ * a quiet month is not squeezed into one step between two busy days and the
+ * date labels mean what they say; undated points are spread evenly.
+ */
+export function xFractions(points: Point[]): number[] {
+  const n = points.length;
+  const first = points[0]?.t;
+  const last = points[n - 1]?.t;
+  const timed = n > 1 && points.every((p) => typeof p.t === "number") && (last as number) > (first as number);
+  return points.map((p, i) => (timed ? ((p.t as number) - (first as number)) / ((last as number) - (first as number)) : n > 1 ? i / (n - 1) : 0));
+}
+
+/** Points that get an axis label: at least `gap` pixels apart, the newest always. */
+export function labelIndices(xs: number[], gap = 64): Set<number> {
+  const out = new Set<number>(xs.length ? [xs.length - 1] : []);
+  const end = xs[xs.length - 1];
+  let prev = -Infinity;
+  for (let i = 0; i < xs.length - 1; i++) {
+    if (xs[i] - prev >= gap && end - xs[i] >= gap) {
+      out.add(i);
+      prev = xs[i];
+    }
+  }
+  return out;
+}
+
 export function AreaChart({
   points: allPoints,
   format,
@@ -550,11 +577,11 @@ export function AreaChart({
     lo = Math.floor((lo - pad) / 10) * 10;
     hi = Math.ceil((hi + pad) / 10) * 10;
   }
-  const x = (i: number) => padL + (i / (points.length - 1)) * (W - padL - padR);
+  const fracs = xFractions(points);
+  const x = (i: number) => padL + fracs[i] * (W - padL - padR);
   const y = (v: number) => padT + (1 - (v - lo) / (hi - lo || 1)) * (H - padT - padB);
   const ticks = [lo, (lo + hi) / 2, hi];
-  const maxLabels = Math.max(2, Math.floor((W - padL) / 64));
-  const labelEvery = Math.max(1, Math.ceil(points.length / maxLabels));
+  const labelled = labelIndices(points.map((_, i) => x(i)));
   const line = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(" ");
   const area = `${line} L${x(points.length - 1)},${H - padB} L${x(0)},${H - padB} Z`;
   const h = hover !== null ? (points[hover] ?? null) : null;
@@ -562,8 +589,12 @@ export function AreaChart({
 
   const pick = (e: PointerEvent) => {
     const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const i = Math.round(((e.clientX - rect.left - padL) / (W - padL - padR)) * (points.length - 1));
-    setHover(Number.isFinite(i) ? Math.max(0, Math.min(points.length - 1, i)) : null);
+    const px = e.clientX - rect.left;
+    if (!Number.isFinite(px)) return setHover(null);
+    // Nearest point by position (points are spaced by time, not evenly).
+    let best = 0;
+    for (let i = 1; i < points.length; i++) if (Math.abs(x(i) - px) < Math.abs(x(best) - px)) best = i;
+    setHover(best);
   };
 
   return (
@@ -592,7 +623,7 @@ export function AreaChart({
           </g>
         ))}
         {points.map((p, i) =>
-          i % labelEvery === 0 || i === points.length - 1 ? (
+          labelled.has(i) ? (
             <text key={i} x={x(i)} y={H - 6} text-anchor={i === 0 ? "start" : i === points.length - 1 ? "end" : "middle"}>
               {p.label}
             </text>

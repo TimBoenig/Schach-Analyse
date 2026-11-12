@@ -321,7 +321,8 @@ describe("scouting against the player's own level", () => {
     const me = set(buildPlayerProfile(match("Tim", "Max", 6, 2, "t"), ["Tim"]), { endgame: 75, tactics: 50 });
     const r = buildScoutReport("Max", them, me, headToHead([], [], []));
     const edge = r.plan.find((t) => t.key === "edge_endgame");
-    expect(edge?.text).toContain("du 75, Max 50");
+    // Same rating-free values as the comparison table (shared prior instead of each rating).
+    expect(edge?.text).toContain("du 73, Max 49");
     expect(r.cautions.find((c) => c.key === "strong_tactics")?.text).toContain("klar stärker als du");
     for (const t of [...r.plan, ...r.cautions]) expect(t.text).not.toMatch(/\b(er|sie|ihn|ihm|ihr)\b/);
   });

@@ -108,7 +108,7 @@ function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: n
               {g.opp_rating > 0 && <span class="faint"> {g.opp_rating}</span>}
             </span>
             <span class="faint small">{formatDate(g.date)}</span>
-            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1)}` : ""}</span>
+            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1).replace(".", ",")}` : ""}</span>
           </button>
         ))}
       </div>

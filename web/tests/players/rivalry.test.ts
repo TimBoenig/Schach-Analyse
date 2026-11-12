@@ -108,6 +108,11 @@ describe("form", () => {
     expect(tim).toMatchObject({ trend: "up", last: ["win", "win", "win", "loss", "loss"], streak: { kind: "loss", count: 2 } });
     expect(tim.recent.games).toBe(14);
     expect(tim.weeks).toHaveLength(12);
+    // The curve's own span picker asks for more weeks; the 30-day trend stays the same.
+    const longer = groupMomentum(members, games, { now: NOW, weeks: 26 }).find((r) => r.id === "ich")!;
+    expect(longer.weeks).toHaveLength(26);
+    expect(longer.weeks.slice(-12)).toEqual(tim.weeks);
+    expect(longer.trend).toBe(tim.trend);
     expect(tim.weeks.every((w) => w.accuracy === null || (w.accuracy > 70 && w.accuracy < 90))).toBe(true);
     // Rapid is six points easier in this group: corrected, nothing is left of the "progress".
     const fair = groupMomentum(members, games, { now: NOW, effects: { Rapid: { accuracy: 3 }, Blitz: { accuracy: -3 } } });
@@ -143,6 +148,14 @@ describe("records", () => {
     // The six-move win on time is no knockout: the quickest real win is the comeback.
     expect(of("quick")).toMatchObject({ holder: { id: "Ida" }, value: 13, game_id: games[2].id });
     expect(of("brilliant")).toBeUndefined();
+  });
+});
+
+describe("records count the holder's own moves", () => {
+  it("counts a win with Black by Black's moves, not by half the plies rounded up", () => {
+    // 23 plies: White made 12 moves, Black (the winner) 11.
+    const games = [game({ white: "X", black: "Ida", result: "0-1", days: 5, acc: [60, 85], moves: buildMoves().slice(0, 23) })];
+    expect(groupRecords([member("Ida")], games).find((r) => r.key === "quick")).toMatchObject({ value: 11, text: "Sieg in 11 Zügen" });
   });
 });
 

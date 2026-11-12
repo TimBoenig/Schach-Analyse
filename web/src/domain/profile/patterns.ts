@@ -10,7 +10,7 @@ import { type GameFeatures, type MoveEvent, moveLabel } from "./features";
 import type { GameRef, Pattern } from "./models";
 import { expectedScore } from "./benchmarks";
 import { MIN_ERRORS, MIN_GROUP_GAMES, meansDiffer, ratesDiffer, scoreDeviation, scoresDiffer, shareAtLeast, shareBelow } from "./evidence";
-import { avg, fmt } from "./num";
+import { avg, fmtDe } from "./num";
 
 export const MAX_EXAMPLES = 8;
 // Two games belong to the same session when they start less than 90 minutes apart.
@@ -86,7 +86,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "errors_when_winning",
           "Fehler in Gewinnstellungen",
-          `${fmt(share * 100, 0)} % deiner Fehler und Patzer passieren, wenn du bereits ` +
+          `${fmtDe(share * 100, 0)} % deiner Fehler und Patzer passieren, wenn du bereits ` +
             "klar besser stehst. Typisch: zu schnelles Spiel oder Sorglosigkeit, sobald " +
             "die Partie 'gewonnen' scheint.",
           severity(share, 0.35, 0.2),
@@ -106,7 +106,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "errors_under_pressure",
           "Einbruch unter Druck",
-          `${fmt(share * 100, 0)} % deiner schweren Fehler entstehen in schlechteren ` +
+          `${fmtDe(share * 100, 0)} % deiner schweren Fehler entstehen in schlechteren ` +
             "Stellungen. Statt zäh zu verteidigen, folgt oft der nächste Fehler.",
           severity(share, 0.45, 0.3),
           share,
@@ -126,7 +126,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "missed_punish",
           "Gegnerfehler nicht bestraft",
-          `Nach einem Fehler deines Gegners findest du nur in ${fmt(rate * 100, 0)} % der ` +
+          `Nach einem Fehler deines Gegners findest du nur in ${fmtDe(rate * 100, 0)} % der ` +
             "Fälle die Widerlegung. Frage dich nach jedem gegnerischen Zug: " +
             "'Was hat sich verändert, was hängt jetzt?'",
           severity(1 - rate, 0.55, 0.4),
@@ -139,7 +139,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "punisher",
           "Gegnerfehler werden bestraft",
-          `Du nutzt ${fmt(rate * 100, 0)} % der gegnerischen Fehler direkt aus – ` +
+          `Du nutzt ${fmtDe(rate * 100, 0)} % der gegnerischen Fehler direkt aus – ` +
             "ein starkes taktisches Auge.",
           "positiv",
           rate,
@@ -158,7 +158,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "hasty_errors",
           "Schnellschüsse",
-          `${fmt(share * 100, 0)} % deiner schweren Fehler hast du in unter 3 Sekunden ` +
+          `${fmtDe(share * 100, 0)} % deiner schweren Fehler hast du in unter 3 Sekunden ` +
             "gespielt – obwohl du nicht in Zeitnot warst. Ein kurzer Sicherheitscheck " +
             "vor dem Ziehen würde viele davon verhindern.",
           severity(share, 0.5, 0.35),
@@ -182,7 +182,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "time_trouble_errors",
           "Fehler in Zeitnot",
-          `${fmt(shareT * 100, 0)} % deiner schweren Fehler passieren in Zeitnot. ` +
+          `${fmtDe(shareT * 100, 0)} % deiner schweren Fehler passieren in Zeitnot. ` +
             "Du verbrauchst zu viel Zeit in früheren Phasen der Partie.",
           severity(shareT, 0.45, 0.3),
           shareT,
@@ -204,7 +204,7 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "post_book_errors",
           "Fehler direkt nach der Theorie",
-          `In ${fmt(shareGames * 100, 0)} % deiner Partien folgt ein schwerer Fehler ` +
+          `In ${fmtDe(shareGames * 100, 0)} % deiner Partien folgt ein schwerer Fehler ` +
             "innerhalb von 4 Zügen nach Verlassen der Eröffnungstheorie. Lerne nicht nur " +
             "Züge, sondern die typischen Pläne deiner Eröffnungen.",
           severity(shareGames, 0.35, 0.2),
@@ -251,8 +251,8 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
             `Fehlerhäufung ${trPhaseIn(worst)}`,
             // Python's str.capitalize() would also lowercase the rest ("Im mittelspiel");
             // only the first letter is raised here so the German noun stays capitalized.
-            `${upperFirst(trPhaseIn(worst))} machst du ${fmt(rw * 100, 1)} ` +
-              `schwere Fehler pro 100 Züge – ${fmt(rw / rb, 1)}× so viele ` +
+            `${upperFirst(trPhaseIn(worst))} machst du ${fmtDe(rw * 100, 1)} ` +
+              `schwere Fehler pro 100 Züge – ${fmtDe(rw / rb, 1)}× so viele ` +
               `wie ${trPhaseIn(best)}.`,
             "mittel",
             rw,
@@ -320,7 +320,7 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
     pattern(
       "hung_piece_type",
       `Häufig eingestellt: ${trPiece(piece)}`,
-      `${fmt(share * 100, 0)} % deiner eingestellten Figuren sind ${trPiece(piece, true)} ` +
+      `${fmtDe(share * 100, 0)} % deiner eingestellten Figuren sind ${trPiece(piece, true)} ` +
         `(${cnt} von ${total}). Prüfe vor jedem Zug besonders, ob diese Figur gedeckt ist.`,
       severity(share, 0.5, 0.35),
       share,
@@ -376,8 +376,8 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "tilt",
           "Tilt nach Niederlagen",
-          `Direkt nach einer Niederlage holst du nur ${fmt(tilt * 100, 0)} % der Punkte ` +
-            `(sonst ${fmt(base * 100, 0)} %). Nach einer Niederlage lohnt sich eine Pause, ` +
+          `Direkt nach einer Niederlage holst du nur ${fmtDe(tilt * 100, 0)} % der Punkte ` +
+            `(sonst ${fmtDe(base * 100, 0)} %). Nach einer Niederlage lohnt sich eine Pause, ` +
             "statt sofort die nächste Partie zu starten.",
           base - tilt >= 0.15 ? "hoch" : "mittel",
           base - tilt,
@@ -388,8 +388,8 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
         pattern(
           "resilient",
           "Mental stabil nach Niederlagen",
-          `Nach einer Niederlage spielst du sogar besser (${fmt(tilt * 100, 0)} % der ` +
-            `Punkte gegenüber ${fmt(base * 100, 0)} % im Schnitt).`,
+          `Nach einer Niederlage spielst du sogar besser (${fmtDe(tilt * 100, 0)} % der ` +
+            `Punkte gegenüber ${fmtDe(base * 100, 0)} % im Schnitt).`,
           "positiv",
           tilt - base,
         ),
@@ -408,7 +408,7 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
           "fatigue",
           "Nachlassen in langen Sessions",
           "Ab der 4. Partie einer Session sinkt deine Genauigkeit um " +
-            `${fmt(drop, 1)} Prozentpunkte. Begrenze Sessions auf 3 Partien.`,
+            `${fmtDe(drop, 1)} Prozentpunkte. Begrenze Sessions auf 3 Partien.`,
           "mittel",
           drop,
         ),
@@ -439,7 +439,7 @@ function opponentStrengthPattern(feats: GameFeatures[]): Pattern[] {
           "weaker_opponents",
           "Punktverluste gegen schwächere Gegner",
           "Gegen Gegner mit mindestens 100 Punkten weniger holst du nur " +
-            `${fmt(score * 100, 0)} % der Punkte (erwartet wären ${fmt(exp * 100, 0)} %). ` +
+            `${fmtDe(score * 100, 0)} % der Punkte (erwartet wären ${fmtDe(exp * 100, 0)} %). ` +
             "Unterschätze niemanden – spiele auch hier jeden Zug mit voller Sorgfalt.",
           "mittel",
           exp - score,
@@ -464,8 +464,8 @@ function castlingPattern(feats: GameFeatures[]): Pattern[] {
         pattern(
           "king_safety",
           "Ohne Rochade schlechtere Ergebnisse",
-          `In Partien ohne Rochade holst du ${fmt(lateScore * 100, 0)} % der Punkte, ` +
-            `mit früher Rochade ${fmt(okScore * 100, 0)} %. Bring deinen König früher in ` +
+          `In Partien ohne Rochade holst du ${fmtDe(lateScore * 100, 0)} % der Punkte, ` +
+            `mit früher Rochade ${fmtDe(okScore * 100, 0)} %. Bring deinen König früher in ` +
             "Sicherheit.",
           "mittel",
           okScore - lateScore,

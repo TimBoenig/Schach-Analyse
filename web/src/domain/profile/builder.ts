@@ -9,7 +9,7 @@ import { GameRecord, type RawGame } from "../metrics/models";
 import { buildExercisePool } from "../training/exercises";
 import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
-import { avg, fmt, pyRound, stdev } from "./num";
+import { avg, fmtDe, pyRound, stdev } from "./num";
 import { expectedScore, mainRatingSources, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
@@ -170,7 +170,7 @@ function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]):
   for (const f of feats) {
     if (f.user_rating && f.played_at && mainSource.get(f.rec.speed) === ratingSource(f)) {
       const prev = ratings.get(f.rec.speed);
-      if (prev === undefined || f.played_at > prev[0]) {
+      if (prev === undefined || f.played_at >= prev[0]) {
         ratings.set(f.rec.speed, [f.played_at, f.user_rating]);
       }
     }
@@ -235,7 +235,7 @@ function strengthsWeaknesses(skills: SkillScore[], rating: number | null): [Insi
   weaknesses = weaknesses.filter((w) => !strengths.includes(w));
   const vs = (s: SkillScore) =>
     rating !== null && s.typical !== null && s.typical !== undefined
-      ? ` · ${fmt(s.score, 0)} Punkte, typisch für ${rating}: ${fmt(s.typical, 0)}`
+      ? ` · ${fmtDe(s.score, 0)} Punkte, typisch für ${rating}: ${fmtDe(s.typical, 0)}`
       : "";
   return [
     strengths.map((s) => ({
@@ -315,8 +315,8 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
         key: `color_${worse}`,
         title: `Ergebnisse mit ${trColor(worse)}`,
         text:
-          `Mit ${trColor(worse)} holst du ${fmt(Math.min(sw, sb), 0)} % der Punkte, mit ` +
-          `${trColor(better)} ${fmt(Math.max(sw, sb), 0)} %. Dein Repertoire mit ` +
+          `Mit ${trColor(worse)} holst du ${fmtDe(Math.min(sw, sb), 0)} % der Punkte, mit ` +
+          `${trColor(better)} ${fmtDe(Math.max(sw, sb), 0)} %. Dein Repertoire mit ` +
           `${trColor(worse)} verdient Aufmerksamkeit.`,
         category: "Farbe",
         strength: Math.abs(sw - sb) / 2,
@@ -331,8 +331,8 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
         key: "opening_best",
         title: `Erfolgseröffnung: ${o.name}`,
         text:
-          `Mit ${trColor(o.color)} holst du hier ${fmt(o.score_pct, 0)} % der Punkte ` +
-          `(${o.games} Partien, Ø ${fmt(o.avg_accuracy, 1)} % Genauigkeit).`,
+          `Mit ${trColor(o.color)} holst du hier ${fmtDe(o.score_pct, 0)} % der Punkte ` +
+          `(${o.games} Partien, Ø ${fmtDe(o.avg_accuracy, 1)} % Genauigkeit).`,
         category: "Eröffnung",
         strength: (o.score_pct - 50) / 2,
       });
@@ -345,10 +345,10 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
         key: "opening_worst",
         title: `Problemeröffnung: ${o.name}`,
         text:
-          `Mit ${trColor(o.color)} holst du hier nur ${fmt(o.score_pct, 0)} % der Punkte ` +
+          `Mit ${trColor(o.color)} holst du hier nur ${fmtDe(o.score_pct, 0)} % der Punkte ` +
           `(${o.games} Partien).` +
           (o.first_error_move
-            ? ` Der erste schwere Fehler kommt im Schnitt in Zug ${fmt(o.first_error_move, 0)}.`
+            ? ` Der erste schwere Fehler kommt im Schnitt in Zug ${fmtDe(o.first_error_move, 0)}.`
             : ""),
         category: "Eröffnung",
         strength: (50 - o.score_pct) / 2,
@@ -384,8 +384,8 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
           key: "speed_best",
           title: `Stärkste Bedenkzeit: ${trSpeed(bestK)}`,
           text:
-            `In ${trSpeed(bestK)} spielst du mit Ø ${fmt(ab, 1)} % am ` +
-            `genauesten, in ${trSpeed(worstK)} nur mit ${fmt(aw, 1)} %.`,
+            `In ${trSpeed(bestK)} spielst du mit Ø ${fmtDe(ab, 1)} % am ` +
+            `genauesten, in ${trSpeed(worstK)} nur mit ${fmtDe(aw, 1)} %.`,
           category: "Bedenkzeit",
           strength: (ab - aw) / 2,
         });

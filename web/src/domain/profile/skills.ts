@@ -8,7 +8,7 @@ import { pct } from "../metrics/accumulators";
 import type { GameFeatures } from "./features";
 import type { SkillScore } from "./models";
 import { effectiveMoves } from "./evidence";
-import { fmt, pyRound, stdev } from "./num";
+import { fmtDe, pyRound, stdev } from "./num";
 
 type Dict = Record<string, any>;
 
@@ -130,7 +130,7 @@ function phaseSkill(key: string, stats: Dict, feats: GameFeatures[]): SkillScore
   const per100 = moves ? (serious / moves) * 100 : 0;
   const score = phaseScore(acc, per100);
   const detail = moves
-    ? `${fmt(acc, 1)} % Genauigkeit, ${fmt(per100, 1)} Fehler/Patzer pro 100 Züge`
+    ? `${fmtDe(acc, 1)} % Genauigkeit, ${fmtDe(per100, 1)} Fehler/Patzer pro 100 Züge`
     : "Noch keine analysierten Züge in dieser Phase";
   return skill(key, score, detail, moves, games, moves >= MIN_PHASE_MOVES);
 }
@@ -160,8 +160,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "tactics",
       tacticScore,
-      `${fmt(pct(punished, chances), 0)} % der gegnerischen Fehler bestraft ` +
-        `(${punished}/${chances}), ${misses} verpasste Chancen`,
+      `${fmtDe(pct(punished, chances), 0)} % der gegnerischen Fehler bestraft, ` +
+        `${punished} von ${chances}, ${misses} verpasste Chancen`,
       chances,
       analyzed.filter((f) => f.punish_chances > 0).length,
       chances >= MIN_SITUATIONS * 2,
@@ -181,8 +181,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "safety",
       safety,
-      `${fmt(blunderRate, 1)} Patzer pro 100 Züge, ` +
-        `${fmt(hungPerGame, 2)} eingestellte Figuren pro Partie`,
+      `${fmtDe(blunderRate, 1)} Patzer pro 100 Züge, ` +
+        `${fmtDe(hungPerGame, 2)} eingestellte Figuren pro Partie`,
       userMoves,
       n,
       true,
@@ -196,8 +196,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "conversion",
       conversionScore(conv),
-      `${fmt(conv, 0)} % der klar gewonnenen Stellungen (+3) auch gewonnen ` +
-        `(${adv.converted_advantage ?? 0}/${hadWin})`,
+      `${fmtDe(conv, 0)} % der klar gewonnenen Stellungen (ab +3) auch gewonnen, ` +
+        `${adv.converted_advantage ?? 0} von ${hadWin}`,
       hadWin,
       hadWin,
       hadWin >= MIN_SITUATIONS,
@@ -210,8 +210,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "defense",
       defenseScore(comeback),
-      `${fmt(comeback, 0)} % der klar verlorenen Stellungen (-3) noch gehalten oder gedreht ` +
-        `(${adv.comeback_drawn_or_won ?? 0}/${hadLose})`,
+      `${fmtDe(comeback, 0)} % der klar verlorenen Stellungen (ab −3) noch gehalten oder gedreht, ` +
+        `${adv.comeback_drawn_or_won ?? 0} von ${hadLose}`,
       hadLose,
       hadLose,
       hadLose >= MIN_SITUATIONS,
@@ -229,7 +229,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "consistency",
       consistencyScore(spread),
-      `Genauigkeit schwankt um ±${fmt(spread, 1)} Prozentpunkte von Partie zu Partie`,
+      `Genauigkeit schwankt um ±${fmtDe(spread, 1)} Prozentpunkte von Partie zu Partie`,
       accs.length,
       accs.length,
       true,
@@ -269,8 +269,8 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
   return skill(
     "time",
     score,
-    `${timeLosses} Niederlagen durch Zeit, in ${fmt(troubleShare * 100, 0)} % der Partien ` +
-      `in Zeitnot, Patzerrisiko in Zeitnot ${fmt(panic, 1)}×`,
+    `${timeLosses} Niederlagen durch Zeit, in ${fmtDe(troubleShare * 100, 0)} % der Partien ` +
+      `in Zeitnot, Patzerrisiko in Zeitnot ${fmtDe(panic, 1)}×`,
     (tt.trouble_moves ?? 0) + (tt.normal_moves ?? 0),
     analyzed.filter((f) => f.moves.some((m) => m.time_left !== null)).length,
     true,

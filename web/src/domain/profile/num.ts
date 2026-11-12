@@ -35,3 +35,8 @@ export function stdev(values: number[]): number {
 export function fmt(x: number, digits: number): string {
   return pyRound(x, digits).toFixed(digits);
 }
+
+/** `fmt` with a German decimal comma, for every number shown in a sentence ("87,8 %"). */
+export function fmtDe(x: number, digits: number): string {
+  return fmt(x, digits).replace(".", ",");
+}

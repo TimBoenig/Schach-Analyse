@@ -3,7 +3,7 @@
 
 import { trMotif } from "../i18n";
 import type { Pattern, SkillScore, TrainingItem } from "./models";
-import { fmt } from "./num";
+import { fmtDe } from "./num";
 
 const SKILL_PLANS: Record<string, [string, string[]]> = {
   safety: [
@@ -140,7 +140,7 @@ export function buildTrainingPlan(
     items.push({
       priority: 0,
       title,
-      reason: `${s.name}: ${fmt(s.score, 0)}/100 (${s.grade}) – ${s.detail}.`,
+      reason: `${s.name}: ${fmtDe(s.score, 0)}/100 (${s.grade}) – ${s.detail}.`,
       steps: steps.map((st) =>
         st
           .replace("{motifs}", motifs)

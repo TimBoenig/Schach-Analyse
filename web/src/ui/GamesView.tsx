@@ -363,7 +363,7 @@ function GameRow({
       <div class="right">
         {acc !== undefined && st === "completed" ? (
           <>
-            <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1)}</div>
+            <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1).replace(".", ",")}</div>
             <div class="acc-label">Genauigkeit</div>
           </>
         ) : isCurrent ? (

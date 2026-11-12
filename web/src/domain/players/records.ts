@@ -92,7 +92,11 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
   };
   const side = (x: Game) => (parseSummary(x.g.summary_json)?.[x.color] ?? null) as Record<string, unknown> | null;
   const analyzed = (x: Game) => parseSummary(x.g.summary_json)?.analysis_status === "completed" && side(x) !== null;
-  const ownMoves = (x: Game) => Math.ceil(parseMoves(x.g.moves_json).length / 2);
+  // White makes the odd plies: 25 plies are 13 moves for White but 12 for Black.
+  const ownMoves = (x: Game) => {
+    const plies = parseMoves(x.g.moves_json).length;
+    return x.color === "white" ? Math.ceil(plies / 2) : Math.floor(plies / 2);
+  };
   const vs = (x: Game) => `gegen ${opponent(x)} · ${dateDe(x.at)}`;
 
   const wins = all.filter((x) => x.result === "win");

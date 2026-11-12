@@ -17,7 +17,7 @@ import {
   userWp,
 } from "./features";
 import type { GameReview, KeyMoment, PhaseReview } from "./models";
-import { fmt, pyRound } from "./num";
+import { fmtDe, pyRound } from "./num";
 
 type Dict = Record<string, any>;
 
@@ -43,7 +43,7 @@ export function schoolGrade(accuracy: number): string {
   return `${value.toFixed(1).replace(".", ",")} (${word})`;
 }
 
-const pctText = (x: number) => `${fmt(x * 100, 0)} %`;
+const pctText = (x: number) => `${fmtDe(x * 100, 0)} %`;
 
 /** Minimal view of a game the review needs; built from GameAnalysis or a stored row. */
 interface ReviewGame {
@@ -307,10 +307,10 @@ function assess(
     .reduce((s, [, v]) => s + v, 0);
 
   if (acc >= 85) {
-    pos.push(`Hohe Genauigkeit von ${fmt(acc, 1)} % – du hast die meisten Züge sehr gut gewählt.`);
+    pos.push(`Hohe Genauigkeit von ${fmtDe(acc, 1)} % – du hast die meisten Züge sehr gut gewählt.`);
   } else if (acc && oppAcc && acc > oppAcc + 5) {
     pos.push(
-      `Du hast genauer gespielt als dein Gegner (${fmt(acc, 1)} % gegenüber ${fmt(oppAcc, 1)} %).`,
+      `Du hast genauer gespielt als dein Gegner (${fmtDe(acc, 1)} % gegenüber ${fmtDe(oppAcc, 1)} %).`,
     );
   }
   if (total && good / total >= 0.6) pos.push(`${good} von ${total} Zügen waren beste oder exzellente Züge.`);
@@ -323,7 +323,7 @@ function assess(
 
   for (const p of review.phases) {
     if (p.accuracy && p.accuracy >= 88 && p.moves >= 5 && p.errors === 0) {
-      pos.push(`${p.name} sehr sauber gespielt (${fmt(p.accuracy, 0)} %).`);
+      pos.push(`${p.name} sehr sauber gespielt (${fmtDe(p.accuracy, 0)} %).`);
     }
   }
 

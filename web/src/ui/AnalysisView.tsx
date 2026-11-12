@@ -780,7 +780,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </span>
       </span>
       <span class="player-meta">
-        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1)} %</span>}
+        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", ",")} %</span>}
         {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
           <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
             {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}
@@ -1030,7 +1030,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   {(["white", "black"] as const).map((c) => (
                     <div class={`duel-side${userColor === c ? " me" : ""}`} key={c}>
                       <span class="small muted">{nameOf(c)}</span>
-                      <span class={`duel-acc ${c}`}>{acc(c) !== undefined ? acc(c)!.toFixed(1) : "–"}</span>
+                      <span class={`duel-acc ${c}`}>{acc(c) !== undefined ? acc(c)!.toFixed(1).replace(".", ",") : "–"}</span>
                       <span class="faint small">Genauigkeit</span>
                     </div>
                   ))}

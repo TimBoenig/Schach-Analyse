@@ -29,7 +29,7 @@ import {
   Z95,
   Z_MULTI,
 } from "../profile/evidence";
-import { fmt } from "../profile/num";
+import { fmt, fmtDe } from "../profile/num";
 import { edgeOf, MIN_COMPARE_ANALYZED, probBetter, skillEstimate, skillPrior } from "./compare";
 import type { HeadToHead } from "./h2h";
 
@@ -98,7 +98,7 @@ const MAX_PICKS = 4;
 const MAX_TIPS = 6;
 
 const shrunk = (pct: number | null, n: number, base: number) => (pct === null ? base : (pct * n + base * PRIOR_GAMES) / (n + PRIOR_GAMES));
-const p0 = (v: number) => `${fmt(v, 0)} %`;
+const p0 = (v: number) => `${fmtDe(v, 0)} %`;
 const games = (n: number) => `${n} ${n === 1 ? "Partie" : "Partien"}`;
 
 const LOSS_LABELS: Record<string, string> = {
@@ -220,7 +220,8 @@ function skillTips(name: string, p: PlayerProfile, me: PlayerProfile | null): { 
     // Chance that the user is truly better here (null when either side lacks data).
     const pMe = a && b && mine?.reliable ? probBetter(a, b) : null;
     const { edge, sure } = edgeOf(pMe);
-    const vs = mine ? ` (du ${n0(mine.score)}, ${name} ${n0(s.score)})` : "";
+    // The same values as the comparison table on the friend page (rating-free shared prior).
+    const vs = mine && a && b ? ` (du ${n0(a.value)}, ${name} ${n0(b.value)})` : "";
     const g = gap(s);
     // A gap inside the skill's own uncertainty is no reason to change the plan.
     const clearGap = s.reliable && Math.abs(g) >= (s.margin ?? 0) / 2;
@@ -335,7 +336,7 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
         key: "error_window",
         kind: "Strategie",
         title: `Kritische Phase: Zug ${peak.label}`,
-        text: `Zwischen Zug ${peak.label} macht ${name} die meisten schweren Fehler (${fmt(peak.per100 as number, 1)} pro 100 Züge, sonst ${fmt(avgRate, 1)}). Halte die Stellung bis dahin spannend und rechne in dieser Phase besonders genau.`,
+        text: `Zwischen Zug ${peak.label} macht ${name} die meisten schweren Fehler (${fmtDe(peak.per100 as number, 1)} pro 100 Züge, sonst ${fmtDe(avgRate, 1)}). Halte die Stellung bis dahin spannend und rechne in dieser Phase besonders genau.`,
         weight: ((peak.per100 as number) / avgRate - 1) * 15,
       });
     }
@@ -355,7 +356,7 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
         key: "error_piece",
         kind: "Taktik",
         title: `Schwachpunkt: Züge mit ${withPiece}`,
-        text: `Mit ${withPiece} unterlaufen ${name} deutlich mehr Fehler (${fmt(worstPiece.per100 as number, 1)} pro 100 Züge) als mit anderen Figuren. Stellungen, in denen diese Figur viel ziehen muss, sind unangenehm für ${name}.`,
+        text: `Mit ${withPiece} unterlaufen ${name} deutlich mehr Fehler (${fmtDe(worstPiece.per100 as number, 1)} pro 100 Züge) als mit anderen Figuren. Stellungen, in denen diese Figur viel ziehen muss, sind unangenehm für ${name}.`,
         weight: ((worstPiece.per100 as number) / pieceAvg - 1) * 10,
       });
     }
@@ -458,7 +459,7 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
 
 function linePick(name: string, them: PlayerProfile, l: OpeningStat, my: OpeningStat | undefined, colorDe: string): OpeningPick {
   const extra: string[] = [];
-  if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmt(l.first_error_move, 0)}`);
+  if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmtDe(l.first_error_move, 0)}`);
   if (l.wp_after_opening !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED) && l.wp_after_opening <= 45) {
     extra.push(`nach der Eröffnung steht ${name} meist schlechter (${p0(l.wp_after_opening)} Gewinnchance)`);
   }

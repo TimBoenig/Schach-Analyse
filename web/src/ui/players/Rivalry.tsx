@@ -41,13 +41,19 @@ export function FaceOff({
   const accMe = fair ? fair.me : mine?.analyzed_games ? mine.overview.avg_accuracy : null;
   const lead = h2h.wins === h2h.losses ? null : h2h.wins > h2h.losses ? "me" : "them";
   const s = duel?.streak;
+  // Both ratings in the same time control as the comparison below; each
+  // player's own main time control only when there is no shared one (a Rapid
+  // 1484 next to a Blitz 1458 compared nothing).
+  const elo = p?.elo?.from === "Wertung" ? p.elo : null;
+  const myRating = elo ? `${elo.me} · ${elo.speed}` : ratingLine(mine);
+  const theirRating = elo ? `${elo.them} · ${elo.speed}` : ratingLine(them);
   return (
     <section class="card rv-hero span-12">
       <div class="rv-hero-row">
         <div class={`rv-side${lead === "me" ? " lead" : ""}`}>
           <Avatar name="Du" tone="tone-me" size="xl" ring={lead === "me"} />
           <strong>Du</strong>
-          <span class="faint small">{ratingLine(mine)}</span>
+          <span class="faint small">{myRating}</span>
         </div>
         <div class="rv-score">
           {h2h.games ? (
@@ -77,7 +83,7 @@ export function FaceOff({
         <div class={`rv-side${lead === "them" ? " lead" : ""}`}>
           <Avatar name={name} tone={tone} size="xl" ring={lead === "them"} />
           <strong>{name}</strong>
-          <span class="faint small">{ratingLine(them)}</span>
+          <span class="faint small">{theirRating}</span>
         </div>
       </div>
       {p && (
