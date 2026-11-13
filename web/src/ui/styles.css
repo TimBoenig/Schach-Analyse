@@ -847,7 +847,7 @@ dialog::backdrop {
   backdrop-filter: blur(3px);
 }
 
-/* ---------- board (chessground) ---------- */
+/* ---------- board ---------- */
 
 .board {
   width: 100%;
@@ -859,105 +859,148 @@ dialog::backdrop {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  container-type: inline-size;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 12px 32px -8px rgba(0, 0, 0, 0.35);
+  /* Squares as one gradient: a8 (top left) is light, from either side. */
+  background: repeating-conic-gradient(var(--sq-dark) 0 25%, var(--sq-light) 0 50%) 0 0 / 25% 25%;
 }
 
 /* Pieces can be dragged: the board must not scroll the page while one is held. */
 .board.interactive {
   touch-action: none;
 }
+.board.is-dragging {
+  cursor: grabbing;
+}
 
-.board > .cg-wrap {
+.board-squares,
+.board-pieces,
+.board-shapes {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-
-/* Squares as one gradient: a8 (top left) is light, from either side. */
-.board cg-board {
-  background: repeating-conic-gradient(var(--sq-dark) 0 25%, var(--sq-light) 0 50%) 0 0 / 25% 25%;
+.board-pieces,
+.board-shapes {
+  pointer-events: none;
 }
 
-.board cg-board square.last-move {
+.board .sq {
+  position: absolute;
+  width: 12.5%;
+  height: 12.5%;
+}
+.board .sq.last {
   background-color: var(--sq-last);
 }
-.board cg-board square.selected {
+.board .sq.selected {
   background-color: rgba(80, 160, 255, 0.45);
 }
-.board cg-board square.hl {
+.board .sq.hl {
   background-color: rgba(229, 82, 75, 0.45);
 }
-.board cg-board square.check {
+.board .sq.check {
   background: radial-gradient(ellipse at center, rgba(255, 0, 0, 1) 0%, rgba(231, 0, 0, 1) 25%, rgba(169, 0, 0, 0) 89%, rgba(158, 0, 0, 0) 100%);
 }
-.board cg-board square.move-dest {
+.board .sq.dest {
   background: radial-gradient(rgba(0, 0, 0, 0.22) 19%, transparent 20%);
 }
-.board cg-board square.move-dest.oc {
+.board .sq.dest.capture {
   background: radial-gradient(transparent 0%, transparent 79%, rgba(0, 0, 0, 0.28) 80%);
 }
-.board cg-board square.move-dest:hover {
-  background: rgba(255, 255, 255, 0.3);
+.board.interactive .sq.dest {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .board .sq.dest:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+.board .sq.over {
+  box-shadow: inset 0 0 0 0.35cqw rgba(255, 255, 255, 0.75);
+}
+/* Under a finger the target square is hidden, so a large halo marks it. */
+.board .sq.over.touch {
+  box-shadow: none;
+  background: radial-gradient(rgba(20, 85, 30, 0.3) 0 55%, transparent 56%);
+  transform: scale(2);
+  border-radius: 50%;
 }
 
-.board .cg-wrap piece.white.pawn { background-image: url("/pieces/white-pawn.svg"); }
-.board .cg-wrap piece.white.knight { background-image: url("/pieces/white-knight.svg"); }
-.board .cg-wrap piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
-.board .cg-wrap piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
-.board .cg-wrap piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
-.board .cg-wrap piece.white.king { background-image: url("/pieces/white-king.svg"); }
-.board .cg-wrap piece.black.pawn { background-image: url("/pieces/black-pawn.svg"); }
-.board .cg-wrap piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
-.board .cg-wrap piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
-.board .cg-wrap piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
-.board .cg-wrap piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
-.board .cg-wrap piece.black.king { background-image: url("/pieces/black-king.svg"); }
-
-.board cg-board piece.dragging {
+.board .pc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12.5%;
+  height: 12.5%;
+  background-size: cover;
+  will-change: transform;
+  transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.35, 1);
+}
+.board .board-pieces .pc.own {
+  pointer-events: auto;
+  cursor: grab;
+}
+.board.is-dragging .board-pieces .pc.own {
+  cursor: grabbing;
+}
+.board .pc.ghost {
+  opacity: 0.35;
+}
+.board .pc.floating {
+  z-index: 10;
+  pointer-events: none;
+  transition: none;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
+@media (prefers-reduced-motion: reduce) {
+  .board .pc {
+    transition: none;
+  }
+}
+
+.board .pc.white.pawn, .promo-piece.white.pawn { background-image: url("/pieces/white-pawn.svg"); }
+.board .pc.white.knight, .promo-piece.white.knight { background-image: url("/pieces/white-knight.svg"); }
+.board .pc.white.bishop, .promo-piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
+.board .pc.white.rook, .promo-piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
+.board .pc.white.queen, .promo-piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
+.board .pc.white.king { background-image: url("/pieces/white-king.svg"); }
+.board .pc.black.pawn, .promo-piece.black.pawn { background-image: url("/pieces/black-pawn.svg"); }
+.board .pc.black.knight, .promo-piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
+.board .pc.black.bishop, .promo-piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
+.board .pc.black.rook, .promo-piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
+.board .pc.black.queen, .promo-piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
+.board .pc.black.king { background-image: url("/pieces/black-king.svg"); }
 
 /* Coordinates inside the edge squares, in the opposite square colour (chess.com style). */
-.board .cg-wrap coords {
+.board .coord {
+  position: absolute;
   font-family: inherit;
   font-weight: 700;
   font-size: clamp(8px, 1.7cqw, 13px);
-  opacity: 1;
+  line-height: 1;
+  pointer-events: none;
 }
-.board .cg-wrap coords.ranks,
-.board .cg-wrap coords.ranks.left {
+.board .coord.rank {
   left: 3px;
-  align-items: flex-start;
-  top: 2px;
-  height: 100%;
+  margin-top: 2px;
 }
-.board .cg-wrap coords.ranks coord {
-  transform: none;
-}
-.board .cg-wrap coords.files {
-  left: 0;
+.board .coord.file {
   bottom: 2px;
-  height: auto;
-  text-transform: none;
+  width: 12.5%;
+  padding-right: 4px;
+  box-sizing: border-box;
   text-align: right;
 }
-.board .cg-wrap coords.files coord {
-  padding-right: 4px;
-}
-.board .cg-wrap coords coord.coord-dark {
+.board .coord.on-dark {
   color: var(--sq-light);
 }
-.board .cg-wrap coords coord.coord-light {
+.board .coord.on-light {
   color: var(--sq-dark);
 }
-.board {
-  container-type: inline-size;
-}
 
-.board .cg-wrap .cg-shapes {
-  opacity: 1;
-}
 .board .badge {
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
 }
@@ -990,14 +1033,6 @@ dialog::backdrop {
   height: 100%;
   background-size: cover;
 }
-.promo-piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
-.promo-piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
-.promo-piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
-.promo-piece.white.knight { background-image: url("/pieces/white-knight.svg"); }
-.promo-piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
-.promo-piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
-.promo-piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
-.promo-piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
 
 /* ---------- analysis view ---------- */
 

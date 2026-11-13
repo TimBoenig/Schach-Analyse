@@ -56,7 +56,7 @@ export default defineConfig({
         // and keep the main bundle small.
         manualChunks: {
           supabase: ["@supabase/supabase-js"],
-          chess: ["chess.js", "@lichess-org/chessground"],
+          chess: ["chess.js"],
           preact: ["preact", "preact/hooks"],
         },
       },

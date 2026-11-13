@@ -1,6 +1,6 @@
 // Legal page (#/rechtliches): Impressum, privacy notice and licences. A site
-// that is published in Germany needs the first two; the third is required by
-// the GPL of chessground (source must be reachable).
+// that is published in Germany needs the first two; the third carries the
+// notices the bundled third-party parts require (MIT, BSD, CC BY-SA, OFL).
 import type { JSX } from "preact";
 
 import { BRAND, SUPPORT_EMAIL } from "../brand";
@@ -18,8 +18,6 @@ export const OPERATOR = {
   city: "22547 Hamburg",
   email: SUPPORT_EMAIL,
 };
-
-const SOURCE_URL = "https://github.com/TimBoenig/Schach-Analyse";
 
 function Mail() {
   return <a href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>;
@@ -67,8 +65,9 @@ function Impressum() {
       </p>
       <h3>Urheberrecht</h3>
       <p>
-        Der Quellcode steht unter der GNU General Public License v3 (siehe Lizenzen). Schachpartien und Ergebnisse
-        stammen von den jeweiligen Spielern und Plattformen.
+        Programm und Gestaltung von {BRAND} sind urheberrechtlich geschützt. Enthaltene Fremdbestandteile und
+        ihre Lizenzen stehen unter Lizenzen. Schachpartien und Ergebnisse stammen von den jeweiligen Spielern und
+        Plattformen.
       </p>
     </section>
   );
@@ -170,14 +169,10 @@ function Datenschutz() {
 function Lizenzen() {
   return (
     <section class="card legal-text">
-      <h2>Lizenzen und Quellcode</h2>
+      <h2>Lizenzen</h2>
       <p>
-        Diese App ist freie Software. Der vollständige Quellcode steht unter{" "}
-        <a href={SOURCE_URL} target="_blank" rel="noopener">
-          {SOURCE_URL.replace("https://", "")}
-        </a>
-        . Weil sie GPL-Komponenten enthält, wird die Web-App als Ganzes unter der GNU General Public License v3
-        weitergegeben.
+        {BRAND} enthält die folgenden Bestandteile anderer Urheber. Ihre Lizenzen erlauben die Nutzung in dieser App;
+        die Hinweise unten erfüllen die geforderte Namensnennung.
       </p>
       <ul>
         <li>
@@ -191,20 +186,31 @@ function Lizenzen() {
           </a>
         </li>
         <li>
-          <strong>chessground</strong> (Schachbrett) – GPL-3.0-or-later, von Lichess
+          <strong>Schachfiguren</strong> („Cburnett“) von Colin M. L. Burnett, über Wikimedia Commons – unverändert
+          genutzt unter{" "}
+          <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.de" target="_blank" rel="noopener">
+            CC BY-SA 3.0
+          </a>
         </li>
         <li>
-          <strong>Cburnett-Figuren</strong> – GPLv2+ / CC BY-SA 3.0
+          <strong>Chess Analyzer Pro</strong> (Grundlage der Bewertungslogik) – MIT-Lizenz, © 2024–2026 imutkarsht
+          und Mitwirkende
         </li>
         <li>
-          <strong>chess.js</strong>, <strong>Preact</strong>, <strong>supabase-js</strong> – BSD/MIT
+          <strong>chess.js</strong> – BSD-2-Clause; <strong>Preact</strong>, <strong>supabase-js</strong> und{" "}
+          <strong>Workbox</strong> – MIT-Lizenz
         </li>
         <li>
-          <strong>Geist</strong> und <strong>Instrument Serif</strong> (Schriften) – SIL Open Font License
+          <strong>Geist</strong> und <strong>Instrument Serif</strong> (Schriften) – SIL Open Font License 1.1
+        </li>
+        <li>
+          <strong>Eröffnungsnamen</strong> aus lichess-org/chess-openings – CC0 (gemeinfrei)
         </li>
       </ul>
       <p class="faint small">
-        {BRAND} ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.
+        Die Texte der MIT-, BSD- und OFL-Lizenzen gewähren die Nutzung ohne Gewähr und verlangen, dass der
+        Urheberhinweis erhalten bleibt. {BRAND} ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht
+        in Verbindung.
       </p>
     </section>
   );
