@@ -98,7 +98,7 @@ export async function importChesscomGames(
       const month = url.replace(/\/+$/, "").split("/").slice(-2).join("/");
       onProgress?.(i + 1, archives.length, `Lade Partien ${month} …`);
       const games = await getArchiveGames(url, { signal });
-      // Bughouse, crazyhouse etc. cannot be analyzed by Stockfish.
+      // Bughouse, crazyhouse etc. cannot be analyzed by the engine.
       const playable = games
         .filter((g) => ["chess", "chess960"].includes(g.rules ?? "chess"))
         .map((g) => g.pgn as string);

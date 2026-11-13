@@ -7,7 +7,8 @@ import { judgeMove, terminalScore, whiteScore } from "../domain/live";
 import type { MoveData, PvLine } from "../domain/types";
 import { getTrainingEngine } from "./trainingEngine";
 
-export const LIVE_LIMITS = { depth: 16, movetimeMs: 1000, multiPv: 2 };
+// One step deeper than the "Normal" analysis: a single position may take a moment longer.
+export const LIVE_LIMITS = { depth: 13, movetimeMs: 1000, multiPv: 2 };
 
 const lines = new Map<string, Promise<PvLine[]>>();
 const verdicts = new Map<string, Promise<TriedMove | null>>();

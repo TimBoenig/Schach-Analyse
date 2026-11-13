@@ -202,7 +202,7 @@ function header(input: AiExportInput, items: GameItem[], profile: PlayerProfile 
   return [
     `# ${BRAND}: Datenpaket für eine KI-Auswertung`,
     "",
-    `> Erstellt am ${input.today} mit ${BRAND} (${BRAND_DOMAIN}) aus Stockfish-Analysen der eigenen Partien.`,
+    `> Erstellt am ${input.today} mit ${BRAND} (${BRAND_DOMAIN}) aus Engine-Analysen der eigenen Partien.`,
     `> Spieler: **${input.usernames.join(", ") || "?"}** · Zeitraum: ${trFilter(input.dateFilter || "All Time")}${range}`,
     `> ${items.length} eigene Partien, davon ${analyzed} mit der Engine analysiert${profile?.rating ? ` · aktuelle Wertung ${profile.rating.rating} (${trSpeed(profile.rating.speed)})` : ""}.`,
     ">",
@@ -220,7 +220,7 @@ function header(input: AiExportInput, items: GameItem[], profile: PlayerProfile 
 
 const TASK = `## 1. Auftrag an die KI
 
-Du bist ein erfahrener Schachtrainer und analysierst die Partien deines Schülers. Die Daten in dieser Datei stammen aus einer Stockfish-Analyse seiner eigenen Online-Partien und wurden von der App bereits ausgewertet.
+Du bist ein erfahrener Schachtrainer und analysierst die Partien deines Schülers. Die Daten in dieser Datei stammen aus einer Engine-Analyse seiner eigenen Online-Partien und wurden von der App bereits ausgewertet.
 
 **Regeln**
 - Antworte auf Deutsch und sprich den Spieler mit „du“ an.

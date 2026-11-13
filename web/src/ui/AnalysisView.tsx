@@ -39,6 +39,8 @@ import { Coach, COACH_NAME, moodFor } from "./Coach";
 import { OpeningLine } from "./OpeningLine";
 import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
+import { ENGINE_NAME } from "../engine/info";
+import { EngineWait } from "./EngineWait";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -652,9 +654,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   const threatLine = threat.lines[0];
   const engineHead = (lines: PvLine[], busy: boolean) => (
     <div class="engine-switches">
-      <label class="switch-pill" title="Stockfish rechnet live mit, drei beste Züge als Pfeile (L)">
+      <label class="switch-pill" title={`${ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)`}>
         <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
-        <span>Stockfish live</span>
+        <span>{ENGINE_NAME} live</span>
       </label>
       <label class="switch-pill" title="Zeigt, was der Gegner droht, wenn du jetzt nichts tust (X)">
         <input type="checkbox" checked={engine.threat} onChange={() => setEngine({ ...engine, threat: !engine.threat })} />
@@ -900,7 +902,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   </div>
                   {queue && <LiveDepth queue={queue} />}
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    Stockfish rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.
+                    <EngineWait>{ENGINE_NAME} rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.</EngineWait>
                   </p>
                 </>
               ) : (
@@ -930,7 +932,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 {explore.sans.length > 0 && <VerdictCard san={explore.sans[explore.sans.length - 1]} verdict={lastVerdict} />}
                 {live.busy && !live.lines.length ? (
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    Stockfish rechnet …
+                    <EngineWait>{ENGINE_NAME} rechnet …</EngineWait>
                   </p>
                 ) : (
                   <EngineLines

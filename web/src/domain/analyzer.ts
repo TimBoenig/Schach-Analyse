@@ -24,7 +24,9 @@ export interface AnalysisSettings {
   multiPv: number;
 }
 
-export const DEFAULT_SETTINGS: AnalysisSettings = { depth: 16, movetimeMs: 1000, multiPv: 2 };
+// Depths are Caissa's: it searches more per depth step than the engine used
+// before, so 12 takes about as long as the former 16 (see analysisDepth.ts).
+export const DEFAULT_SETTINGS: AnalysisSettings = { depth: 12, movetimeMs: 1000, multiPv: 2 };
 
 export interface PositionEngine {
   analyse(fen: string, limits: { depth: number; movetimeMs: number; multiPv: number }): Promise<PvLine[]>;

@@ -1,4 +1,4 @@
-// Several single-threaded Stockfish engines behind one analyse() call. Each
+// Several single-threaded engines behind one analyse() call. Each
 // search goes to an idle engine, so N engines work on N positions at once.
 // Size and hash can change while searches run: extra engines retire once
 // their current search is done, new hash sizes apply before the next search.

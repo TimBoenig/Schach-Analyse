@@ -15,6 +15,8 @@ import { CoachTip } from "./Coach";
 import { OpeningLine } from "./OpeningLine";
 import { useBook } from "./useBook";
 import { usePositionLines, useVerdicts } from "./useLive";
+import { ENGINE_NAME } from "../engine/info";
+import { EngineWait } from "./EngineWait";
 
 const START = new Chess().fen();
 // Per-viewer convenience: the last line on the free board survives a reload.
@@ -63,7 +65,7 @@ function validFen(fen: string): boolean {
   }
 }
 
-/** Free analysis board: move pieces freely, every move is judged live by Stockfish. */
+/** Free analysis board: move pieces freely, every move is judged live by the engine. */
 export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   const [line, setLine] = useState<Line>(() => loadLine(initialFen && validFen(initialFen) ? initialFen : undefined));
   const { fens, sans, ucis } = useMemo(() => replay(line), [line]);
@@ -218,12 +220,12 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
               <VerdictCard san={sans[n - 1]} verdict={verdict} />
             ) : (
               <p class="muted small" style={{ margin: 0 }}>
-                Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von Stockfish bewertet, mit konkreter Begründung.
+                Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von {ENGINE_NAME} bewertet, mit konkreter Begründung.
               </p>
             )}
             {live.busy && !live.lines.length ? (
               <p class="muted small" style={{ marginBottom: 0 }}>
-                <span class="dot-wait" /> Stockfish rechnet …
+                <span class="dot-wait" /> <EngineWait>{ENGINE_NAME} rechnet …</EngineWait>
               </p>
             ) : (
               <EngineLines fen={fen} lines={live.lines} label="Beste Fortsetzungen" onPlay={playLine} max={3} />

@@ -1,6 +1,8 @@
 // Moves the player tries on the board, each with the engine's verdict.
 import type { MoveData } from "../domain/types";
 import { badgeFor, classLabel, formatEval } from "./labels";
+import { ENGINE_NAME } from "../engine/info";
+import { EngineWait } from "./EngineWait";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
@@ -81,7 +83,7 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
   if (verdict === undefined) {
     return (
       <div class="verdict pending small muted">
-        <span class="dot-wait" /> Stockfish bewertet {san} …
+        <span class="dot-wait" /> <EngineWait>{ENGINE_NAME} bewertet {san} …</EngineWait>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 node_modules/
-dist/
-public/stockfish/
+/dist/
+public/caissa/
+engine/caissa/.build/
 public/openings/
 .env.local
 public/pieces/

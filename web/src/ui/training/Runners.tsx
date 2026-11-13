@@ -25,6 +25,7 @@ import { classLabel, formatDate } from "../labels";
 import { navigate } from "../router";
 import { BrilliantFx } from "../BrilliantFx";
 import { Coach } from "../Coach";
+import { ENGINE_NAME } from "../../engine/info";
 
 export interface RunnerProps<T> {
   ex: T;
@@ -277,7 +278,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
     }
     // Not the stored answer: let the engine decide, since another move can be just as good.
     setChecking(true);
-    setFeedback({ ok: true, text: `Stockfish prüft ${san} …` });
+    setFeedback({ ok: true, text: `${ENGINE_NAME} prüft ${san} …` });
     void judgeTried(here, uci, after).then((v) => {
       if (!alive.current) return;
       setChecking(false);
@@ -437,7 +438,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
 const PLAY_ON_MOVES = 10;
 
 /**
- * Free play from the end of an opening drill against Stockfish. Every own move
+ * Free play from the end of an opening drill against the engine. Every own move
  * gets its badge; errors are refuted on the board and can be taken back,
  * brilliant moves are celebrated.
  */
@@ -472,7 +473,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
     if (!b.isGameOver()) void positionLines(b.fen());
   };
 
-  // The drilled line can end with the player's own move: then Stockfish starts.
+  // The drilled line can end with the player's own move: then the engine starts.
   useEffect(() => {
     const b = new Chess(startFen);
     if (b.turn() === userColor || b.isGameOver()) return;
@@ -495,7 +496,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
     setFen(b.fen());
     setLast({ from: m.from, to: m.to });
     setBusy(true);
-    setNote({ ok: true, text: `Stockfish prüft ${m.san} …` });
+    setNote({ ok: true, text: `${ENGINE_NAME} prüft ${m.san} …` });
     void (async () => {
       try {
         const v = await judgeTried(before, uci, b.fen());
@@ -549,7 +550,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
       <div class="side-panel">
         <div class="card">
           <div class="ex-cat">Weiterspielen</div>
-          <h3>Ab hier spielst du frei gegen Stockfish</h3>
+          <h3>Ab hier spielst du frei gegen {ENGINE_NAME}</h3>
           <p class="small muted" style={{ marginTop: 0 }}>
             Noch {Math.max(0, PLAY_ON_MOVES - stats.moves)} eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.
           </p>
@@ -782,7 +783,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
             )}
             {done && !learning && (
               <button class="btn" onClick={() => setPlayOn(true)}>
-                Weiterspielen gegen Stockfish
+                Weiterspielen gegen {ENGINE_NAME}
               </button>
             )}
             {done && !learning && <NextButton onNext={onNext} label={nextLabel} />}

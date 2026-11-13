@@ -45,6 +45,7 @@ import {
 import { getSetting, listGames, setSetting } from "../storage/db";
 import { IconBolt, IconCpu, IconGauge, IconTimer } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
+import { ENGINE_NAME } from "../engine/info";
 
 const SCOPES: Array<[DepthScope, string]> = [
   ["own", "Meine Partien"],
@@ -141,7 +142,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
             />
           </label>
           <p class="faint small" style={{ margin: 0 }}>
-            Stockfish hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.
+            {ENGINE_NAME} hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.
           </p>
         </div>
       )}
@@ -355,7 +356,7 @@ export function AnalysisSettingsCards() {
     <>
       <AutomationCard />
       <div class="card settings-card">
-        <SettingsHead icon={<IconGauge />} title="Analysetiefe" sub="Wie gründlich Stockfish jede Stellung prüft." />
+        <SettingsHead icon={<IconGauge />} title="Analysetiefe" sub={`Wie gründlich ${ENGINE_NAME} jede Stellung prüft.`} />
         <div class="segmented full" role="tablist" aria-label="Für welche Partien">
           {SCOPES.map(([k, label]) => (
             <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>

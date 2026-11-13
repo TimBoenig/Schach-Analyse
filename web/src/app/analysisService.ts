@@ -1,4 +1,4 @@
-// Stockfish engines for the whole app plus a queue, so batch analysis and the
+// Engines for the whole app plus a queue, so batch analysis and the
 // open game never compete for the CPU. How many engines run side by side is a
 // per-device performance setting (one by default on phones, to stay cool).
 import {
@@ -29,7 +29,7 @@ import {
 } from "../domain/performance";
 import type { GameAnalysis } from "../domain/types";
 import { EnginePool } from "../engine/pool";
-import { createStockfishWorker, EngineFailure, UciEngine } from "../engine/uci";
+import { createEngineWorker, EngineFailure, UciEngine } from "../engine/uci";
 import { evalCache, getGame, getSetting, listGames, onDataChanged, putGames, setSetting } from "../storage/db";
 import { loadPlayers } from "./players";
 import { fromStoredGame, toStoredGame } from "../storage/rows";
@@ -161,7 +161,7 @@ export function currentPerf(): PerfSettings {
   return resolvePerf(loadPerfChoice(), deviceInfo());
 }
 
-const pool = new EnginePool(() => new UciEngine(createStockfishWorker()));
+const pool = new EnginePool(() => new UciEngine(createEngineWorker()));
 pool.configure(currentPerf());
 
 /** Saves the performance choice and applies it at once, also to a running analysis. */
