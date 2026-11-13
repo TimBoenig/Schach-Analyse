@@ -24,6 +24,8 @@ export interface QualityGame {
   speed: string;
   accuracy: number;
   blunders: number;
+  /** Engine depth of the analysis (null for games analysed before it was stored). */
+  depth: number | null;
 }
 
 export interface SpeedAdjust {
@@ -57,10 +59,12 @@ function speedOf(g: RawGame): string {
 export function qualityGames(games: RawGame[], usernames: string[], format = "All Formats", date = "All Time"): QualityGame[] {
   const out: QualityGame[] = [];
   for (const [g, color] of filterGames(games, usernames, "All Colors", format, "All Sources", date)) {
-    const side = (parseSummary(g.summary_json)?.[color] ?? null) as Record<string, unknown> | null;
+    const summary = parseSummary(g.summary_json) as Record<string, unknown> | null;
+    const side = (summary?.[color] ?? null) as Record<string, unknown> | null;
     const accuracy = Number(side?.accuracy ?? 0);
     if (!side || !Number.isFinite(accuracy) || accuracy <= 0) continue;
-    out.push({ speed: speedOf(g), accuracy, blunders: Number(side.Blunder ?? 0) || 0 });
+    const depth = Number(summary?.analysis_depth);
+    out.push({ speed: speedOf(g), accuracy, blunders: Number(side.Blunder ?? 0) || 0, depth: Number.isFinite(depth) && depth > 0 ? depth : null });
   }
   return out;
 }
@@ -120,6 +124,34 @@ export function speedFairness(players: QualityGame[][]): SpeedFairness {
   });
   const speeds = Object.fromEntries([...eligible].map((s) => [s, { accuracy: acc.get(s) as number, blunders: bl.get(s) as number, games: games.get(s) as number }]));
   return { adjust, speeds, applied: true };
+}
+
+/**
+ * Time-control corrections for a whole group, the one set the league and the
+ * duel page share, so a player's corrected accuracy reads the same on both.
+ * Players with fewer than `minAnalyzed` analysed games stay out of the model
+ * (their games would only add noise to the time-control effects).
+ */
+export function groupFairness(games: RawGame[], members: string[][], format: string, date: string, minAnalyzed: number): SpeedFairness & { quality: QualityGame[][] } {
+  const quality = members.map((names) => {
+    const q = qualityGames(games, names, format, date);
+    return q.length >= minAnalyzed ? q : [];
+  });
+  return { ...speedFairness(quality), quality };
+}
+
+// Depth gap (median engine depth between two players) from which the
+// comparison warns: a few plies change which moves count as errors.
+export const DEPTH_GAP = 3;
+
+/** Median analysis depth per player (null without stored depths). */
+export function medianDepths(quality: QualityGame[][]): (number | null)[] {
+  return quality.map((gs) => {
+    const d = gs.map((g) => g.depth).filter((v): v is number => v !== null).sort((a, b) => a - b);
+    if (!d.length) return null;
+    const mid = Math.floor(d.length / 2);
+    return d.length % 2 ? d[mid] : (d[mid - 1] + d[mid]) / 2;
+  });
 }
 
 export const FAIRNESS_NOTE =

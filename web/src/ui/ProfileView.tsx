@@ -323,7 +323,7 @@ function Overview({ profile }: { profile: PlayerProfile }) {
 }
 
 export function ProfileView() {
-  const { profile, usernames, loading, error, filters, setFilters } = useProfile();
+  const { profile, usernames, loading, error, filters, setFilters } = useProfile({ page: "profile" });
   const [ratingSpeed, setRatingSpeed] = useState<string | null>(null);
 
   const header = (

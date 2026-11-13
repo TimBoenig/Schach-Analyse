@@ -479,6 +479,10 @@ const RANGES: [string, number][] = [
  * offered, measured back from the newest point (not from today, so an old
  * history still shows its last months instead of an empty chart).
  */
+// A long series starts on its last three months, like the pages' default
+// periods (periods.ts): what happened years ago stays one tap away ("Alle").
+export const DEFAULT_RANGE_DAYS = 92;
+
 export function rangeOptions(points: Point[]): [string, number][] {
   const ts = points.map((p) => p.t).filter((t): t is number => typeof t === "number");
   if (ts.length < 3) return [];
@@ -541,9 +545,11 @@ export function AreaChart({
 }) {
   const [ref, W] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
-  const [range, setRange] = useState<number | null>(null);
+  // undefined = not picked yet: start with three months when the series is longer.
+  const [range, setRange] = useState<number | null | undefined>(undefined);
   const options = rangeOptions(allPoints);
-  const active = options.some(([, d]) => d === range) ? range : null;
+  const wanted = range === undefined ? DEFAULT_RANGE_DAYS : range;
+  const active = options.some(([, d]) => d === wanted) ? wanted : null;
   const points = clipRange(allPoints, active);
   if (allPoints.length < 2) return <p class="muted small">Noch zu wenige Daten für einen Verlauf.</p>;
   const chips = options.length ? (

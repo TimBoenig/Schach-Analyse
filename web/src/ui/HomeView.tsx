@@ -50,6 +50,7 @@ const QUICK: [string, string][] = [
   ["Last 14 Days", "14 Tage"],
   ["Last 30 Days", "30 Tage"],
   ["Last 90 Days", "3 Monate"],
+  ["Last 365 Days", "1 Jahr"],
   ["All Time", "Alles"],
 ];
 
@@ -353,7 +354,7 @@ function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (e
 }
 
 export function HomeView() {
-  const { profile, comparison, games, usernames, loading, error, filters, setFilters } = useProfile({ compare: true });
+  const { profile, comparison, games, usernames, loading, error, filters, setFilters } = useProfile({ page: "home", compare: true });
   const narrow = useNarrow();
   const [today, setToday] = useState<TodayTraining | null>(null);
   const [progress, setProgress] = useState<ProgressMap | null>(null);
@@ -393,10 +394,11 @@ export function HomeView() {
   const [puzzleId, setPuzzleId] = useState<string | null>(null);
   const puzzle = useMemo(() => {
     if (!profile || !progress) return null;
-    const pool = profile.exercises;
+    // Puzzles come from every game, not just the period shown above.
+    const pool = (full ?? profile).exercises;
     const kept = puzzleId ? pool.find((e): e is PuzzleExercise => e.id === puzzleId && e.kind === "puzzle") : undefined;
     return kept ?? puzzleOfTheDay(pool, progress, localDay());
-  }, [profile, progress, puzzleId]);
+  }, [profile, full, progress, puzzleId]);
   useEffect(() => {
     if (puzzle && puzzle.id !== puzzleId) setPuzzleId(puzzle.id);
   }, [puzzle]);

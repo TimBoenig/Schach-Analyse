@@ -1,12 +1,12 @@
 // Other players: tracked opponents and friends, scouting reports and the friends ranking.
 export * from "./models";
-export { buildMatchup, forecastScore, probBetter, qualityChance } from "./compare";
+export { buildMatchup, forecastScore, MIN_COMPARE_ANALYZED, probBetter, qualityChance } from "./compare";
 export type { Edge, Estimate, Matchup, MatchupRow, Prediction } from "./compare";
-export { qualityGames, speedFairness } from "./fairness";
+export { groupFairness, qualityGames, speedFairness } from "./fairness";
 export type { QualityGame, SpeedAdjust, SpeedFairness } from "./fairness";
 export { frequentOpponents, headToHead, mainSource } from "./h2h";
 export type { FrequentOpponent, H2HGame, HeadToHead } from "./h2h";
-export { buildRanking, RANK_FACTORS, ranksOf, rescore } from "./ranking";
+export { buildRanking, comparisonPeriod, RANK_FACTORS, ranksOf, rescore } from "./ranking";
 export type { FactorGroup, RankCell, RankContribution, RankFactor, RankInput, Ranking, RankRow } from "./ranking";
 export { buildScoutReport, MIN_LINE_GAMES, ratingLabel } from "./scout";
 export type { OpeningPick, ScoutReport, ScoutTip, SkillCompare, TipKind } from "./scout";

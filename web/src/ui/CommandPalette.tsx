@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
+import { PAGE_PERIODS } from "../domain/periods";
 import type { StoredGame } from "../domain/types";
 import { exportData, exportForAi } from "../app/exporter";
 import { getSetting, listGames } from "../storage/db";
@@ -87,9 +88,9 @@ export function CommandPalette({
       {
         id: "export-ai",
         group: "Aktionen",
-        label: "Für KI exportieren",
+        label: "Für KI exportieren (letzte 90 Tage)",
         keywords: "ki ai chatgpt claude gemini export analyse markdown datei",
-        run: () => void exportForAi("All Time"),
+        run: () => void exportForAi(PAGE_PERIODS.aiExport),
       },
       { id: "theme-dark", group: "Aktionen", label: "Dunkles Design", keywords: "theme dark nacht", run: () => void setTheme("dark") },
       { id: "theme-light", group: "Aktionen", label: "Helles Design", keywords: "theme light tag", run: () => void setTheme("light") },

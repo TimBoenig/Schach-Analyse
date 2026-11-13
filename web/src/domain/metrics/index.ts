@@ -21,6 +21,7 @@ export {
   inDateFilter,
   isBulletGame,
   isRangeFilter,
+  isValidDateFilter,
   matchesFilters,
   NO_BULLET,
   previousDateFilter,

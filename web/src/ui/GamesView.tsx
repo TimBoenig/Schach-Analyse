@@ -5,7 +5,9 @@ import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
 import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
 import { parsePgnTextDetailed } from "../domain/pgn";
-import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
+import { extractGameTimestamp, getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
+import { trFilter } from "../domain/i18n";
+import { PAGE_PERIODS, settleByCount } from "../domain/periods";
 import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
@@ -479,7 +481,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [speed, setSpeed] = useState("all");
   const [search, setSearch] = useState("");
-  const [period, setPeriod] = useState("All Time");
+  // null = the page default (last 30 days, widened when they hold too few games).
+  const [pickedPeriod, setPeriod] = useState<string | null>(null);
   const [limit, setLimit] = useState(60);
   // Games of tracked opponents and friends live in the same store; by default the list shows only the user's own.
   const [scope, setScope] = useState<"mine" | "all">("mine");
@@ -512,6 +515,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   );
   const othersCount = usernames.length ? (games ?? []).length - (games ?? []).filter((g) => getUserColor(g, usernames)).length : 0;
 
+  const period = useMemo(() => pickedPeriod ?? settleByCount(PAGE_PERIODS.games, scoped.map((g) => extractGameTimestamp(g))), [pickedPeriod, scoped]);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return scoped.filter((g) => {
@@ -524,6 +528,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       return true;
     });
   }, [scoped, filter, speed, search, period, hideBullet]);
+  // Games the period hides, so a list that starts on the last 30 days never looks like lost games.
+  const hiddenOlder = useMemo(() => (period === "All Time" ? 0 : scoped.filter((g) => !inDateFilter(g, period)).length), [scoped, period]);
   const bulletCount = useMemo(() => scoped.filter((g) => isBulletGame(g)).length, [scoped]);
 
   const summary = useMemo(() => summarize(filtered, usernames), [filtered, usernames]);
@@ -725,6 +731,11 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       ) : filtered.length === 0 ? (
         <div class="empty">
           <p>Keine Partie passt zu diesen Filtern.</p>
+          {hiddenOlder > 0 && (
+            <button class="btn" onClick={() => setPeriod("All Time")}>
+              {hiddenOlder} ältere {hiddenOlder === 1 ? "Partie" : "Partien"} zeigen
+            </button>
+          )}
         </div>
       ) : (
         <div class="game-list">
@@ -733,6 +744,14 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             <button class="btn" onClick={() => setLimit((l) => l + 60)}>
               Weitere {Math.min(60, filtered.length - limit)} anzeigen
             </button>
+          )}
+          {filtered.length <= limit && hiddenOlder > 0 && (
+            <p class="faint small" style={{ textAlign: "center" }}>
+              {trFilter(period)}. {hiddenOlder} ältere {hiddenOlder === 1 ? "Partie ist" : "Partien sind"} ausgeblendet.{" "}
+              <button class="link-btn" onClick={() => setPeriod("All Time")}>
+                Alle zeigen
+              </button>
+            </p>
           )}
         </div>
       )}

@@ -4,10 +4,12 @@ import { enqueue } from "../app/analysisService";
 import { isBulletGame, statsFormat } from "../domain/analysisDepth";
 import { addPlayer, importPlayerGames, loadPlayers, removePlayer, updatePlayer } from "../app/players";
 import { getUserColor } from "../domain/metrics";
+import { PAGE_PERIODS } from "../domain/periods";
 import {
   buildMatchup,
-  qualityGames,
-  speedFairness,
+  comparisonPeriod,
+  groupFairness,
+  MIN_COMPARE_ANALYZED,
   buildScoutReport,
   duelInsights,
   frequentOpponents,
@@ -20,6 +22,7 @@ import {
   openingPreview,
   orderPlayers,
   playerUsernames,
+  rankedFriends,
   type ScoutReport,
   type ScoutTip,
   type SharedOpening,
@@ -598,7 +601,8 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
 function PlayerDetail({ id, players, games, me }: { id: string; players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const player = players.find((p) => p.id === id);
   const [format, setFormat] = useState("All Formats");
-  const [date, setDate] = useState("All Time");
+  // null = the duel's default period (90 days, widened until both have analysed games).
+  const [pickedDate, setDate] = useState<string | null>(null);
   const [data, setData] = useState<{ them: PlayerProfile; mine: PlayerProfile | null } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -611,6 +615,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const namesKey = names.join("\n");
   const { excludeBullet, skipBullet, ready } = useBulletPrefs();
   const fmt = statsFormat(format, excludeBullet);
+  const date = useMemo(() => pickedDate ?? comparisonPeriod(games, me.length ? [me, names] : [names], fmt, PAGE_PERIODS.duel), [pickedDate, games, me, namesKey, fmt]);
 
   useEffect(() => {
     if (!player || !ready) return;
@@ -639,11 +644,19 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
     const a = mainSource(games, me);
     return Boolean(a) && a !== "file" && a === mainSource(games, names);
   }, [games, me, namesKey]);
-  // Take both players' mix of time controls out of accuracy and blunders.
+  // Take both players' mix of time controls out of accuracy and blunders,
+  // fitted on the same group as the league, so the corrected values here are
+  // exactly the ones in the league table.
+  const groupKey = rankedFriends(players)
+    .map((p) => playerUsernames(p).join(","))
+    .join("|");
   const fairness = useMemo(() => {
-    const f = speedFairness([qualityGames(games, me, fmt, date), qualityGames(games, names, fmt, date)]);
+    const others = rankedFriends(players)
+      .filter((p) => p.id !== id)
+      .map((p) => playerUsernames(p));
+    const f = groupFairness(games, [me, names, ...others], fmt, date, MIN_COMPARE_ANALYZED);
     return f.applied ? ([f.adjust[0], f.adjust[1]] as const) : null;
-  }, [games, me, namesKey, fmt, date]);
+  }, [games, me, namesKey, groupKey, id, fmt, date]);
   const matchup = useMemo(
     () => (data ? buildMatchup(data.mine, data.them, h2h, sameSite, fairness ? [fairness[0], fairness[1]] : null) : null),
     [data, h2h, sameSite, fairness],

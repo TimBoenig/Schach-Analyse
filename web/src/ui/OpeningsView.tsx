@@ -243,7 +243,7 @@ function Leaks({ leaks, color, onShow }: { leaks: OpeningLeak[]; color: "white" 
 }
 
 export function OpeningsView() {
-  const { profile, usernames, loading, error, filters, setFilters } = useProfile();
+  const { profile, usernames, loading, error, filters, setFilters } = useProfile({ page: "openings" });
   const [savedPick, setColor] = useState<"white" | "black">(savedColor);
   const [showAllFacts, setShowAllFacts] = useState(false);
   const [sort, setSort] = useState<SortKey>("games");
