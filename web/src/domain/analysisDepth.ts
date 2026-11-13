@@ -28,7 +28,7 @@ export interface PresetInfo {
 //
 // A depth number only means something for one engine. These are Caissa's,
 // chosen so that every preset takes as long per game as it did with the
-// previous engine (Stockfish 17.1 lite at 10/12/16/20/24), measured on the same
+// previous engine (at its depths 10/12/16/20/24), measured on the same
 // positions with two lines: 7 ≈ 9 ms, 9 ≈ 30 ms, 12 ≈ 125 ms, 17 ≈ 1 s,
 // 21 ≈ 4.5 s per position on a desktop core. At equal time Caissa's scores were
 // closer to a deep reference search than the old ones.
