@@ -77,7 +77,7 @@ function Records({ t }: { t: MoveTally }) {
 }
 
 export function MovesView() {
-  const { profile, usernames, loading, error, filters, setFilters } = useProfile();
+  const { profile, usernames, loading, error, filters, setFilters } = useProfile({ page: "moves" });
   const [allHighlights, setAllHighlights] = useState(false);
 
   const header = (

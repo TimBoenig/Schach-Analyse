@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { updatePlayer } from "../../app/players";
 import { statsFormat } from "../../domain/analysisDepth";
+import { PAGE_PERIODS } from "../../domain/periods";
 import {
   type Archetype,
   BATTLE_ROUNDS,
@@ -16,6 +17,7 @@ import {
   buildBattle,
   buildCrosstable,
   buildRanking,
+  comparisonPeriod,
   climbPlan,
   type ClimbPlan,
   type CrossCell,
@@ -43,6 +45,7 @@ import {
   qualityMap,
   type QualityMap,
   rankedFriends,
+  type RankCell,
   type Ranking,
   type RankRow,
   ranksOf,
@@ -283,6 +286,22 @@ function LeagueHero({
 
 const GROUP_CLASS: Record<string, string> = { Ergebnisse: "g-res", Spielqualität: "g-qual", Fähigkeiten: "g-skill", Sonstiges: "g-misc" };
 
+/**
+ * " (roh 71,0 %)" when the time-control correction moved a value: the league
+ * compares corrected values, the player's profile shows the raw one, and both
+ * should be readable side by side.
+ */
+function rawNote(key: string, cell: RankCell | undefined): string {
+  if (!cell || cell.raw === null || cell.raw === undefined || cell.value === null) return "";
+  const raw = formatFactor(key, cell.raw);
+  return raw === formatFactor(key, cell.value) ? "" : ` (roh ${raw})`;
+}
+
+function rawTitle(label: string, key: string, cell: RankCell | undefined): string {
+  const note = rawNote(key, cell);
+  return note ? `${label}, nach Bedenkzeit bereinigt${note}` : label;
+}
+
 /** Where a player's overall points come from: one segment per factor, sized by what it brought. */
 export function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
   const byKey = new Map(ranking.factors.map((f) => [f.key, f]));
@@ -301,7 +320,10 @@ export function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) 
             <div class="breakdown-row" key={c.key}>
               <span class={`dot ${GROUP_CLASS[f?.group ?? "Sonstiges"]}`} />
               <span>{f?.label}</span>
-              <span class="faint small tnum">{formatFactor(c.key, row.cells[c.key]?.value ?? null)}</span>
+              <span class="faint small tnum">
+                {formatFactor(c.key, row.cells[c.key]?.value ?? null)}
+                {rawNote(c.key, row.cells[c.key])}
+              </span>
               <span class="tnum small muted">
                 {Math.round(c.points)} × {de(c.share, 0)} %
               </span>
@@ -326,7 +348,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
     <section class="card tile span-7 lg-table">
       <div class="tile-head">
         <h3>Tabelle</h3>
-        <span class="tile-sub">Gesamtwertung, 0–100 Punkte · antippen für die Herkunft</span>
+        <span class="tile-sub">Gesamtwertung, 0–100 Punkte · {trFilter(ranking.period)} · antippen für die Herkunft</span>
       </div>
       <ol class="lg-rows">
         {ranking.rows.map((r, i) => {
@@ -342,10 +364,10 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                   <span class="faint small">{t && t.title !== "Neu dabei" ? t.title : r.overall === null ? "zu wenig Daten" : "Neu dabei"}</span>
                 </span>
                 <span class="lg-row-stats">
-                  <span title="Genauigkeit">
+                  <span title={rawTitle("Genauigkeit", "accuracy", r.cells.accuracy)}>
                     <span class="faint">Gen.</span> {formatFactor("accuracy", r.cells.accuracy?.value ?? null)}
                   </span>
-                  <span title="Patzer pro Partie">
+                  <span title={rawTitle("Patzer pro Partie", "blunders", r.cells.blunders)}>
                     <span class="faint">Patzer</span> {formatFactor("blunders", r.cells.blunders?.value ?? null)}
                   </span>
                   <span title="Punkte über der Erwartung">
@@ -1414,7 +1436,8 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
 
 export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; games: StoredGame[]; me: string[] }) {
   const [format, setFormat] = useState("All Formats");
-  const [date, setDate] = useState("All Time");
+  // null = the league's default period (90 days, widened when too few games are analysed).
+  const [pickedDate, setDate] = useState<string | null>(null);
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -1436,6 +1459,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
     ],
     [groupKey, me],
   );
+  const date = useMemo(() => pickedDate ?? comparisonPeriod(games, group.map((g) => g.usernames), fmt, PAGE_PERIODS.league), [pickedDate, games, group, fmt]);
   const tones = useMemo(() => Object.fromEntries([["ich", "tone-me"], ...allFriends.map((p) => [p.id, toneOf(players, p.id)])]) as Tones, [players]);
 
   useEffect(() => {
@@ -1540,9 +1564,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
           <summary>
             <IconFilter />
             <span class="filter-fold-text">
-              {[format !== "All Formats" || excludeBullet ? formatOptionLabel(format, excludeBullet) : null, date !== "All Time" ? trFilter(date) : null]
-                .filter((v) => v !== null)
-                .join(" · ") || "Alle Partien"}{" "}
+              {[format !== "All Formats" || excludeBullet ? formatOptionLabel(format, excludeBullet) : "Alle Partien", trFilter(date)].join(" · ")}{" "}
               · {friends.length + 1} Spieler
             </span>
             <span class="filter-fold-hint">Anpassen</span>

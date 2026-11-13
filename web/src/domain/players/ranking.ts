@@ -14,11 +14,12 @@
 // rating is not settled yet, and "Über Erwartung" already judges results
 // fairly against the opponents' strength.
 
-import { filterGames } from "../metrics/filters";
-import { type RawGame } from "../metrics/models";
+import { extractGameTimestamp, filterGames } from "../metrics/filters";
+import { parseSummary, type RawGame } from "../metrics/models";
 import { parsePlayedAt } from "../metrics/played";
 import { detectSpeedCategory } from "../metrics/speed";
 import { trSpeed } from "../i18n";
+import { settlePeriod } from "../periods";
 import type { PlayerProfile } from "../profile/models";
 import { SKILL_NAMES } from "../profile/skills";
 import {
@@ -35,7 +36,7 @@ import {
   skillEstimate,
   skillPrior,
 } from "./compare";
-import { FAIRNESS_NOTE, qualityGames, speedFairness } from "./fairness";
+import { DEPTH_GAP, FAIRNESS_NOTE, groupFairness, medianDepths } from "./fairness";
 import { headToHead, mainSource } from "./h2h";
 import { FACTOR_WEIGHTS, SKILL_FACTORS } from "./weights";
 
@@ -66,8 +67,13 @@ export interface RankCell {
   rank: number | null;
   /** 0..100: average chance of being better than each other player (null when not ranked). */
   points: number | null;
-  /** Standard error of `value` (0 for exact counts). */
+  /** Standard error of `value`. */
   se: number | null;
+  /**
+   * The value before the time-control correction (accuracy and blunders only,
+   * when the correction moved it): the number the player's own profile shows.
+   */
+  raw?: number | null;
   /** Short evidence note, e.g. "12 Partien". */
   note: string;
 }
@@ -104,6 +110,8 @@ export interface RankRow {
 
 export interface Ranking {
   factors: RankFactor[];
+  /** Date filter every number of this ranking covers (e.g. "Last 90 Days"). */
+  period: string;
   /** Sorted by overall place; unranked players last. */
   rows: RankRow[];
   /** Time control the rating factor compares (German label), null without ratings. */
@@ -138,7 +146,7 @@ export const RANK_FACTORS: RankFactor[] = [
     weight: FACTOR_WEIGHTS[k],
     hint: `Fähigkeitswert ${SKILL_NAMES[k]} (0–100), nur aus den eigenen Zügen`,
   })),
-  { key: "activity", label: `Partien (${ACTIVITY_DAYS} Tage)`, group: "Sonstiges", higher_is_better: true, weight: FACTOR_WEIGHTS.activity, hint: `Gespielte Partien in den letzten ${ACTIVITY_DAYS} Tagen` },
+  { key: "activity", label: `Partien (${ACTIVITY_DAYS} Tage)`, group: "Sonstiges", higher_is_better: true, weight: FACTOR_WEIGHTS.activity, hint: `Gespielte Partien in den letzten ${ACTIVITY_DAYS} Tagen (in der gewählten Bedenkzeit)` },
 ];
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -206,9 +214,9 @@ export function buildRanking(
   const speed = commonSpeed(inputs);
   const notes: string[] = [];
   const sources = inputs.map((inp) => mainSource(games, inp.usernames));
-  const raw: Record<string, { est: Estimate | null; note: string }[]> = {};
-  const put = (key: string, i: number, est: Estimate | null, note = "") => {
-    (raw[key] ??= [])[i] = { est, note };
+  const raw: Record<string, { est: Estimate | null; note: string; raw?: number | null }[]> = {};
+  const put = (key: string, i: number, est: Estimate | null, note = "", unadjusted?: number | null) => {
+    (raw[key] ??= [])[i] = { est, note, raw: unadjusted };
   };
 
   // Ratings only compare within one platform: the one most rated players are on.
@@ -227,7 +235,13 @@ export function buildRanking(
   const priors = Object.fromEntries(SKILL_FACTORS.map((k) => [k, skillPrior(eligible.map((inp) => inp.profile.skills.find((x) => x.key === k)))]));
 
   // Take each player's mix of time controls out of accuracy and blunders.
-  const fair = speedFairness(inputs.map((inp) => (inp.profile.analyzed_games >= MIN_ANALYZED ? qualityGames(games, inp.usernames, format, date) : [])));
+  const fair = groupFairness(
+    games,
+    inputs.map((inp) => inp.usernames),
+    format,
+    date,
+    MIN_ANALYZED,
+  );
 
   inputs.forEach((inp, i) => {
     const p = inp.profile;
@@ -237,19 +251,24 @@ export function buildRanking(
     put("rating", i, sameSite ? { value: rating as number, se: RATING_SE } : null, sameSite ? (speed as string) : "");
     put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, "Partie", "Partien") : "");
     put("score", i, scoreEstimate(p), plural(p.total_games, "Partie", "Partien"));
-    put("accuracy", i, shifted(accuracyEstimate(p), fair.adjust[i].accuracy), analyses(p.analyzed_games));
-    put("blunders", i, shifted(blunderEstimate(p), fair.adjust[i].blunders), analyses(p.analyzed_games));
+    const acc = accuracyEstimate(p);
+    const bl = blunderEstimate(p);
+    put("accuracy", i, shifted(acc, fair.adjust[i].accuracy), analyses(p.analyzed_games), acc && fair.adjust[i].accuracy ? acc.value : undefined);
+    put("blunders", i, shifted(bl, fair.adjust[i].blunders), analyses(p.analyzed_games), bl && fair.adjust[i].blunders ? bl.value : undefined);
     const enough = p.analyzed_games >= MIN_ANALYZED;
     for (const k of SKILL_FACTORS) {
       const s = p.skills.find((x) => x.key === k);
       const est = enough ? skillEstimate(s, priors[k]) : null;
       put(k, i, est, est && s?.margin ? `±${s.margin}` : "");
     }
-    const recent = filterGames(games, inp.usernames).filter(([g]) => {
+    // Same time controls as everything else (Bullet stays out when it is
+    // excluded). A count of games is a Poisson count: 31 against 30 games is a
+    // coin flip, not a full 100 against 0 points.
+    const recent = filterGames(games, inp.usernames, "All Colors", format).filter(([g]) => {
       const at = parsePlayedAt(g);
       return at !== null && at >= now - ACTIVITY_DAYS * 86400;
     }).length;
-    put("activity", i, { value: recent, se: 0 });
+    put("activity", i, { value: recent, se: Math.sqrt(recent + 1) });
 
     // Points against everyone else in the group.
     let pts = 0;
@@ -289,7 +308,7 @@ export function buildRanking(
     );
     const points = chancePoints(est, f.higher_is_better);
     cells.forEach((c, i) => {
-      rows[i].cells[f.key] = { value: c.est?.value ?? null, se: c.est?.se ?? null, rank: ranks[i], points: points[i], note: c.note };
+      rows[i].cells[f.key] = { value: c.est?.value ?? null, se: c.est?.se ?? null, rank: ranks[i], points: points[i], note: c.note, ...(c.raw !== undefined ? { raw: c.raw } : {}) };
       if (f.weight <= 0) return;
       if (points[i] === null) {
         rows[i].missing.push(f.key);
@@ -322,10 +341,45 @@ export function buildRanking(
     notes.push("Wertungen von Lichess und Chess.com sind nicht vergleichbar: die Wertung zählt nur für Spieler derselben Plattform. „Über Erwartung“ und die Genauigkeit vergleichen fair.");
   }
   if (fair.applied) notes.push(FAIRNESS_NOTE);
+  const depthNote = depthGapNote(medianDepths(fair.quality), inputs);
+  if (depthNote) notes.push(depthNote);
   if (rows.some((r) => r.analyzed < MIN_ANALYZED)) {
     notes.push(`Genauigkeit, Patzer und Fähigkeiten zählen erst ab ${MIN_ANALYZED} analysierten Partien eines Spielers.`);
   }
-  return { factors: RANK_FACTORS, rows, rating_speed: speed, speed_effects: fair.speeds, notes };
+  return { factors: RANK_FACTORS, period: date, rows, rating_speed: speed, speed_effects: fair.speeds, notes };
+}
+
+/**
+ * The period a comparison starts with: `preferred` (see periods.ts), widened
+ * until at least two of the members have MIN_ANALYZED analysed games in it,
+ * so accuracy, blunders and skills can be compared at all. Every member is
+ * measured over the same span, which also keeps old games of one player
+ * (analysed long ago) from facing only recent games of another.
+ */
+export function comparisonPeriod(games: RawGame[], members: string[][], format: string, preferred: string, now = Date.now() / 1000): string {
+  const times = members.map((names) =>
+    filterGames(games, names, "All Colors", format)
+      .filter(([g, color]) => Number((parseSummary(g.summary_json)?.[color] as Record<string, unknown> | undefined)?.accuracy ?? 0) > 0)
+      .map(([g]) => extractGameTimestamp(g)),
+  );
+  const need = Math.min(2, members.length);
+  return settlePeriod(preferred, (start) => times.filter((ts) => (start === null ? ts.length : ts.filter((t) => t !== null && t >= start).length) >= MIN_ANALYZED).length >= need, now);
+}
+
+/**
+ * A warning when the players' games were analysed at clearly different engine
+ * depths (own games and friends' games have separate depth settings): a
+ * deeper search finds errors a shallow one misses and judges other moves
+ * differently, so accuracy and blunders then compare two different rulers.
+ */
+function depthGapNote(depths: (number | null)[], inputs: RankInput[]): string | null {
+  const known = depths.map((d, i) => ({ d, name: inputs[i].is_me ? "deine" : `die von ${inputs[i].name}` })).filter((x): x is { d: number; name: string } => x.d !== null);
+  if (known.length < 2) return null;
+  const deep = known.reduce((a, b) => (b.d > a.d ? b : a));
+  const flat = known.reduce((a, b) => (b.d < a.d ? b : a));
+  if (deep.d - flat.d < DEPTH_GAP) return null;
+  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  return `${cap(flat.name)} Partien sind flacher analysiert (Tiefe ${Math.round(flat.d)}) als ${deep.name} (Tiefe ${Math.round(deep.d)}). Genauigkeit und Patzer vergleichen nur bei gleicher Tiefe ganz fair: stelle in den Einstellungen dieselbe Analysetiefe für dich und deine Freunde ein und lass die Partien neu analysieren.`;
 }
 
 /**

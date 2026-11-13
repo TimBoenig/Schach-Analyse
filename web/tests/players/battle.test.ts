@@ -17,7 +17,7 @@ function row(id: string, cells: Record<string, [number, number, number?]>, overa
     cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se, points]]) => [k, { value, se, rank: null, points: points ?? null, note: "" }])),
   };
 }
-const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
+const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, period: "All Time", rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
 const h2h = (wins: number, draws: number, losses: number) => ({ ...headToHead([], [], []), games: wins + draws + losses, wins, draws, losses });
 
 describe("weights", () => {

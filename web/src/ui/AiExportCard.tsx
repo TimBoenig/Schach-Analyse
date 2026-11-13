@@ -4,6 +4,7 @@ import { useState } from "preact/hooks";
 
 import { exportForAi } from "../app/exporter";
 import { AI_EXPORT_LIMITS, AI_EXPORT_PROMPT, type AiExportDetail } from "../domain/aiExport";
+import { PAGE_PERIODS } from "../domain/periods";
 import { PeriodSelect } from "./useProfile";
 
 const DETAIL_HINT: Record<AiExportDetail, string> = {
@@ -12,7 +13,8 @@ const DETAIL_HINT: Record<AiExportDetail, string> = {
 };
 
 export function AiExportCard() {
-  const [period, setPeriod] = useState("All Time");
+  // The last 90 days fit a chat window and describe how the player plays now.
+  const [period, setPeriod] = useState(PAGE_PERIODS.aiExport);
   const [detail, setDetail] = useState<AiExportDetail>("full");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);

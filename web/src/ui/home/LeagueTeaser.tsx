@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { loadPlayers } from "../../app/players";
 import { statsFormat } from "../../domain/analysisDepth";
-import { buildRanking, playerUsernames, rankedFriends, type Ranking, type TrackedPlayer } from "../../domain/players";
+import { trFilter } from "../../domain/i18n";
+import { PAGE_PERIODS } from "../../domain/periods";
+import { buildRanking, comparisonPeriod, playerUsernames, rankedFriends, type Ranking, type TrackedPlayer } from "../../domain/players";
 import type { StoredGame } from "../../domain/types";
 import { IconPlayers, IconTrophy } from "../icons";
 import { ScaleTrack } from "../kit";
@@ -33,9 +35,16 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
     const fmt = statsFormat("All Formats", excludeBullet);
     const group = [{ id: "ich", name: "Du", is_me: true, usernames: me }, ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) }))];
     const timer = window.setTimeout(() => {
-      Promise.all(group.map((g) => profileFor(games, g.usernames, fmt, "All Time")))
+      // The league page's default period, so both show the same place.
+      const date = comparisonPeriod(
+        games,
+        group.map((g) => g.usernames),
+        fmt,
+        PAGE_PERIODS.league,
+      );
+      Promise.all(group.map((g) => profileFor(games, g.usernames, fmt, date)))
         .then((profiles) => {
-          if (alive) setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date: "All Time" }));
+          if (alive) setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date }));
         })
         // The teaser is an extra: without a ranking the card simply stays out.
         .catch(() => undefined);
@@ -77,6 +86,7 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
         <span class="tile-sub">
           {above ? `${de((above.overall as number) - (mine.overall as number), 1)} Punkte hinter ${above.name}` : "du führst"}
           {below ? ` · ${de((mine.overall as number) - (below.overall as number), 1)} vor ${below.name}` : ""}
+          {` · ${trFilter(ranking.period)}`}
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "players", tab: "rangliste" })}>

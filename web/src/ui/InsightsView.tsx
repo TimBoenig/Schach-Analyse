@@ -348,7 +348,7 @@ function Tile({ title, sub, span, children }: { title: string; sub?: string; spa
 }
 
 export function InsightsView() {
-  const { profile, usernames, loading, error, filters, setFilters } = useProfile();
+  const { profile, usernames, loading, error, filters, setFilters } = useProfile({ page: "insights" });
   const narrow = useNarrow();
 
   const header = (

@@ -67,7 +67,7 @@ function league(players: { id: string; me?: boolean; cells: Cells }[]): Ranking 
   const ranks = ranksOf(new Map(rows.map((r) => [r.id, r.overall])));
   rows.forEach((r) => (r.rank = ranks.get(r.id) ?? null));
   rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  return { factors: RANK_FACTORS, rows, rating_speed: "Blitz", speed_effects: {}, notes: [] };
+  return { factors: RANK_FACTORS, period: "All Time", rows, rating_speed: "Blitz", speed_effects: {}, notes: [] };
 }
 
 // Strongest to weakest by play, while the ratings run the other way.
@@ -127,6 +127,7 @@ describe("player types", () => {
   it("names the area a player stands out in, the clearly weakest one, and stays generic without either", () => {
     const types = archetypes({
       factors: RANK_FACTORS,
+      period: "All Time",
       rating_speed: null,
       speed_effects: {},
       notes: [],
@@ -146,6 +147,7 @@ describe("player types", () => {
   it("gives every title to one player only: the strongest claim wins, the others move to their next standout area", () => {
     const types = archetypes({
       factors: RANK_FACTORS,
+      period: "All Time",
       rating_speed: null,
       speed_effects: {},
       notes: [],

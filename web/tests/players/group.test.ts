@@ -21,7 +21,7 @@ function row(id: string, isMe: boolean, cells: Record<string, [number, number]>)
   };
 }
 
-const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
+const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, period: "All Time", rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
 
 describe("group standing", () => {
   it("names a clear edge, the friend to learn from, and ignores gaps within noise or results-only factors", () => {
