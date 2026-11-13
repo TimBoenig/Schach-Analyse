@@ -259,7 +259,8 @@ export function TheoryTimeline({ lines, onSelect }: { lines: OpeningStat[]; onSe
   if (!rows.length) {
     return <p class="muted small">Analysiere ein paar Partien, dann zeige ich dir, wann du die Theorie verlässt und wann der erste Fehler kommt.</p>;
   }
-  const maxMove = Math.max(20, ...rows.map((r) => Math.max(r.book_exit_move ?? 0, r.first_error_move ?? 0) + 2));
+  // Averages are fractions: round up so the scale ends on a whole move.
+  const maxMove = Math.ceil(Math.max(20, ...rows.map((r) => Math.max(r.book_exit_move ?? 0, r.first_error_move ?? 0) + 2)));
   const pos = (m: number) => `${Math.min(100, (m / maxMove) * 100)}%`;
   return (
     <div class="theory">

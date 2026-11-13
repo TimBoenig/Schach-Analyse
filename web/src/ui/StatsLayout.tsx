@@ -4,10 +4,12 @@
 // palette can find a card by its name. The tabs between the pages come from
 // the area definition in Layout.tsx.
 import type { ComponentChildren } from "preact";
-import { useEffect, useState } from "preact/hooks";
+import { useContext, useEffect, useState } from "preact/hooks";
 
-import { AREAS } from "./Layout";
+import { IconChevron } from "./icons";
+import { AREAS, ShellContext } from "./Layout";
 import { navigate, type Route } from "./router";
+import { useNarrow } from "./useNarrow";
 
 export type StatsView = "profile" | "moves" | "insights" | "openings";
 
@@ -63,9 +65,61 @@ export function openSection(view: StatsView, id: string): void {
 function scrollToSection(id: string): boolean {
   const el = document.getElementById(`s-${id}`);
   if (!el) return false;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  // On phones the section may be folded: open it, then scroll once its cards are there.
+  window.dispatchEvent(new CustomEvent(UNFOLD_EVENT, { detail: id }));
+  window.setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   pendingSection = null;
   return true;
+}
+
+// ---------- folded sections on phones ----------
+//
+// A statistics page is five sections of several cards each: on a phone that is
+// a column of 7,000 pixels and more. There each section folds down to its
+// heading, so the page opens as a short table of contents and only the
+// sections someone asks for are built.
+
+const UNFOLD_EVENT = "stats:unfold";
+const FOLD_KEY = "schach.sections";
+
+function readFolds(): Record<string, boolean> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FOLD_KEY) ?? "{}");
+    return raw && typeof raw === "object" ? (raw as Record<string, boolean>) : {};
+  } catch {
+    // Storage blocked (private mode): every visit starts with the defaults.
+    return {};
+  }
+}
+
+let folds: Record<string, boolean> | null = null;
+
+function saveFold(key: string, open: boolean): void {
+  folds = { ...(folds ?? readFolds()), [key]: open };
+  try {
+    localStorage.setItem(FOLD_KEY, JSON.stringify(folds));
+  } catch {
+    // Not saved: the choice still holds until the page is closed.
+  }
+}
+
+/** Whether a section is open on this device; the choice is kept per page and section. */
+function useFold(key: string, defaultOpen: boolean, id: string): [boolean, (open: boolean) => void] {
+  const [open, setOpen] = useState(() => (folds ??= readFolds())[key] ?? defaultOpen);
+  useEffect(() => {
+    const on = (e: Event) => {
+      if ((e as CustomEvent<string>).detail === id) setOpen(true);
+    };
+    window.addEventListener(UNFOLD_EVENT, on);
+    return () => window.removeEventListener(UNFOLD_EVENT, on);
+  }, [id]);
+  return [
+    open,
+    (next) => {
+      setOpen(next);
+      saveFold(key, next);
+    },
+  ];
 }
 
 /** Sticky index of the sections on this page; marks the one in view. */
@@ -117,6 +171,77 @@ export function SectionHead({ section, children, quiet }: { section: StatSection
       {children && <span class="spacer" />}
       {children}
     </div>
+  );
+}
+
+/**
+ * One section of a `.dash` grid: its heading and, as siblings, its cards. On
+ * phones the heading is a button that folds the cards away; on wider screens
+ * everything is always shown.
+ */
+export function Section({
+  section,
+  children,
+  quiet,
+  defaultOpen = false,
+  phoneOnly = false,
+}: {
+  section: StatSection;
+  children?: ComponentChildren;
+  /** Opens with a hero instead of a headline; never folds. */
+  quiet?: boolean;
+  /** Open on a phone until the user folds it. */
+  defaultOpen?: boolean;
+  /** A grouping only phones need: wider screens show the cards without a heading. */
+  phoneOnly?: boolean;
+}) {
+  const { route } = useContext(ShellContext);
+  const narrow = useNarrow();
+  const [open, setOpen] = useFold(`${route.view}:${section.id}`, defaultOpen, section.id);
+  if (quiet) {
+    return (
+      <>
+        <SectionHead section={section} quiet />
+        {children}
+      </>
+    );
+  }
+  if (!narrow) {
+    return (
+      <>
+        {!phoneOnly && <SectionHead section={section} />}
+        {children}
+      </>
+    );
+  }
+  return (
+    <>
+      <div class={`section-head section-fold span-12${open ? " open" : ""}`} id={`s-${section.id}`}>
+        <button
+          class="section-toggle"
+          aria-expanded={open}
+          onClick={(e) => {
+            const head = e.currentTarget;
+            setOpen(!open);
+            window.setTimeout(() => {
+              const top = head.getBoundingClientRect().top;
+              // Folding a long section away must not leave the reader in the middle of the next one;
+              // opening one low on the screen brings its cards up from behind the tab bar.
+              if (open ? top < 0 : top > window.innerHeight * 0.4) head.scrollIntoView({ behavior: open ? "auto" : "smooth", block: "start" });
+            }, 0);
+          }}
+        >
+          <span class="section-toggle-text">
+            <h2>{section.title}</h2>
+            <span class="tile-sub">{section.sub}</span>
+          </span>
+          <span class="section-toggle-icon" aria-hidden="true">
+            <IconChevron />
+          </span>
+        </button>
+      </div>
+      {open && children}
+    </>
   );
 }
 

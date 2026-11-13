@@ -670,6 +670,9 @@ export interface Column {
   faint?: boolean;
 }
 
+// Width one column needs so its number does not touch its neighbours'.
+const COLUMN_LABEL_ROOM = 34;
+
 export function ColumnChart({
   columns,
   max,
@@ -684,17 +687,23 @@ export function ColumnChart({
   format?: (v: number) => string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const [ref, width] = useWidth<HTMLDivElement>(320);
   const vals = columns.map((c) => c.value ?? 0).concat(reference ? [reference.value] : []);
   const top = max ?? Math.max(1, ...vals) * 1.15;
   const h = (v: number) => `${Math.max(0, Math.min(100, (v / top) * 100))}%`;
+  // Many columns on a phone: the numbers above them would run into each
+  // other, so only the touched column (or the last one) carries its number.
+  const dense = width / Math.max(1, columns.length) < COLUMN_LABEL_ROOM;
+  const lastFilled = columns.reduce((last, c, i) => (c.value !== null ? i : last), -1);
+  const labelled = hover ?? lastFilled;
   return (
-    <div class="columns-wrap">
+    <div class={`columns-wrap${dense ? " dense" : ""}`} ref={ref}>
       <div class="columns" style={{ height: `${height}px` }} onPointerLeave={() => setHover(null)}>
         {reference && <div class="columns-ref" style={{ bottom: h(reference.value) }} />}
         {columns.map((c, i) => (
           <div
             key={c.label}
-            class={`column${hover === i ? " on" : ""}`}
+            class={`column${hover === i ? " on" : ""}${dense && labelled === i ? " labelled" : ""}`}
             onPointerEnter={() => setHover(i)}
             onPointerDown={() => setHover(i)}
           >

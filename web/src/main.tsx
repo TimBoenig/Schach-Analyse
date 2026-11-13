@@ -9,6 +9,7 @@ import { initAppearance } from "./ui/theme";
 import "./ui/styles.css";
 import "./ui/design.css";
 import "./ui/arena.css";
+import "./ui/mobile.css";
 
 initAppearance();
 // The AI coach was removed; drop its stored provider settings and API key.

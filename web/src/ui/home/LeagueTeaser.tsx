@@ -11,6 +11,7 @@ import { ScaleTrack } from "../kit";
 import { de, profileFor, toneOf } from "../players/common";
 import { navigate } from "../router";
 import { useBulletPrefs } from "../useAnalysisPrefs";
+import { useNarrow } from "../useNarrow";
 
 // The start page comes first: friends' profiles are built once it has settled.
 const START_DELAY_MS = 900;
@@ -19,6 +20,7 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
   const [players, setPlayers] = useState<TrackedPlayer[] | null>(null);
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const { excludeBullet, ready } = useBulletPrefs();
+  const narrow = useNarrow();
   useEffect(() => {
     void loadPlayers().then(setPlayers);
   }, [games]);
@@ -84,6 +86,8 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
       <ScaleTrack
         markers={ranked.map((r) => ({ id: r.id, label: r.name, value: r.overall as number, tone: r.is_me ? "tone-me" : toneOf(players, r.id), me: r.is_me }))}
         onPick={(id) => navigate(id === "ich" ? { view: "players", tab: "rangliste" } : { view: "players", playerId: id })}
+        // Phones: a standings list instead of dots stacked in lanes.
+        rows={narrow}
       />
     </section>
   );

@@ -39,7 +39,9 @@ import { formatDate, shortOpening, streakText } from "./labels";
 import { navigate } from "./router";
 import { PuzzleRunner } from "./training/Runners";
 import { loadFullProfile, loadTodayTraining, loadTrainingProgress, recordTrainingResult, type TodayTraining } from "./training/useTraining";
+import { Section, type StatSection } from "./StatsLayout";
 import { useBulletPrefs } from "./useAnalysisPrefs";
+import { useNarrow } from "./useNarrow";
 import { useProfile } from "./useProfile";
 
 // One tap for the periods that matter day to day; the filter bar below has the rest.
@@ -52,6 +54,9 @@ const QUICK: [string, string][] = [
 ];
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+
+// The three chart cards at the end of the start page; on phones they fold into this one heading.
+const HOME_TRENDS: StatSection = { id: "entwicklung", title: "Entwicklung", sub: "Formkurve, Veränderungen und Aktivität", cards: [] };
 
 function kpiFormat(k: KpiChange): (v: number) => string {
   switch (k.key) {
@@ -272,8 +277,13 @@ export function RecentGames({ profile }: { profile: PlayerProfile }) {
               </span>
             </span>
             <span class="recent-acc tnum small">
-              {g.accuracy !== null ? `${de(g.accuracy)} %` : <span class="faint">nicht analysiert</span>}
-              {g.blunders ? <span class="faint"> · {g.blunders} Patzer</span> : null}
+              {g.accuracy !== null ? <span>{de(g.accuracy)} %</span> : <span class="faint">nicht analysiert</span>}
+              {g.blunders ? (
+                <span class="faint">
+                  <span class="recent-sep"> · </span>
+                  {g.blunders} Patzer
+                </span>
+              ) : null}
             </span>
           </button>
         );
@@ -344,6 +354,7 @@ function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (e
 
 export function HomeView() {
   const { profile, comparison, games, usernames, loading, error, filters, setFilters } = useProfile({ compare: true });
+  const narrow = useNarrow();
   const [today, setToday] = useState<TodayTraining | null>(null);
   const [progress, setProgress] = useState<ProgressMap | null>(null);
   // The rating journey looks at the whole history, whatever period is picked above.
@@ -527,6 +538,60 @@ export function HomeView() {
   const leverCat = topWeakness ? skillCategory(topWeakness.key, (full ?? comparison.current).exercises) : undefined;
   const lever = topWeakness ? { title: topWeakness.title, go: () => navigate(leverCat ? { view: "training", tab: "uebungen", category: leverCat } : { view: "training" }) } : null;
 
+  const formCard = (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Formkurve</h3>
+        <span class="tile-sub">Genauigkeit pro Woche · {period}</span>
+      </div>
+      <AreaChart
+        points={formPoints}
+        format={(v) => v.toFixed(0)}
+        height={220}
+        reference={profile.rating ? { value: profile.rating.typical_accuracy, label: `Typisch für ${profile.rating.rating}` } : null}
+      />
+      <FormStats weekly={weekly} />
+    </section>
+  );
+  const changesCard = (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Was sich verändert hat</h3>
+        <span class="tile-sub">Fähigkeiten · {comparison.previous ? "gegenüber dem Zeitraum davor" : "kein Vergleichszeitraum"}</span>
+      </div>
+      {changeRows.length ? (
+        <>
+          <ChangeBars rows={changeRows} threshold={5} />
+          <p class="faint small tile-foot">
+            Grün: mindestens 5 Punkte besser, rot: 5 Punkte schlechter. Dahinter der aktuelle Wert von 0 bis 100. Blass: wenige Daten.
+          </p>
+        </>
+      ) : (
+        <p class="muted small">Noch keine analysierten Partien in diesem Zeitraum.</p>
+      )}
+    </section>
+  );
+  const recentCard = (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Letzte Partien</h3>
+        <button class="btn small" onClick={() => navigate({ view: "games" })}>
+          Alle Partien
+        </button>
+      </div>
+      <RecentGames profile={profile} />
+    </section>
+  );
+  const activityCard = (
+    <section class="card tile span-6">
+      <div class="tile-head">
+        <h3>Aktivität</h3>
+        <span class="tile-sub">Partien pro Tag</span>
+      </div>
+      <Calendar daily={daily} today={localDay()} />
+    </section>
+  );
+
   return (
     <div class="home" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
@@ -654,54 +719,24 @@ export function HomeView() {
           )}
         </section>
 
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Formkurve</h3>
-            <span class="tile-sub">Genauigkeit pro Woche · {period}</span>
-          </div>
-          <AreaChart
-            points={formPoints}
-            format={(v) => v.toFixed(0)}
-            height={220}
-            reference={profile.rating ? { value: profile.rating.typical_accuracy, label: `Typisch für ${profile.rating.rating}` } : null}
-          />
-          <FormStats weekly={weekly} />
-        </section>
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Was sich verändert hat</h3>
-            <span class="tile-sub">Fähigkeiten · {comparison.previous ? "gegenüber dem Zeitraum davor" : "kein Vergleichszeitraum"}</span>
-          </div>
-          {changeRows.length ? (
-            <>
-              <ChangeBars rows={changeRows} threshold={5} />
-              <p class="faint small tile-foot">
-                Grün: mindestens 5 Punkte besser, rot: 5 Punkte schlechter. Dahinter der aktuelle Wert von 0 bis 100. Blass: wenige Daten.
-              </p>
-            </>
-          ) : (
-            <p class="muted small">Noch keine analysierten Partien in diesem Zeitraum.</p>
-          )}
-        </section>
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Letzte Partien</h3>
-            <button class="btn small" onClick={() => navigate({ view: "games" })}>
-              Alle Partien
-            </button>
-          </div>
-          <RecentGames profile={profile} />
-        </section>
-
-        <section class="card tile span-6">
-          <div class="tile-head">
-            <h3>Aktivität</h3>
-            <span class="tile-sub">Partien pro Tag</span>
-          </div>
-          <Calendar daily={daily} today={localDay()} />
-        </section>
+        {narrow ? (
+          // Phones: the games come first, the three charts fold into one section.
+          <>
+            {recentCard}
+            <Section section={HOME_TRENDS} phoneOnly>
+              {formCard}
+              {changesCard}
+              {activityCard}
+            </Section>
+          </>
+        ) : (
+          <>
+            {formCard}
+            {changesCard}
+            {recentCard}
+            {activityCard}
+          </>
+        )}
       </div>
     </div>
   );

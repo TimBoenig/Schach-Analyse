@@ -10,7 +10,7 @@ import { CountUp, Hero as PageHero, HeroStat, ScaleTrack, type TrackMarker } fro
 import { navigate } from "./router";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
-import { type ProfileSection, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type ProfileSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
@@ -433,96 +433,100 @@ export function ProfileView() {
           </div>
         ) : (
           <>
-            <SectionHead section={sec("faehigkeiten")} />
-            <Card title="Fähigkeiten-Netz" sub={rc ? "Richtwerte geschätzt" : undefined} span={6}>
-              <RadarChart axes={radar} typicalLabel={typicalLabel} />
-            </Card>
+            <Section section={sec("faehigkeiten")}>
+              <Card title="Fähigkeiten-Netz" sub={rc ? "Richtwerte geschätzt" : undefined} span={6}>
+                <RadarChart axes={radar} typicalLabel={typicalLabel} />
+              </Card>
 
-            <Card title="Fähigkeiten im Detail" sub="0–100 Punkte" span={6}>
-              <BarList rows={skillRows} referenceLabel={typicalLabel} />
-              <p class="faint small tile-foot">
-                Blasse Balken beruhen auf wenigen Daten. Solche Werte gleicht die App zum Richtwert hin aus, statt sie auf 0
-                oder 100 springen zu lassen; ± zeigt, wie genau ein Wert ist.
-              </p>
-            </Card>
-
-            <SectionHead section={sec("staerken")} />
-            <Card title="Stärken" span={6}>
-              <InsightList
-                items={profile.strengths}
-                tone="pos"
-                empty="Noch keine belastbaren Stärken. Genannt wird nur, was viele Partien klar zeigen."
-              />
-            </Card>
-
-            <Card title="Schwächen" span={6}>
-              <InsightList
-                items={profile.weaknesses}
-                tone="neg"
-                empty="Keine belastbaren Schwächen. Genannt wird nur, was viele Partien klar zeigen."
-              />
-            </Card>
-
-            <SectionHead section={sec("stil")} />
-            {profile.style ? (
-              <Card title={`Spielstil: ${profile.style.label}`} span={6}>
-                <p class="small" style={{ marginTop: 0 }}>
-                  {profile.style.description}
+              <Card title="Fähigkeiten im Detail" sub="0–100 Punkte" span={6}>
+                <BarList rows={skillRows} referenceLabel={typicalLabel} />
+                <p class="faint small tile-foot">
+                  Blasse Balken beruhen auf wenigen Daten. Solche Werte gleicht die App zum Richtwert hin aus, statt sie auf 0
+                  oder 100 springen zu lassen; ± zeigt, wie genau ein Wert ist.
                 </p>
-                <StyleAxes axes={profile.style.axes} />
-                {profile.style.facts.length > 0 && (
-                  <ul class="facts">
-                    {profile.style.facts.map((f) => (
-                      <li key={f}>{f}</li>
+              </Card>
+            </Section>
+
+            <Section section={sec("staerken")}>
+              <Card title="Stärken" span={6}>
+                <InsightList
+                  items={profile.strengths}
+                  tone="pos"
+                  empty="Noch keine belastbaren Stärken. Genannt wird nur, was viele Partien klar zeigen."
+                />
+              </Card>
+
+              <Card title="Schwächen" span={6}>
+                <InsightList
+                  items={profile.weaknesses}
+                  tone="neg"
+                  empty="Keine belastbaren Schwächen. Genannt wird nur, was viele Partien klar zeigen."
+                />
+              </Card>
+            </Section>
+
+            <Section section={sec("stil")}>
+              {profile.style ? (
+                <Card title={`Spielstil: ${profile.style.label}`} span={6}>
+                  <p class="small" style={{ marginTop: 0 }}>
+                    {profile.style.description}
+                  </p>
+                  <StyleAxes axes={profile.style.axes} />
+                  {profile.style.facts.length > 0 && (
+                    <ul class="facts">
+                      {profile.style.facts.map((f) => (
+                        <li key={f}>{f}</li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              ) : (
+                <Card title="Spielstil" span={6}>
+                  <p class="muted small">Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.</p>
+                </Card>
+              )}
+
+              <Card title="Wiederkehrende Muster" span={6}>
+                {profile.patterns.length ? (
+                  <div class="insights">
+                    {profile.patterns.map((p) => (
+                      <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
+                        <div class="t">{p.title}</div>
+                        <div class="small">{p.text}</div>
+                        <Examples refs={p.examples} />
+                      </div>
                     ))}
-                  </ul>
+                  </div>
+                ) : (
+                  <p class="muted small">
+                    Noch keine Muster gefunden. Ein Muster wird erst genannt, wenn genug Partien es zeigen und es kein Zufall sein kann.
+                  </p>
                 )}
               </Card>
-            ) : (
-              <Card title="Spielstil" span={6}>
-                <p class="muted small">Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.</p>
+            </Section>
+
+            <Section section={sec("verlauf")}>
+              <Card title="Wertungsverlauf" sub={shownSpeed} span={6}>
+                {speeds.length > 1 && (
+                  <div class="segmented small-seg">
+                    {speeds.map((sp) => (
+                      <button key={sp} class={sp === shownSpeed ? "active" : ""} onClick={() => setRatingSpeed(sp)}>
+                        {sp}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
               </Card>
-            )}
 
-            <Card title="Wiederkehrende Muster" span={6}>
-              {profile.patterns.length ? (
-                <div class="insights">
-                  {profile.patterns.map((p) => (
-                    <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
-                      <div class="t">{p.title}</div>
-                      <div class="small">{p.text}</div>
-                      <Examples refs={p.examples} />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p class="muted small">
-                  Noch keine Muster gefunden. Ein Muster wird erst genannt, wenn genug Partien es zeigen und es kein Zufall sein kann.
-                </p>
-              )}
-            </Card>
-
-            <SectionHead section={sec("verlauf")} />
-            <Card title="Wertungsverlauf" sub={shownSpeed} span={6}>
-              {speeds.length > 1 && (
-                <div class="segmented small-seg">
-                  {speeds.map((sp) => (
-                    <button key={sp} class={sp === shownSpeed ? "active" : ""} onClick={() => setRatingSpeed(sp)}>
-                      {sp}
-                    </button>
-                  ))}
-                </div>
-              )}
-              <AreaChart points={ratingPoints} format={(v) => v.toFixed(0)} />
-            </Card>
-
-            <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
-              <AreaChart
-                points={accPoints}
-                format={(v) => `${v.toFixed(0)}`}
-                reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
-              />
-            </Card>
+              <Card title="Genauigkeit im Verlauf" sub="pro Monat" span={6}>
+                <AreaChart
+                  points={accPoints}
+                  format={(v) => `${v.toFixed(0)}`}
+                  reference={rc ? { value: rc.typical_accuracy, label: typicalLabel as string } : null}
+                />
+              </Card>
+            </Section>
           </>
         )}
       </div>
