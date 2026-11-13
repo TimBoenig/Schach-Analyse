@@ -1,6 +1,6 @@
 // Static board picture for cards and lists. Many of them share one page, so a
 // plain SVG (squares from the board theme's colours, the same piece set) is
-// far cheaper than a chessground instance each.
+// far cheaper than a full interactive board each.
 
 const PIECES: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 

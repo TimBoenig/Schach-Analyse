@@ -143,6 +143,6 @@ Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`.
 ## Lizenzen
 
 - Caissa (Engine): MIT, Lizenztext wird mit ausgeliefert (`caissa/LICENSE.txt`).
-- chessground (Brett): GPL-3.0-or-later, siehe `THIRD_PARTY.md`.
-- Figuren (Cburnett): CC BY-SA 3.0 / GPLv2+.
+- Brett: eigener Code (`src/ui/Board.tsx`), keine GPL-Bestandteile mehr, siehe `THIRD_PARTY.md`.
+- Figuren (Cburnett): CC BY-SA 3.0, unverändert genutzt.
 - Eröffnungsdaten (lichess-org/chess-openings): CC0.

@@ -243,7 +243,7 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
           <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
           <p class="small muted" style={{ margin: 0 }}>
             {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert
-            auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
+            auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings
             (CC0).
           </p>
         </div>
