@@ -1,4 +1,4 @@
-// Performance presets decide how many Stockfish engines run side by side.
+// Performance presets decide how many engines run side by side.
 import { describe, expect, it } from "vitest";
 
 import { defaultPerfChoice, normalizePerfChoice, resolvePerf, type DeviceInfo } from "../../src/domain/performance";

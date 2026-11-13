@@ -1,6 +1,7 @@
-// Minimal UCI client over any line-based transport (a Web Worker running
-// Stockfish WASM in the app, a Node process in tests).
+// Minimal UCI client over any line-based transport (a Web Worker running the
+// Caissa WASM build in the app, a Node process in tests).
 import type { PvLine } from "../domain/types";
+import { ENGINE_NET } from "./info";
 
 export interface UciTransport {
   send(cmd: string): void;
@@ -10,7 +11,7 @@ export interface UciTransport {
   onError?(cb: (err: Error) => void): void;
 }
 
-/** Thrown when Stockfish crashed or stopped answering; the engine must be replaced. */
+/** Thrown when the engine crashed or stopped answering; it must be replaced. */
 export class EngineFailure extends Error {}
 
 // A search may overrun its limit a little (slow phones, throttled tabs); after
@@ -67,7 +68,7 @@ export class UciEngine {
     transport.onLine((line) => {
       for (const l of [...this.listeners]) l(line);
     });
-    transport.onError?.((err) => this.fail(new EngineFailure(`Stockfish ist abgestürzt: ${err.message}`)));
+    transport.onError?.((err) => this.fail(new EngineFailure(`Die Engine ist abgestürzt: ${err.message}`)));
     this.ready = (async () => {
       await this.command("uci", (l) => l === "uciok");
       await this.isReady();
@@ -116,7 +117,7 @@ export class UciEngine {
         // Overdue: ask for the result now; no answer after that means the worker hangs.
         stopTimer = setTimeout(() => {
           this.transport.send("stop");
-          deadTimer = setTimeout(() => this.fail(new EngineFailure("Stockfish antwortet nicht mehr.")), STOP_GRACE_MS);
+          deadTimer = setTimeout(() => this.fail(new EngineFailure("Die Engine antwortet nicht mehr.")), STOP_GRACE_MS);
         }, timeoutMs);
       }
       this.transport.send(cmd);
@@ -149,6 +150,9 @@ export class UciEngine {
         this.multiPv = multiPv;
       }
       const lines = new Map<number, PvLine>();
+      // The engine keeps its previous position when it rejects a FEN; the search
+      // that follows would then describe the wrong position.
+      let rejected = false;
       this.transport.send(`position fen ${fen}`);
       const go = ["go"];
       if (limits.depth) go.push("depth", String(limits.depth));
@@ -158,6 +162,7 @@ export class UciEngine {
       await this.command(
         go.join(" "),
         (line) => {
+          if (line.startsWith("info string Invalid")) rejected = true;
           const info = parseInfoLine(line);
           if (info) {
             const { multipv, ...rest } = info;
@@ -167,6 +172,7 @@ export class UciEngine {
         },
         budget,
       );
+      if (rejected) return [];
       return [...lines.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
     };
     const result = this.queue.then(run, run);
@@ -189,9 +195,89 @@ export class UciEngine {
   }
 }
 
-/** Stockfish 17.1 lite (single-threaded WASM) in a dedicated Web Worker. */
-export function createStockfishWorker(): UciTransport {
-  const worker = new Worker(`${import.meta.env.BASE_URL}stockfish/stockfish.js`);
+const ENGINE_DIR = `${import.meta.env.BASE_URL}caissa/`;
+
+/** Download state of the engine's neural network (about 76 MB, once per device). */
+export interface EngineLoad {
+  state: "idle" | "loading" | "ready" | "failed";
+  /** Bytes received so far and expected in total (0 when the server does not say). */
+  loaded: number;
+  total: number;
+}
+
+let engineLoad: EngineLoad = { state: "idle", loaded: 0, total: 0 };
+const loadListeners = new Set<(l: EngineLoad) => void>();
+
+function setEngineLoad(next: EngineLoad): void {
+  engineLoad = next;
+  for (const l of [...loadListeners]) l(next);
+}
+
+export const getEngineLoad = (): EngineLoad => engineLoad;
+
+/** Calls `cb` on every change of the download state; returns the unsubscribe function. */
+export function onEngineLoad(cb: (l: EngineLoad) => void): () => void {
+  loadListeners.add(cb);
+  return () => loadListeners.delete(cb);
+}
+
+let netBlob: Promise<Blob> | null = null;
+
+// Every engine worker needs the network. It is downloaded once here and handed
+// to the workers as a Blob (passed by reference), instead of each of up to 32
+// workers fetching its own 76 MB.
+function loadEngineNet(): Promise<Blob> {
+  netBlob ??= (async () => {
+    setEngineLoad({ state: "loading", loaded: 0, total: 0 });
+    const res = await fetch(`${ENGINE_DIR}caissa.pnn?v=${ENGINE_NET}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const total = Number(res.headers.get("content-length")) || 0;
+    const reader = res.body?.getReader();
+    if (!reader) {
+      const blob = await res.blob();
+      setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
+      return blob;
+    }
+    const chunks: BlobPart[] = [];
+    let loaded = 0;
+    let shown = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.length;
+      // One update per megabyte keeps the UI calm.
+      if (loaded - shown >= 1 << 20) {
+        shown = loaded;
+        setEngineLoad({ state: "loading", loaded, total });
+      }
+    }
+    const blob = new Blob(chunks);
+    setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
+    return blob;
+  })().catch((e: unknown) => {
+    // Next engine start tries again (e.g. the connection dropped mid-download).
+    netBlob = null;
+    setEngineLoad({ state: "failed", loaded: 0, total: 0 });
+    throw e;
+  });
+  return netBlob;
+}
+
+/** Caissa (single-threaded WASM build, see web/engine/caissa) in a dedicated Web Worker. */
+export function createEngineWorker(): UciTransport {
+  const worker = new Worker(`${ENGINE_DIR}caissa.js`);
+  let onError: (err: Error) => void = () => undefined;
+  let dead = false;
+  // The worker queues UCI commands until it has the network.
+  loadEngineNet().then(
+    (net) => {
+      if (!dead) worker.postMessage({ net });
+    },
+    (e: unknown) => {
+      if (!dead) onError(new Error(`Die Engine-Daten konnten nicht geladen werden (${e instanceof Error ? e.message : String(e)}).`));
+    },
+  );
   return {
     send: (cmd) => worker.postMessage(cmd),
     onLine: (cb) => {
@@ -200,8 +286,12 @@ export function createStockfishWorker(): UciTransport {
         for (const line of data.split("\n")) if (line) cb(line);
       };
     },
-    terminate: () => worker.terminate(),
+    terminate: () => {
+      dead = true;
+      worker.terminate();
+    },
     onError: (cb) => {
+      onError = cb;
       worker.onerror = (e: ErrorEvent) => {
         e.preventDefault?.();
         cb(new Error(e.message || "Worker-Fehler"));

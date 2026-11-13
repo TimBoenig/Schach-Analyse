@@ -39,6 +39,18 @@ describe("UciEngine failure handling", () => {
     expect(engine.broken).toBe(false);
   });
 
+  it("returns no lines when the engine rejected the position", async () => {
+    // The engine then still searches the position it had before; those lines belong to another board.
+    const f = fakeEngine((emit) => {
+      emit("info string Invalid FEN: opponent cannot be in check");
+      emit("info depth 10 multipv 1 score cp 25 pv e2e4 e7e5");
+      emit("bestmove e2e4");
+    });
+    const engine = new UciEngine(f.transport);
+    expect(await engine.analyse(FEN, { depth: 10 })).toEqual([]);
+    expect(engine.broken).toBe(false);
+  });
+
   it("asks a stalled search to stop and gives up on a hung engine", async () => {
     vi.useFakeTimers();
     const f = fakeEngine(() => undefined); // never answers "go"

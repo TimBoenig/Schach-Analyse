@@ -17,6 +17,7 @@ import { navigate } from "./router";
 import { Coach, CoachAvatar } from "./Coach";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { PeriodSelect } from "./useProfile";
+import { ENGINE_NAME } from "../engine/info";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
@@ -698,7 +699,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <div class="empty">
           <CoachAvatar size={96} />
           <h3>Zeig mir deine Partien!</h3>
-          <p>Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit Stockfish.</p>
+          <p>Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit {ENGINE_NAME}.</p>
           <button class="btn primary big" onClick={() => setShowImport(true)}>
             <IconPlus /> Partien importieren
           </button>

@@ -13,6 +13,7 @@ import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
 import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
+import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 
 function AppearanceCard() {
   const [theme, setThemeState] = useState<ThemeMode>("system");
@@ -241,7 +242,7 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
         <div class="card settings-card">
           <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
           <p class="small muted" style={{ margin: 0 }}>
-            {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit Stockfish 17.1 (WebAssembly, GPLv3) vollständig auf deinem Gerät und funktioniert
+            {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert
             auch offline. Figuren: Cburnett (CC BY-SA 3.0 / GPLv2+). Eröffnungsnamen: lichess-org/chess-openings
             (CC0).
           </p>

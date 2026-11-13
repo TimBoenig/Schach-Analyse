@@ -1,14 +1,14 @@
 // Engine opponent for play-out exercises. It runs in its own worker so a
 // batch analysis in the background never makes the opponent wait (and the
 // analysis queue keeps its own hash table).
-import { createStockfishWorker, UciEngine } from "../engine/uci";
+import { createEngineWorker, UciEngine } from "../engine/uci";
 
 let engine: UciEngine | null = null;
 
 export function getTrainingEngine(): UciEngine {
   if (engine?.broken) engine.quit();
   if (!engine || engine.broken) {
-    engine = new UciEngine(createStockfishWorker());
+    engine = new UciEngine(createEngineWorker());
     void engine.setOption("Hash", 16);
   }
   return engine;

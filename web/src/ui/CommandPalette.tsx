@@ -9,6 +9,7 @@ import { formatDate, resultText, shortOpening } from "./labels";
 import { navigate, type Route } from "./router";
 import { openSection, STAT_SECTIONS, STATS_PAGES } from "./StatsLayout";
 import { setTheme } from "./theme";
+import { ENGINE_NAME } from "../engine/info";
 
 interface Command {
   id: string;
@@ -220,7 +221,7 @@ const SHORTCUTS: [string, [string, string][]][] = [
       ["← →", "Zug zurück / vor"],
       ["Pos1 / Ende, ↑ ↓", "Anfang / Ende der Partie"],
       ["Leertaste", "Besten Engine-Zug spielen"],
-      ["L", "Stockfish live ein / aus"],
+      ["L", `${ENGINE_NAME} live ein / aus`],
       ["X", "Drohung zeigen"],
       ["A", "Pfeile ein / aus"],
       ["N / ⇧ N", "Nächster / vorheriger eigener Fehler"],

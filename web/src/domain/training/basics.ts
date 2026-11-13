@@ -1,5 +1,6 @@
 // Classic endgame positions every club player should be able to play out
-// against the engine. Goals were checked with Stockfish 17.1 (depth 22):
+// against the engine. The goals are checked against the engine in
+// tests/training/basics.test.ts:
 // every "mate"/"promote" position is a forced win, the Philidor position a draw.
 
 import type { PlayoutExercise } from "./exercises";

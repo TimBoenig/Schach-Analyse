@@ -1,4 +1,4 @@
-// How deep Stockfish looks at each position, chosen separately for the user's
+// How deep the engine looks at each position, chosen separately for the user's
 // own games and for friends' games, plus the Bullet exclusion rules.
 // Headless: the app layer stores the choices as settings.
 import { DEFAULT_SETTINGS, type AnalysisSettings } from "./analyzer";
@@ -25,17 +25,24 @@ export interface PresetInfo {
 
 // multiPv stays 2 everywhere: the classifier needs the second line for
 // Great/Brilliant, and more lines would multiply the work (thermal safety).
+//
+// A depth number only means something for one engine. These are Caissa's,
+// chosen so that every preset takes as long per game as it did with the
+// previous engine (Stockfish 17.1 lite at 10/12/16/20/24), measured on the same
+// positions with two lines: 7 ≈ 9 ms, 9 ≈ 30 ms, 12 ≈ 125 ms, 17 ≈ 1 s,
+// 21 ≈ 4.5 s per position on a desktop core. At equal time Caissa's scores were
+// closer to a deep reference search than the old ones.
 export const DEPTH_PRESETS: Record<DepthPreset, PresetInfo> = {
-  blitz: { name: "Blitzschnell", hint: "grober Überblick", settings: { depth: 10, movetimeMs: 200, multiPv: 2 } },
-  fast: { name: "Schnell", hint: "gut für viele Partien", settings: { depth: 12, movetimeMs: 400, multiPv: 2 } },
+  blitz: { name: "Blitzschnell", hint: "grober Überblick", settings: { depth: 7, movetimeMs: 200, multiPv: 2 } },
+  fast: { name: "Schnell", hint: "gut für viele Partien", settings: { depth: 9, movetimeMs: 400, multiPv: 2 } },
   normal: { name: "Normal", hint: "guter Kompromiss", settings: DEFAULT_SETTINGS },
-  deep: { name: "Gründlich", hint: "genauer, braucht Zeit", settings: { depth: 20, movetimeMs: 3000, multiPv: 2 } },
-  max: { name: "Maximal", hint: "für einzelne Partien", settings: { depth: 24, movetimeMs: 8000, multiPv: 2 } },
+  deep: { name: "Gründlich", hint: "genauer, braucht Zeit", settings: { depth: 17, movetimeMs: 3000, multiPv: 2 } },
+  max: { name: "Maximal", hint: "für einzelne Partien", settings: { depth: 21, movetimeMs: 8000, multiPv: 2 } },
 };
 
 export const PRESET_ORDER: DepthPreset[] = ["blitz", "fast", "normal", "deep", "max"];
 
-export const CUSTOM_LIMITS = { depthMin: 8, depthMax: 26, secondsMin: 0.2, secondsMax: 10 } as const;
+export const CUSTOM_LIMITS = { depthMin: 6, depthMax: 26, secondsMin: 0.2, secondsMax: 10 } as const;
 
 /** Setting keys; they sync across devices like the other settings. */
 export const DEPTH_KEYS: Record<DepthScope, string> = {

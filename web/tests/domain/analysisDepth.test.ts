@@ -31,8 +31,10 @@ describe("depth choices", () => {
   });
 
   it("offers the next deeper preset and nothing above the maximum", () => {
-    expect(deeperPreset({ depth: 12 })).toBe("normal");
-    expect(deeperPreset({ depth: 17 })).toBe("deep");
+    expect(deeperPreset({ depth: 9 })).toBe("normal");
+    expect(deeperPreset({ depth: 13 })).toBe("deep");
+    expect(deeperPreset({ depth: 21 })).toBeNull();
+    // Analyses stored before the engine change carry the old, larger depth numbers.
     expect(deeperPreset({ depth: 24 })).toBeNull();
   });
 

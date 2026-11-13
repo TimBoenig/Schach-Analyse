@@ -1,13 +1,12 @@
-// Stockfish WASM (lite, single-threaded) run as a Node child process for tests.
+// The app's Caissa WASM build run as a Node child process for tests.
 import { spawn } from "node:child_process";
-import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 import type { UciTransport } from "../src/engine/uci";
 
-// The npm package is CommonJS, so run its copy rather than public/ (an ESM scope).
-const SF_DIR = join(__dirname, "..", "node_modules", "stockfish", "src");
-export const ENGINE_JS = join(SF_DIR, readdirSync(SF_DIR).find((f) => /lite-single.*\.js$/.test(f)) ?? "missing.js");
+// The build output is CommonJS (see engine/caissa/package.json), so run it from
+// there rather than from public/ (an ESM scope).
+export const ENGINE_JS = join(__dirname, "..", "engine", "caissa", "dist", "caissa.js");
 
 export function nodeTransport(): UciTransport {
   const child = spawn(process.execPath, [ENGINE_JS], { stdio: ["pipe", "pipe", "ignore"] });

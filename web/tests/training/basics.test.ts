@@ -1,5 +1,5 @@
 // The endgame lessons promise a forced win (or a draw for Philidor); check the
-// claim against the same Stockfish build the app plays with.
+// claim against the same engine build the app plays with.
 import { existsSync } from "node:fs";
 
 import { Chess } from "chess.js";

@@ -1,7 +1,7 @@
 # EndGameKing – Web-App (PWA)
 
 Browser-Version von Chess Analyzer Pro für iPad, iPhone und Android. Läuft als
-installierbare Progressive Web App: Stockfish rechnet als WebAssembly lokal auf
+installierbare Progressive Web App: die Engine Caissa rechnet als WebAssembly lokal auf
 dem Gerät, Partien liegen in IndexedDB, und die App funktioniert nach dem
 ersten Laden auch offline. Optional gleicht ein Supabase-Konto Partien und
 Einstellungen zwischen Geräten ab.
@@ -61,7 +61,7 @@ Tagesplan:
   Aufgaben, Vorteil verwerten und Zähe Verteidigung (Stellungen aus eigenen
   Partien, `src/domain/training/exercises.ts`), Repertoire üben (die eigene
   Hauptvariante je Eröffnung, typische Fehler durch den Engine-Zug ersetzt)
-  sowie Endspiel-Grundlagen und Gewinnstellungen, die gegen Stockfish zu Ende
+  sowie Endspiel-Grundlagen und Gewinnstellungen, die gegen die Engine zu Ende
   gespielt werden (`basics.ts`, `playout.ts`).
 - **Tagesplan** (`plan.ts`): verteilt die gewählte Zeit auf die schwächsten
   Bereiche (Fähigkeiten, Muster, Wertungs-Richtwerte), wiederholt fällige
@@ -75,14 +75,22 @@ Tagesplan:
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # Vitest (Domänenlogik, Stockfish, Speicher, Sync)
+npm test           # Vitest (Domänenlogik, Engine, Speicher, Sync)
 npm run build      # Typecheck + Produktions-Build nach dist/
 ```
 
 `scripts/prepare-assets.mjs` läuft vor `dev` und `build` und kopiert die
-Stockfish-WASM-Datei, das Eröffnungsbuch (aus `../assets/openings`), die
-Figuren und die Zug-Symbole nach `public/`. Diese Dateien sind generiert und
+Engine (aus `engine/caissa/dist`), das Eröffnungsbuch (aus `../assets/openings`),
+die Figuren und die Zug-Symbole nach `public/`. Diese Kopien sind generiert und
 nicht eingecheckt.
+
+## Engine
+
+Die App rechnet mit [Caissa](https://github.com/Witek902/Caissa) 2.0 (MIT-Lizenz).
+Caissa gibt es nicht fertig für den Browser; der WebAssembly-Build dieser App
+liegt samt Bauanleitung in [`engine/caissa`](engine/caissa/README.md). Die
+fertigen Dateien (`dist/caissa.js`, `caissa.wasm`, Netz `caissa.pnn`) sind
+eingecheckt, zum Entwickeln und Deployen braucht man also kein Emscripten.
 
 ## Konto und Sync (optional)
 
@@ -127,12 +135,14 @@ Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`.
 ## Unterschiede zur Desktop-App
 
 - Kein Chess960 (chess.js unterstützt es nicht).
-- Stockfish 17.1 *lite* (single-threaded, kleineres Netz), damit es ohne
-  besondere Server-Header auch auf iOS läuft. Etwas schwächer als die
-  Desktop-Engine.
+- Caissa 2.0 als single-threaded WebAssembly-Build, damit es ohne besondere
+  Server-Header auch auf iOS läuft; mehr Rechenleistung kommt über mehrere
+  Engines nebeneinander. Das Netz der Engine (76 MB) wird bei der ersten
+  Analyse einmal geladen und danach offline aus dem Cache bedient.
 
 ## Lizenzen
 
-- Stockfish: GPLv3, wird als eigene Datei ausgeliefert (`stockfish/COPYING.txt`).
+- Caissa (Engine): MIT, Lizenztext wird mit ausgeliefert (`caissa/LICENSE.txt`).
+- chessground (Brett): GPL-3.0-or-later, siehe `THIRD_PARTY.md`.
 - Figuren (Cburnett): CC BY-SA 3.0 / GPLv2+.
 - Eröffnungsdaten (lichess-org/chess-openings): CC0.

@@ -1,11 +1,12 @@
 // Legal page (#/rechtliches): Impressum, privacy notice and licences. A site
 // that is published in Germany needs the first two; the third is required by
-// the GPL of chessground and Stockfish (source must be reachable).
+// the GPL of chessground (source must be reachable).
 import type { JSX } from "preact";
 
 import { BRAND, SUPPORT_EMAIL } from "../brand";
 import { PageHeader } from "./Layout";
 import { navigate, type LegalTab } from "./router";
+import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 
 /**
  * Operator details for the Impressum (§ 5 DDG, § 18 MStV). The address must be
@@ -180,7 +181,14 @@ function Lizenzen() {
       </p>
       <ul>
         <li>
-          <strong>Stockfish</strong> (Schach-Engine) – GPL-3.0, stockfishchess.org
+          <strong>{ENGINE_NAME}</strong> {ENGINE_VERSION} (Schach-Engine) von Michał Witanowski – MIT-Lizenz,{" "}
+          <a href="https://github.com/Witek902/Caissa" target="_blank" rel="noopener">
+            github.com/Witek902/Caissa
+          </a>
+          ,{" "}
+          <a href={`${import.meta.env.BASE_URL}caissa/LICENSE.txt`} target="_blank" rel="noopener">
+            Lizenztext
+          </a>
         </li>
         <li>
           <strong>chessground</strong> (Schachbrett) – GPL-3.0-or-later, von Lichess

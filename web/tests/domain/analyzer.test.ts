@@ -1,4 +1,4 @@
-// End-to-end analysis against the real Stockfish WASM build (run in Node),
+// End-to-end analysis against the real engine WASM build (run in Node),
 // plus the scoring invariants the desktop app guards.
 import { existsSync } from "node:fs";
 
@@ -83,7 +83,7 @@ describe("accuracy floor", () => {
   });
 });
 
-describe.skipIf(!existsSync(ENGINE_JS))("analyzeGame with Stockfish", () => {
+describe.skipIf(!existsSync(ENGINE_JS))("analyzeGame with the engine", () => {
   const engine = new UciEngine(nodeTransport());
   afterAll(() => engine.quit());
 

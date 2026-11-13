@@ -1,4 +1,4 @@
-// How much of the device the analysis may use: number of Stockfish engines
+// How much of the device the analysis may use: number of engines
 // running side by side and the hash table each one gets.
 //
 // The bundled engine is the single-threaded WASM build (it runs on iOS Safari
@@ -16,7 +16,7 @@ export interface PerfChoice {
 }
 
 export interface PerfSettings {
-  /** Stockfish engines searching at the same time (one CPU core each). */
+  /** Engines searching at the same time (one CPU core each). */
   engines: number;
   /** Hash table per engine in MB. */
   hashMb: number;

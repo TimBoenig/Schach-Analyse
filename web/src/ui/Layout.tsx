@@ -17,6 +17,7 @@ import {
   IconTraining,
 } from "./icons";
 import { navigate, type Route } from "./router";
+import { ENGINE_NAME } from "../engine/info";
 
 export type AreaId = "home" | "games" | "stats" | "training" | "players" | "settings";
 
@@ -61,7 +62,7 @@ export const AREAS: Area[] = [
         route: { view: "games" },
         match: (r) => r.view === "games" || r.view === "analysis",
       },
-      { label: "Analysebrett", about: "Stellungen frei ausprobieren, mit Stockfish.", route: { view: "board" }, match: is("board") },
+      { label: "Analysebrett", about: `Stellungen frei ausprobieren, mit ${ENGINE_NAME}.`, route: { view: "board" }, match: is("board") },
     ],
   },
   {
