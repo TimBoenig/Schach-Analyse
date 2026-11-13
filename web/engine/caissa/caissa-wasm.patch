@@ -1,0 +1,174 @@
+diff --git a/src/backend/Common.cpp b/src/backend/Common.cpp
+index 1002e29..4cfced9 100644
+--- a/src/backend/Common.cpp
++++ b/src/backend/Common.cpp
+@@ -16,8 +16,8 @@
+ 
+ void InitEngine()
+ {
+-    // force rounding denormals to zero
+-#ifdef USE_SSE
++    // force rounding denormals to zero (WebAssembly has no floating point control register)
++#if defined(USE_SSE) && !defined(__EMSCRIPTEN__)
+     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+ #endif // USE_SSE
+diff --git a/src/backend/Common.hpp b/src/backend/Common.hpp
+index 86b10d8..c8f298c 100644
+--- a/src/backend/Common.hpp
++++ b/src/backend/Common.hpp
+@@ -42,7 +42,9 @@
+ 
+ #define CACHELINE_SIZE 64u
+ 
++#ifndef __EMSCRIPTEN__
+ #define USE_SYZYGY_TABLEBASES
++#endif // __EMSCRIPTEN__
+ // #define USE_GAVIOTA_TABLEBASES
+ 
+ #if defined(_MSC_VER) && !defined(__clang__)
+diff --git a/src/backend/Search.cpp b/src/backend/Search.cpp
+index a5c2ab2..6e00d2b 100644
+--- a/src/backend/Search.cpp
++++ b/src/backend/Search.cpp
+@@ -301,6 +301,10 @@ void Search::CollectStats(SearchStats& outStats, uint32_t numThreads) const
+     }
+ }
+ 
++#ifdef __EMSCRIPTEN__
++extern "C" void CaissaWasmYield();
++#endif // __EMSCRIPTEN__
++
+ bool Search::CheckStopCondition(const ThreadData& thread, const SearchContext& ctx, bool isRootNode) const
+ {
+     SearchParam& param = ctx.searchParam;
+@@ -315,6 +319,15 @@ bool Search::CheckStopCondition(const ThreadData& thread, const SearchContext& c
+         // check inner nodes periodically
+         if (isRootNode || (thread.stats.nodes % 512 == 0)) [[unlikely]]
+         {
++#ifdef __EMSCRIPTEN__
++            // single-threaded WebAssembly build: hand control back to the event loop
++            // from time to time, so that a "stop" command can arrive during the search
++            CaissaWasmYield();
++            if (param.stopSearch.load(std::memory_order_relaxed))
++            {
++                return true;
++            }
++#endif // __EMSCRIPTEN__
+             if (param.limits.maxNodes < UINT64_MAX &&
+                 GetNodesSearched(param.numThreads) > param.limits.maxNodes) [[unlikely]]
+             {
+diff --git a/src/frontend/UCI.cpp b/src/frontend/UCI.cpp
+index b9db693..a668644 100644
+--- a/src/frontend/UCI.cpp
++++ b/src/frontend/UCI.cpp
+@@ -10,7 +10,9 @@
+ #define CAISSA_VERSION "unknown"
+ #endif // CAISSA_VERSION
+ 
+-#if defined(USE_AVX512) && defined(USE_BMI2) && defined(USE_VNNI) && defined(USE_VBMI2)
++#if defined(__EMSCRIPTEN__)
++#define ArchitectureStr "WASM"
++#elif defined(USE_AVX512) && defined(USE_BMI2) && defined(USE_VNNI) && defined(USE_VBMI2)
+ #define ArchitectureStr "AVX-512 ICL"
+ #elif defined(USE_AVX512)
+ #define ArchitectureStr "AVX-512"
+@@ -46,7 +48,7 @@ static const char* c_EngineName = "Caissa " CAISSA_VERSION " " ArchitectureStr C
+ static const char* c_Author = "Michal Witanowski";
+ 
+ // TODO set TT size based on current memory usage / total memory size
+-#ifndef _DEBUG
++#if !defined(_DEBUG) && !defined(__EMSCRIPTEN__)
+ static const uint32_t c_DefaultTTSizeInMB = 64;
+ #else
+ static const uint32_t c_DefaultTTSizeInMB = 16;
+@@ -62,12 +64,17 @@ using UniqueLock = std::unique_lock<std::mutex>;
+ 
+ UniversalChessInterface::UniversalChessInterface()
+ {
++#ifndef __EMSCRIPTEN__
+     mSearchThread = std::thread(&UniversalChessInterface::SearchThreadEntryFunc, this);
++#endif // __EMSCRIPTEN__
+ 
+     mGame.Reset(Position(Position::InitPositionFEN));
+     mTranspositionTable.Resize(c_DefaultTTSize);
+ 
++#ifndef __EMSCRIPTEN__
++    // the WebAssembly host provides the network before the interface is created
+     TryLoadingDefaultEvalFile();
++#endif // __EMSCRIPTEN__
+ 
+ #ifdef USE_GAVIOTA_TABLEBASES
+     // Note: this won't allocate memory immediately, but will be deferred once tablebase is loaded
+@@ -77,9 +84,22 @@ UniversalChessInterface::UniversalChessInterface()
+ 
+ UniversalChessInterface::~UniversalChessInterface()
+ {
++#ifndef __EMSCRIPTEN__
+     StopSearchThread();
++#endif // __EMSCRIPTEN__
+ }
+ 
++#ifdef __EMSCRIPTEN__
++void UniversalChessInterface::RequestStop()
++{
++    if (mSearchCtx)
++    {
++        mSearchCtx->searchParam.stopSearch = true;
++        mSearchCtx->searchParam.isPonder = false;
++    }
++}
++#endif // __EMSCRIPTEN__
++
+ void UniversalChessInterface::Loop(int argc, const char* argv[])
+ {
+     for (int i = 1; i < argc; ++i)
+@@ -643,6 +663,11 @@ bool UniversalChessInterface::Command_Go(const std::vector<std::string>& args)
+     mSearchCtx->searchParam.colorConsoleOutput = mOptions.colorConsoleOutput;
+     mSearchCtx->searchParam.showWDL = mOptions.showWDL;
+ 
++#ifdef __EMSCRIPTEN__
++    // no search thread: the search runs here and yields to the event loop (see Search::CheckStopCondition)
++    mSearchCtx->searchParam.isPonder = false;
++    DoSearch();
++#else
+     {
+         std::unique_lock<std::mutex> lock(mSearchThreadMutex);
+         mNewSearchContext = mSearchCtx.get();
+@@ -652,6 +677,7 @@ bool UniversalChessInterface::Command_Go(const std::vector<std::string>& args)
+     // make sure search thread actually started running before exiting from this function
+     while (!mSearchCtx->searchStarted.load(std::memory_order_acquire))
+         ;
++#endif // __EMSCRIPTEN__
+ 
+     if (waitForSearch)
+     {
+@@ -1575,6 +1601,7 @@ bool UniversalChessInterface::Command_Benchmark(uint32_t depth)
+     return true;
+ }
+ 
++#ifndef __EMSCRIPTEN__ // the WebAssembly build has its own entry points
+ int main(int argc, const char* argv[])
+ {
+     std::cout << c_EngineName << " by " << c_Author << std::endl;
+@@ -1586,3 +1613,4 @@ int main(int argc, const char* argv[])
+ 
+     return 0;
+ }
++#endif // __EMSCRIPTEN__
+diff --git a/src/frontend/UCI.hpp b/src/frontend/UCI.hpp
+index 7b55c2d..dabdce6 100644
+--- a/src/frontend/UCI.hpp
++++ b/src/frontend/UCI.hpp
+@@ -41,6 +41,11 @@ public:
+     void Loop(int argc, const char* argv[]);
+     bool ExecuteCommand(const std::string& commandString);
+ 
++#ifdef __EMSCRIPTEN__
++    // ask the running search to finish (called while the search has yielded to the event loop)
++    void RequestStop();
++#endif // __EMSCRIPTEN__
++
+ private:
+     bool Command_Position(const std::vector<std::string>& args);
+     bool Command_Go(const std::vector<std::string>& args);
