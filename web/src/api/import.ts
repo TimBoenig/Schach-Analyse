@@ -14,6 +14,22 @@ export interface ImportResult {
   already_known: number;
   /** Games the web app cannot analyze (Chess960, variants). */
   skipped: SkippedGame[];
+  /** Chess.com months that could not be loaded (network trouble); their games are missing. */
+  failed_months?: number;
+}
+
+/**
+ * The reason an account gave no games at all, in words a player understands.
+ * Without it a typo in the name, a renamed account and being offline all
+ * looked like "0 neue Partien".
+ */
+export function unreachableMessage(site: "chesscom" | "lichess", username: string, status: number | null): string {
+  const label = site === "chesscom" ? "chess.com" : "Lichess";
+  if (status === 404) return `Auf ${label} gibt es keinen Spieler „${username}“. Prüfe die Schreibweise des Namens.`;
+  if (status === 410) return `Das Konto „${username}“ auf ${label} ist geschlossen.`;
+  if (status === 429) return `${label} bremst gerade zu viele Anfragen. Warte eine Minute und versuche es dann noch einmal.`;
+  if (status !== null && status >= 500) return `${label} hat gerade Probleme (Fehler ${status}). Versuche es später noch einmal.`;
+  return `${label} ist gerade nicht erreichbar. Prüfe deine Internetverbindung und versuche es noch einmal.`;
 }
 
 export interface ImportBatch {
@@ -89,7 +105,9 @@ export async function importChesscomGames(
   const all: GameAnalysis[] = [];
   const seen = new Set<string>();
   try {
-    let archives = await getArchiveUrls(username, { signal });
+    let failure: number | null | undefined;
+    let archives = await getArchiveUrls(username, { signal, onFail: (s) => (failure = s) });
+    if (failure !== undefined) throw new Error(unreachableMessage("chesscom", username.trim(), failure));
     if (months !== null && months > 0) archives = archives.slice(-months);
     archives = [...archives].reverse();
     for (let i = 0; i < archives.length; i++) {
@@ -97,7 +115,10 @@ export async function importChesscomGames(
       const url = archives[i];
       const month = url.replace(/\/+$/, "").split("/").slice(-2).join("/");
       onProgress?.(i + 1, archives.length, `Lade Partien ${month} …`);
-      const games = await getArchiveGames(url, { signal });
+      let monthFailed = false;
+      const games = await getArchiveGames(url, { signal, onFail: () => (monthFailed = true) });
+      // One month failing keeps the others; the result says what is missing.
+      if (monthFailed) total.failed_months = (total.failed_months ?? 0) + 1;
       // Bughouse, crazyhouse etc. cannot be analyzed by the engine.
       const playable = games
         .filter((g) => ["chess", "chess960"].includes(g.rules ?? "chess"))
@@ -123,10 +144,13 @@ export async function importLichessGames(
   const { onProgress, onBatch, signal, token } = options;
   try {
     onProgress?.(1, 1, `Lade Partien von ${username} …`);
+    let failure: number | null | undefined;
     const games = await new LichessAPI({ token }).getUserGames(username, maxGames, {
       signal,
       onCount: (n) => onProgress?.(n, maxGames ?? 0, `Lade Partien von ${username} … ${n}`),
+      onFail: (s) => (failure = s),
     });
+    if (failure !== undefined) throw new Error(unreachableMessage("lichess", username.trim(), failure));
     const batch = await importPgnText(games.map((g) => g.pgn).filter(Boolean).join("\n\n"), exists, "lichess");
     if (batch.games.length) await onBatch?.(batch.games);
     return batch;

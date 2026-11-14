@@ -212,9 +212,11 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       {error && <p class="error small">{error}</p>}
       {result && (
         <div class="notice" style={{ marginBottom: "12px" }}>
-          {result.imported} neue Partien importiert
-          {result.already_known ? `, ${result.already_known} waren schon vorhanden` : ""}.
-          {result.skipped.length > 0 && ` ${result.skipped.length} Partien (Chess960 oder Varianten) werden in der App noch nicht unterstützt.`}
+          {result.imported === 1 ? "1 neue Partie" : `${result.imported} neue Partien`} importiert
+          {result.already_known ? `, ${result.already_known} ${result.already_known === 1 ? "war" : "waren"} schon vorhanden` : ""}.
+          {result.skipped.length > 0 &&
+            ` ${result.skipped.length === 1 ? "1 Partie (Chess960 oder Variante) wird" : `${result.skipped.length} Partien (Chess960 oder Varianten) werden`} in der App noch nicht unterstützt.`}
+          {failedMonthsNote(result)}
         </div>
       )}
       <div class="row" style={{ justifyContent: "flex-end" }}>
@@ -245,6 +247,11 @@ const QUICK_MONTHS = 2;
  * analysis right away, newest first. Returns null when no chess.com name is
  * known yet, so the caller can open the full import dialog instead.
  */
+function failedMonthsNote(r: ImportResult): string {
+  const n = r.failed_months ?? 0;
+  return n ? ` ${n === 1 ? "Ein Monat konnte" : `${n} Monate konnten`} nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.` : "";
+}
+
 async function quickImportChesscom(onProgress: (label: string) => void, skipBullet: boolean): Promise<{ name: string; result: ImportResult; queued: number } | null> {
   const last = await getSetting<Record<string, string>>("import.lastUser", {});
   const name = (last.chesscom ?? "").trim();
@@ -550,8 +557,9 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         busy: false,
         text: result.imported
           ? `${result.imported} neue ${result.imported === 1 ? "Partie" : "Partien"} von ${name} geholt${queued ? `, ${queued} ${queued === 1 ? "wird" : "werden"} jetzt analysiert` : ""}.`
-          : `Keine neuen Partien von ${name} auf chess.com. Alles ist schon da.`,
+          : `Keine neuen Partien von ${name} auf chess.com.${result.failed_months ? "" : " Alles ist schon da."}`,
       });
+      if (result.failed_months) setQuick((q) => q && { ...q, text: q.text + failedMonthsNote(result) });
     } catch (e) {
       setQuick({ busy: false, error: true, text: e instanceof Error ? e.message : String(e) });
     }

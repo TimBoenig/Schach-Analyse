@@ -62,6 +62,7 @@ function archivesOf(data: unknown): string[] {
 
 export interface CallOptions {
   signal?: AbortSignal;
+  onFail?: (status: number | null) => void;
 }
 
 /** Last `limit` games of a user, newest first. */
@@ -90,13 +91,14 @@ export async function getArchiveUrls(username: string, opts: CallOptions = {}): 
   if (!clean) return [];
   const resp = await makeRequest(`${CHESSCOM_BASE_URL}/player/${encodeURIComponent(clean)}/games/archives`, {
     signal: opts.signal,
+    onFail: opts.onFail,
   });
   return archivesOf(await safeJson(resp));
 }
 
 /** All games of one monthly archive that carry a PGN. */
 export async function getArchiveGames(archiveUrl: string, opts: CallOptions = {}): Promise<ChesscomGame[]> {
-  const resp = await makeRequest(archiveUrl, { signal: opts.signal });
+  const resp = await makeRequest(archiveUrl, { signal: opts.signal, onFail: opts.onFail });
   return gamesOf(await safeJson(resp)).filter((g) => typeof g.pgn === "string" && g.pgn);
 }
 

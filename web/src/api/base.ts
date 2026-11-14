@@ -48,6 +48,11 @@ export interface RequestOptions {
   timeoutMs?: number;
   /** Cancels the request (e.g. the user stops a bulk import). */
   signal?: AbortSignal;
+  /**
+   * Told why a request gave no data: the HTTP status, or null when the server
+   * was not reachable (offline, timeout). Not called when the caller aborted.
+   */
+  onFail?: (status: number | null) => void;
 }
 
 export function withParams(url: string, params?: Record<string, string | number>): string {
@@ -62,7 +67,7 @@ export function withParams(url: string, params?: Record<string, string | number>
  * own signal aborted, so cancellation is never mistaken for "no data".
  */
 export async function makeRequest(url: string, options: RequestOptions = {}): Promise<Response | null> {
-  const { headers, params, timeoutMs = DEFAULT_TIMEOUT_MS, signal } = options;
+  const { headers, params, timeoutMs = DEFAULT_TIMEOUT_MS, signal, onFail } = options;
   const fullUrl = withParams(url, params);
   const controller = new AbortController();
   const onAbort = () => controller.abort(signal?.reason);
@@ -74,6 +79,7 @@ export async function makeRequest(url: string, options: RequestOptions = {}): Pr
     const response = await fetch(fullUrl, { headers, signal: controller.signal });
     if (!response.ok) {
       console.error(`Request failed for ${fullUrl}: HTTP ${response.status}`);
+      onFail?.(response.status);
       return null;
     }
     return response;
@@ -81,6 +87,7 @@ export async function makeRequest(url: string, options: RequestOptions = {}): Pr
     if (signal?.aborted) throw signal.reason ?? err;
     if (controller.signal.aborted) console.error(`Request timeout: ${fullUrl}`);
     else console.error(`Request failed for ${fullUrl}: ${String(err)}`);
+    onFail?.(null);
     return null;
   } finally {
     clearTimeout(timer);
