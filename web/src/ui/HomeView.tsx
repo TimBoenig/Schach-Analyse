@@ -96,7 +96,7 @@ function FormCard({ profile, kpis, label }: { profile: PlayerProfile; kpis: KpiC
       <div class="tile-head">
         <h3>Deine Form</h3>
         <span class="tile-sub">
-          letzte {last.length} Partien{streak ? ` · ${streak}` : ""}
+          {last.length === 1 ? "letzte Partie" : `letzte ${last.length} Partien`}{streak ? ` · ${streak}` : ""}
         </span>
         <span class="spacer" />
         <span class="tile-sub">Kennzahlen: {label}</span>
@@ -138,20 +138,32 @@ function FormCard({ profile, kpis, label }: { profile: PlayerProfile; kpis: KpiC
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
 
-export function FormStats({ weekly }: { weekly: { week: string; avg_accuracy: number | null }[] }) {
+/**
+ * Numbers under a weekly form curve. With `period` (the page's accuracy
+ * comparison) the first figure repeats exactly what the page headline says,
+ * so the card never contradicts it; without, it compares four-week windows.
+ */
+export function FormStats({ weekly, period }: { weekly: { week: string; avg_accuracy: number | null }[]; period?: KpiChange | null }) {
   const f = formSummary(weekly);
   if (f.weeks < 2) return null;
-  const diff = f.recent !== null && f.previous !== null ? f.recent - f.previous : null;
+  const shown = period && period.value !== null ? { label: "Im Zeitraum", value: period.value, diff: period.delta } : null;
+  const recent = shown ?? { label: "Letzte 4 Wochen", value: f.recent, diff: f.recent !== null && f.previous !== null ? f.recent - f.previous : null };
+  const diff = recent.diff;
   const trend = f.trend_per_month;
   return (
     <div class="mini-stats tile-foot">
       <div>
-        <span class="kpi-label">Letzte 4 Wochen</span>
-        <strong class="tnum">{f.recent !== null ? `${de1(f.recent)} %` : "–"}</strong>
-        {diff !== null && <span class={`small ${diff >= 2 ? "ok" : diff <= -2 ? "bad" : "faint"}`}>{diff >= 0 ? "+" : "−"}{de1(Math.abs(diff))} zu davor</span>}
+        <span class="kpi-label">{recent.label}</span>
+        <strong class="tnum">{recent.value !== null ? `${de1(recent.value)} %` : "–"}</strong>
+        {diff !== null && (
+          <span class={`small ${diff >= 2 ? "ok" : diff <= -2 ? "bad" : "faint"}`}>
+            {diff >= 0 ? "+" : "−"}
+            {de1(Math.abs(diff))} {shown ? "zum Zeitraum davor" : "zu den 4 Wochen davor"}
+          </span>
+        )}
       </div>
       <div>
-        <span class="kpi-label">Richtung</span>
+        <span class="kpi-label">{shown ? "Verlauf im Zeitraum" : "Richtung"}</span>
         <strong class={trend === null ? "" : trend >= 1 ? "ok" : trend <= -1 ? "bad" : ""}>
           {trend === null ? "–" : trend >= 1 ? "steigend" : trend <= -1 ? "fallend" : "stabil"}
         </strong>
@@ -530,7 +542,7 @@ export function HomeView() {
   const heroMood: Mood = accTrend === "up" ? "wow" : accTrend === "down" ? "think" : "happy";
   const heroTitle =
     notes[0] ??
-    (today?.streak ? `Stark, ${today.streak} Tage in Folge trainiert! Weiter so.` : `Schön, dass du da bist${names[0] ? `, ${names[0]}` : ""}!`);
+    (today?.streak ? (today.streak === 1 ? "Deine Trainingsserie läuft, bleib dran!" : `Stark, ${today.streak} Tage in Folge trainiert! Weiter so.`) : `Schön, dass du da bist${names[0] ? `, ${names[0]}` : ""}!`);
   const lastGame = profile.recent_games[0];
   const rc = profile.rating;
   const ratingKpi = cmp.kpis.find((k) => k.key === "rating");
@@ -552,7 +564,7 @@ export function HomeView() {
         height={220}
         reference={profile.rating ? { value: profile.rating.typical_accuracy, label: `Typisch für ${profile.rating.rating}` } : null}
       />
-      <FormStats weekly={weekly} />
+      <FormStats weekly={weekly} period={acc} />
     </section>
   );
   const changesCard = (

@@ -1136,6 +1136,15 @@ dialog::backdrop {
   color: #eceef2;
 }
 
+.evalbar .eval-short {
+  display: none;
+}
+@media (max-width: 760px) {
+  .evalbar .eval-short {
+    display: inline;
+  }
+}
+
 .evalbar.flipped > .white {
   top: 0;
   bottom: auto;
@@ -1810,6 +1819,9 @@ button.engine-line:hover {
   }
   .evalbar > span {
     font-size: 8px;
+  }
+  .evalbar .eval-long {
+    display: none;
   }
   .analysis {
     gap: 12px;
@@ -5854,9 +5866,21 @@ button.line-move:hover {
   font-size: 19px;
   min-width: 0;
   flex: 0 1 auto;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+}
+.game-title-names {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+/* The result stays visible when long names are cut on phones. */
+.game-title-result {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.85em;
 }
 
 .coach-text {

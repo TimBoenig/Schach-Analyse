@@ -225,7 +225,7 @@ export function DuelStory({ name, duel }: { name: string; duel: DuelInsights }) 
     <section class="card tile span-7 rv-story">
       <div class="tile-head">
         <h3>Euer Duell-Verlauf</h3>
-        <span class="tile-sub">{now === 0 ? "ausgeglichen" : now > 0 ? `du ${now} Siege vorn` : `${name} ${-now} Siege vorn`}</span>
+        <span class="tile-sub">{now === 0 ? "ausgeglichen" : now > 0 ? `du ${plural(now, "Sieg", "Siege")} vorn` : `${name} ${plural(-now, "Sieg", "Siege")} vorn`}</span>
       </div>
       <div ref={ref} class="rv-story-plot">
         <svg width={w} height={h} role="img" aria-label="Siege minus Niederlagen nach jeder Partie">

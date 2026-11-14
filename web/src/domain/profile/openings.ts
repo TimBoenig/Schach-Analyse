@@ -73,6 +73,8 @@ export interface OpeningInsights {
   tree: OpeningTree;
   /** Headline findings in German, strongest first. */
   facts: string[];
+  /** The same findings for one colour's tab: that colour's plus the colour-neutral ones. */
+  color_facts: Record<"white" | "black", string[]>;
 }
 
 // Openings with fewer games than this are listed but not used for findings.
@@ -112,6 +114,42 @@ const OPENINGS_DE: Record<string, string> = {
   "Vienna Game": "Wiener Partie",
   "King's Gambit": "Königsgambit",
   "London System": "London-System",
+  "Philidor Defense": "Philidor-Verteidigung",
+  "Alekhine Defense": "Aljechin-Verteidigung",
+  "Modern Defense": "Moderne Verteidigung",
+  "Bishop's Opening": "Läuferspiel",
+  "Center Game": "Mittelgambit",
+  "Danish Gambit": "Nordisches Gambit",
+  "Evans Gambit": "Evans-Gambit",
+  "Elephant Gambit": "Elefantengambit",
+  "Ponziani Opening": "Ponziani-Eröffnung",
+  "Grünfeld Defense": "Grünfeld-Indische Verteidigung",
+  "Queen's Indian Defense": "Damenindische Verteidigung",
+  "Catalan Opening": "Katalanische Eröffnung",
+  "Benoni Defense": "Benoni-Verteidigung",
+  "Benko Gambit": "Wolga-Gambit",
+  "Budapest Defense": "Budapester Gambit",
+  "Bird Opening": "Bird-Eröffnung",
+  "Zukertort Opening": "Zukertort-Eröffnung",
+  "Réti Opening": "Réti-Eröffnung",
+  "Trompowsky Attack": "Trompowsky-Angriff",
+  "Owen Defense": "Owen-Verteidigung",
+  "Englund Gambit": "Englund-Gambit",
+  "Indian Defense": "Indische Verteidigung",
+  "Semi-Slav Defense": "Halbslawische Verteidigung",
+  "Bogo-Indian Defense": "Bogoljubow-Indische Verteidigung",
+  "Old Indian Defense": "Altindische Verteidigung",
+  "Polish Opening": "Polnische Eröffnung",
+  "Van't Kruijs Opening": "Van-’t-Kruijs-Eröffnung",
+  "King's Gambit Accepted": "Angenommenes Königsgambit",
+  "King's Gambit Declined": "Abgelehntes Königsgambit",
+  "Nimzowitsch Defense": "Nimzowitsch-Verteidigung",
+  "King's Indian Attack": "Königsindischer Angriff",
+  "Tarrasch Defense": "Tarrasch-Verteidigung",
+  "Benko Gambit Accepted": "Angenommenes Wolga-Gambit",
+  "Vienna Gambit": "Wiener Gambit",
+  "Latvian Gambit": "Lettisches Gambit",
+  "Hungarian Opening": "Ungarische Eröffnung",
 };
 
 /** German name where a common one exists; otherwise the (English) book name. */
@@ -256,13 +294,28 @@ export function buildOpeningInsights(feats: GameFeatures[]): OpeningInsights {
     wp_after_opening: allWp.length ? avg(allWp) * 100 : null,
     tree: buildOpeningTree(feats),
     facts: [],
+    color_facts: { white: [], black: [] },
   };
-  out.facts = openingFacts(out, allWp.length);
+  const found = openingFacts(out, allWp.length);
+  out.facts = pickFacts(found, null);
+  out.color_facts = { white: pickFacts(found, "white"), black: pickFacts(found, "black") };
   return out;
 }
 
-function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
-  const facts: [number, string][] = [];
+type Fact = [weight: number, text: string, color: "white" | "black" | null];
+
+/** Strongest findings first; `color` keeps that colour's and the neutral ones. */
+function pickFacts(facts: Fact[], color: "white" | "black" | null): string[] {
+  return facts
+    .filter((f) => color === null || f[2] === null || f[2] === color)
+    .sort((a, b) => b[0] - a[0])
+    .map(([, t]) => t)
+    .filter((t, i, all) => all.indexOf(t) === i)
+    .slice(0, 6);
+}
+
+function openingFacts(o: OpeningInsights, analyzedGames: number): Fact[] {
+  const facts: Fact[] = [];
   for (const color of ["white", "black"] as const) {
     const solid = o[color].filter((l) => l.games >= MIN_FACT_GAMES && l.score_pct !== null);
     if (solid.length < 2) continue;
@@ -274,10 +327,12 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
       facts.push([
         best.score_pct! - 50,
         `Stärkste Eröffnung mit ${COLOR_DE[color]}: ${openingLabel(best.name)} mit ${de(best.score_pct!)} % der Punkte aus ${best.games} Partien.`,
+        color,
       ]);
       facts.push([
         50 - worst.score_pct!,
         `Schwächste Eröffnung mit ${COLOR_DE[color]}: ${openingLabel(worst.name)} mit nur ${de(worst.score_pct!)} % der Punkte aus ${worst.games} Partien.`,
+        color,
       ]);
     }
   }
@@ -292,6 +347,7 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
       facts.push([
         gap,
         `Mit Schwarz holst du gegen 1. ${lo.san} nur ${de(lo.score_pct!)} % der Punkte, gegen 1. ${hi.san} dagegen ${de(hi.score_pct!)} %.`,
+        "black",
       ]);
     }
   }
@@ -299,9 +355,9 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
   if (o.wp_after_opening !== null && analyzedGames >= MIN_ANALYZED) {
     const wp = o.wp_after_opening;
     if (wp <= 45) {
-      facts.push([50 - wp, `Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance ${de(wp)} %).`]);
+      facts.push([50 - wp, `Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance ${de(wp)} %).`, null]);
     } else if (wp >= 55) {
-      facts.push([wp - 50, `Du kommst meist gut aus der Eröffnung: Danach liegt deine Gewinnchance im Schnitt bei ${de(wp)} %.`]);
+      facts.push([wp - 50, `Du kommst meist gut aus der Eröffnung: Danach liegt deine Gewinnchance im Schnitt bei ${de(wp)} %.`, null]);
     }
   }
 
@@ -311,25 +367,23 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): string[] {
       facts.push([
         25 - l.first_error_move,
         `${openingLabel(l.name)} (${COLOR_DE[l.color]}): Dein erster schwerer Fehler kommt im Schnitt schon in Zug ${de(l.first_error_move)}.`,
+        l.color,
       ]);
     }
     if (l.wp_after_opening !== null && l.wp_after_opening <= 40 && l.analyzed >= MIN_FACT_GAMES) {
       facts.push([
         50 - l.wp_after_opening,
         `${openingLabel(l.name)} (${COLOR_DE[l.color]}): Nach der Eröffnung liegt deine Gewinnchance nur bei ${de(l.wp_after_opening)} %. Hier lohnt sich Theorie.`,
+        l.color,
       ]);
     }
   }
 
   // A headline needs as many judged games as any other opening finding.
   const leak = o.tree.leaks.find((l) => l.judged >= MIN_FACT_GAMES);
-  if (leak) facts.push([(leak.errors / leak.judged) * 40, leakFact(leak)]);
+  if (leak) facts.push([(leak.errors / leak.judged) * 40, leakFact(leak), leak.color]);
 
-  return facts
-    .sort((a, b) => b[0] - a[0])
-    .map(([, t]) => t)
-    .filter((t, i, all) => all.indexOf(t) === i)
-    .slice(0, 6);
+  return facts;
 }
 
 /** "1. e4 e5 2. Nf3 Nc6" style move list; a Black move alone gets "1… e5". */

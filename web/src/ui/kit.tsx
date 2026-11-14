@@ -139,6 +139,8 @@ const LANE = 68;
 const MARKER_ROOM = 76;
 // Below this width a track that offers rows switches to them.
 const ROWS_BELOW = 560;
+/** Pixels between a tick and a marker on the line below which the tick number is covered. */
+const TICK_CLEAR = 36;
 
 /** Markers on one line from `min` to `max`, stacked into lanes where they would overlap. */
 export function ScaleTrack({
@@ -211,11 +213,16 @@ export function ScaleTrack({
   return (
     <div class="lg-track" ref={ref} style={{ height: `${Math.max(1, lanes.length) * LANE + 34}px` }}>
       <div class="lg-track-line" aria-hidden="true">
-        {ticks.map((t, i) => (
-          <span key={t} class={`lg-track-tick${i % 2 ? " minor" : ""}`} style={{ left: `${pct(t)}%` }}>
-            <span class="faint">{t}</span>
-          </span>
-        ))}
+        {ticks.map((t, i) => {
+          // A marker on the line hides the number behind it; leave the number
+          // out instead of letting it peek out half covered ("120" for 1200).
+          const covered = placed.some((p) => p.lane === 0 && (Math.abs(p.x - pct(t)) * w) / 100 < TICK_CLEAR);
+          return (
+            <span key={t} class={`lg-track-tick${i % 2 ? " minor" : ""}`} style={{ left: `${pct(t)}%` }}>
+              {!covered && <span class="faint">{t}</span>}
+            </span>
+          );
+        })}
       </div>
       {placed.map((p) => {
         const dot = (

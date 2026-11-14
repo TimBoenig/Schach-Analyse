@@ -59,6 +59,18 @@ describe("battle", () => {
     expect(buildBattle(r, "Tim", "Tim")).toBeNull();
   });
 
+  it("says so when the round count and the weighted strength point to different players", () => {
+    // Tim is slightly ahead in the heavy rounds (all still open), Lena clearly wins two light ones.
+    const split = ranking([
+      row("Tim", { expectation: [5, 4], accuracy: [80, 1], blunders: [1.0, 0.2], opening: [40, 3], endgame: [40, 3] }, null, true),
+      row("Lena", { expectation: [3, 4], accuracy: [79.5, 1], blunders: [1.07, 0.2], opening: [70, 3], endgame: [70, 3] }),
+    ]);
+    const b = buildBattle(split, "Tim", "Lena")!;
+    expect([b.wins_a, b.wins_b, b.leader]).toEqual([0, 2, "b"]);
+    expect(b.power_a!).toBeGreaterThan(51);
+    expect(b.verdict).toMatch(/^Lena gewinnt .* liegt aber Tim knapp vorn \(5\d:4\d\)\.$/);
+  });
+
   it("hands out crowns and names the rival", () => {
     const rows = [
       row("Lena", { accuracy: [80, 1, 90], tactics: [60, 5, 85], endgame: [50, 5, 40] }, 70),

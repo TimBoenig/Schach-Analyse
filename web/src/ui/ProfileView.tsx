@@ -12,6 +12,7 @@ import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
 import { type ProfileSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
+import { monthName } from "./MoveTally";
 
 /** Short axis names for the radar; the full names stay in the detail list. */
 const RADAR_LABELS: Record<string, string> = {
@@ -44,7 +45,22 @@ function signed(v: number, digits = 1): string {
 export function skillNote(s: SkillScore): string | undefined {
   if (!s.sample || s.margin === null || s.margin === undefined) return undefined;
   const raw = s.raw_score !== undefined && Math.abs(s.raw_score - s.score) >= 3 ? ` · gemessen ${Math.round(s.raw_score)}` : "";
-  return `±${s.margin}${raw}`;
+  return `±${s.margin}${raw}${typicalNote(s)}`;
+}
+
+/**
+ * The grade ("Ausbaufähig") is absolute; whether that is normal for the
+ * player's rating is a different question, and the rating track above answers
+ * it. Saying it next to the grade keeps "Ausbaufähig" and "spielt wie 1470"
+ * from reading as a contradiction.
+ */
+function typicalNote(s: SkillScore): string {
+  if (s.typical === null || s.typical === undefined) return "";
+  const t = Math.round(s.typical);
+  const d = s.score - s.typical;
+  // About 3 points are 50 to 60 rating points, the step the rating track calls "on your level".
+  if (Math.abs(d) < 3) return ` · etwa typisch für deine Wertung (${t})`;
+  return ` · ${d > 0 ? "besser" : "schwächer"} als typisch für deine Wertung (${t})`;
 }
 
 export function Examples({ refs }: { refs: GameRef[] }) {
@@ -403,9 +419,9 @@ export function ProfileView() {
   const accPoints = monthly
     .filter((m) => m.avg_accuracy !== null)
     .map((m) => ({
-      label: `${m.month.slice(5, 7)}/${m.month.slice(2, 4)}`,
+      label: monthName(m.month),
       value: m.avg_accuracy as number,
-      detail: `${m.month.slice(5, 7)}/${m.month.slice(0, 4)} · ${m.games} ${m.games === 1 ? "Partie" : "Partien"}`,
+      detail: `${monthName(m.month, true)} · ${m.games} ${m.games === 1 ? "Partie" : "Partien"}`,
       t: monthStart(m.month),
     }));
   const ratingSeries = (profile.trends.ratings ?? {}) as Record<string, [number, number][]>;

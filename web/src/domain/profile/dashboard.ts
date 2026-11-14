@@ -243,7 +243,7 @@ export function dailyActivity(
 }
 
 export interface FormSummary {
-  /** Average accuracy of the last `window` weeks with games, and of the weeks before. */
+  /** Average accuracy of the last four weeks with games, and of the (up to) four weeks before; null below two earlier weeks. */
   recent: number | null;
   previous: number | null;
   best: { week: string; accuracy: number } | null;
@@ -254,13 +254,18 @@ export interface FormSummary {
 
 // Weekly accuracy is noisy; four weeks smooth out a single bad evening.
 const FORM_WINDOW = 4;
+const MIN_PREVIOUS_WEEKS = 2;
 
 /** Summary of the weekly form curve: recent vs. earlier level, best week and direction. */
 export function formSummary(weekly: { week: string; avg_accuracy: number | null }[]): FormSummary {
   const pts = weekly.filter((w) => w.avg_accuracy !== null) as { week: string; avg_accuracy: number }[];
   const mean = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
   const recent = mean(pts.slice(-FORM_WINDOW).map((p) => p.avg_accuracy));
-  const previous = pts.length > FORM_WINDOW ? mean(pts.slice(0, -FORM_WINDOW).map((p) => p.avg_accuracy)) : null;
+  // The comparison window has the same length as the recent one and needs at
+  // least two weeks: one (often partial) week at the start of a short period
+  // would otherwise decide "better" or "worse" on its own.
+  const earlier = pts.slice(0, -FORM_WINDOW).slice(-FORM_WINDOW);
+  const previous = earlier.length >= MIN_PREVIOUS_WEEKS ? mean(earlier.map((p) => p.avg_accuracy)) : null;
   const best = pts.length ? pts.reduce((a, b) => (b.avg_accuracy > a.avg_accuracy ? b : a)) : null;
   let trend: number | null = null;
   if (pts.length >= 4) {

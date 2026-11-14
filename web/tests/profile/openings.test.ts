@@ -70,6 +70,9 @@ describe("opening insights", () => {
       "Nach 1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 spielst du oft 4. c3, das war in 10 von 10 Partien ein Fehler. Besser ist 4. Nc3.",
     );
     expect(o.facts).toContain("Italienische Partie (Weiß): Dein erster schwerer Fehler kommt im Schnitt schon in Zug 4.");
+    // Each colour's tab keeps its own and the neutral findings, never the other colour's.
+    expect(o.color_facts.white).toEqual(o.facts);
+    expect(o.color_facts.black).toEqual(["Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance 20 %)."]);
   });
 
   it("builds the own opening tree with results, typical line and the moves that keep going wrong", () => {

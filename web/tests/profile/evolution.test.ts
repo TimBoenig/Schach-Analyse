@@ -62,4 +62,12 @@ describe("form summary", () => {
     expect(f.recent).toBe(74); // 72, 73, 75, 76
     expect(f.previous).toBe(70.5);
   });
+
+  it("does not compare against a single earlier week", () => {
+    // A 30-day period touches five calendar weeks; the first one alone is no baseline.
+    const weekly = ["2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02", "2026-11-09"].map((week, i) => ({ week, avg_accuracy: i ? 82 : 60 }));
+    expect(formSummary(weekly).previous).toBeNull();
+    const longer = [{ week: "2026-09-28", avg_accuracy: 64 }, { week: "2026-10-05", avg_accuracy: 62 }, ...weekly.slice(1)];
+    expect(formSummary(longer).previous).toBe(63);
+  });
 });

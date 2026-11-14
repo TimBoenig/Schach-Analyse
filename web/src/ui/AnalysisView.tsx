@@ -88,6 +88,13 @@ function winChanceAt(moves: MoveData[], idx: number): number | null {
   return m.win_chance_after;
 }
 
+/** "+12.4" -> "12": the phone bar is 16 px wide, the colour already says who is ahead. */
+export function shortEval(label: string): string {
+  const s = label.replace(/^\+/, "");
+  const n = Number(s);
+  return Number.isFinite(n) && Math.abs(n) >= 10 ? String(Math.round(n)) : s;
+}
+
 export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: boolean; label: string }) {
   const pct = Math.round((wc ?? 0.5) * 100);
   const whiteAhead = pct >= 50;
@@ -96,7 +103,8 @@ export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: bo
       <div class="white" style={{ height: `${pct}%` }} />
       <div class="mid" />
       <span class={whiteAhead ? "on-white" : "on-black"} style={{ [whiteAhead !== flipped ? "bottom" : "top"]: "5px" }}>
-        {label}
+        <span class="eval-long">{label}</span>
+        <span class="eval-short">{shortEval(label)}</span>
       </span>
     </div>
   );
@@ -800,7 +808,10 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           <IconBack />
         </button>
         <span class="game-title">
-          {game.metadata.white} – {game.metadata.black} <span class="muted">{resultText(game.metadata.result)}</span>
+          <span class="game-title-names">
+            {game.metadata.white} – {game.metadata.black}
+          </span>
+          <span class="game-title-result tnum">{resultText(game.metadata.result)}</span>
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
