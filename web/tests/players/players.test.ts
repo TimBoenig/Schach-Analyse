@@ -133,6 +133,7 @@ describe("scouting report", () => {
     wp_after_opening: null,
     tree: buildOpeningInsights([]).tree,
     facts: [],
+    color_facts: { white: [], black: [] },
     ...o,
   });
 
@@ -301,6 +302,7 @@ describe("scouting against the player's own level", () => {
       wp_after_opening: null,
       tree: buildOpeningInsights([]).tree,
       facts: [],
+      color_facts: { white: [], black: [] },
     },
   });
 

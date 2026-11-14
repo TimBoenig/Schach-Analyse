@@ -43,6 +43,34 @@ describe("importPgnText", () => {
   });
 });
 
+describe("unreachable accounts", () => {
+  it.each([
+    [404, "Auf chess.com gibt es keinen Spieler „Timm“"],
+    [429, "chess.com bremst gerade zu viele Anfragen"],
+    [503, "chess.com hat gerade Probleme (Fehler 503)"],
+  ])("says why chess.com gave nothing (HTTP %i) instead of reporting 0 games", async (status, text) => {
+    mockFetch(() => json({ code: 0 }, status));
+    await expect(importChesscomGames("Timm", () => false, 3)).rejects.toThrow(text);
+  });
+
+  it("names a network failure and a missing Lichess account", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("Failed to fetch"))));
+    await expect(importChesscomGames("tim", () => false, 3)).rejects.toThrow("chess.com ist gerade nicht erreichbar");
+    mockFetch(() => new Response("", { status: 404 }));
+    await expect(importLichessGames("nobody", () => false, 10)).rejects.toThrow("Auf Lichess gibt es keinen Spieler „nobody“");
+  });
+
+  it("keeps the months that loaded and counts the ones that did not", async () => {
+    const archives = [1, 2].map((m) => `https://api.chess.com/pub/player/tim/games/2026/0${m}`);
+    mockFetch((url) => {
+      if (url.pathname.endsWith("/archives")) return json({ archives });
+      return url.pathname.endsWith("02") ? json({}, 500) : json({ games: [{ pgn: GAME_A }] });
+    });
+    const batch = await importChesscomGames("tim", () => false, null);
+    expect(batch.result).toMatchObject({ imported: 1, failed_months: 1 });
+  });
+});
+
 describe("importChesscomGames", () => {
   it("fetches the newest months first, skips variants and hands out batches", async () => {
     const archives = [1, 2, 3].map((m) => `https://api.chess.com/pub/player/tim/games/2026/0${m}`);

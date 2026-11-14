@@ -242,6 +242,11 @@ function LeagueHero({
     passed: me && scores ? ranked.filter((r) => !r.is_me && (r.overall as number) > (me.overall as number) && (scores.get(r.id) ?? 0) < (scores.get(me.id) ?? 0)).map((r) => r.name) : [],
   };
   const lw = win(leader.id);
+  // The table rates play quality; the tournament also rolls the direct games.
+  // When someone else wins it more often, name them, or "leads, wins 30 %"
+  // next to a 37 % favourite reads like a mistake.
+  const favourite = tournament && leaders.length === 1 ? [...tournament.rows].sort((a, b) => b.win - a.win)[0] : null;
+  const otherFavourite = favourite && lw !== null && favourite.id !== leader.id && favourite.win > lw ? ranked.find((r) => r.id === favourite.id) : null;
   return (
     <section class="card lg-hero span-12" id="lg-hero">
       <div class="lg-hero-head">
@@ -253,6 +258,9 @@ function LeagueHero({
           <p class="lg-hero-sub">
             {Math.round(leader.overall as number)} von 100 Punkten
             {lw !== null && leaders.length === 1 ? ` · gewinnt ${winPct(lw)} der simulierten Turniere` : ""}
+            {otherFavourite && favourite
+              ? ` · Turnierfavorit ist aber ${otherFavourite.is_me ? "du" : otherFavourite.name} (${winPct(favourite.win)})`
+              : ""}
           </p>
         </div>
         {me && (
@@ -829,7 +837,7 @@ function BattleArena({
           </span>
         </div>
       )}
-      <p class="battle-verdict">{battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ")}</p>
+      <p class="battle-verdict">{battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ").replace(" liegt aber Du ", " liegst aber du ")}</p>
       <div class="lg-rounds">
         {battle.rounds.map((r, i) => {
           const pa = r.p_a === null ? null : r.p_a * 100;

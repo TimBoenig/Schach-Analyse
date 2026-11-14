@@ -38,6 +38,7 @@ export interface CallOptions {
   signal?: AbortSignal;
   /** Games received so far, while a long download streams in. */
   onCount?: (n: number) => void;
+  onFail?: (status: number | null) => void;
 }
 
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
@@ -101,6 +102,7 @@ export class LichessAPI {
         headers: this.getHeaders(),
         params,
         signal: opts.signal,
+        onFail: opts.onFail,
       });
       if (!resp) return [];
       // The whole history can be thousands of games streamed over minutes:

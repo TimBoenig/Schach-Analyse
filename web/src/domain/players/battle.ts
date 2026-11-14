@@ -156,6 +156,16 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
     const [mine, theirs] = leader === "a" ? [wins_a, wins_b] : [wins_b, wins_a];
     const how = mine - theirs >= 3 ? "klar" : mine > theirs ? "knapp" : "nach Stärke";
     verdict = `${name(leader)} gewinnt ${how} mit ${mine}:${theirs} Runden${tipping ? `, entschieden in „${tipping.r.label}“` : ""}.`;
+    // Rounds count wins only; the strength bar weighs every round, open ones
+    // included. When the two disagree, say so instead of leaving a 51:49 bar
+    // next to a verdict for the other side unexplained.
+    // Compared as shown on the bar (rounded), so a bar reading 50:50 never triggers it.
+    const shownA = power_a === null ? 50 : Math.round(power_a);
+    const strongerSide: Side | null = shownA === 50 ? null : shownA > 50 ? "a" : "b";
+    if (strongerSide && strongerSide !== leader) {
+      const share = strongerSide === "a" ? shownA : 100 - shownA;
+      verdict += ` Über alle Runden gewogen, auch die offenen, liegt aber ${name(strongerSide)} knapp vorn (${share}:${100 - share}).`;
+    }
   }
   return {
     a: { id: ra.id, name: ra.name },

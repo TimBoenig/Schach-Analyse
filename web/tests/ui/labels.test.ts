@@ -21,10 +21,12 @@ describe("game list labels", () => {
     expect(monthLabel("")).toBe("Ohne Datum");
   });
 
-  it("keeps the opening family and main variation only", () => {
+  it("keeps the opening family (German where common) and main variation only", () => {
     expect(shortOpening("Italian Game: Classical Variation, Greco Gambit, Moeller-Therkatz Attack")).toBe(
-      "Italian Game: Classical Variation",
+      "Italienische Partie: Classical Variation",
     );
+    expect(shortOpening("Philidor Defense")).toBe("Philidor-Verteidigung");
+    expect(shortOpening("Pterodactyl Defense: Austrian")).toBe("Pterodactyl Defense: Austrian");
     expect(shortOpening(null)).toBe("");
   });
 

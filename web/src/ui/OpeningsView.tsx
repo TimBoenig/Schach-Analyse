@@ -337,7 +337,9 @@ export function OpeningsView() {
   const worst = lines
     .filter((l) => scoreDeviation(l, 50) < 0)
     .sort((a, b) => (a.score_pct as number) - (b.score_pct as number))[0];
-  const facts = showAllFacts ? o.facts : o.facts.slice(0, 3);
+  // Profiles cached before this field existed fall back to the mixed list.
+  const colorFacts = o.color_facts?.[color] ?? o.facts;
+  const facts = showAllFacts ? colorFacts : colorFacts.slice(0, 3);
   const sorted = sortLines(lines, sort);
   const cards = allCards ? sorted : sorted.slice(0, CARDS);
   const chosen = lines.find((l) => l.name === selected) ?? null;
@@ -435,9 +437,9 @@ export function OpeningsView() {
                   ))}
                 </ol>
               </Coach>
-              {o.facts.length > 3 && (
+              {colorFacts.length > 3 && (
                 <button class="btn small ghost" onClick={() => setShowAllFacts(!showAllFacts)}>
-                  {showAllFacts ? "Weniger" : `Alle ${o.facts.length} Befunde`}
+                  {showAllFacts ? "Weniger" : `Alle ${colorFacts.length} Befunde`}
                 </button>
               )}
             </div>

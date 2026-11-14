@@ -1,3 +1,4 @@
+import { openingLabel, openingMain } from "../domain/profile/openings";
 import type { Classification, MoveData } from "../domain/types";
 
 const BADGE_FILE: Partial<Record<Classification, string>> = {
@@ -102,7 +103,10 @@ export function accClass(acc: number | null | undefined): string {
 /** "Sicilian Defense: Najdorf Variation, ..." → "Sicilian Defense: Najdorf Variation". */
 export function shortOpening(name: string | null | undefined): string {
   if (!name) return "";
-  return name.split(",")[0].trim();
+  const short = name.split(",")[0].trim();
+  // German main name like on the openings page; the variation stays as the book names it.
+  const main = openingMain(short);
+  return openingLabel(main) + short.slice(main.length);
 }
 
 const MONTHS_DE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
