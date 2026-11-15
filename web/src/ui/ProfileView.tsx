@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import { STRENGTH_MAX, STRENGTH_MIN, strengthMap, STYLE_MIN_GAMES, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
+import { MIN_STRENGTH_GAMES, sourceName, STRENGTH_MAX, STRENGTH_MIN, STYLE_MIN_GAMES, typicalLabel as referenceName, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, monthStart, RadarChart, ratingSeriesPoints } from "./charts";
 import type { BarRow, Segment } from "./charts";
@@ -58,9 +58,9 @@ function typicalNote(s: SkillScore): string {
   if (s.typical === null || s.typical === undefined) return "";
   const t = Math.round(s.typical);
   const d = s.score - s.typical;
-  // About 3 points are 50 to 60 rating points, the step the rating track calls "on your level".
-  if (Math.abs(d) < 3) return ` · etwa typisch für deine Wertung (${t})`;
-  return ` · ${d > 0 ? "besser" : "schwächer"} als typisch für deine Wertung (${t})`;
+  const opp = s.typical_from === "opponents";
+  if (Math.abs(d) < 3) return opp ? ` · etwa wie deine Gegner (${t})` : ` · etwa typisch für deine Wertung (${t})`;
+  return opp ? ` · ${d > 0 ? "besser" : "schwächer"} als deine Gegner (${t})` : ` · ${d > 0 ? "besser" : "schwächer"} als typisch für deine Wertung (${t})`;
 }
 
 export function Examples({ refs }: { refs: GameRef[] }) {
@@ -133,28 +133,46 @@ export function StyleAxes({ axes }: { axes: StyleAxis[] }) {
 }
 
 // Two letters per part of the game: Eröffnung and Endspiel share their first one.
-const STRENGTH_MARK: Record<string, string> = { opening: "Er", middlegame: "Mi", endgame: "En", tactics: "Ta", safety: "Si", conversion: "Ve", consistency: "Ko" };
+const STRENGTH_MARK: Record<string, string> = { opening: "Er", middlegame: "Mi", endgame: "En", tactics: "Ta", safety: "Si", overall: "Σ" };
 // One colour per part of the game, the same wherever it shows up.
-const STRENGTH_TONE: Record<string, string> = { opening: "tone-d", middlegame: "tone-e", endgame: "tone-c", tactics: "tone-b", safety: "tone-a", conversion: "tone-f", consistency: "tone-quiet" };
+const STRENGTH_TONE: Record<string, string> = { opening: "tone-d", middlegame: "tone-e", endgame: "tone-c", tactics: "tone-b", safety: "tone-a", overall: "tone-quiet" };
 const STRENGTH_ROOM = 150;
 const STRENGTH_GRID = 200;
+// Two parts of the game are only called strongest and weakest when they sit
+// clearly apart; inside the margins it could just as well be the other way round.
+const STRENGTH_CLEAR_GAP = 100;
+
+/** "1650", "unter 1400", "über 2800". */
+function fideText(r: { rating: number; capped: number }): string {
+  return r.capped > 0 ? `über ${STRENGTH_MAX}` : r.capped < 0 ? `unter ${STRENGTH_MIN}` : String(r.rating);
+}
+
+/** "18 % weniger Fehler" / "25 % mehr Fehler" / "etwa gleich viele Fehler". */
+function ratioText(ratio: number): string {
+  const d = Math.round((ratio - 1) * 100);
+  if (Math.abs(d) < 5) return "etwa gleich viele Fehler";
+  return d < 0 ? `${-d} % weniger Fehler` : `${d} % mehr Fehler`;
+}
 
 /**
  * The page's opening card: who you are as a player in one line, and every part
- * of your game placed on the rating scale ("your endgame plays like 1850").
+ * of your game placed on the FIDE scale ("your endgame plays like FIDE 1750").
  */
 function PlayerCard({ profile }: { profile: PlayerProfile }) {
   const [picked, setPicked] = useState<string | null>(null);
   const rc = profile.rating;
   const o = profile.overview;
-  const map = strengthMap(profile.skills);
-  const top = map[0];
-  const bottom = map[map.length - 1];
+  const sm = profile.strength;
+  const map = sm?.skills ?? [];
+  const sure = map.filter((s) => s.reliable);
+  const top = sure[0];
+  const bottom = sure[sure.length - 1];
+  const clear = top && bottom && top.key !== bottom.key && top.rating - bottom.rating >= STRENGTH_CLEAR_GAP;
   const title = profile.style ? (
     <>
       <em>Dein Stil:</em> {profile.style.label}
     </>
-  ) : top && bottom && top.key !== bottom.key ? (
+  ) : clear ? (
     <>
       Stark im Bereich {top.name}, <em>Luft nach oben:</em> {bottom.name}
     </>
@@ -162,29 +180,32 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
     "Dein Schachprofil"
   );
 
-  const values = [...map.map((s) => s.rating), ...(rc ? [rc.rating] : [])];
+  const shown = sm ? [...map, ...(sm.overall ? [sm.overall] : [])] : [];
+  const values = [...shown.map((s) => s.rating), ...(rc ? [rc.fide] : [])];
   const min = Math.max(STRENGTH_MIN, Math.floor((Math.min(...values) - STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
   const max = Math.min(STRENGTH_MAX, Math.ceil((Math.max(...values) + STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
   const ticks: number[] = [];
   for (let t = min; t <= max; t += STRENGTH_GRID) ticks.push(t);
-  const like = (r: { rating: number; capped: number }) => (r.capped > 0 ? `über ${STRENGTH_MAX}` : r.capped < 0 ? `unter ${STRENGTH_MIN}` : String(r.rating));
   const markers: TrackMarker[] = [
-    ...map.map((s) => ({
+    ...shown.map((s) => ({
       id: s.key,
-      label: RADAR_LABELS[s.key] ?? s.name,
+      label: s.key === "overall" ? "Gesamt" : (RADAR_LABELS[s.key] ?? s.name),
       value: s.rating,
-      valueText: like(s),
+      valueText: `${fideText(s)} ±${s.margin}`,
       tone: STRENGTH_TONE[s.key] ?? "tone-quiet",
       mark: STRENGTH_MARK[s.key],
       faint: !s.reliable,
-      title: `${s.name}: spielt wie Wertung ${like(s)}`,
+      title: `${s.name}: etwa FIDE ${fideText(s)} (±${s.margin})`,
     })),
-    ...(rc ? [{ id: "me", label: "Du", value: rc.rating, tone: "tone-me", me: true, title: `Deine Wertung (${trSpeed(rc.speed)})` }] : []),
+    ...(rc
+      ? [{ id: "me", label: "Du", value: rc.fide, tone: "tone-me", me: true, title: `Deine Wertung ${rc.rating} (${sourceName(rc.source)} ${trSpeed(rc.speed)}) entspricht etwa FIDE ${rc.fide}` }]
+      : []),
   ];
-  const sel = map.find((s) => s.key === picked) ?? null;
+  const sel = shown.find((s) => s.key === picked) ?? null;
   const selSkill = sel ? profile.skills.find((s) => s.key === sel.key) : undefined;
   const cat = sel ? skillCategory(sel.key, profile.exercises) : undefined;
-  const gap = sel && rc && !sel.capped ? sel.rating - rc.rating : null;
+  const gap = sel && rc && !sel.capped ? sel.rating - rc.fide : null;
+  const overall = sm?.overall ?? null;
 
   return (
     <PageHero
@@ -194,34 +215,39 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
       sub={profile.style?.description}
       aside={
         rc ? (
-          <HeroStat big={<CountUp value={rc.rating} />} label={`Wertung ${trSpeed(rc.speed)}`} sub={rc.performance ? `Performance ${rc.performance}` : undefined} />
+          <HeroStat
+            big={<CountUp value={rc.rating} />}
+            label={`Wertung ${trSpeed(rc.speed)}`}
+            sub={`≈ FIDE ${rc.fide}${rc.performance ? ` · Performance ${rc.performance}` : ""}`}
+          />
         ) : profile.analyzed_games ? (
           <HeroStat big={<CountUp value={o.avg_accuracy} format={(v) => v.toFixed(1).replace(".", ",")} />} label="Genauigkeit" sub="über alle analysierten Partien" />
         ) : undefined
       }
     >
-      {map.length >= 2 && (
+      {sm && map.length >= 2 ? (
         <div class="ar-block">
           <div class="ar-block-head">
             <strong>So stark spielen die Teile deines Spiels</strong>
-            <span class="faint small">als Wertung gelesen · Punkt antippen</span>
+            <span class="faint small">als FIDE-Elo geschätzt · Punkt antippen</span>
           </div>
           <ScaleTrack rows room={104} markers={markers} min={min} max={max} ticks={ticks} picked={picked} onPick={(id) => setPicked(id === "me" || id === picked ? null : id)} />
           <div class={`ar-answer${sel ? " on" : ""}`} role="status">
-            {sel && selSkill ? (
+            {sel ? (
               <>
                 <p>
-                  <strong>{sel.name}</strong>: {Math.round(sel.score)} von 100 Punkten ({selSkill.grade}). So spielen typischerweise Spieler mit Wertung{" "}
-                  <strong class="tnum">{like(sel)}</strong>
-                  {gap !== null && Math.abs(gap) >= 50 ? (
+                  <strong>{sel.name}</strong>: etwa <strong class="tnum">FIDE {fideText(sel)}</strong>{" "}
+                  <span class="tnum">(±{sel.margin})</span>
+                  {gap !== null && Math.abs(gap) > sel.margin ? (
                     <>
-                      , das sind <span class={`tnum ${gap > 0 ? "pos" : "neg"}`}>{Math.abs(gap)} Punkte {gap > 0 ? "über" : "unter"}</span> deiner eigenen
+                      , das sind <span class={`tnum ${gap > 0 ? "pos" : "neg"}`}>{Math.abs(gap)} Punkte {gap > 0 ? "über" : "unter"}</span> deiner Wertung auf FIDE-Skala
                     </>
                   ) : gap !== null ? (
-                    ", also etwa auf deinem Niveau"
+                    ", im Rahmen der Unsicherheit auf deinem Niveau"
                   ) : null}
-                  .{!sel.reliable ? " Noch wenige Daten, der Wert kann sich noch deutlich bewegen." : ""}
-                  <span class="small faint player-card-detail"> {selSkill.detail}</span>
+                  . Du machst hier {ratioText(sel.error_ratio)} als deine Gegner (Ø FIDE {sm.opponents_fide}) in denselben {sel.games} Partien.
+                  {!sel.reliable ? " Noch wenige Daten, der Wert kann sich deutlich bewegen." : ""}
+                  {selSkill ? <span class="small faint player-card-detail"> {selSkill.detail}</span> : null}
                 </p>
                 {cat && (
                   <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
@@ -231,13 +257,29 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
               </>
             ) : (
               <p>
-                Am stärksten: <strong>{top.name}</strong> (wie {like(top)}). Am meisten Luft: <strong>{bottom.name}</strong> (wie {like(bottom)}).{" "}
-                <span class="faint">Geschätzte Richtwerte für Online-Partien; blasse Punkte haben noch wenige Daten.</span>
+                {overall ? (
+                  <>
+                    Nach Zugqualität spielst du insgesamt wie etwa <strong class="tnum">FIDE {fideText(overall)}</strong> (±{overall.margin}).{" "}
+                  </>
+                ) : null}
+                {clear ? (
+                  <>
+                    Am stärksten: <strong>{top.name}</strong> ({fideText(top)}). Am meisten Luft: <strong>{bottom.name}</strong> ({fideText(bottom)}).{" "}
+                  </>
+                ) : (
+                  "Die Teile deines Spiels liegen im Rahmen der Unsicherheit eng beieinander. "
+                )}
+                <span class="faint">
+                  Gemessen an den Fehlern deiner Gegner in denselben Partien, umgerechnet auf die FIDE-Skala; ± ist die 95-%-Unsicherheit, blasse Punkte haben noch wenige Daten.
+                  {sm.extrapolated ? " Unter etwa FIDE 1650 ist die Umrechnung grob." : ""}
+                </span>
               </p>
             )}
           </div>
         </div>
-      )}
+      ) : profile.analyzed_games ? (
+        <p class="faint small">Für die Einordnung auf der FIDE-Skala braucht es mindestens {MIN_STRENGTH_GAMES} analysierte Partien mit bekannter Gegnerwertung.</p>
+      ) : null}
     </PageHero>
   );
 }
@@ -324,8 +366,8 @@ function Overview({ profile }: { profile: PlayerProfile }) {
           <div class="kpi-label">Genauigkeit</div>
           {rc && accDelta !== null ? (
             <div class="small muted">
-              <span class={`pill ${accDelta >= 2 ? "win" : accDelta <= -2 ? "loss" : "draw"}`}>{signed(accDelta)}</span> zum
-              Richtwert {rc.typical_accuracy.toFixed(0)} für {rc.rating}
+              <span class={`pill ${accDelta >= 2 ? "win" : accDelta <= -2 ? "loss" : "draw"}`}>{signed(accDelta)}</span>{" "}
+              {rc.reference === "opponents" ? `zu deinen Gegnern (${rc.typical_accuracy.toFixed(0)})` : `zum Richtwert ${rc.typical_accuracy.toFixed(0)} für ${rc.rating}`}
             </div>
           ) : null}
           <div class="small faint">{profile.analyzed_games} Partien analysiert</div>
@@ -394,7 +436,7 @@ export function ProfileView() {
   }
 
   const rc = profile.rating;
-  const typicalLabel = rc ? `Typisch für ${rc.rating}` : undefined;
+  const typicalLabel = rc ? referenceName(rc) : undefined;
 
   const radarSkills = profile.skills.filter((s) => s.sample > 0);
   const radar = radarSkills.map((s) => ({
@@ -450,7 +492,7 @@ export function ProfileView() {
         ) : (
           <>
             <Section section={sec("faehigkeiten")}>
-              <Card title="Fähigkeiten-Netz" sub={rc ? "Richtwerte geschätzt" : undefined} span={6}>
+              <Card title="Fähigkeiten-Netz" sub={rc ? (rc.reference === "opponents" ? "gestrichelt: deine Gegner" : "Richtwerte geschätzt") : undefined} span={6}>
                 <RadarChart axes={radar} typicalLabel={typicalLabel} />
               </Card>
 
@@ -548,8 +590,12 @@ export function ProfileView() {
       </div>
       {rc && !profile.is_empty && (
         <p class="faint small" style={{ marginTop: "14px" }}>
-          „Typisch für {rc.rating}“ sind geschätzte Richtwerte für Online-Partien in dieser Wertungsklasse. Die Erwartung
-          nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.
+          {rc.reference === "opponents"
+            ? `„Ø deiner Gegner“ ist, was deine Gegner in denselben ${rc.reference_games} analysierten Partien erreicht haben, mit derselben Engine gemessen; das ist genauer als jede feste Tabelle. `
+            : "„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. "}
+          Performance und Ø Gegner zählen nur Partien auf {sourceName(rc.source)} im {trSpeed(rc.speed)}, damit keine Wertungen
+          verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung
+          und der des Gegners.
         </p>
       )}
     </div>

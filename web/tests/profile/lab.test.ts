@@ -8,13 +8,8 @@ import {
   nextMilestone,
   PACE_DAYS,
   pointsAtCleanShare,
-  ratingForSkill,
   ratingJourney,
   standoutCondition,
-  STRENGTH_MAX,
-  STRENGTH_MIN,
-  strengthMap,
-  typicalSkillScores,
 } from "../../src/domain/profile";
 import { profileGames } from "./fixtures";
 
@@ -73,25 +68,6 @@ describe("blunder cost", () => {
   it("is null without analysed games and not clear on a handful", () => {
     expect(blunderCost(many(5, { blunders: null }))).toBeNull();
     expect(blunderCost([...many(3, {}), ...many(3, { blunders: 1, score: 0 })])!.clear).toBe(false);
-  });
-});
-
-describe("skill strength", () => {
-  it("reads the typical score of a rating back as that rating", () => {
-    for (const rating of [1000, 1500, 2000]) {
-      const typical = typicalSkillScores(rating);
-      for (const key of ["opening", "endgame", "tactics", "safety"]) expect(Math.abs(ratingForSkill(key, typical[key])!.rating - rating)).toBeLessThanOrEqual(10);
-    }
-  });
-
-  it("caps at the ends of the scale and skips skills without a rising reference", () => {
-    expect(ratingForSkill("endgame", 0)).toEqual({ rating: STRENGTH_MIN, capped: -1 });
-    expect(ratingForSkill("endgame", 100)).toEqual({ rating: STRENGTH_MAX, capped: 1 });
-    expect(ratingForSkill("defense", 50)).toBeNull();
-    expect(ratingForSkill("time", 50)).toBeNull();
-    const skill = (key: string, score: number, sample = 20) => ({ key, name: key, score, grade: "", detail: "", sample, reliable: true });
-    const map = strengthMap([skill("opening", 40), skill("endgame", 80), skill("time", 90), skill("tactics", 70, 0)]);
-    expect(map.map((s) => s.key)).toEqual(["endgame", "opening"]);
   });
 });
 

@@ -3,7 +3,7 @@
 
 import { useState } from "preact/hooks";
 
-import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES } from "../domain/profile";
+import { type MoveTally, SERIOUS_CLASSES, sumOf, TOP_CLASSES, typicalLabel } from "../domain/profile";
 import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
 import { AreaChart, BarList, type BarRow, monthStart, StackBar } from "./charts";
 import { Coach, NeedNames } from "./Coach";
@@ -139,7 +139,7 @@ export function MovesView() {
   const segments = detailSegments(t.counts);
   const sec = (id: MovesSection) => sectionOf("moves", id);
   const rc = profile.rating;
-  const typicalLabel = rc ? `Typisch für ${rc.rating}` : undefined;
+  const referenceLabel = rc ? typicalLabel(rc) : undefined;
   const phaseAcc = (profile.overview.phase_accuracy ?? {}) as Record<string, number>;
   const phaseRows: BarRow[] = PHASES.map(([k, name]) => ({
     label: name,
@@ -249,7 +249,7 @@ export function MovesView() {
             <div class="tile-head">
               <h3>Genauigkeit nach Phase</h3>
             </div>
-            <BarList rows={phaseRows} referenceLabel={typicalLabel} />
+            <BarList rows={phaseRows} referenceLabel={referenceLabel} />
           </section>
 
           <section class="card tile span-6">

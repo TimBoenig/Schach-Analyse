@@ -4,7 +4,8 @@
 //   playing style, recurring patterns, a training plan and exercises from the player's own games.
 // - buildGameReview: German post-game review for a single analyzed game.
 
-export { benchmark, currentRating, expectedScore, performanceRating, ratingContext, typicalSkillScores } from "./benchmarks";
+export { benchmark, currentRating, expectedScore, MIN_REFERENCE_GAMES, performanceRating, ratingContext, sourceName, typicalLabel, typicalSkillScores } from "./benchmarks";
+export type { OpponentReference } from "./benchmarks";
 export { buildPlayerProfile } from "./builder";
 export { extractFeatures, GameFeatures, MoveEvent, sanForUci } from "./features";
 export { buildGameReview, schoolGrade } from "./game_review";
@@ -43,7 +44,9 @@ export { activityCalendar, comparePeriods, dailyActivity, focusNotes, formSummar
 export type { CalendarDay, DailyRow, FormSummary, KpiChange, PeriodComparison, SkillChange } from "./dashboard";
 export { blunderCost, CONDITION_KEYS, conditionResult, conditionValues, DAYPARTS, gameFacts, OPP_BANDS, OPP_GAP, pointsAtCleanShare, standoutCondition } from "./lab";
 export type { BlunderCost, ConditionPick, ConditionResult, Daypart, GameFact, OppBand } from "./lab";
-export { ratingForSkill, RATED_SKILLS, STRENGTH_MAX, STRENGTH_MIN, strengthMap } from "./strength";
-export type { SkillStrength } from "./strength";
+export { ELO_PER_LN_ERRORS, errorRatio, MIN_STRENGTH_GAMES, RELIABLE_ELO_MARGIN, SKILL_SPREAD, STRENGTH_MAX, STRENGTH_MIN, strengthMap } from "./strength";
+export type { GamePair, SkillStrength, StrengthMap } from "./strength";
+export { FIDE_FLOOR, toFide } from "./fide";
+export type { FideRating } from "./fide";
 export { ETA_MAX_DAYS, nextMilestone, PACE_DAYS, PACE_MIN, ratingJourney } from "./journey";
 export type { RatingJourney } from "./journey";
