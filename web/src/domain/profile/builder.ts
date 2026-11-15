@@ -10,7 +10,8 @@ import { buildExercisePool } from "../training/exercises";
 import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmtDe, pyRound, stdev } from "./num";
-import { expectedScore, mainRatingSources, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
+import { expectedScore, mainRatingSources, type OpponentReference, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
+import { type GamePair, strengthMap } from "./strength";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
 import { gameFacts } from "./lab";
@@ -102,11 +103,22 @@ export function buildPlayerProfile(
   const matched = filterGames(games, names, colorFilter, formatFilter, "All Sources", dateFilter);
   const acc = new StatsAccumulator();
   const feats: GameFeatures[] = [];
+  // The opponents of the analysed games, measured with the same engine and
+  // formulas: the reference for "typical" values and the FIDE estimates.
+  const oppAcc = new StatsAccumulator();
+  const pairs: GamePair[] = [];
   for (const [game, color] of matched) {
     try {
       const { rec, features } = gameFeatures(game, color);
       acc.add(rec);
       feats.push(features);
+      if (features.analyzed) {
+        const opp = gameFeatures(game, color === "white" ? "black" : "white");
+        if (opp.features.analyzed) {
+          oppAcc.add(opp.rec);
+          pairs.push({ own: features, opp: opp.features });
+        }
+      }
     } catch {
       // One corrupt game must not break the whole profile.
     }
@@ -114,6 +126,8 @@ export function buildPlayerProfile(
 
   const stats = acc.finalize(colorFilter, formatFilter, "All Sources", dateFilter);
   const analyzed = feats.filter((f) => f.analyzed);
+  const reference = opponentReference(oppAcc, pairs, colorFilter, formatFilter, dateFilter);
+  const rating = ratingContext(feats, reference);
   const profile: PlayerProfile = {
     usernames: names,
     total_games: feats.length,
@@ -134,7 +148,8 @@ export function buildPlayerProfile(
     recent_games: recentGames(feats),
     error_series: errorSeries(analyzed),
     facts: gameFacts(feats),
-    rating: ratingContext(feats),
+    rating,
+    strength: null,
     deep: null,
     openings: null,
     moves: null,
@@ -147,7 +162,8 @@ export function buildPlayerProfile(
   profile.exercises = buildExercisePool(feats);
   if (!analyzed.length) return profile;
 
-  profile.skills = settleSkills(withTypical(computeSkills(stats, feats), profile.rating?.rating ?? null));
+  profile.skills = settleSkills(withTypical(computeSkills(stats, feats), rating?.rating ?? null, reference));
+  profile.strength = strengthMap(pairs, rating?.fide ?? null);
   [profile.strengths, profile.weaknesses] = strengthsWeaknesses(profile.skills, profile.rating?.rating ?? null);
   const [best, worst] = openings(feats);
   profile.openings_best = best;
@@ -164,6 +180,24 @@ export function buildPlayerProfile(
     worst.length ? worst[0].name : "",
   );
   return profile;
+}
+
+function opponentReference(
+  oppAcc: StatsAccumulator,
+  pairs: GamePair[],
+  colorFilter: string,
+  formatFilter: string,
+  dateFilter: string,
+): OpponentReference | null {
+  if (!pairs.length) return null;
+  const opp = oppAcc.finalize(colorFilter, formatFilter, "All Sources", dateFilter);
+  const skills = computeSkills(opp, pairs.map((p) => p.opp));
+  return {
+    accuracy: opp.avg_accuracy ?? 0,
+    phase_accuracy: opp.phase_stats?.accuracies ?? {},
+    skills: Object.fromEntries(skills.filter((s) => s.sample > 0).map((s) => [s.key, s.score])),
+    games: pairs.length,
+  };
 }
 
 function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]): Dict {
@@ -237,7 +271,7 @@ function strengthsWeaknesses(skills: SkillScore[], rating: number | null): [Insi
   weaknesses = weaknesses.filter((w) => !strengths.includes(w));
   const vs = (s: SkillScore) =>
     rating !== null && s.typical !== null && s.typical !== undefined
-      ? ` · ${fmtDe(s.score, 0)} Punkte, typisch für ${rating}: ${fmtDe(s.typical, 0)}`
+      ? ` · ${fmtDe(s.score, 0)} Punkte, ${s.typical_from === "opponents" ? "deine Gegner" : `typisch für ${rating}`}: ${fmtDe(s.typical, 0)}`
       : "";
   return [
     strengths.map((s) => ({

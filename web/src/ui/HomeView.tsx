@@ -14,6 +14,7 @@ import {
   type KpiChange,
   type PlayerProfile,
   trendOf,
+  typicalLabel,
 } from "../domain/profile";
 import {
   CATEGORIES,
@@ -562,7 +563,7 @@ export function HomeView() {
         points={formPoints}
         format={(v) => v.toFixed(0)}
         height={220}
-        reference={profile.rating ? { value: profile.rating.typical_accuracy, label: `Typisch für ${profile.rating.rating}` } : null}
+        reference={profile.rating ? { value: profile.rating.typical_accuracy, label: typicalLabel(profile.rating) } : null}
       />
       <FormStats weekly={weekly} period={acc} />
     </section>

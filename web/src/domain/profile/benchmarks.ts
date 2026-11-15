@@ -1,13 +1,15 @@
 // Rating context for the profile: what is typical at the player's rating, how
 // they performed against the ratings they met, and the Elo expectation.
 //
-// The reference values are estimates for online club play (Lichess-style
-// accuracy, blitz/rapid), interpolated linearly between rating anchors. They are
-// meant as orientation ("for 1400 this is normal"), not as precise statistics,
-// and the UI labels them as estimates.
+// The TABLE values are rough estimates for online club play, interpolated
+// between rating anchors. They only hold for the engine and accuracy formula
+// they were guessed for, so they are a fallback: with enough analysed games the
+// profile compares with the opponents of the same games instead
+// (`OpponentReference`), and the FIDE estimates in strength.ts never use them.
 
 import type { GameFeatures } from "./features";
 import type { RatingContext, SkillScore } from "./models";
+import { toFide } from "./fide";
 import { pyRound } from "./num";
 import {
   consistencyScore,
@@ -100,7 +102,6 @@ export function performanceRating(games: { opp: number; score: number }[]): numb
   return Math.round((lo + hi) / 2);
 }
 
-/** Current rating: latest rating in the time control with the most rated games. */
 /** Platform a game's rating belongs to ("chesscom", "lichess", "file"). */
 export function ratingSource(f: GameFeatures): string {
   return String(f.rec.raw_game?.source || "file").toLowerCase();
@@ -138,6 +139,7 @@ export function mainRatingSources(feats: GameFeatures[]): Map<string, string> {
   return out;
 }
 
+/** Current rating: latest rating in the time control with the most rated games. */
 export function currentRating(feats: GameFeatures[]): { rating: number; speed: string } | null {
   const main = mainRatingSources(feats);
   const bySpeed = new Map<string, GameFeatures[]>();
@@ -186,43 +188,93 @@ export function provisionalGames(feats: GameFeatures[]): Set<GameFeatures> {
   return out;
 }
 
-export function ratingContext(feats: GameFeatures[]): RatingContext | null {
+/**
+ * What the profile compares the player with, measured on the opponents of the
+ * same analysed games: same engine, depth and accuracy formula, so the
+ * reference cannot be biased the way a fixed table is (see strength.ts).
+ */
+export interface OpponentReference {
+  accuracy: number;
+  phase_accuracy: Record<string, number>;
+  /** Raw skill scores of the opponents (same formulas as the player's). */
+  skills: Record<string, number>;
+  games: number;
+}
+
+// Below this many analysed games the opponents' average is too noisy and the
+// fixed table stands in (marked as an estimate in the UI).
+export const MIN_REFERENCE_GAMES = 10;
+// Skills where "the other side of the same games" is a fair reference. Not
+// conversion and defence: the opponents' conversion is the mirror image of
+// the player's own defence, so it says nothing about the level. Not time.
+export const OPPONENT_REFERENCE_SKILLS: ReadonlySet<string> = new Set(["opening", "middlegame", "endgame", "tactics", "safety", "consistency"]);
+
+export function ratingContext(feats: GameFeatures[], reference: OpponentReference | null = null): RatingContext | null {
   const cur = currentRating(feats);
   if (!cur) return null;
+  const source = mainRatingSources(feats).get(cur.speed) ?? "file";
   const provisional = provisionalGames(feats);
   const rated = feats.filter((f) => f.user_rating && f.opp_rating && f.score !== null && !provisional.has(f));
   let score = 0;
   let expected = 0;
-  let oppSum = 0;
   for (const f of rated) {
     score += f.score as number;
     // Each game against the rating the player had at that time.
     expected += expectedScore(f.user_rating as number, f.opp_rating as number);
-    oppSum += f.opp_rating as number;
   }
+  // Average opponent and performance only within the shown rating's platform
+  // and speed: a Lichess 1900 and a Chess.com 1500 are about the same player,
+  // so averaging both (as before) produced a number on neither scale.
+  const line = rated.filter((f) => f.rec.speed === cur.speed && ratingSource(f) === source);
   const n = rated.length;
-  const avgOpp = n ? oppSum / n : null;
+  const avgOpp = line.length ? line.reduce((s, f) => s + (f.opp_rating as number), 0) / line.length : null;
+  const fide = toFide(cur.rating, source, cur.speed);
+  const useOpp = reference !== null && reference.games >= MIN_REFERENCE_GAMES;
   return {
     rating: cur.rating,
     speed: cur.speed,
+    source,
+    fide: fide.rating,
+    fide_extrapolated: fide.extrapolated,
     rated_games: n,
     provisional_games: provisional.size,
+    line_games: line.length,
     avg_opponent: avgOpp !== null ? Math.round(avgOpp) : null,
-    performance: performanceRating(rated.map((f) => ({ opp: f.opp_rating as number, score: f.score as number }))),
+    performance: performanceRating(line.map((f) => ({ opp: f.opp_rating as number, score: f.score as number }))),
     score: pyRound(score, 1),
     expected_score: n ? pyRound(expected, 1) : null,
-    typical_accuracy: pyRound(benchmark("accuracy", cur.rating), 1),
-    typical_phase_accuracy: {
-      opening: pyRound(benchmark("acc_opening", cur.rating), 1),
-      middlegame: pyRound(benchmark("acc_middlegame", cur.rating), 1),
-      endgame: pyRound(benchmark("acc_endgame", cur.rating), 1),
-    },
+    reference: useOpp ? "opponents" : "estimate",
+    reference_games: useOpp ? reference.games : 0,
+    typical_accuracy: pyRound(useOpp ? reference.accuracy : benchmark("accuracy", cur.rating), 1),
+    typical_phase_accuracy: Object.fromEntries(
+      PHASE_KEYS.map((p) => [p, pyRound(useOpp && reference.phase_accuracy[p] ? reference.phase_accuracy[p] : benchmark(PHASE_BENCH[p], cur.rating), 1)]),
+    ),
   };
 }
 
-/** Attach the typical score for the player's rating to each skill. */
-export function withTypical(skills: SkillScore[], rating: number | null): SkillScore[] {
-  if (rating === null) return skills.map((s) => ({ ...s, typical: null }));
-  const typical = typicalSkillScores(rating);
-  return skills.map((s) => ({ ...s, typical: s.key === "time" ? null : (typical[s.key] ?? null) }));
+const PHASE_KEYS = ["opening", "middlegame", "endgame"] as const;
+const PHASE_BENCH = { opening: "acc_opening", middlegame: "acc_middlegame", endgame: "acc_endgame" } as const;
+
+/** Short name of the reference behind "typical" values, for labels. */
+export function typicalLabel(rc: RatingContext): string {
+  return rc.reference === "opponents" ? "Ø deiner Gegner" : `Richtwert für ${rc.rating}`;
+}
+
+/**
+ * Attach the reference score to each skill: the opponents' own score in the
+ * same games where that is a fair yardstick and there are enough of them,
+ * otherwise the table value for the player's rating.
+ */
+export function withTypical(skills: SkillScore[], rating: number | null, reference: OpponentReference | null = null): SkillScore[] {
+  const useOpp = reference !== null && reference.games >= MIN_REFERENCE_GAMES;
+  if (rating === null && !useOpp) return skills.map((s) => ({ ...s, typical: null, typical_from: null }));
+  const table = rating !== null ? typicalSkillScores(rating) : null;
+  return skills.map((s) => {
+    if (s.key === "time") return { ...s, typical: null, typical_from: null };
+    if (useOpp && OPPONENT_REFERENCE_SKILLS.has(s.key) && reference.skills[s.key] !== undefined) {
+      return { ...s, typical: reference.skills[s.key], typical_from: "opponents" };
+    }
+    const t = table ? (table[s.key] ?? null) : null;
+    return { ...s, typical: t, typical_from: t === null ? null : "table" };
+  });
 }

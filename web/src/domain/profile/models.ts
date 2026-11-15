@@ -6,6 +6,7 @@ import type { DeepInsights } from "./insights";
 import type { GameFact } from "./lab";
 import type { MoveTally } from "./moves";
 import type { OpeningInsights } from "./openings";
+import type { StrengthMap } from "./strength";
 
 /** Pointer to a concrete position in a stored game (used for "Beispiel ansehen"). */import type { GameErrorPoint } from "../training/transfer";
 
@@ -28,6 +29,8 @@ export interface SkillScore {
   reliable: boolean;
   /** Score a typical player of the user's rating reaches (null without rating). */
   typical?: number | null;
+  /** Where `typical` comes from: the opponents of the same games, or the rough rating table. */
+  typical_from?: "opponents" | "table" | null;
   /** Score straight from the measurement, before blending with the prior. */
   raw_score?: number;
   /** Rough ± uncertainty of `score` in points (null without data). */
@@ -134,6 +137,8 @@ export interface PlayerProfile {
   facts: GameFact[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
+  /** Parts of the game on the FIDE scale, measured against the opponents (null without enough rated, analysed games). */
+  strength: StrengthMap | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */
   deep: DeepInsights | null;
   /** Repertoire and opening quality (null only for an empty profile). */
@@ -148,17 +153,30 @@ export interface RatingContext {
   /** Most recent rating in the time control the player plays most. */
   rating: number;
   speed: string;
-  /** Games with both ratings known (basis for performance / expectation). */
+  /** Platform of that rating ("chesscom", "lichess", "file"). */
+  source: string;
+  /** That rating converted to the FIDE scale (see fide.ts). */
+  fide: number;
+  /** The conversion lies below the survey's range (rough, near the FIDE floor). */
+  fide_extrapolated: boolean;
+  /** Games with both ratings known (basis for the expectation). */
   rated_games: number;
   /** Rated games left out because the rating was still settling (new account). */
   provisional_games: number;
+  /** Rated games on the shown rating's platform and speed (basis for avg_opponent and performance). */
+  line_games: number;
+  /** Average opponent on the shown rating's platform and speed. */
   avg_opponent: number | null;
-  /** Classic performance rating: average opponent + 400 · (W − L) / N. */
+  /** Performance rating (Elo curve) on the shown rating's platform and speed. */
   performance: number | null;
   /** Points scored vs. points the Elo formula expected. */
   score: number;
   expected_score: number | null;
-  /** Typical accuracy for this rating (estimate) vs. the player's. */
+  /** Where the "typical" values come from: the opponents of the same games, or the rough table. */
+  reference: "opponents" | "estimate";
+  /** Analysed games behind the opponents' reference (0 for the table). */
+  reference_games: number;
+  /** Reference accuracy (opponents' average, else table estimate) vs. the player's. */
   typical_accuracy: number;
   typical_phase_accuracy: Record<string, number>;
 }

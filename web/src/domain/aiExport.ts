@@ -15,7 +15,7 @@ import { explainMove } from "./explain";
 import { gamesInPeriod, type ExportSetting } from "./export";
 import { trClassification, trColor, trFilter, trMotif, trPhase, trPhaseIn, trPiece, trSpeed, trTermination } from "./i18n";
 import { classifyTermination, dateWindow, getUserColor, outcomeFor, parseMoves, parsePlayedAt, parseSummary } from "./metrics";
-import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile } from "./profile";
+import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile, sourceName } from "./profile";
 import { SERIOUS_ERROR_CLASSES, userWp } from "./profile/features";
 import type { MoveBucket, ScoreBucket } from "./profile/insights";
 import type { OpeningStat } from "./profile/openings";
@@ -245,7 +245,7 @@ Biete am Ende an, einzelne Partien (per Nummer) oder eine Eröffnung vertieft zu
 const LEGEND = `## 2. Legende: So liest du die Daten
 
 - **Perspektive**: „GC“ = Gewinnchance in Prozent, immer **aus Sicht des Spielers** (50 % = ausgeglichen, 100 % = sicher gewonnen). Engine-Bewertungen in Bauerneinheiten sind dagegen **aus Sicht von Weiß** (+1.5 = Weiß steht anderthalb Bauern besser, #3 = Weiß setzt in 3 Zügen matt, #-3 = Schwarz setzt matt).
-- **Genauigkeit** (0–100 %): Lichess-Formel aus dem Verlust an Gewinnchance je Zug. Ab etwa 80 % solide, ab 90 % sehr stark. Typisch für die Wertung steht in Abschnitt 4.
+- **Genauigkeit** (0–100 %): aus dem Verlust an Gewinnchance je Zug, nach der Lichess-Formel, aber strenger (Abklingkonstante 0,06 statt 0,04354) und mit eigener Engine gemessen. Deshalb nicht direkt mit Lichess- oder Chess.com-Werten vergleichbar; der faire Vergleich mit den Gegnern derselben Partien steht in Abschnitt 4.
 - **Punktequote**: (Siege + ½ · Remis) / Partien. **Erwartet**: Punktequote, die die Elo-Formel gegen dieselben Gegner vorhersagt. Darüber = besser als die Wertung.
 - **Zugklassen** (nach Verlust an Gewinnchance des Ziehenden, chess.com-Skala):
 
@@ -263,7 +263,8 @@ const LEGEND = `## 2. Legende: So liest du die Daten
 
 - **Schwere Fehler** = Fehler + Patzer + Verpasst. „je 100 Züge“ zählt nur die eigenen Züge.
 - **Phasen**: Eröffnung bis zum Ende der Theorie bzw. der Entwicklung, Endspiel bei wenig Figurenmaterial, dazwischen Mittelspiel.
-- **Fähigkeiten** (0–100): aus vielen Zügen geschätzte Teilstärken; „typisch“ = Richtwert für Spieler mit derselben Wertung, „±“ = Unsicherheit, „wenig Daten“ = noch nicht belastbar.
+- **Fähigkeiten** (0–100): aus vielen Zügen geschätzte Teilstärken; „Vergleich“ = was die Gegner in denselben Partien erreicht haben (ab 10 analysierten Partien, sonst grober Richtwert für die Wertung), „±“ = Unsicherheit, „wenig Daten“ = noch nicht belastbar.
+- **FIDE-Skala**: Fehlerquote im Verhältnis zu den Gegnern derselben Partien, ausgehend von deren Wertung (auf FIDE umgerechnet); halb so viele Fehler wie die Gegner ≈ 310 FIDE-Punkte über ihnen, zur eigenen Wertung hin geglättet, mit 95-%-Unsicherheit. Online-Wertungen sind keine FIDE-Elo.
 - **Stichprobe**: Die App nennt Stärken, Schwächen und Befunde nur mit genug Partien und einem statistischen Test. Die Rohdaten-Tabellen enthalten aber auch kleine Gruppen; achte auf die Spalte n bzw. Partien.
 - **Partie-Nummern**: P001 ist die neueste Partie. Dieselbe Nummer gilt in allen Abschnitten.
 - **Notation**: Züge in englischer Kurznotation (N = Springer, B = Läufer, R = Turm, Q = Dame, K = König). Stellungen als FEN.`;
@@ -289,14 +290,16 @@ function ratingSection(p: PlayerProfile): string {
   const rc = p.rating;
   if (!rc) return "## 4. Wertung und Erwartung\n\n_Keine Wertungen in den Partien._";
   const own = (p.overview.phase_accuracy ?? {}) as Record<string, number>;
+  const refName = rc.reference === "opponents" ? `Ø Gegner (${rc.reference_games} Partien, gleiche Engine)` : "grober Richtwert";
   const rows: unknown[][] = [
-    ["Wertung (meistgespielte Bedenkzeit)", `${rc.rating} (${trSpeed(rc.speed)})`],
+    ["Wertung (meistgespielte Bedenkzeit)", `${rc.rating} (${sourceName(rc.source)}, ${trSpeed(rc.speed)})`],
+    ["Dieselbe Wertung auf FIDE-Skala (ChessGoals-Umfrage 2026)", `≈ ${rc.fide}${rc.fide_extrapolated ? " (grob, unter dem Umfragebereich)" : ""}`],
     ["Partien mit beiden Wertungen", rc.rated_games],
-    ["Ø Gegnerwertung", rc.avg_opponent ?? "–"],
-    ["Performance", rc.performance ?? "–"],
+    [`Ø Gegnerwertung (${sourceName(rc.source)}, ${trSpeed(rc.speed)}, ${rc.line_games} Partien)`, rc.avg_opponent ?? "–"],
+    ["Performance (dieselben Partien)", rc.performance ?? "–"],
     ["Punkte geholt / erwartet", `${de(rc.score, 1)} / ${rc.expected_score !== null ? de(rc.expected_score, 1) : "–"}`],
-    ["Genauigkeit eigen / typisch für die Wertung", `${pct1(p.overview.avg_accuracy)} / ${pct1(rc.typical_accuracy)}`],
-    ...Object.entries(rc.typical_phase_accuracy ?? {}).map(([k, v]) => [`Genauigkeit ${trPhase(k)} eigen / typisch`, `${pct1(own[k])} / ${pct1(v)}`]),
+    [`Genauigkeit eigen / ${refName}`, `${pct1(p.overview.avg_accuracy)} / ${pct1(rc.typical_accuracy)}`],
+    ...Object.entries(rc.typical_phase_accuracy ?? {}).map(([k, v]) => [`Genauigkeit ${trPhase(k)} eigen / ${refName}`, `${pct1(own[k])} / ${pct1(v)}`]),
   ];
   const ratings = (p.trends?.ratings ?? {}) as Record<string, Array<[number, number]>>;
   const course = Object.entries(ratings).map(([speed, pts]) => {
@@ -348,7 +351,7 @@ function phaseSection(p: PlayerProfile): string {
   return [
     "## 6. Phasen",
     "",
-    table(["Phase", "Genauigkeit", "Typisch für Wertung", "Patzer gesamt", "Ø Zeit pro Zug"], rows),
+    table(["Phase", "Genauigkeit", p.rating?.reference === "opponents" ? "Ø Gegner" : "Richtwert für Wertung", "Patzer gesamt", "Ø Zeit pro Zug"], rows),
     tallyRows.length ? `\n${table(["Phase", "Partien", "Eigene Züge", "Schwere Fehler je 100", "Ungenau", "Fehler", "Verpasst", "Patzer"], tallyRows)}` : "",
   ].join("\n");
 }
@@ -392,7 +395,23 @@ function skillsSection(p: PlayerProfile): string {
       s.reliable ? "ja" : "wenig Daten",
       s.detail,
     ]);
-  return `## 8. Fähigkeiten\n\n${table(["Fähigkeit", "Wert", "Typisch", "Unsicherheit", "Partien", "Belastbar", "Grundlage"], rows)}`;
+  const sm = p.strength;
+  const fide = sm
+    ? [...sm.skills, ...(sm.overall ? [sm.overall] : [])].map((x) => [
+        x.name,
+        `≈ ${x.capped < 0 ? `unter ${x.rating}` : x.capped > 0 ? `über ${x.rating}` : x.rating}`,
+        `± ${x.margin}`,
+        `${de(x.error_ratio, 2)}×`,
+        x.games,
+        x.reliable ? "ja" : "wenig Daten",
+      ])
+    : [];
+  return [
+    `## 8. Fähigkeiten\n\n${table(["Fähigkeit", "Wert", "Vergleich", "Unsicherheit", "Partien", "Belastbar", "Grundlage"], rows)}`,
+    fide.length
+      ? `\n**Auf der FIDE-Skala** (Fehlerquote gegen die Gegner derselben Partien, Ø Gegner ≈ FIDE ${sm!.opponents_fide}; 95-%-Unsicherheit)\n\n${table(["Bereich", "FIDE", "Unsicherheit", "Fehler eigen / Gegner", "Partien", "Belastbar"], fide)}`
+      : "",
+  ].join("\n");
 }
 
 function insightsSection(p: PlayerProfile, nrOf: (id: string) => string): string {
