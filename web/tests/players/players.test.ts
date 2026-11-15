@@ -85,41 +85,39 @@ describe("tracked players", () => {
 });
 
 describe("friends ranking", () => {
-  const games = [...match("Tim", "Max", 6, 2, "a"), ...match("Ida", "Ole", 1, 5, "b")];
+  // Twelve games each (a strength needs ten rated games): Tim 9/12, Max 3/12 (against Tim), Ida 2/12.
+  const games = [...match("Tim", "Max", 9, 3, "a"), ...match("Ida", "Ole", 2, 10, "b")];
 
-  it("ranks every factor with the better value first and combines the places", () => {
+  it("ranks by strength, keeps the other numbers as information and counts recent games", () => {
     const ranking = buildRanking(
       [input("ich", ["Tim"], games, true), input("Max", ["Max"], games), input("Ida", ["Ida"], games)],
       games,
       { now: Date.parse("2026-06-20T00:00:00Z") / 1000 },
     );
     const row = (id: string) => ranking.rows.find((r) => r.id === id)!;
-    // Tim scored 75 %, Ida 17 %, Max 25 %.
-    expect([row("ich").cells.score.rank, row("Max").cells.score.rank, row("Ida").cells.score.rank]).toEqual([1, 2, 3]);
+    expect(ranking.rows.map((r) => [r.id, r.rank])).toEqual([
+      ["ich", 1],
+      ["Max", 2],
+      ["Ida", 3],
+    ]);
+    expect(row("ich").strength!.value).toBeGreaterThan(row("Max").strength!.value);
     // Fewer blunders per game is better.
     expect(ranking.factors.find((f) => f.key === "blunders")?.higher_is_better).toBe(false);
     expect(row("ich").cells.blunders.value).toBeLessThan(row("Ida").cells.blunders.value as number);
     expect(row("ich").cells.blunders.rank).toBe(1);
-    // Direct encounters only count inside the group: Ida never met Tim or Max.
-    expect(row("ich").cells.h2h).toMatchObject({ value: 75, rank: 1, note: "6/8" });
-    expect(row("Ida").cells.h2h.value).toBeNull();
-    expect(ranking.rows[0].id).toBe("ich");
-    expect(ranking.rows.map((r) => r.rank)).toEqual([1, 2, 3]);
-    expect(row("ich").overall).toBeGreaterThan(row("Ida").overall as number);
     // All games happened within the last 30 days.
-    expect(row("ich").cells.activity.value).toBe(8);
+    expect(row("ich").cells.activity.value).toBe(12);
   });
 
-  it("lets ties share a place and leaves players without data unranked", () => {
-    const same = [...match("A", "X", 2, 2, "a"), ...match("B", "Y", 2, 2, "b")];
-    const ranking = buildRanking([input("A", ["A"], same), input("B", ["B"], same), input("C", ["C"], same)], same);
-    const score = ranking.rows.map((r) => [r.id, r.cells.score.rank, r.cells.score.points]);
-    expect(score).toEqual([
-      ["A", 1, 50],
-      ["B", 1, 50],
-      ["C", null, null],
+  it("leaves players without enough rated games unranked instead of guessing", () => {
+    const few = [...match("A", "X", 6, 6, "a"), ...match("B", "Y", 3, 3, "b")];
+    const ranking = buildRanking([input("A", ["A"], few), input("B", ["B"], few), input("C", ["C"], few)], few);
+    expect(ranking.rows.map((r) => [r.id, r.rank, r.strength === null])).toEqual([
+      ["A", 1, false],
+      ["B", null, true],
+      ["C", null, true],
     ]);
-    expect(ranking.rows.find((r) => r.id === "C")?.rank).toBeNull();
+    expect(ranking.notes.join(" ")).toContain("ab 10 gewerteten Partien");
   });
 });
 
@@ -210,32 +208,25 @@ describe("fair comparison", () => {
     profile: { ...inp.profile, analyzed_games: 30, overview: { ...inp.profile.overview, avg_accuracy: acc, accuracy_sd: 8 } },
   });
 
-  it("gives near-equal values near-equal points and keeps ratings to one platform", () => {
+  it("ranks near-equal values by the value and keeps ratings to one platform", () => {
     const ranking = buildRanking(
       [withAcc(input("A", ["A"], games), 80), withAcc(input("B", ["B"], games), 80.2), withAcc(input("C", ["C"], games), 70)],
       games,
     );
     const acc = (id: string) => ranking.rows.find((r) => r.id === id)!.cells.accuracy;
-    // B is ahead by 0,2 points: still first, but that is nearly a coin flip, not 100 against 50 points.
-    expect(acc("B").rank).toBe(1);
-    expect(Math.abs((acc("A").points as number) - (acc("B").points as number))).toBeLessThan(10);
-    expect(acc("C").points).toBeLessThan(5);
+    expect([acc("B").rank, acc("A").rank, acc("C").rank]).toEqual([1, 2, 3]);
     // C plays on Lichess, A and B on Chess.com: C's rating is left out instead of compared.
     const rating = (id: string) => ranking.rows.find((r) => r.id === id)!.cells.rating;
     expect([rating("A").value, rating("C").value]).toEqual([1500, null]);
-    expect(ranking.notes.join(" ")).toContain("nicht vergleichbar");
   });
 
-  it("lists the rating for orientation only and keeps it out of the overall score and the skills", () => {
+  it("keeps the player's own rating out of the strength and the skills", () => {
     const rated = (inp: RankInput, elo: number): RankInput => ({ ...inp, profile: { ...inp.profile, overview: { ...inp.profile.overview, ratings: { Schnellschach: elo } } } });
-    const same = [...match("A", "X", 4, 4, "a"), ...match("B", "Y", 4, 4, "b")];
+    const same = [...match("A", "X", 6, 6, "a"), ...match("B", "Y", 6, 6, "b")];
     const run = (eloA: number) => buildRanking([rated(withAcc(input("A", ["A"], same), 80), eloA), rated(withAcc(input("B", ["B"], same), 80), 1500)], same);
-    const low = run(900);
-    const high = run(2400);
-    const row = (r: typeof low, id: string) => r.rows.find((x) => x.id === id)!;
-    // The rating cell still ranks, but 1500 points of rating gap move nothing overall.
-    expect(row(high, "A").cells.rating.points).toBeGreaterThan(99);
-    expect(row(high, "A").overall).toBeCloseTo(row(low, "A").overall as number, 6);
+    const row = (r: ReturnType<typeof run>, id: string) => r.rows.find((x) => x.id === id)!;
+    // 1500 points of rating gap move the strength not at all.
+    expect(row(run(2400), "A").strength!.value).toBeCloseTo(row(run(900), "A").strength!.value, 9);
 
     // Same moves, different rating-typical prior: the comparison judges both alike.
     const base = buildPlayerProfile(match("Tim", "Max", 4, 4, "t"), ["Tim"]);

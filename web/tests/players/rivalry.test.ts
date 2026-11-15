@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCrosstable, crossHighlights, duelInsights, groupMomentum, groupRecords, openingPreview } from "../../src/domain/players";
+import { buildCrosstable, crossHighlights, duelInsights, groupMomentum, openingPreview } from "../../src/domain/players";
 import type { RawGame } from "../../src/domain/metrics";
 import type { PlayerProfile } from "../../src/domain/profile";
 import type { MoveData } from "../../src/domain/types";
@@ -122,42 +122,6 @@ describe("form", () => {
   });
 });
 
-describe("records", () => {
-  it("keeps each record with its game and gives ties to whoever set it first", () => {
-    // 52 plies: 26 moves each, long enough for an accuracy record.
-    const long = [...buildMoves(), ...buildMoves()];
-    // 26 plies; White falls to 10 % and comes back.
-    const comeback = buildMoves({ 15: ["Blunder", 0.1], 16: ["Best", 0.1], 20: ["Blunder", 0.9] });
-    const games = [
-      game({ white: "Tim", black: "X", result: "1-0", days: 50, acc: [92.5, 60], elo: [1500, 1700], moves: long }),
-      game({ white: "Ida", black: "X", result: "1-0", days: 40, acc: [92.5, 60], moves: long }),
-      game({ white: "Ida", black: "X", result: "1-0", days: 39, acc: [88, 60], elo: [1500, 1900], moves: comeback }),
-      game({ white: "Ida", black: "X", result: "1-0", days: 38, acc: [70, 60], blunders: [1, 0], moves: long }),
-      game({ white: "Tim", black: "X", result: "1-0", days: 30, acc: [80, 60], termination: "timeout", moves: buildMoves().slice(0, 12) }),
-      game({ white: "Tim", black: "X", result: "0-1", days: 20, acc: [75, 80], moves: long }),
-    ];
-    const rec = groupRecords([member("ich", true), member("Ida")], games);
-    const of = (key: string) => rec.find((r) => r.key === key);
-    // Same 92,5 %: Tim set it ten days earlier.
-    expect(of("best_game")).toMatchObject({ holder: { id: "ich", is_me: true }, value: 92.5, text: "92,5 %" });
-    expect(of("comeback")).toMatchObject({ holder: { id: "Ida" }, text: "aus 10 % gewonnen" });
-    expect(of("upset")).toMatchObject({ holder: { id: "Ida" }, value: 400 });
-    expect(of("streak")).toMatchObject({ holder: { id: "Ida" }, value: 3, text: "3 Siege in Folge" });
-    // Ida's run without a blunder ends with her third game; Tim's three games are all clean.
-    expect(of("clean")).toMatchObject({ holder: { id: "ich" }, value: 3 });
-    // The six-move win on time is no knockout: the quickest real win is the comeback.
-    expect(of("quick")).toMatchObject({ holder: { id: "Ida" }, value: 13, game_id: games[2].id });
-    expect(of("brilliant")).toBeUndefined();
-  });
-});
-
-describe("records count the holder's own moves", () => {
-  it("counts a win with Black by Black's moves, not by half the plies rounded up", () => {
-    // 23 plies: White made 12 moves, Black (the winner) 11.
-    const games = [game({ white: "X", black: "Ida", result: "0-1", days: 5, acc: [60, 85], moves: buildMoves().slice(0, 23) })];
-    expect(groupRecords([member("Ida")], games).find((r) => r.key === "quick")).toMatchObject({ value: 11, text: "Sieg in 11 Zügen" });
-  });
-});
 
 describe("duel analysis", () => {
   // Tim against Lena: Lena wins the first eight (Tim throws a won game away

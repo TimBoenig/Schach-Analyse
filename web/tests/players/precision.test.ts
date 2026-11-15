@@ -48,9 +48,9 @@ describe("ranking precision", () => {
     const ranking = buildRanking([input("A", games), input("B", games), input("C", games)], games, { format: "No Bullet", now: NOW });
     const cell = (id: string) => ranking.rows.find((r) => r.id === id)!.cells.activity;
     expect(cell("C").value).toBe(20);
-    // 31 against 30 games is close to a coin flip, not a full 100 against 0.
-    expect(Math.abs((cell("A").points as number) - (cell("B").points as number))).toBeLessThan(15);
-    expect(cell("C").points).toBeLessThan(15);
+    // A count of games is a Poisson count: its spread grows with the count.
+    expect(cell("A")).toMatchObject({ value: 31, rank: 1 });
+    expect(cell("A").se).toBeCloseTo(Math.sqrt(32), 9);
   });
 
   it("keeps the raw accuracy next to the corrected one and warns about uneven analysis depth", () => {
@@ -91,11 +91,17 @@ describe("ranking precision", () => {
     expect(medianDepths(league.quality)).toEqual([12, 12, 9, null]);
   });
 
-  it("starts the comparison on 90 days and widens until two players have enough analysed games", () => {
-    const fresh = [...many(6, (i) => game("Anna", 5 + i, { accuracy: 80 })), ...many(6, (i) => game("Ben", 10 + i, { accuracy: 80 }))];
+  it("starts the comparison on 90 days and widens until two players have enough rated games against humans", () => {
+    const fresh = [...many(12, (i) => game("Anna", 5 + i)), ...many(12, (i) => game("Ben", 10 + i))];
     expect(comparisonPeriod(fresh, [["Anna"], ["Ben"], ["Cem"]], "All Formats", "Last 90 Days", NOW)).toBe("Last 90 Days");
-    // Ben's analysed games are half a year old; unanalysed recent games do not count.
-    const stale = [...many(6, (i) => game("Anna", 5 + i, { accuracy: 80 })), ...many(6, (i) => game("Ben", 180 + i, { accuracy: 80 })), ...many(9, (i) => game("Ben", i))];
+    // Ben's games are half a year old; his nine recent games are too few, and games against a bot do not count.
+    const bot = (g: RawGame): RawGame => ({ ...g, black: "lichess AI level 4" });
+    const stale = [
+      ...many(12, (i) => game("Anna", 5 + i)),
+      ...many(12, (i) => game("Ben", 180 + i)),
+      ...many(9, (i) => game("Ben", i)),
+      ...many(5, (i) => bot(game("Ben", i))),
+    ];
     expect(comparisonPeriod(stale, [["Anna"], ["Ben"]], "All Formats", "Last 90 Days", NOW)).toBe("Last 365 Days");
   });
 });

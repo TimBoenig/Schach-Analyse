@@ -183,55 +183,14 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
 
 // ---------- competitive extras ----------
 
-export interface Crown {
-  key: string;
-  label: string;
-  title: string;
-  holder_id: string;
-  holder_name: string;
-  /** Average points in the round's factors (0..100). */
-  points: number;
-  /** The lead over the runner-up is not just noise. */
-  clear: boolean;
-}
-
-/** The group's best player in each battle round, with a title to hold. */
-export function crowns(ranking: Ranking): Crown[] {
-  const out: Crown[] = [];
-  for (const def of BATTLE_ROUNDS) {
-    const scored = ranking.rows
-      .map((r) => {
-        const pts = def.factors.map((k) => r.cells[k]?.points).filter((v): v is number => v !== null && v !== undefined);
-        return { r, pts: pts.length ? pts.reduce((a, b) => a + b, 0) / pts.length : null };
-      })
-      .filter((x): x is { r: RankRow; pts: number } => x.pts !== null)
-      .sort((a, b) => b.pts - a.pts);
-    if (scored.length < 2) continue;
-    const [top, next] = scored;
-    if (top.pts === next.pts) continue;
-    out.push({
-      key: def.key,
-      label: def.label,
-      title: def.crown,
-      holder_id: top.r.id,
-      holder_name: top.r.name,
-      points: top.pts,
-      // Points are chances of being better: 80 against 50 needs a real gap.
-      clear: top.pts >= CLEAR_P * 100,
-    });
-  }
-  return out;
-}
-
-/** The friend closest to a player in the overall score: the natural opponent for a battle. */
+/** The friend closest to a player in strength: the natural opponent for a battle. */
 export function rivalOf(ranking: Ranking, id: string): RankRow | null {
   const me = ranking.rows.find((r) => r.id === id);
   if (!me) return null;
   const others = ranking.rows.filter((r) => r.id !== id);
   if (!others.length) return null;
-  if (me.overall === null) return others[0];
-  return others.reduce((best, r) => {
-    const d = (x: RankRow) => (x.overall === null ? Infinity : Math.abs(x.overall - (me.overall as number)));
-    return d(r) < d(best) ? r : best;
-  });
+  const mine = me.strength?.value;
+  if (mine === undefined) return others[0];
+  const d = (x: RankRow) => (x.strength ? Math.abs(x.strength.value - mine) : Infinity);
+  return others.reduce((best, r) => (d(r) < d(best) ? r : best));
 }

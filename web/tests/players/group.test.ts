@@ -11,13 +11,14 @@ function row(id: string, isMe: boolean, cells: Record<string, [number, number]>)
     name: id,
     is_me: isMe,
     rank: null,
-    overall: null,
+    strength: null,
+    odds: null,
     games: 50,
     analyzed: 30,
+    rated_games: 50,
+    bot_games: 0,
     source: "lichess",
-    breakdown: [],
-    missing: [],
-    cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se]]) => [k, { value, se, rank: null, points: null, note: "" }])),
+    cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se]]) => [k, { value, se, rank: null, note: "" }])),
   };
 }
 

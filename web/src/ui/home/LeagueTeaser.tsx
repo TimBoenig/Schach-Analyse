@@ -6,11 +6,13 @@ import { loadPlayers } from "../../app/players";
 import { statsFormat } from "../../domain/analysisDepth";
 import { trFilter } from "../../domain/i18n";
 import { PAGE_PERIODS } from "../../domain/periods";
-import { buildRanking, comparisonPeriod, playerUsernames, rankedFriends, type Ranking, type TrackedPlayer } from "../../domain/players";
+import { withoutBots } from "../../domain/metrics";
+import { buildRanking, comparisonPeriod, fideText, playerUsernames, rankedFriends, type Ranking, type StrengthEstimate, type TrackedPlayer } from "../../domain/players";
+import { lichessBlitzToFide } from "../../domain/profile/fide";
 import type { StoredGame } from "../../domain/types";
 import { IconPlayers, IconTrophy } from "../icons";
 import { ScaleTrack } from "../kit";
-import { de, profileFor, toneOf } from "../players/common";
+import { profileFor, toneOf } from "../players/common";
 import { navigate } from "../router";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
@@ -42,7 +44,8 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
         fmt,
         PAGE_PERIODS.league,
       );
-      Promise.all(group.map((g) => profileFor(games, g.usernames, fmt, date)))
+      const human = withoutBots(games);
+      Promise.all(group.map((g) => profileFor(human, g.usernames, fmt, date)))
         .then((profiles) => {
           if (alive) setRanking(buildRanking(group.map((g, i) => ({ ...g, profile: profiles[i] })), games, { format: fmt, date }));
         })
@@ -72,11 +75,20 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
       </section>
     );
   }
-  const ranked = ranking?.rows.filter((r) => r.overall !== null) ?? [];
+  const ranked = ranking?.rows.filter((r) => r.strength !== null) ?? [];
   const mine = ranked.find((r) => r.is_me);
   if (!ranking || !mine || ranked.length < 2) return null;
-  const above = ranked.filter((r) => (r.overall as number) > (mine.overall as number)).pop();
-  const below = ranked.find((r) => (r.overall as number) < (mine.overall as number));
+  // The shown numbers are FIDE-scale strengths, so gaps are their differences.
+  const fide = (r: (typeof ranked)[number]) => lichessBlitzToFide((r.strength as StrengthEstimate).value).rating;
+  const i = ranked.indexOf(mine);
+  const above = i > 0 ? ranked[i - 1] : null;
+  const below = ranked[i + 1] ?? null;
+  const values = ranked.map(fide);
+  const min = Math.floor((Math.min(...values) - 40) / 50) * 50;
+  const max = Math.max(min + 100, Math.ceil((Math.max(...values) + 40) / 50) * 50);
+  const step = Math.max(50, Math.ceil((max - min) / 4 / 50) * 50);
+  const ticks: number[] = [];
+  for (let v = min; v <= max; v += step) ticks.push(v);
   return (
     <section class="card tile span-12 league-teaser">
       <div class="tile-head">
@@ -84,8 +96,8 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
           Deine Liga: Platz {mine.rank} von {ranked.length}
         </h3>
         <span class="tile-sub">
-          {above ? `${de((above.overall as number) - (mine.overall as number), 1)} Punkte hinter ${above.name}` : "du führst"}
-          {below ? ` · ${de((mine.overall as number) - (below.overall as number), 1)} vor ${below.name}` : ""}
+          {above ? `${fide(above) - fide(mine)} Elo hinter ${above.name}` : "du führst"}
+          {below ? ` · ${fide(mine) - fide(below)} vor ${below.name}` : ""}
           {` · ${trFilter(ranking.period)}`}
         </span>
         <span class="spacer" />
@@ -94,7 +106,10 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
         </button>
       </div>
       <ScaleTrack
-        markers={ranked.map((r) => ({ id: r.id, label: r.name, value: r.overall as number, tone: r.is_me ? "tone-me" : toneOf(players, r.id), me: r.is_me }))}
+        markers={ranked.map((r) => ({ id: r.id, label: r.name, value: fide(r), valueText: fideText((r.strength as StrengthEstimate).value).replace("unter ", "<"), tone: r.is_me ? "tone-me" : toneOf(players, r.id), me: r.is_me }))}
+        min={min}
+        max={max}
+        ticks={ticks}
         onPick={(id) => navigate(id === "ich" ? { view: "players", tab: "rangliste" } : { view: "players", playerId: id })}
         // Phones: a standings list instead of dots stacked in lanes.
         rows={narrow}

@@ -12,6 +12,7 @@ export {
   pct,
 } from "./accumulators";
 export { calculateStats, getDrillDownItems } from "./aggregator";
+export { isBotGame, withoutBots } from "./bots";
 export * from "./constants";
 export {
   dateWindow,

@@ -12,51 +12,56 @@ import { statsFormat } from "../../domain/analysisDepth";
 import { PAGE_PERIODS } from "../../domain/periods";
 import {
   type Archetype,
-  BATTLE_ROUNDS,
+  type Area,
+  AREA_LABEL,
+  AREAS,
+  areaTable,
+  archetypes,
   type Battle,
   buildBattle,
   buildCrosstable,
   buildRanking,
-  comparisonPeriod,
   climbPlan,
   type ClimbPlan,
+  comparisonPeriod,
   type CrossCell,
   crossHighlights,
   type Crosstable,
-  crowns,
-  archetypes,
+  expectedPoints,
+  fideText,
   FORM_DAYS,
   type FormRow,
   type GroupPoint,
   groupForm,
   groupMomentum,
-  MOMENTUM_WEEKS,
   groupRecords,
   type GroupRecord,
   type GroupStanding,
   groupStanding,
-  LARGE_EFFORT,
   type HeadToHead,
-  type Lever,
   MIN_PAIR_GAMES,
+  MIN_RATED_GAMES,
+  MOMENTUM_WEEKS,
   type MomentumRow,
   pairForecast,
+  PLAN_GAMES,
   playerUsernames,
+  probStronger,
   qualityMap,
   type QualityMap,
   rankedFriends,
   type RankCell,
   type Ranking,
   type RankRow,
-  ranksOf,
-  rescore,
   rivalOf,
   simulateTournament,
-  SMALL_EFFORT,
+  type StrengthEstimate,
   type Tournament,
   type TrackedPlayer,
+  whatIf,
 } from "../../domain/players";
-import { filterGames, parsePlayedAt } from "../../domain/metrics";
+import { lichessBlitzToFide } from "../../domain/profile/fide";
+import { filterGames, parsePlayedAt, withoutBots } from "../../domain/metrics";
 import type { PlayerProfile } from "../../domain/profile";
 import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
@@ -83,7 +88,6 @@ export const LEAGUE_SECTIONS: StatSection[] = [
 type Tones = Record<string, string>;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const winPct = (p: number) => (p > 0 && p < 0.005 ? "<1 %" : pct0(p * 100));
-const avg = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
 
 function scrollToId(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -125,75 +129,82 @@ function RankingMembers({ friends, tones }: { friends: TrackedPlayer[]; tones: T
 
 // ---------- hero: the league track and "what if" ----------
 
-const SIM_KEYS: { key: string; label: string; down: number; up: number; step: number; digits: number }[] = [
-  { key: "accuracy", label: "Genauigkeit", down: 5, up: 10, step: 0.1, digits: 1 },
-  { key: "blunders", label: "Patzer pro Partie", down: 1.5, up: 1, step: 0.01, digits: 2 },
-  { key: "expectation", label: "Über Erwartung", down: 15, up: 25, step: 0.5, digits: 1 },
-];
+/** A value of the common scale as a FIDE number for axes and gaps (may fall below the 1400 floor). */
+const fideOf = (v: number) => lichessBlitzToFide(v).rating;
+/** "FIDE 1620" or "unter 1400". */
+const fideLabel = (v: number) => fideText(v);
+const strengthOf = (r: RankRow) => r.strength?.value ?? null;
 
-function bounds(key: string, base: number, down: number, up: number): [number, number] {
-  if (key === "blunders") return [Math.max(0, base - down), base + up];
-  if (key === "accuracy") return [Math.max(0, base - down), Math.min(100, base + up)];
-  return [base - down, base + up];
+/** Track bounds on the FIDE scale: the group's 95 % ranges, rounded out to 50. */
+function trackBounds(rows: RankRow[]): { min: number; max: number; ticks: number[] } {
+  const lo = Math.min(...rows.map((r) => r.strength?.fide_low ?? Infinity));
+  const hi = Math.max(...rows.map((r) => r.strength?.fide_high ?? -Infinity));
+  const min = Math.floor((lo - 25) / 50) * 50;
+  const max = Math.max(min + 100, Math.ceil((hi + 25) / 50) * 50);
+  const step = Math.max(50, Math.ceil((max - min) / 4 / 50) * 50);
+  const ticks: number[] = [];
+  for (let v = min; v <= max; v += step) ticks.push(v);
+  return { min, max, ticks };
 }
 
-/** Every ranked player on one line from 0 to 100 points. */
-function Track({ rows, overall, tones }: { rows: RankRow[]; overall: (r: RankRow) => number | null; tones: Tones }) {
-  const markers: TrackMarker[] = rows.map((r) => ({ id: r.id, label: r.name, value: clamp(overall(r) ?? 0, 0, 100), tone: tones[r.id], me: r.is_me }));
-  return <ScaleTrack markers={markers} />;
+/** "Platz 2" when sure, "Platz 1–3" otherwise. */
+const placeRange = (r: RankRow) => (r.odds && r.odds.low !== r.odds.high ? `${r.odds.low}–${r.odds.high}` : String(r.rank ?? "–"));
+
+/** Every ranked player on one line, at their strength on the FIDE scale. */
+function Track({ rows, value, tones }: { rows: RankRow[]; value: (r: RankRow) => number | null; tones: Tones }) {
+  const b = trackBounds(rows);
+  const markers: TrackMarker[] = rows.map((r) => {
+    const v = value(r) ?? 0;
+    // Below the FIDE floor the position stays apart, but the label must not claim a FIDE number.
+    return { id: r.id, label: r.name, value: clamp(fideOf(v), b.min, b.max), valueText: fideLabel(v).replace("unter ", "<"), tone: tones[r.id], me: r.is_me };
+  });
+  return <ScaleTrack markers={markers} min={b.min} max={b.max} ticks={b.ticks} />;
 }
 
-function WhatIf({
-  me,
-  sim,
-  onSim,
-  result,
-}: {
-  me: RankRow;
-  sim: Record<string, number>;
-  onSim: (s: Record<string, number>) => void;
-  result: { overall: number | null; rank: number | null; passed: string[] };
-}) {
-  const keys = SIM_KEYS.filter((k) => me.cells[k.key]?.value !== null && me.cells[k.key]?.value !== undefined);
-  if (!keys.length) return null;
-  const changed = Object.keys(sim).length > 0;
-  const delta = result.overall !== null && me.overall !== null ? result.overall - me.overall : 0;
+function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s: Sim) => void; ranking: Ranking }) {
+  const s = me.strength as StrengthEstimate;
+  const base = Math.round(expectedPoints(s, PLAN_GAMES) * 2) / 2;
+  const points = sim.points ?? base;
+  const cut = sim.cut ?? 0;
+  const changed = sim.points !== undefined || sim.cut !== undefined;
+  const result = whatIf(ranking, me.id, points, cut);
+  const delta = result ? fideOf(result.value) - fideOf(s.value) : 0;
   return (
     <div class="lg-whatif">
       <div class="lg-sliders">
-        {keys.map((k) => {
-          const base = me.cells[k.key].value as number;
-          const [lo, hi] = bounds(k.key, base, k.down, k.up);
-          const value = clamp(sim[k.key] ?? base, lo, hi);
-          return (
-            <WhatIfSlider
-              key={k.key}
-              label={k.label}
-              value={value}
-              base={base}
-              min={lo}
-              max={hi}
-              step={k.step}
-              text={formatFactor(k.key, value)}
-              deltaText={signed(value - base, k.digits)}
-              good={k.key === "blunders" ? value < base : value > base}
-              onInput={(v) => {
-                const next = { ...sim };
-                if (Math.abs(v - base) < k.step / 2) delete next[k.key];
-                else next[k.key] = v;
-                onSim(next);
-              }}
-            />
-          );
-        })}
+        <WhatIfSlider
+          label={`Punkte aus deinen nächsten ${PLAN_GAMES} Partien`}
+          value={points}
+          base={base}
+          min={0}
+          max={PLAN_GAMES}
+          step={0.5}
+          text={`${de(points, points % 1 ? 1 : 0)} / ${PLAN_GAMES}`}
+          deltaText={signed(points - base, 1)}
+          good={points > base}
+          onInput={(v) => onSim({ ...sim, points: Math.abs(v - base) < 0.25 ? undefined : v })}
+        />
+        {s.quality && s.quality.weight > 0.02 && (
+          <WhatIfSlider
+            label="Weniger Fehler pro Zug"
+            value={cut * 100}
+            base={0}
+            min={0}
+            max={50}
+            step={1}
+            text={`−${Math.round(cut * 100)} %`}
+            deltaText={`${Math.round(cut * 100)} %`}
+            good={cut > 0}
+            onInput={(v) => onSim({ ...sim, cut: v < 0.5 ? undefined : v / 100 })}
+          />
+        )}
       </div>
       <div class={`lg-whatif-result${changed ? " on" : ""}`} role="status">
-        {changed ? (
+        {changed && result ? (
           <>
             <span>
-              Damit wärst du auf <strong>Platz {result.rank ?? "–"}</strong>
-              {result.rank !== me.rank && me.rank !== null ? ` statt ${me.rank}` : ""} mit{" "}
-              <strong class="tnum">{result.overall === null ? "–" : Math.round(result.overall)}</strong> Punkten{" "}
+              Damit wärst du auf <strong>Platz {result.rank}</strong>
+              {result.rank !== me.rank && me.rank !== null ? ` statt ${me.rank}` : ""} mit <strong class="tnum">FIDE {fideLabel(result.value)}</strong>{" "}
               <span class={`tnum ${delta >= 0 ? "pos" : "neg"}`}>({signed(delta, 0)})</span>
               {result.passed.length ? `, vor ${result.passed.join(" und ")}` : ""}.
             </span>
@@ -202,88 +213,67 @@ function WhatIf({
             </button>
           </>
         ) : (
-          <span class="muted">Schieb deine Werte und sieh live, wo du landest. Die anderen bleiben, wie sie sind.</span>
+          <span class="muted">
+            Schieb die Regler und sieh live, wo du landest. Erwartet sind bei deiner Stärke etwa {de(base, base % 1 ? 1 : 0)} Punkte aus {PLAN_GAMES} Partien gegen deine üblichen Gegner; die anderen bleiben, wie sie sind.
+          </span>
         )}
       </div>
     </div>
   );
 }
 
-function LeagueHero({
-  ranking,
-  tones,
-  tournament,
-  sim,
-  onSim,
-}: {
-  ranking: Ranking;
-  tones: Tones;
-  tournament: Tournament | null;
-  sim: Record<string, number>;
-  onSim: (s: Record<string, number>) => void;
-}) {
-  const me = ranking.rows.find((r) => r.is_me && r.overall !== null) ?? null;
-  const ranked = ranking.rows.filter((r) => r.overall !== null);
+type Sim = { points?: number; cut?: number };
+
+function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranking; tones: Tones; tournament: Tournament | null; sim: Sim; onSim: (s: Sim) => void }) {
+  const ranked = ranking.rows.filter((r) => r.strength !== null);
+  const me = ranked.find((r) => r.is_me) ?? null;
   const [open, setOpen] = useState(false);
-  const scores = useMemo(() => (me && Object.keys(sim).length ? rescore(ranking, me.id, sim) : null), [ranking, me, sim]);
-  const ranks = useMemo(() => (scores ? ranksOf(scores) : null), [scores]);
+  const simValue = useMemo(() => (me && (sim.points !== undefined || sim.cut !== undefined) ? whatIf(ranking, me.id, sim.points ?? expectedPoints(me.strength as StrengthEstimate, PLAN_GAMES), sim.cut ?? 0) : null), [ranking, me, sim]);
   if (!ranked.length) return null;
-  const overall = (r: RankRow) => scores?.get(r.id) ?? r.overall;
+  const value = (r: RankRow) => (simValue && r.is_me ? simValue.value : strengthOf(r));
   const leader = ranked[0];
-  const leaders = ranked.filter((r) => r.rank === 1);
-  const title = leaders.length > 1 ? `${leaders.map((r) => r.name).join(" und ")} teilen sich die Spitze` : leader.is_me ? "Du führst die Liga an" : `${leader.name} führt die Liga an`;
+  const lead = leader.strength as StrengthEstimate;
+  const title = leader.is_me ? "Du führst die Liga an" : `${leader.name} führt die Liga an`;
   const win = (id: string) => tournament?.rows.find((t) => t.id === id)?.win ?? null;
-  const above = me ? ranked.filter((r) => (r.overall as number) > (me.overall as number)).pop() : null;
-  const below = me ? ranked.find((r) => (r.overall as number) < (me.overall as number)) : null;
-  const result = {
-    overall: me ? (scores?.get(me.id) ?? me.overall) : null,
-    rank: me ? (ranks?.get(me.id) ?? me.rank) : null,
-    // Who you would pass with the simulated values.
-    passed: me && scores ? ranked.filter((r) => !r.is_me && (r.overall as number) > (me.overall as number) && (scores.get(r.id) ?? 0) < (scores.get(me.id) ?? 0)).map((r) => r.name) : [],
-  };
+  const i = me ? ranked.indexOf(me) : -1;
+  const above = i > 0 ? ranked[i - 1] : null;
+  const below = me && i < ranked.length - 1 ? ranked[i + 1] : null;
+  const pAbove = me && above ? probStronger(above.strength as StrengthEstimate, me.strength as StrengthEstimate) : null;
+  const pBelow = me && below ? probStronger(me.strength as StrengthEstimate, below.strength as StrengthEstimate) : null;
   const lw = win(leader.id);
-  // The table rates play quality; the tournament also rolls the direct games.
-  // When someone else wins it more often, name them, or "leads, wins 30 %"
-  // next to a 37 % favourite reads like a mistake.
-  const favourite = tournament && leaders.length === 1 ? [...tournament.rows].sort((a, b) => b.win - a.win)[0] : null;
-  const otherFavourite = favourite && lw !== null && favourite.id !== leader.id && favourite.win > lw ? ranked.find((r) => r.id === favourite.id) : null;
   return (
     <section class="card lg-hero span-12" id="lg-hero">
       <div class="lg-hero-head">
         <div>
-          <span class="lg-kicker">
-            Liga · {plural(ranked.length, "Spieler", "Spieler")}
-          </span>
+          <span class="lg-kicker">Liga · {plural(ranked.length, "Spieler", "Spieler")}</span>
           <h2 class="lg-hero-title">{title}</h2>
           <p class="lg-hero-sub">
-            {Math.round(leader.overall as number)} von 100 Punkten
-            {lw !== null && leaders.length === 1 ? ` · gewinnt ${winPct(lw)} der simulierten Turniere` : ""}
-            {otherFavourite && favourite
-              ? ` · Turnierfavorit ist aber ${otherFavourite.is_me ? "du" : otherFavourite.name} (${winPct(favourite.win)})`
-              : ""}
+            Spielstärke FIDE {fideLabel(lead.value)} (95 %: {lead.fide_low}–{lead.fide_high})
+            {leader.odds ? ` · zu ${winPct(leader.odds.first)} wirklich der Stärkste` : ""}
+            {lw !== null ? ` · gewinnt ${winPct(lw)} der simulierten Turniere` : ""}
           </p>
         </div>
         {me && (
           <div class="lg-hero-me">
             <span class="lg-hero-place tnum">{me.rank}.</span>
             <span class="lg-hero-me-text">
-              <strong>Dein Platz</strong>
+              <strong>Dein Platz{me.odds && me.odds.low !== me.odds.high ? ` (sicher: ${placeRange(me)})` : ""}</strong>
               <span class="faint small">
-                {above ? `${de((above.overall as number) - (me.overall as number), 1)} hinter ${above.name}` : "niemand vor dir"}
-                {below ? ` · ${de((me.overall as number) - (below.overall as number), 1)} vor ${below.name}` : ""}
+                {above ? `${fideOf(strengthOf(above) as number) - fideOf(strengthOf(me) as number)} hinter ${above.name} (zu ${winPct(pAbove as number)} wirklich stärker)` : "niemand vor dir"}
+                {below ? ` · ${fideOf(strengthOf(me) as number) - fideOf(strengthOf(below) as number)} vor ${below.name} (zu ${winPct(pBelow as number)} sicher)` : ""}
               </span>
             </span>
           </div>
         )}
       </div>
-      <Track rows={ranked} overall={overall} tones={tones} />
+      <Track rows={ranked} value={value} tones={tones} />
       {me && (
         <>
-          <button class={`lg-whatif-toggle${open || scores ? " on" : ""}`} onClick={() => setOpen(!(open || scores))} aria-expanded={open || Boolean(scores)}>
+          <button class={`lg-whatif-toggle${open || simValue ? " on" : ""}`} onClick={() => setOpen(!(open || simValue))} aria-expanded={open || Boolean(simValue)}>
             <IconSpark /> Was wäre wenn?
-            <span class="faint small"> Deine Werte verschieben und den Platz live sehen</span>
+            <span class="faint small"> Ergebnisse und Fehler verschieben und den Platz live sehen</span>
           </button>
-          {(open || scores) && <WhatIf me={me} sim={sim} onSim={onSim} result={result} />}
+          {(open || simValue) && <WhatIf me={me} sim={sim} onSim={onSim} ranking={ranking} />}
         </>
       )}
     </section>
@@ -292,12 +282,10 @@ function LeagueHero({
 
 // ---------- table ----------
 
-const GROUP_CLASS: Record<string, string> = { Ergebnisse: "g-res", Spielqualität: "g-qual", Fähigkeiten: "g-skill", Sonstiges: "g-misc" };
-
 /**
  * " (roh 71,0 %)" when the time-control correction moved a value: the league
- * compares corrected values, the player's profile shows the raw one, and both
- * should be readable side by side.
+ * shows corrected values, the player's profile the raw one, and both should
+ * be readable side by side.
  */
 function rawNote(key: string, cell: RankCell | undefined): string {
   if (!cell || cell.raw === null || cell.raw === undefined || cell.value === null) return "";
@@ -310,53 +298,91 @@ function rawTitle(label: string, key: string, cell: RankCell | undefined): strin
   return note ? `${label}, nach Bedenkzeit bereinigt${note}` : label;
 }
 
-/** Where a player's overall points come from: one segment per factor, sized by what it brought. */
-export function Breakdown({ ranking, row }: { ranking: Ranking; row: RankRow }) {
-  const byKey = new Map(ranking.factors.map((f) => [f.key, f]));
-  if (!row.breakdown.length) return <p class="muted small">Noch zu wenig Daten für eine Aufschlüsselung.</p>;
+/** Where a player's strength comes from: results and move quality, each with its weight. */
+export function Breakdown({ row }: { row: RankRow }) {
+  const s = row.strength;
+  if (!s) return <p class="muted small">Noch zu wenig gewertete Partien für eine Spielstärke.</p>;
+  const q = s.quality;
+  const wq = q?.weight ?? 0;
+  const parts = [
+    {
+      key: "results",
+      label: "Ergebnisse",
+      value: s.results.value,
+      se: s.results.se,
+      weight: 1 - wq,
+      note: `${half(s.results.points)} aus ${s.results.games} gegen Ø FIDE ${fideLabel(s.results.avg_opp)}`,
+      cls: "g-res",
+    },
+    ...(q
+      ? [
+          {
+            key: "quality",
+            label: "Zugqualität",
+            value: q.value,
+            se: Math.hypot(q.se, q.k_sd),
+            weight: wq,
+            note: `${de(q.error_ratio, 2)}× so viele Fehler pro Zug wie die Gegner · ${plural(q.games, "Analyse", "Analysen")}`,
+            cls: "g-qual",
+          },
+        ]
+      : []),
+  ];
   return (
     <div class="breakdown">
-      <div class="breakdown-bar" role="img" aria-label={`${Math.round(row.overall ?? 0)} von 100 Punkten`}>
-        {row.breakdown.map((c) => (
-          <span key={c.key} class={GROUP_CLASS[byKey.get(c.key)?.group ?? "Sonstiges"]} style={{ width: `${c.value}%` }} title={`${byKey.get(c.key)?.label}: ${de(c.value, 1)} Punkte`} />
+      <div class="breakdown-bar" role="img" aria-label="Anteile an der Spielstärke">
+        {parts.map((p) => (
+          <span key={p.key} class={p.cls} style={{ width: `${p.weight * 100}%` }} title={`${p.label}: ${pct0(p.weight * 100)}`} />
         ))}
       </div>
       <div class="breakdown-rows">
-        {row.breakdown.map((c) => {
-          const f = byKey.get(c.key);
-          return (
-            <div class="breakdown-row" key={c.key}>
-              <span class={`dot ${GROUP_CLASS[f?.group ?? "Sonstiges"]}`} />
-              <span>{f?.label}</span>
-              <span class="faint small tnum">
-                {formatFactor(c.key, row.cells[c.key]?.value ?? null)}
-                {rawNote(c.key, row.cells[c.key])}
-              </span>
-              <span class="tnum small muted">
-                {Math.round(c.points)} × {de(c.share, 0)} %
-              </span>
-              <strong class="tnum">{de(c.value, 1)}</strong>
-            </div>
-          );
-        })}
+        {parts.map((p) => (
+          <div class="breakdown-row" key={p.key}>
+            <span class={`dot ${p.cls}`} />
+            <span>{p.label}</span>
+            <span class="faint small">{p.note}</span>
+            <span class="tnum small muted">zählt {pct0(p.weight * 100)}</span>
+            <strong class="tnum">
+              {fideLabel(p.value)} <span class="faint small">±{Math.round(fideOf(p.value + 1.96 * p.se) - fideOf(p.value))}</span>
+            </strong>
+          </div>
+        ))}
       </div>
-      {row.missing.length > 0 && (
-        <p class="faint small" style={{ margin: "6px 0 0" }}>
-          Ohne Daten: {row.missing.map((k) => byKey.get(k)?.label).join(", ")}. Ihr Gewicht verteilt sich auf die übrigen Faktoren.
-        </p>
-      )}
+      <p class="faint small" style={{ margin: "6px 0 0" }}>
+        {q
+          ? "Beide Werte sind Spielstärken auf der FIDE-Skala aus denselben Gegnern. Je genauer ein Wert, desto mehr zählt er."
+          : `Zugqualität zählt ab 5 analysierten Partien mit gewertetem Gegner.`}
+        {row.bot_games ? ` ${plural(row.bot_games, "Partie gegen einen Computer bleibt", "Partien gegen Computer bleiben")} draußen.` : ""}
+      </p>
     </div>
+  );
+}
+
+/** The 95 % range of a strength on the track's scale: a band with the estimate as a tick. */
+function RangeBar({ row, bounds, tone, on }: { row: RankRow; bounds: { min: number; max: number }; tone: string; on: boolean }) {
+  const s = row.strength;
+  if (!s) return <span class="lg-bar lg-ci none" />;
+  const pos = (v: number) => clamp(((v - bounds.min) / (bounds.max - bounds.min)) * 100, 0, 100);
+  const a = pos(s.fide_low);
+  const b = pos(s.fide_high);
+  return (
+    <span class="lg-bar lg-ci" title={`95 %: FIDE ${s.fide_low}–${s.fide_high}`}>
+      <span class={`band ${tone}`} style={{ left: `${a}%`, width: `${Math.max(2, b - a)}%`, opacity: on ? undefined : 0 }} />
+      <i class={tone} style={{ left: `${pos(fideOf(s.value))}%` }} />
+    </span>
   );
 }
 
 function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; types: Record<string, Archetype> }) {
   const [open, setOpen] = useState<string | null>(null);
   const on = useEntrance();
+  const ranked = ranking.rows.filter((r) => r.strength);
+  const bounds = ranked.length ? trackBounds(ranked) : { min: 1400, max: 2000 };
   return (
     <section class="card tile span-7 lg-table">
       <div class="tile-head">
         <h3>Tabelle</h3>
-        <span class="tile-sub">Gesamtwertung, 0–100 Punkte · {trFilter(ranking.period)} · antippen für die Herkunft</span>
+        <span class="tile-sub">Spielstärke (FIDE-Skala) mit 95-%-Spanne · {trFilter(ranking.period)} · antippen für die Herkunft</span>
       </div>
       <ol class="lg-rows">
         {ranking.rows.map((r, i) => {
@@ -364,12 +390,18 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
           const t = types[r.id];
           return (
             <li key={r.id} class={`lg-row${r.is_me ? " me" : ""}${isOpen ? " open" : ""}`} style={{ "--i": i } as Record<string, number>}>
-              <button class="lg-row-main" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen} disabled={r.overall === null}>
-                <span class={`lg-rank r${r.rank ?? 0}`}>{r.rank ?? "–"}</span>
+              <button class="lg-row-main" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>
+                <span class={`lg-rank r${r.rank ?? 0}`} title={r.odds ? `Platz ${placeRange(r)} in 90 % der möglichen Reihenfolgen` : undefined}>
+                  {r.rank ?? "–"}
+                </span>
                 <Avatar name={r.name} tone={tones[r.id]} ring={r.is_me} />
                 <span class="lg-row-name">
                   <strong>{r.name}</strong>
-                  <span class="faint small">{t && t.title !== "Neu dabei" ? t.title : r.overall === null ? "zu wenig Daten" : "Neu dabei"}</span>
+                  <span class="faint small">
+                    {r.strength === null
+                      ? `zu wenig Partien (${r.rated_games}/${MIN_RATED_GAMES})`
+                      : `${r.odds && r.odds.low !== r.odds.high ? `Platz ${placeRange(r)} möglich` : "Platz sicher"}${t && t.title !== "Noch offen" ? ` · ${t.title}` : ""}`}
+                  </span>
                 </span>
                 <span class="lg-row-stats">
                   <span title={rawTitle("Genauigkeit", "accuracy", r.cells.accuracy)}>
@@ -378,23 +410,25 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                   <span title={rawTitle("Patzer pro Partie", "blunders", r.cells.blunders)}>
                     <span class="faint">Patzer</span> {formatFactor("blunders", r.cells.blunders?.value ?? null)}
                   </span>
-                  <span title="Punkte über der Erwartung">
-                    <span class="faint">Erw.</span> {formatFactor("expectation", r.cells.expectation?.value ?? null)}
+                  <span title="Gewertete Partien gegen Menschen im Zeitraum">
+                    <span class="faint">Partien</span> {r.rated_games}
                   </span>
                 </span>
                 <span class="lg-row-score">
-                  <span class="lg-bar">
-                    <span class={tones[r.id]} style={{ transform: `scaleX(${on ? (r.overall ?? 0) / 100 : 0})` }} />
-                  </span>
-                  <strong class="tnum">{r.overall === null ? "–" : Math.round(r.overall)}</strong>
+                  <RangeBar row={r} bounds={bounds} tone={tones[r.id]} on={on} />
+                  <strong class="tnum" title={r.strength ? `FIDE ${r.strength.fide_low}–${r.strength.fide_high} (95 %)` : undefined}>
+                    {r.strength ? (r.strength.below_floor ? "<1400" : r.strength.fide) : "–"}
+                  </strong>
                 </span>
               </button>
               {isOpen && (
                 <div class="lg-row-detail">
                   <p class="faint small lg-row-basis">
-                    Grundlage: {plural(r.games, "Partie", "Partien")}, davon {r.analyzed} analysiert
+                    Grundlage: {plural(r.rated_games, "gewertete Partie", "gewertete Partien")} gegen Menschen, {r.analyzed} analysiert
+                    {r.strength ? ` · 95 %: FIDE ${r.strength.fide_low}–${r.strength.fide_high}` : ""}
+                    {r.odds ? ` · Platz ${placeRange(r)} in 90 % der möglichen Reihenfolgen, Platz 1 zu ${winPct(r.odds.first)}` : ""}
                   </p>
-                  <Breakdown ranking={ranking} row={r} />
+                  <Breakdown row={r} />
                   {!r.is_me && (
                     <a class="btn small" href={toHash({ view: "players", playerId: r.id })}>
                       <IconSwords /> Du gegen {r.name}
@@ -407,7 +441,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
         })}
       </ol>
       <p class="faint small tile-foot">
-        Die Wertung zählt hier nicht: Punkte gibt es nur für das, was ihr am Brett zeigt. 50 heißt so stark wie der Schnitt der Gruppe, und wer nur zufällig vorn liegt, kommt kaum darüber.
+        Jeder wird nur an den eigenen Partien gemessen: Ergebnisse gegen die Wertung der Gegner und die Fehler pro Zug im Vergleich zu ihnen. Wer dazukommt oder ausgeblendet wird, ändert an der Reihenfolge der anderen nichts. Die eigene Wertung zählt nicht.
       </p>
     </section>
   );
@@ -421,7 +455,7 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
         <div class="tile-head">
           <h3>Wer gewinnt euer Turnier?</h3>
         </div>
-        <p class="muted small">Ab drei Spielern mit Gesamtwertung simuliert die App hier ein Turnier jeder gegen jeden.</p>
+        <p class="muted small">Ab drei Spielern mit Spielstärke simuliert die App hier ein Turnier jeder gegen jeden.</p>
       </section>
     );
   }
@@ -455,7 +489,7 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
         ))}
       </div>
       <p class="faint small tile-foot">
-        Jede Partie wird aus eurem Spiel ohne Wertung und euren direkten Partien ausgewürfelt, {pct0(t.draw_rate * 100)} enden remis.
+        Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein. {pct0(t.draw_rate * 100)} enden remis.
       </p>
     </section>
   );
@@ -463,38 +497,7 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
 
 // ---------- climbing ----------
 
-const LEVER_UNIT: Record<string, (v: number) => string> = {
-  accuracy: (v) => `${de(v, 1)} %`,
-  blunders: (v) => de(v, 2),
-  expectation: (v) => signed(v),
-  h2h: (v) => `${de(v, 0)} %`,
-};
-const leverValue = (key: string, v: number) => (LEVER_UNIT[key] ?? ((x: number) => String(Math.round(x))))(v);
-const leverDelta = (l: Lever) => (l.key === "blunders" ? signed(l.delta, 2) : l.key === "accuracy" || l.key === "expectation" ? signed(l.delta, 1) : signed(l.delta, 0));
-const effortLevel = (e: number) => (e <= SMALL_EFFORT ? 1 : e <= LARGE_EFFORT ? 2 : 3);
-const EFFORT_TEXT = ["", "kleiner Schritt", "machbar", "großer Schritt"];
-
-function LeverRow({ l, onTry }: { l: Lever; onTry?: () => void }) {
-  return (
-    <div class="lg-lever">
-      <span class="lg-lever-label">
-        <strong>{l.label}</strong>
-        <span class="faint small tnum">
-          {leverValue(l.key, l.from)} → {leverValue(l.key, l.to)}
-        </span>
-      </span>
-      <span class="lg-lever-delta tnum">{leverDelta(l)}</span>
-      <span class={`lg-effort e${effortLevel(l.effort)}`}>{EFFORT_TEXT[effortLevel(l.effort)]}</span>
-      {onTry && (
-        <button class="btn ghost small" onClick={onTry}>
-          Ausprobieren
-        </button>
-      )}
-    </div>
-  );
-}
-
-function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (changes: Record<string, number>) => void }) {
+function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) => void }) {
   if (!plan || plan.rank === null) return null;
   const t = plan.target;
   const ch = plan.chaser;
@@ -504,9 +507,7 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (changes: R
         <h3>
           <IconRise /> {t ? `So überholst du ${t.name}` : "Du stehst ganz oben"}
         </h3>
-        <span class="tile-sub">
-          {t ? `${de(plan.gap, 1)} Punkte bis Platz ${t.rank}` : "jetzt heißt es: verteidigen"}
-        </span>
+        <span class="tile-sub">{t ? `${plan.gap_fide} FIDE-Punkte bis Platz ${t.rank}` : "jetzt heißt es: verteidigen"}</span>
       </div>
       <div class="lg-climb-grid">
         <div>
@@ -514,38 +515,41 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (changes: R
             <p class="small muted">Niemand liegt vor dir. Rechts siehst du, wer am nächsten dran ist.</p>
           ) : (
             <>
-              {plan.levers.length > 0 && (
-                <>
-                  <p class="small muted" style={{ marginTop: 0 }}>
-                    Jede dieser Änderungen reicht allein, wenn alles andere bleibt, wie es ist:
-                  </p>
-                  <div class="lg-levers">
-                    {plan.levers.map((l) => (
-                      <LeverRow key={l.key} l={l} onTry={() => onTry({ [l.key]: l.to })} />
-                    ))}
-                  </div>
-                </>
-              )}
-              {plan.combo && (
-                <div class={plan.levers.length ? "lg-combo" : undefined}>
-                  <p class="small muted" style={{ marginTop: 0 }}>
-                    {plan.levers.length ? "Oder auf drei Bereiche verteilt, jeder Schritt machbar:" : "Eine Änderung allein reicht nicht. Zusammen klappt es:"}
-                  </p>
-                  <div class="lg-levers">
-                    {plan.combo.map((l) => (
-                      <LeverRow key={l.key} l={l} />
-                    ))}
-                  </div>
-                  <button class="btn small" style={{ marginTop: "10px" }} onClick={() => onTry(Object.fromEntries(plan.combo!.map((l) => [l.key, l.to])))}>
-                    <IconSpark /> Im Simulator ausprobieren
-                  </button>
-                </div>
-              )}
-              {!plan.levers.length && !plan.combo && (
-                <p class="small muted">
-                  {t.name} liegt so weit vorn, dass auch große Sprünge in Genauigkeit, Patzern und Ergebnissen zusammen nicht reichen. Bleib dran: jede analysierte Partie macht die Werte genauer.
+              {plan.p_already !== null && plan.p_already >= 0.2 && (
+                <p class="small" style={{ marginTop: 0 }}>
+                  Der Abstand liegt im Rahmen der Unsicherheit: zu {winPct(plan.p_already)} bist du schon jetzt der Stärkere. Mehr Partien klären das.
                 </p>
               )}
+              <div class="lg-levers">
+                <div class="lg-lever">
+                  <span class="lg-lever-label">
+                    <strong>Ergebnisse</strong>
+                    <span class="faint small tnum">
+                      {plan.points === null
+                        ? `selbst ${PLAN_GAMES} aus ${PLAN_GAMES} reichen nicht`
+                        : `${half(plan.points)} aus den nächsten ${PLAN_GAMES} Partien (erwartet ${half(Math.round(plan.points_expected * 2) / 2)})`}
+                    </span>
+                  </span>
+                  {plan.points !== null && (
+                    <button class="btn ghost small" onClick={() => onTry({ points: plan.points as number })}>
+                      Ausprobieren
+                    </button>
+                  )}
+                </div>
+                <div class="lg-lever">
+                  <span class="lg-lever-label">
+                    <strong>Zugqualität</strong>
+                    <span class="faint small tnum">
+                      {plan.error_cut === null ? "allein nicht genug (oder noch zu wenig analysiert)" : `${Math.ceil(plan.error_cut * 100)} % weniger verschenkte Gewinnchance pro Zug`}
+                    </span>
+                  </span>
+                  {plan.error_cut !== null && (
+                    <button class="btn ghost small" onClick={() => onTry({ cut: Math.ceil(plan.error_cut! * 100) / 100 })}>
+                      Ausprobieren
+                    </button>
+                  )}
+                </div>
+              </div>
             </>
           )}
         </div>
@@ -553,17 +557,19 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (changes: R
           <h4>{ch ? `Hinter dir: ${ch.name}` : "Hinter dir"}</h4>
           {ch ? (
             <p class="small">
-              <strong class="tnum">{de(ch.gap, 1)}</strong> Punkte zurück.{" "}
-              {ch.lever
-                ? `Schon mit ${ch.lever.label} ${leverValue(ch.lever.key, ch.lever.to)} statt ${leverValue(ch.lever.key, ch.lever.from)} wäre ${ch.name} an dir vorbei.`
-                : `Mit einer einzelnen Änderung kommt ${ch.name} nicht an dir vorbei.`}
+              <strong class="tnum">{ch.gap_fide}</strong> FIDE-Punkte zurück, du bist zu {winPct(ch.p_ahead)} wirklich stärker.{" "}
+              {ch.points !== null
+                ? `Mit ${half(ch.points)} aus ${PLAN_GAMES} Partien wäre ${ch.name} an dir vorbei.`
+                : `Selbst mit ${PLAN_GAMES} Siegen in Folge käme ${ch.name} nicht an dir vorbei.`}
             </p>
           ) : (
             <p class="small muted">Niemand: du bist Letzter. Von hier geht es nur nach oben.</p>
           )}
         </div>
       </div>
-      <p class="faint small tile-foot">Gerechnet mit denselben Regeln wie die Tabelle: wer dort sicherer besser ist, bekommt mehr Punkte. „Kleiner Schritt“ heißt: weniger als der übliche Abstand zwischen euch.</p>
+      <p class="faint small tile-foot">
+        Gerechnet mit genau dem Modell der Tabelle: neue Partien gegen Gegner auf deinem üblichen Niveau kommen zu deinen bisherigen dazu.
+      </p>
     </section>
   );
 }
@@ -887,24 +893,6 @@ function BattleArena({
 
 // ---------- strengths ----------
 
-const ROUND_SHORT: Record<string, string> = {
-  results: "Ergebnisse",
-  precision: "Präzision",
-  blunders: "Patzer",
-  opening: "Eröffnung",
-  tactics: "Taktik",
-  endgame: "Endspiel",
-  nerves: "Nerven",
-  h2h: "Duelle",
-};
-
-// Monochrome intensity: the brighter, the more likely the best in the group.
-const heat = (v: number) => `color-mix(in srgb, var(--text) ${Math.round((v / 100) ** 1.5 * 36)}%, transparent)`;
-
-function roundPoints(r: RankRow, factors: string[]): number | null {
-  return avg(factors.map((k) => r.cells[k]?.points).filter((v): v is number => v !== null && v !== undefined));
-}
-
 function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
   const mine = formatFactor(g.key, g.mine);
   const other = formatFactor(g.key, g.other);
@@ -926,41 +914,26 @@ function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
   );
 }
 
-/** Your two best areas with your place in each: what is closest to a lead. */
-function nearestLeads(ranking: Ranking) {
-  const me = ranking.rows.find((r) => r.is_me);
-  if (!me) return [];
-  return BATTLE_ROUNDS.map((d) => {
-    const pts = roundPoints(me, d.factors);
-    if (pts === null) return null;
-    const place = 1 + ranking.rows.filter((r) => r !== me && (roundPoints(r, d.factors) ?? -1) > pts).length;
-    return { label: d.label, pts, place };
-  })
-    .filter((x): x is { label: string; pts: number; place: number } => x !== null)
-    .sort((a, b) => b.pts - a.pts)
-    .slice(0, 2);
-}
-
+/** Every player's parts of the game on the FIDE scale, marked where one stands out against the player's own level. */
 function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones: Tones; standing: GroupStanding | null }) {
-  const crownList = crowns(ranking);
-  const near = standing?.edges.length ? [] : nearestLeads(ranking);
+  const table = useMemo(() => areaTable(ranking), [ranking]);
+  const leaderOf = (area: Area) => table.leaders.find((l) => l.area === area);
   return (
     <section class="card tile span-12 lg-matrix">
       <div class="tile-head">
         <h3>
           <IconCrown /> Stärken-Matrix
         </h3>
-        <span class="tile-sub">Punkte je Bereich: die Chance, dort besser als die anderen zu sein</span>
+        <span class="tile-sub">jeder Bereich als Spielstärke (FIDE-Skala), gemessen an den eigenen Zügen</span>
       </div>
       <div class="table-scroll">
         <table class="lg-matrix-table">
           <thead>
             <tr>
               <th />
-              {BATTLE_ROUNDS.map((d) => (
-                <th key={d.key} title={d.label}>
-                  {ROUND_SHORT[d.key] ?? d.label}
-                </th>
+              <th>Gesamt</th>
+              {AREAS.map((a) => (
+                <th key={a}>{AREA_LABEL[a]}</th>
               ))}
             </tr>
           </thead>
@@ -970,18 +943,26 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
                 <th scope="row">
                   <Who name={r.name} tone={tones[r.id]} />
                 </th>
-                {BATTLE_ROUNDS.map((d) => {
-                  const v = roundPoints(r, d.factors);
-                  const crown = crownList.find((c) => c.key === d.key && c.holder_id === r.id);
+                <td>
+                  <span class={`lg-heat${r.strength ? "" : " none"}`}>{r.strength ? fideLabel(r.strength.value).replace("unter ", "<") : "–"}</span>
+                </td>
+                {AREAS.map((a) => {
+                  const c = table.cells[r.id]?.[a];
+                  const lead = leaderOf(a);
+                  const crown = lead?.id === r.id;
+                  const off = c ? Math.round(c.offset / 10) * 10 : 0;
                   return (
-                    <td key={d.key}>
+                    <td key={a}>
                       <span
-                        class={`lg-heat${v === null ? " none" : ""}${v !== null && v >= 65 ? " hi" : ""}`}
-                        style={v === null ? undefined : { backgroundImage: `linear-gradient(${heat(v)}, ${heat(v)})` }}
-                        title={v === null ? "keine Daten" : `${r.name} · ${d.label}: ${Math.round(v)} Punkte${crown ? ` · Krone „${crown.title}“ (${crown.clear ? "klar" : "knapp"})` : ""}`}
+                        class={`lg-heat${c ? "" : " none"}${c?.stands_out === 1 ? " hi" : ""}${c?.stands_out === -1 ? " lo" : ""}`}
+                        title={
+                          c
+                            ? `${r.name} · ${AREA_LABEL[a]}: FIDE ${fideLabel(c.value)}, ${off >= 0 ? "+" : ""}${off} gegenüber dem eigenen Schnitt${c.stands_out === 1 ? " (klare Stärke)" : c.stands_out === -1 ? " (klare Schwäche)" : ""}${crown ? ` · Bester der Gruppe (zu ${winPct(lead.p)} gegen jeden)` : ""}`
+                            : "zu wenig analysierte Partien"
+                        }
                       >
-                        {v === null ? "–" : Math.round(v)}
-                        {crown && <span class={`lg-crown${crown.clear ? " clear" : ""}`}>♛</span>}
+                        {c ? (off === 0 ? "±0" : signed(off, 0)) : "–"}
+                        {crown && <span class="lg-crown clear">♛</span>}
                       </span>
                     </td>
                   );
@@ -992,7 +973,7 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
         </table>
       </div>
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        50 heißt: so gut wie der Schnitt der Gruppe. ♛ markiert den Besten je Bereich, golden, wenn der Vorsprung klar ist.
+        Die Zahlen sagen, wie viele Elo ein Bereich über oder unter der eigenen Spielstärke liegt (Fehler pro Zug in dem Bereich gegen die eigenen Fehler insgesamt, vorsichtig zur Mitte gezogen). Hell: klare Stärke, gedämpft: klare Schwäche, jeweils erst bei 95 % Sicherheit. ♛: Bester der Gruppe in dem Bereich, wenn das zu 80 % gegen jeden feststeht.
       </p>
       {standing && standing.members >= 2 && (
         <div class="group-cols lg-standing">
@@ -1005,10 +986,7 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
                 ))}
               </div>
             ) : (
-              <p class="muted small">
-                Noch kein Bereich, in dem du sicher besser als alle bist.
-                {near.length > 0 && ` Am nächsten dran: ${near.map((n) => `${n.label} (Platz ${n.place}, ${Math.round(n.pts)} Punkte)`).join(" und ")}.`}
-              </p>
+              <p class="muted small">Noch kein Bereich, in dem du sicher besser als alle bist.</p>
             )}
           </div>
           <div>
@@ -1029,99 +1007,75 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
   );
 }
 
-const QUADRANT: Record<string, string> = { strong: "Stark", fighter: "Kämpfer", unlucky: "Lässt Punkte liegen", growing: "Im Aufbau" };
-
 function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }) {
   const [ref, w] = useWidth<HTMLDivElement>(560);
   if (!map) {
     return (
       <section class="card tile span-7">
         <div class="tile-head">
-          <h3>Spielqualität gegen Ergebnis</h3>
+          <h3>Zugqualität gegen Ergebnis</h3>
         </div>
-        <p class="muted small">Ab drei Spielern mit Genauigkeit und gewerteten Partien zeigt diese Karte, wer mehr (oder weniger) aus dem eigenen Spiel macht.</p>
+        <p class="muted small">Sobald Spieler genug analysierte Partien haben, zeigt diese Karte, wer mehr (oder weniger) Punkte holt, als die eigenen Züge wert sind.</p>
       </section>
     );
   }
   const h = clamp(Math.round(w * 0.66), 250, 360);
-  const pad = { l: 42, r: 14, t: 14, b: 34 };
-  const xs = map.points.flatMap((p) => [p.x - p.x_se, p.x + p.x_se]);
-  const ys = map.points.flatMap((p) => [p.y - p.y_se, p.y + p.y_se]);
-  const spanX = Math.max(4, Math.max(...xs) - Math.min(...xs));
-  const spanY = Math.max(8, Math.max(...ys) - Math.min(...ys));
-  const x0 = Math.min(...xs) - spanX * 0.12;
-  const x1 = Math.max(...xs) + spanX * 0.12;
-  const y0 = Math.min(...ys) - spanY * 0.12;
-  const y1 = Math.max(...ys) + spanY * 0.12;
-  const sx = (v: number) => pad.l + ((v - x0) / (x1 - x0)) * (w - pad.l - pad.r);
-  const sy = (v: number) => pad.t + (1 - (v - y0) / (y1 - y0)) * (h - pad.t - pad.b);
-  const ticks = (a: number, b: number, n: number) => {
-    const step = Math.max(1, Math.round((b - a) / n));
-    const out: number[] = [];
-    for (let v = Math.ceil(a / step) * step; v <= b; v += step) out.push(v);
-    return out;
-  };
+  const pad = { l: 46, r: 14, t: 14, b: 34 };
+  // Both axes on the same FIDE scale, so the diagonal means "scores what the moves are worth".
+  const vals = map.points.flatMap((p) => [fideOf(p.x - p.x_se), fideOf(p.x + p.x_se), fideOf(p.y - p.y_se), fideOf(p.y + p.y_se)]);
+  const span = Math.max(60, Math.max(...vals) - Math.min(...vals));
+  const v0 = Math.min(...vals) - span * 0.1;
+  const v1 = Math.max(...vals) + span * 0.1;
+  const sx = (v: number) => pad.l + ((v - v0) / (v1 - v0)) * (w - pad.l - pad.r);
+  const sy = (v: number) => pad.t + (1 - (v - v0) / (v1 - v0)) * (h - pad.t - pad.b);
+  const step = Math.max(10, Math.round((v1 - v0) / 4 / 10) * 10);
+  const ticks: number[] = [];
+  for (let v = Math.ceil(v0 / step) * step; v <= v1; v += step) ticks.push(v);
   return (
     <section class="card tile span-7 lg-map">
       <div class="tile-head">
-        <h3>Spielqualität gegen Ergebnis</h3>
-        <span class="tile-sub">Genauigkeit gegen Punkte über der Erwartung</span>
+        <h3>Zugqualität gegen Ergebnis</h3>
+        <span class="tile-sub">Spielstärke aus den Zügen (→) gegen Spielstärke aus den Ergebnissen (↑)</span>
       </div>
       <div ref={ref} class="lg-map-plot">
-        <svg width={w} height={h} role="img" aria-label="Streudiagramm: Genauigkeit gegen Ergebnis über Erwartung">
-          {ticks(x0, x1, 5).map((v) => (
-            <g key={`x${v}`}>
+        <svg width={w} height={h} role="img" aria-label="Streudiagramm: Spielstärke aus Zügen gegen Spielstärke aus Ergebnissen">
+          {ticks.map((v) => (
+            <g key={`t${v}`}>
               <line class="grid" x1={sx(v)} x2={sx(v)} y1={pad.t} y2={h - pad.b} />
               <text class="axis" x={sx(v)} y={h - pad.b + 16} text-anchor="middle">
-                {v} %
+                {v}
               </text>
-            </g>
-          ))}
-          {ticks(y0, y1, 4).map((v) => (
-            <g key={`y${v}`}>
               <line class="grid" x1={pad.l} x2={w - pad.r} y1={sy(v)} y2={sy(v)} />
               <text class="axis" x={pad.l - 6} y={sy(v) + 4} text-anchor="end">
-                {v > 0 ? `+${v}` : v}
+                {v}
               </text>
             </g>
           ))}
-          <line class="mean" x1={sx(map.x_mean)} x2={sx(map.x_mean)} y1={pad.t} y2={h - pad.b} />
-          <line class="mean" x1={pad.l} x2={w - pad.r} y1={sy(map.y_mean)} y2={sy(map.y_mean)} />
-          <text class="corner" x={w - pad.r - 6} y={pad.t + 14} text-anchor="end">
-            Stark
-          </text>
+          <line class="mean" x1={sx(v0)} y1={sy(v0)} x2={sx(v1)} y2={sy(v1)} />
           <text class="corner" x={pad.l + 6} y={pad.t + 14}>
-            Kämpfer
+            Holt mehr, als die Züge wert sind
           </text>
           <text class="corner" x={w - pad.r - 6} y={h - pad.b - 8} text-anchor="end">
             Lässt Punkte liegen
           </text>
-          <text class="corner" x={pad.l + 6} y={h - pad.b - 8}>
-            Im Aufbau
-          </text>
-          {map.points.map((p) => (
-            <g key={p.id} class={`pt ${tones[p.id]}${p.is_me ? " me" : ""}`}>
-              <line class="err" x1={sx(p.x - p.x_se)} x2={sx(p.x + p.x_se)} y1={sy(p.y)} y2={sy(p.y)} />
-              <line class="err" x1={sx(p.x)} x2={sx(p.x)} y1={sy(p.y - p.y_se)} y2={sy(p.y + p.y_se)} />
-              <circle cx={sx(p.x)} cy={sy(p.y)} r={13} />
-              <text class="ini" x={sx(p.x)} y={sy(p.y) + 4} text-anchor="middle">
-                {p.name.slice(0, 1).toUpperCase()}
-              </text>
-              <text class="name" x={sx(p.x) + (sx(p.x) > w - 90 ? -18 : 18)} y={sy(p.y) + 4} text-anchor={sx(p.x) > w - 90 ? "end" : "start"}>
-                {p.name}
-              </text>
-            </g>
-          ))}
+          {map.points.map((p) => {
+            const x = fideOf(p.x);
+            const y = fideOf(p.y);
+            return (
+              <g key={p.id} class={`pt ${tones[p.id]}${p.is_me ? " me" : ""}`}>
+                <line class="err" x1={sx(fideOf(p.x - p.x_se))} x2={sx(fideOf(p.x + p.x_se))} y1={sy(y)} y2={sy(y)} />
+                <line class="err" x1={sx(x)} x2={sx(x)} y1={sy(fideOf(p.y - p.y_se))} y2={sy(fideOf(p.y + p.y_se))} />
+                <circle cx={sx(x)} cy={sy(y)} r={13} />
+                <text class="ini" x={sx(x)} y={sy(y) + 4} text-anchor="middle">
+                  {p.name.slice(0, 1).toUpperCase()}
+                </text>
+                <text class="name" x={sx(x) + (sx(x) > w - 90 ? -18 : 18)} y={sy(y) + 4} text-anchor={sx(x) > w - 90 ? "end" : "start"}>
+                  {p.name}
+                </text>
+              </g>
+            );
+          })}
         </svg>
-      </div>
-      <div class="lg-map-legend faint small">
-        {map.points
-          .filter((p) => p.quadrant)
-          .map((p) => (
-            <span key={p.id}>
-              {p.name}: {QUADRANT[p.quadrant as string]}
-            </span>
-          ))}
       </div>
       {map.findings.length > 0 && (
         <div class="insights" style={{ marginTop: "8px" }}>
@@ -1133,21 +1087,19 @@ function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }
         </div>
       )}
       <p class="faint small tile-foot">
-        Striche: ±1 Standardfehler. Eine Ecke zählt erst, wenn jemand auf beiden Achsen mehr als das vom Gruppenschnitt (gestrichelt) entfernt ist; ein Satz darunter erst bei 95 % Sicherheit.
-        {map.missing.length ? ` Ohne Werte: ${map.missing.join(", ")}.` : ""}
+        Auf der Diagonale holt jemand genau die Punkte, die die Züge wert sind. Striche: ±1 Standardfehler. Ein Satz darunter erst, wenn der Abstand zur Diagonale zu 95 % kein Zufall ist; jeder wird dabei nur mit sich selbst verglichen.
+        {map.missing.length ? ` Ohne beide Werte: ${map.missing.join(", ")}.` : ""}
       </p>
     </section>
   );
 }
-
-const AREA_LABEL: Record<string, string> = Object.fromEntries(BATTLE_ROUNDS.map((d) => [d.key, d.label]));
 
 function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<string, Archetype>; tones: Tones }) {
   return (
     <section class="card tile span-5 lg-types">
       <div class="tile-head">
         <h3>Spielertypen</h3>
-        <span class="tile-sub">wofür jeder in der Gruppe steht</span>
+        <span class="tile-sub">was jeden im eigenen Spiel auszeichnet</span>
       </div>
       <div class="lg-type-list">
         {ranking.rows.map((r) => {
@@ -1160,15 +1112,18 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
                 <strong>{t.title}</strong>
                 <span class="faint small">
                   {r.name}
-                  {t.area && t.points !== null ? ` · ${AREA_LABEL[t.area]} ${Math.round(t.points)} Punkte` : ""}
+                  {t.area && t.offset !== null ? ` · ${AREA_LABEL[t.area]} ${signed(Math.round(t.offset / 10) * 10, 0)} Elo über dem eigenen Schnitt` : ""}
                   {t.weak ? ` · Baustelle: ${t.weak}` : ""}
+                  {t.practice === "fighter" ? " · holt mehr, als die Züge wert sind" : t.practice === "unlucky" ? " · lässt Punkte liegen" : ""}
                 </span>
               </span>
             </div>
           );
         })}
       </div>
-      <p class="faint small tile-foot">Ein Titel gibt es ab 65 Punkten in einem Bereich, eine Baustelle bei 35 oder weniger.</p>
+      <p class="faint small tile-foot">
+        Ein Titel gibt es nur für einen Bereich, der zu 95 % über dem eigenen Niveau liegt; zwei Freunde können denselben Titel tragen. „Allrounder“: mindestens vier Bereiche genau gemessen und keiner fällt heraus. „Noch offen“: zu wenig analysierte Partien.
+      </p>
     </section>
   );
 }
@@ -1327,31 +1282,35 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
 // ---------- records ----------
 
 const RECORD_ICON: Record<string, () => preact.JSX.Element> = {
+  peak: IconBolt,
   best_game: IconStar,
-  brilliant: IconSpark,
   streak: IconFlame,
   comeback: IconRise,
-  quick: IconBolt,
+  mate: IconSwords,
   upset: IconCrown,
   clean: IconShield,
+  duel: IconSpark,
 };
 
 /** Columns that fill every row about evenly: 7 records as 4 + 3, not 5 + 2. */
 const fameColumns = (n: number) => (n <= 5 ? Math.max(1, n) : Math.ceil(n / Math.ceil(n / 5)));
 
 function HallOfFame({ records, tones }: { records: GroupRecord[]; tones: Tones }) {
+  const set = records.filter((r) => r.holder);
+  const open = records.filter((r) => !r.holder);
   return (
     <section class="card tile span-12 lg-fame">
       <div class="tile-head">
         <h3>
           <IconTrophy /> Ruhmeshalle
         </h3>
-        <span class="tile-sub">bei Gleichstand zählt, wer zuerst da war</span>
+        <span class="tile-sub">nur was wirklich selten ist · bei Gleichstand zählt, wer zuerst da war</span>
       </div>
-      {records.length ? (
-        <div class="lg-fame-grid" style={{ "--cols": fameColumns(records.length) } as Record<string, number>}>
-          {records.map((r) => {
+      {set.length ? (
+        <div class="lg-fame-grid" style={{ "--cols": fameColumns(set.length) } as Record<string, number>}>
+          {set.map((r) => {
             const Icon = RECORD_ICON[r.key] ?? IconTrophy;
+            const holder = r.holder as NonNullable<GroupRecord["holder"]>;
             const body = (
               <>
                 <span class="lg-fame-top">
@@ -1362,25 +1321,33 @@ function HallOfFame({ records, tones }: { records: GroupRecord[]; tones: Tones }
                 </span>
                 <strong class="lg-fame-value">{r.text}</strong>
                 <span class="lg-fame-who">
-                  <Avatar name={r.holder.name} tone={tones[r.holder.id]} size="sm" />
-                  <strong>{r.holder.name}</strong>
+                  <Avatar name={holder.name} tone={tones[holder.id]} size="sm" />
+                  <strong>{holder.name}</strong>
                 </span>
                 <span class="faint small">{r.detail}</span>
+                <span class="faint small">
+                  {r.runner_up ? `${r.tied ? "Eingestellt" : "Dahinter"}: ${r.runner_up.name}, ${r.runner_up.text}` : "Bisher der Einzige über der Hürde"}
+                </span>
               </>
             );
             return r.game_id ? (
-              <button key={r.key} class={`lg-fame-card${r.holder.is_me ? " me" : ""}`} onClick={() => navigate({ view: "analysis", gameId: r.game_id as string })} title="Partie öffnen">
+              <button key={r.key} class={`lg-fame-card${holder.is_me ? " me" : ""}`} onClick={() => navigate({ view: "analysis", gameId: r.game_id as string })} title="Partie öffnen">
                 {body}
               </button>
             ) : (
-              <div key={r.key} class={`lg-fame-card${r.holder.is_me ? " me" : ""}`}>
+              <div key={r.key} class={`lg-fame-card${holder.is_me ? " me" : ""}`}>
                 {body}
               </div>
             );
           })}
         </div>
       ) : (
-        <p class="muted small">Noch keine Rekorde: dafür braucht es gewonnene und analysierte Partien.</p>
+        <p class="muted small">Noch hat niemand eine der Hürden geschafft. Rekorde gibt es hier nur für Seltenes, nicht für Alltägliches.</p>
+      )}
+      {open.length > 0 && (
+        <p class="faint small" style={{ margin: "10px 0 0" }}>
+          Noch offen: {open.map((r) => `${r.title} (${r.bar})`).join(" · ")}.
+        </p>
       )}
     </section>
   );
@@ -1388,48 +1355,76 @@ function HallOfFame({ records, tones }: { records: GroupRecord[]; tones: Tones }
 
 // ---------- explanation ----------
 
-/** Every factor with its share of the total, so nobody has to guess what counts. */
+/** How the strength is made, in plain words, with the numbers behind it. */
 function ScoringCard({ ranking }: { ranking: Ranking }) {
-  const groups = ["Ergebnisse", "Spielqualität", "Fähigkeiten", "Sonstiges"] as const;
   return (
     <details class="card tile span-12 rank-explain">
       <summary>
         <span>
           <strong>So funktioniert das Ranking</strong>
-          <span class="faint small"> · 15 Bereiche, Gewichte und Regeln</span>
+          <span class="faint small"> · eine Spielstärke pro Spieler, mit ehrlicher Unsicherheit</span>
         </span>
         <span class="rank-explain-chev" aria-hidden="true" />
       </summary>
       <p class="small muted">
-        Ich vergleiche dich mit deinen Freunden in 15 Bereichen, von Genauigkeit bis Zeitmanagement. Knappe Vorsprünge aus wenigen Partien zählen kaum, klare Vorsprünge voll. Daraus entsteht die Gesamtwertung.
+        Jeder bekommt eine Spielstärke auf der FIDE-Skala, nur aus den eigenen Partien im Zeitraum. Niemand wird an der Gruppe gemessen: kommt ein Freund dazu oder wird ausgeblendet, bleibt die Reihenfolge der anderen gleich.
       </p>
       <div class="scoring">
-        {groups.map((g) => {
-          const fs = ranking.factors.filter((f) => f.group === g);
-          const sum = fs.reduce((t, f) => t + f.weight, 0);
-          return (
-            <div class="scoring-group" key={g}>
-              <div class="scoring-head">
-                <span class={`dot ${GROUP_CLASS[g]}`} />
-                <strong>{g}</strong>
-                <span class="tnum">{de(sum, 0)} %</span>
-              </div>
-              {fs.map((f) => (
-                <div class={`scoring-row${f.weight ? "" : " off"}`} key={f.key} title={f.hint}>
-                  <span>{f.label}</span>
-                  <span class="tnum">{f.weight ? `${de(f.weight, f.weight % 1 ? 1 : 0)} %` : "nur Info"}</span>
-                  <span class="faint small">{f.hint}</span>
-                </div>
-              ))}
-            </div>
-          );
-        })}
+        <div class="scoring-group">
+          <div class="scoring-head">
+            <span class="dot g-res" />
+            <strong>Ergebnisse</strong>
+          </div>
+          <div class="scoring-row">
+            <span>Leistung gegen die Gegner</span>
+            <span class="faint small">
+              Die Elo, bei der deine Punkte genau der Erwartung gegen deine tatsächlichen Gegner entsprechen. Lichess- und Chess.com-Wertungen in jeder Bedenkzeit werden vorher auf eine Skala umgerechnet (ChessGoals-Umfrage).
+            </span>
+          </div>
+          <div class="scoring-row">
+            <span>Direktvergleich</span>
+            <span class="faint small">
+              Eine Partie gegen einen Freund zählt genau wie jede andere gewertete Partie, also einmal. Als Extra für ein Duell (Prognose, Turnier) geht er gedämpft ein: 10 direkte Partien verschieben die Prognose um etwa ein Sechstel ihrer Überraschung, 50 um die Hälfte.
+            </span>
+          </div>
+        </div>
+        <div class="scoring-group">
+          <div class="scoring-head">
+            <span class="dot g-qual" />
+            <strong>Zugqualität</strong>
+          </div>
+          <div class="scoring-row">
+            <span>Fehler im Vergleich zum Gegner</span>
+            <span class="faint small">
+              Verschenkte Gewinnchance pro Zug, geteilt durch die des Gegners in derselben Partie: gleiche Engine, gleiche Tiefe, gleiche Bedenkzeit, deshalb fair. Doppelt so viele Fehler wie ein Gegner entsprechen etwa 590 Punkten weniger auf der Lichess-Skala.
+            </span>
+          </div>
+          <div class="scoring-row">
+            <span>Gewicht</span>
+            <span class="faint small">
+              Beide Teile werden nach ihrer Genauigkeit gemischt. Zugqualität sieht nicht alles (Zeit, Nerven, praktische Chancen), deshalb zählt sie bei vielen Partien weniger als die Ergebnisse, bei wenigen hilft sie stark.
+            </span>
+          </div>
+        </div>
+        <div class="scoring-group">
+          <div class="scoring-head">
+            <span class="dot g-misc" />
+            <strong>Was nicht zählt</strong>
+          </div>
+          <div class="scoring-row">
+            <span>Bots, eigene Wertung</span>
+            <span class="faint small">
+              Partien gegen Computer (Lichess-KI, BOT-Konten, Engines) bleiben draußen. Die eigene Wertung zählt nicht, nur die der Gegner: neue Konten liegen oft Hunderte Punkte daneben.
+            </span>
+          </div>
+          <div class="scoring-row">
+            <span>Zu wenig Daten</span>
+            <span class="faint small">Eine Spielstärke gibt es ab {MIN_RATED_GAMES} gewerteten Partien gegen Menschen. Darunter steht „–“, statt eine Zahl zu erfinden.</span>
+          </div>
+        </div>
       </div>
       <p class="faint small" style={{ margin: "8px 0 0" }}>
-        Jeder Faktor vergibt 0–100 Punkte: die Wahrscheinlichkeit, wirklich besser als die anderen zu sein. Ein knapper Vorsprung aus wenigen Partien bringt kaum mehr als 50, ein klarer fast 100. Fehlt einem Spieler ein Faktor, verteilt sich dessen Gewicht auf die übrigen. Die Wertung zählt nicht: neue Konten liegen oft Hunderte Punkte daneben, und Partien mit noch springender Wertung fließen auch nicht in „Über Erwartung“ ein.
-      </p>
-      <p class="faint small" style={{ margin: "6px 0 0" }}>
-        Turnier, Überhol-Rechner und Prognosen rechnen mit genau diesen Punkten und Unsicherheiten. Das Turnier würfelt jede Partie 5.000-mal aus; dieselbe Gruppe bekommt immer dieselben Zahlen.
+        Jede Zahl hat eine 95-%-Spanne. „Platz 1–3 möglich“ heißt: in 90 % der Reihenfolgen, die zu den Daten passen, landet der Spieler auf Platz 1 bis 3. Turnier, Überhol-Rechner und Prognosen rechnen mit genau diesen Werten und Unsicherheiten; dieselbe Gruppe bekommt immer dieselben Zahlen.
       </p>
       {ranking.notes.map((n) => (
         <p class="faint small" key={n} style={{ margin: "6px 0 0" }}>
@@ -1449,12 +1444,14 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
   const [ranking, setRanking] = useState<Ranking | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [sim, setSim] = useState<Record<string, number>>({});
+  const [sim, setSim] = useState<Sim>({});
   const [pair, setPair] = useState<[string, string] | null>(null);
   const allFriends = players.filter((p) => p.friend);
   const friends = rankedFriends(players);
   const { excludeBullet, ready } = useBulletPrefs();
   const narrow = useNarrow();
+  // Games against computers never count in the league (their ratings are no human yardstick).
+  const human = useMemo(() => withoutBots(games), [games]);
   const fmt = statsFormat(format, excludeBullet);
   // Profiles per player and filter, so hiding or showing a friend only re-ranks
   // and needs no new profile from the worker. Cleared when the games change.
@@ -1480,7 +1477,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
       const key = `${names.join(",")}|${fmt}|${date}`;
       let p = map.get(key);
       if (!p) {
-        p = profileFor(games, names, fmt, date);
+        p = profileFor(human, names, fmt, date);
         p.catch(() => map.delete(key));
         map.set(key, p);
       }
@@ -1502,7 +1499,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
   // A new ranking (other filter, new games) starts the simulator afresh.
   useEffect(() => setSim({}), [ranking]);
 
-  const cross = useMemo(() => buildCrosstable(group, games, fmt, date), [group, games, fmt, date]);
+  const cross = useMemo(() => buildCrosstable(group, human, fmt, date), [group, human, fmt, date]);
   const h2hOf = useMemo(() => {
     const index = new Map(cross.members.map((m, i) => [m.id, i]));
     return (a: string, b: string): HeadToHead | null => {
@@ -1527,25 +1524,25 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
   // Weeks back to the group's oldest game, so the curve offers no empty spans.
   const dataWeeks = useMemo(() => {
     let oldest = Infinity;
-    for (const g of group) for (const [game] of filterGames(games, g.usernames)) oldest = Math.min(oldest, parsePlayedAt(game) ?? Infinity);
+    for (const g of group) for (const [game] of filterGames(human, g.usernames)) oldest = Math.min(oldest, parsePlayedAt(game) ?? Infinity);
     return Number.isFinite(oldest) ? Math.ceil((Date.now() / 1000 - oldest) / (7 * 86400)) : 0;
-  }, [group, games]);
-  const momentum = useMemo(() => (ranking ? groupMomentum(group, games, { format: fmt, date, effects: ranking.speed_effects }) : []), [ranking, group, games, fmt, date]);
+  }, [group, human]);
+  const momentum = useMemo(() => (ranking ? groupMomentum(group, human, { format: fmt, date, effects: ranking.speed_effects }) : []), [ranking, group, human, fmt, date]);
   // The curve's own span; the trend table keeps its fixed 30-day windows.
   const curve = useMemo(
-    () => (ranking ? (formSpan === MOMENTUM_WEEKS ? momentum : groupMomentum(group, games, { format: fmt, date, effects: ranking.speed_effects, weeks: formSpan })) : []),
-    [ranking, momentum, formSpan, group, games, fmt, date],
+    () => (ranking ? (formSpan === MOMENTUM_WEEKS ? momentum : groupMomentum(group, human, { format: fmt, date, effects: ranking.speed_effects, weeks: formSpan })) : []),
+    [ranking, momentum, formSpan, group, human, fmt, date],
   );
   const records = useMemo(() => groupRecords(group, games, fmt, date), [group, games, fmt, date]);
-  const ratingForm = useMemo(() => groupForm(group, games), [group, games]);
-  const forecast = useMemo(() => (ranking ? (a: string, b: string) => (ranking.rows.some((r) => r.id === a) && ranking.rows.some((r) => r.id === b) ? pairForecast(ranking, a, b, h2hOf(a, b)).p : null) : () => null), [ranking, h2hOf]);
+  const ratingForm = useMemo(() => groupForm(group, human), [group, human]);
+  const forecast = useMemo(() => (ranking ? (a: string, b: string) => (ranking.rows.some((r) => r.id === a) && ranking.rows.some((r) => r.id === b) ? (pairForecast(ranking, a, b, h2hOf(a, b))?.p ?? null) : null) : () => null), [ranking, h2hOf]);
 
   if (!allFriends.length) {
     return (
       <div class="empty">
         <CoachAvatar size={88} mood="think" />
         <h3>Noch keine Freunde in der Liga</h3>
-        <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann vergleicht die App euch nach Ergebnissen, Genauigkeit, Patzern, Fähigkeiten und Direktvergleich, simuliert euer Turnier und ihr könnt gegeneinander battlen.</p>
+        <p>Füge Freunde hinzu (Haken „In die Freundes-Rangliste aufnehmen“), dann schätzt die App eure Spielstärke aus euren eigenen Partien (Ergebnisse gegen die Gegner und Zugqualität), simuliert euer Turnier und ihr könnt gegeneinander battlen.</p>
         <button class="btn primary" onClick={() => navigate({ view: "players" })}>
           Zu den Spielern
         </button>

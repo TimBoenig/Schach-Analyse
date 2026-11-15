@@ -1,305 +1,293 @@
 import { describe, expect, it } from "vitest";
 
+import { isBotGame, withoutBots } from "../../src/domain/metrics";
+import type { RawGame } from "../../src/domain/metrics/models";
 import {
   archetypes,
   buildRanking,
   climbPlan,
-  LARGE_EFFORT,
-  probBetter,
+  groupRecords,
+  pairForecastOf,
+  playerStrength,
+  probStronger,
   qualityMap,
-  RANK_FACTORS,
   type RankInput,
   type Ranking,
-  type RankRow,
-  ranksOf,
-  rescore,
   simulateTournament,
-  TOURNAMENT_RUNS,
+  strengthGap,
+  whatIf,
 } from "../../src/domain/players";
-import type { RawGame } from "../../src/domain/metrics";
+import { pairShift, PLAN_GAMES } from "../../src/domain/players/league";
+import { rankOdds } from "../../src/domain/players/strength";
+import { lichessBlitzToFide, toLichessBlitz } from "../../src/domain/profile/fide";
 import { buildPlayerProfile } from "../../src/domain/profile";
-import { buildMoves, gameRow, PUNISHED, THROWN_WIN } from "../profile/fixtures";
+import { Board } from "../../src/domain/tactics/board";
+import { classifyFenPhase, classifyGamePhase } from "../../src/domain/tactics/phase";
+import { buildMoves, type Events } from "../profile/fixtures";
 
-type Cells = Record<string, [number, number]>;
+const NOW = Date.parse("2026-06-30T12:00:00Z") / 1000;
+const pad = (v: number) => String(v).padStart(2, "0");
+let seq = 0;
 
-/** A ranking whose points and overall scores follow the ranking's rules from the given estimates. */
-function league(players: { id: string; me?: boolean; cells: Cells }[]): Ranking {
-  const rows: RankRow[] = players.map((p) => ({
-    id: p.id,
-    name: p.id,
-    is_me: Boolean(p.me),
-    rank: null,
-    overall: null,
-    games: 60,
-    analyzed: 40,
-    source: "lichess",
-    breakdown: [],
-    missing: [],
-    cells: {},
-  }));
-  for (const f of RANK_FACTORS) {
-    const est = players.map((p) => (p.cells[f.key] ? { value: p.cells[f.key][0], se: p.cells[f.key][1] } : null));
-    const n = est.filter(Boolean).length;
-    est.forEach((a, i) => {
-      let points: number | null = null;
-      if (a && n >= 2) {
-        let sum = 0;
-        est.forEach((b, j) => {
-          if (b && j !== i) sum += probBetter(a, b, f.higher_is_better);
-        });
-        points = (sum / (n - 1)) * 100;
-      }
-      rows[i].cells[f.key] = { value: a?.value ?? null, se: a?.se ?? null, rank: null, points, note: "" };
-    });
-  }
-  for (const r of rows) {
-    let w = 0;
-    let s = 0;
-    for (const f of RANK_FACTORS) {
-      const pts = r.cells[f.key].points;
-      if (f.weight > 0 && pts !== null) {
-        w += f.weight;
-        s += f.weight * pts;
-      }
-    }
-    r.overall = w >= 30 ? s / w : null;
-  }
-  const ranks = ranksOf(new Map(rows.map((r) => [r.id, r.overall])));
-  rows.forEach((r) => (r.rank = ranks.get(r.id) ?? null));
-  rows.sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
-  return { factors: RANK_FACTORS, period: "All Time", rows, rating_speed: "Blitz", speed_effects: {}, notes: [] };
+interface Spec {
+  user: string;
+  opp?: string;
+  /** The user's score: 1, 0.5 or 0. */
+  score: number;
+  oppElo?: number | null;
+  ownElo?: number;
+  source?: string;
+  speed?: string;
+  daysAgo?: number;
+  /** Ply events for an analysed game (user is White). */
+  events?: Events;
+  title?: string;
+  termination?: string;
+  acc?: number;
 }
 
-// Strongest to weakest by play, while the ratings run the other way.
-const GROUP = [
-  { id: "Lena", cells: { expectation: [12, 2], accuracy: [88, 0.6], blunders: [0.4, 0.05], rating: [1300, 60] } as Cells },
-  { id: "Tim", me: true, cells: { expectation: [4, 2], accuracy: [84, 0.6], blunders: [0.6, 0.05], rating: [1500, 60] } as Cells },
-  { id: "Max", cells: { expectation: [0, 2], accuracy: [82, 0.6], blunders: [0.7, 0.05], rating: [1700, 60] } as Cells },
-  { id: "Ida", cells: { expectation: [-6, 2], accuracy: [79, 0.6], blunders: [0.9, 0.05], rating: [1900, 60] } as Cells },
-];
+function game(s: Spec): RawGame {
+  const d = new Date((NOW - (s.daysAgo ?? 10) * 86400) * 1000);
+  const date = `${d.getUTCFullYear()}.${pad(d.getUTCMonth() + 1)}.${pad(d.getUTCDate())}`;
+  const time = `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(seq % 60)}`;
+  const opp = s.opp ?? `opp${seq}`;
+  const result = s.score === 1 ? "1-0" : s.score === 0 ? "0-1" : "1/2-1/2";
+  seq++;
+  const analysed = s.events !== undefined;
+  return {
+    id: `t${seq}`,
+    white: s.user,
+    black: opp,
+    result,
+    date,
+    white_elo: String(s.ownElo ?? 1500),
+    black_elo: s.oppElo === null ? null : String(s.oppElo ?? 1500),
+    speed_category: s.speed ?? "Blitz",
+    source: s.source ?? "lichess",
+    chess960: 0,
+    termination_mode: s.termination ?? "",
+    pgn: `[White "${s.user}"]\n[Black "${opp}"]\n${s.title ? `[BlackTitle "${s.title}"]\n` : ""}[UTCDate "${date}"]\n[UTCTime "${time}"]\n\n1. e4 ${result}`,
+    moves_json: analysed ? buildMoves(s.events) : [],
+    summary_json: analysed ? { white: { accuracy: s.acc ?? 80 }, black: { accuracy: 70 }, analysis_status: "completed" } : {},
+  } as unknown as RawGame;
+}
 
-describe("tournament", () => {
-  it("plays every pairing from the players' own play, the same way every time, and never from the rating", () => {
-    const t = simulateTournament(league(GROUP), () => null)!;
-    expect(t.rows.map((r) => r.id)).toEqual(["Lena", "Tim", "Max", "Ida"]);
-    expect(t).toMatchObject({ rounds: 2, games_each: 6, runs: TOURNAMENT_RUNS });
-    expect(t.rows.reduce((s, r) => s + r.win, 0)).toBeCloseTo(1, 9);
-    // Six pairings, two games each: twelve points are handed out.
-    expect(t.rows.reduce((s, r) => s + r.expected, 0)).toBeCloseTo(12, 9);
-    expect(t.rows.every((r) => r.podium >= r.win && r.podium <= 1)).toBe(true);
-    // Without direct games the draw share is the typical one.
-    expect(t.draw_rate).toBeCloseTo(0.08, 9);
-    expect(simulateTournament(league(GROUP), () => null)).toEqual(t);
-    // Turning the ratings upside down changes nothing.
-    const flipped = GROUP.map((p, i) => ({ ...p, cells: { ...p.cells, rating: [1900 - i * 200, 60] as [number, number] } }));
-    expect(simulateTournament(league(flipped), () => null)!.rows).toEqual(t.rows);
-  });
-
-  it("lets the direct games count and needs three ranked players", () => {
-    const base = simulateTournament(league(GROUP), () => null)!;
-    // Ida has beaten Lena 20 times in a row.
-    const h2h = (a: string, b: string) => (a === "Lena" && b === "Ida" ? { games: 20, wins: 0, draws: 0 } : null);
-    const t = simulateTournament(league(GROUP), h2h)!;
-    const win = (x: typeof t, id: string) => x.rows.find((r) => r.id === id)!.win;
-    expect(win(t, "Ida")).toBeGreaterThan(win(base, "Ida"));
-    expect(win(t, "Lena")).toBeLessThan(win(base, "Lena"));
-    expect(t.draw_rate).toBeCloseTo((0.08 * 30) / 50, 9);
-    expect(simulateTournament(league(GROUP.slice(0, 2)), () => null)).toBeNull();
-  });
-});
-
-describe("player types", () => {
-  const row = (id: string, points: Record<string, number>, overall: number | null = 50): RankRow => ({
-    id,
-    name: id,
-    is_me: false,
-    rank: null,
-    overall,
-    games: 50,
-    analyzed: 30,
-    source: "lichess",
-    breakdown: [],
-    missing: [],
-    cells: Object.fromEntries(Object.entries(points).map(([k, p]) => [k, { value: 1, se: 1, rank: null, points: p, note: "" }])),
-  });
-  const all = (p: number) => Object.fromEntries(["expectation", "accuracy", "blunders", "opening", "middlegame", "tactics", "endgame", "conversion", "defense", "safety", "time", "h2h"].map((k) => [k, p]));
-
-  it("names the area a player stands out in, the clearly weakest one, and stays generic without either", () => {
-    const types = archetypes({
-      factors: RANK_FACTORS,
-      period: "All Time",
-      rating_speed: null,
-      speed_effects: {},
-      notes: [],
-      rows: [
-        row("Ana", { ...all(55), endgame: 90, conversion: 80, defense: 70, opening: 20 }),
-        row("Ben", all(55)),
-        row("Cem", all(30)),
-        row("Dan", all(80), null),
-      ],
-    });
-    expect(types.Ana).toEqual({ title: "Endspiel-Ass", area: "endgame", points: 80, weak: "Eröffnung" });
-    expect(types.Ben).toMatchObject({ title: "Allrounder", area: null, weak: null });
-    expect(types.Cem).toMatchObject({ title: "Herausforderer", area: null, weak: null });
-    expect(types.Dan.title).toBe("Neu dabei");
-  });
-
-  it("gives every title to one player only: the strongest claim wins, the others move to their next standout area", () => {
-    const types = archetypes({
-      factors: RANK_FACTORS,
-      period: "All Time",
-      rating_speed: null,
-      speed_effects: {},
-      notes: [],
-      rows: [
-        row("Ana", { ...all(55), endgame: 90, conversion: 80, defense: 70 }),
-        // Also best at the endgame, but less so: precision is the next standout.
-        row("Eva", { ...all(55), endgame: 78, conversion: 78, defense: 78, accuracy: 70 }),
-        // Only the endgame stands out and it is taken.
-        row("Fil", { ...all(55), endgame: 66, conversion: 66, defense: 66 }),
-      ],
-    });
-    expect(types.Ana).toMatchObject({ title: "Endspiel-Ass", area: "endgame" });
-    expect(types.Eva).toMatchObject({ title: "Präzisionsmaschine", area: "precision", points: 70 });
-    expect(types.Fil).toMatchObject({ title: "Allrounder", area: null, points: 66 });
-  });
-});
-
-describe("climbing a place", () => {
-  // Activity is equal, so only real play separates them.
-  const close = league([
-    { id: "Lena", cells: { expectation: [6, 2], accuracy: [85, 0.8], blunders: [0.55, 0.06], activity: [10, 0], rating: [1500, 60] } },
-    { id: "Tim", me: true, cells: { expectation: [5, 2], accuracy: [84.5, 0.8], blunders: [0.6, 0.06], activity: [10, 0], rating: [2000, 60] } },
-    { id: "Max", cells: { expectation: [0, 2], accuracy: [80, 0.8], blunders: [0.8, 0.06], activity: [10, 0], rating: [1200, 60] } },
-  ]);
-  // Lena is far ahead and plays much more.
-  const far = league([
-    { id: "Lena", cells: { expectation: [10, 2], accuracy: [86, 0.8], blunders: [0.5, 0.06], activity: [30, 0] } },
-    { id: "Tim", me: true, cells: { expectation: [5, 2], accuracy: [84, 0.8], blunders: [0.6, 0.06], activity: [5, 0] } },
-    { id: "Max", cells: { expectation: [0, 2], accuracy: [80, 0.8], blunders: [0.8, 0.06], activity: [10, 0] } },
-  ]);
-  // Between the two: one change would do, but only as a big step.
-  const mid = league([
-    { id: "Lena", cells: { expectation: [8, 2], accuracy: [85.5, 0.8], blunders: [0.55, 0.06], activity: [10, 0] } },
-    { id: "Tim", me: true, cells: { expectation: [5, 2], accuracy: [84.5, 0.8], blunders: [0.6, 0.06], activity: [10, 0] } },
-    { id: "Max", cells: { expectation: [0, 2], accuracy: [80, 0.8], blunders: [0.8, 0.06], activity: [10, 0] } },
-  ]);
-  const passes = (r: Ranking, changes: Record<string, number>) => {
-    const m = rescore(r, "Tim", changes)!;
-    return m.get("Tim")! > m.get("Lena")!;
-  };
-
-  it("finds the smallest single change that passes the player above, easiest first, never the rating", () => {
-    const plan = climbPlan(close, "Tim")!;
-    const lena = close.rows.find((x) => x.id === "Lena")!.overall as number;
-    expect(plan).toMatchObject({ rank: 2, target: { id: "Lena", rank: 1 }, chaser: { id: "Max" }, combo: null });
-    expect(plan.gap).toBeCloseTo(lena - (plan.overall as number), 9);
-    // Fewer blunders alone cannot close this gap: their points are nearly used up.
-    expect(plan.levers.map((l) => l.key).sort()).toEqual(["accuracy", "expectation"]);
-    expect(plan.levers.map((l) => l.effort)).toEqual([...plan.levers.map((l) => l.effort)].sort((a, b) => a - b));
-    for (const l of plan.levers) {
-      expect(passes(close, { [l.key]: l.to })).toBe(true);
-      expect(passes(close, { [l.key]: l.from + l.delta * 0.97 })).toBe(false);
+/** Deterministic results of a player of true strength `theta` (Lichess blitz) against opponents spread around it. */
+function career(user: string, theta: number, n: number, { spread = 300, source = "lichess", speed = "Blitz", seed = 1 } = {}): RawGame[] {
+  let x = seed;
+  const rand = () => ((x = (x * 16807) % 2147483647) - 1) / 2147483646;
+  return Array.from({ length: n }, (_, i) => {
+    const oppL = theta + (rand() - 0.5) * 2 * spread;
+    // The opponent's rating in the game's own pool (inverse of the conversion by bisection).
+    let lo = -1000;
+    let hi = 4000;
+    for (let k = 0; k < 40; k++) {
+      const mid = (lo + hi) / 2;
+      if (toLichessBlitz(mid, source, speed) < oppL) lo = mid;
+      else hi = mid;
     }
-    // Max is too far behind to pass Tim with any one change: the place is safe.
-    expect(plan.chaser!.lever).toBeNull();
-    const top = climbPlan(close, "Lena")!;
-    expect([top.target, top.levers, top.combo, top.gap]).toEqual([null, [], null, 0]);
-    expect(climbPlan(close, "Niemand")).toBeNull();
+    const e = 1 / (1 + 10 ** ((oppL - theta) / 400));
+    const r = rand();
+    const score = r < e - 0.04 ? 1 : r < e + 0.04 ? 0.5 : 0;
+    return game({ user, score, oppElo: Math.round((lo + hi) / 2), source, speed, daysAgo: 1 + (i % 80) });
   });
+}
 
-  it("combines accuracy, blunders and results when no single change is enough", () => {
-    const plan = climbPlan(far, "Tim")!;
-    expect(plan.levers).toEqual([]);
-    const combo = plan.combo!;
-    expect(combo.map((l) => l.key)).toEqual(["accuracy", "blunders", "expectation"]);
-    expect(combo.find((l) => l.key === "blunders")!.delta).toBeLessThan(0);
-    const apply = (scale: number) => Object.fromEntries(combo.map((l) => [l.key, l.from + l.delta * scale]));
-    expect(passes(far, apply(1))).toBe(true);
-    expect(passes(far, apply(0.97))).toBe(false);
-  });
+const input = (id: string, usernames: string[], games: RawGame[], isMe = false): RankInput => ({ id, name: id, is_me: isMe, usernames, profile: buildPlayerProfile(withoutBots(games), usernames) });
 
-  it("offers the combination next to a single big step when it keeps every part doable", () => {
-    const plan = climbPlan(mid, "Tim")!;
-    expect(plan.levers.map((l) => l.key)).toEqual(["expectation"]);
-    expect(plan.levers[0].effort).toBeGreaterThan(LARGE_EFFORT);
-    const combo = plan.combo!;
-    expect(Math.max(...combo.map((l) => l.effort))).toBeLessThanOrEqual(LARGE_EFFORT);
-    expect(passes(mid, Object.fromEntries(combo.map((l) => [l.key, l.to])))).toBe(true);
-  });
-
-  it("compares ratings on the platform the shown rating comes from", () => {
-    // Kai plays most games on Lichess (Rapid, unrated here) but his Blitz rating
-    // is from Chess.com, the platform of the others: it must be compared.
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const rows = (user: string, n: number, speed: string, source: string, elo: string | null, prefix: string): RawGame[] =>
-      Array.from({ length: n }, (_, i) => ({
-        ...gameRow(`${prefix}${i}`, buildMoves(PUNISHED), { user, utc: `2026.06.${pad(i + 1)} 18:00:00` }),
-        speed_category: speed,
-        source,
-        white_elo: elo,
-        black_elo: elo,
-      }));
-    const games = [
-      ...rows("Kai", 20, "Rapid", "lichess", null, "k1"),
-      ...rows("Kai", 8, "Blitz", "chesscom", "1400", "k2"),
-      ...rows("Max", 12, "Blitz", "chesscom", "1600", "m"),
-      ...rows("Ida", 12, "Blitz", "chesscom", "1500", "i"),
+describe("phase from a FEN", () => {
+  it("matches the board-based phase rule", () => {
+    const fens = [
+      "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "r1bq1rk1/pp3ppp/2n2n2/3p4/3P4/2N2N2/PP3PPP/R2Q1RK1 w - - 0 12",
+      "8/5pk1/6p1/8/3R4/6P1/5PK1/3r4 b - - 0 40",
+      "4k3/8/8/8/8/8/3Q4/4K3 w - - 0 50",
+      "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 30",
     ];
-    const input = (id: string): RankInput => ({ id, name: id, is_me: id === "Kai", usernames: [id], profile: buildPlayerProfile(games, [id]) });
-    const ranking = buildRanking([input("Kai"), input("Max"), input("Ida")], games, { now: Date.parse("2026-06-25T00:00:00Z") / 1000 });
-    const kai = ranking.rows.find((r) => r.id === "Kai")!;
-    expect(kai.source).toBe("lichess");
-    expect(kai.cells.rating).toMatchObject({ value: 1400, rank: 3 });
-    expect(ranking.notes.some((n) => n.includes("nicht vergleichbar"))).toBe(false);
-  });
-
-  it("re-scores exactly like the ranking and keeps the rating out of it", () => {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const match = (user: string, opp: string, wins: number, losses: number, prefix: string): RawGame[] =>
-      Array.from({ length: wins + losses }, (_, i) => {
-        const won = i < wins;
-        const g = gameRow(`${prefix}${i}`, buildMoves(won ? PUNISHED : THROWN_WIN), { user, result: won ? "1-0" : "0-1", utc: `2026.06.${pad(i + 1)} 18:00:00` });
-        return { ...g, black: opp, pgn: String(g.pgn).replace('[Black "Gegner"]', `[Black "${opp}"]`) };
-      });
-    const games = [...match("Tim", "Max", 6, 2, "a"), ...match("Ida", "Max", 1, 5, "b")];
-    const input = (id: string, names: string[], isMe = false): RankInput => ({ id, name: id, is_me: isMe, usernames: names, profile: buildPlayerProfile(games, names) });
-    const ranking = buildRanking([input("ich", ["Tim"], true), input("Max", ["Max"]), input("Ida", ["Ida"])], games, { now: Date.parse("2026-06-20T00:00:00Z") / 1000 });
-    const tim = ranking.rows.find((x) => x.id === "ich")!;
-    const same = rescore(ranking, "ich", { h2h: tim.cells.h2h.value as number })!;
-    for (const x of ranking.rows) expect(same.get(x.id)).toBeCloseTo(x.overall as number, 9);
-    // A rating of 3000 moves nobody.
-    const rated = rescore(ranking, "ich", { rating: 3000 });
-    if (rated) for (const x of ranking.rows) expect(rated.get(x.id)).toBeCloseTo(x.overall as number, 9);
-    // Losing every direct game costs Tim points and gives them to Max, his opponent.
-    const worse = rescore(ranking, "ich", { h2h: 0 })!;
-    expect(worse.get("ich")!).toBeLessThan(tim.overall as number);
-    expect(worse.get("Max")!).toBeGreaterThan(ranking.rows.find((x) => x.id === "Max")!.overall as number);
-    // Skills need ten analysed games: Ida has none to change.
-    expect(rescore(ranking, "Ida", { endgame: 90 })).toBeNull();
+    for (const [i, fen] of fens.entries()) for (const ply of [4, 30]) expect(classifyFenPhase(fen, ply + i)).toBe(classifyGamePhase(new Board(fen), ply + i));
   });
 });
 
-describe("play quality against results", () => {
-  it("names a corner only beyond the noise and a finding only beyond a one-sided 95 % bar", () => {
-    const q = qualityMap(
-      league([
-        { id: "Ole", cells: { accuracy: [78, 0.5], expectation: [15, 2] } },
-        { id: "Pia", cells: { accuracy: [88, 0.5], expectation: [-12, 2] } },
-        { id: "Mia", cells: { accuracy: [83, 0.5], expectation: [1, 2] } },
-        { id: "Tim", me: true, cells: { accuracy: [83.2, 3], expectation: [0, 9] } },
-        { id: "Neu", cells: { accuracy: [80, 1] } },
-      ]),
-    )!;
-    const at = (id: string) => q.points.find((p) => p.id === id)!;
-    expect([at("Ole").quadrant, at("Pia").quadrant, at("Mia").quadrant, at("Tim").quadrant]).toEqual(["fighter", "unlucky", null, null]);
-    expect(q.findings.map((f) => [f.id, f.kind])).toEqual([
-      ["Ole", "fighter"],
-      ["Pia", "unlucky"],
-    ]);
-    expect(q.findings[0].text).toMatch(/^Ole holt klar mehr Punkte/);
-    expect(q.missing).toEqual(["Neu"]);
-    expect(q.x_mean).toBeCloseTo((78 + 88 + 83 + 83.2) / 4, 9);
-    expect(qualityMap(league(GROUP.slice(0, 2)))).toBeNull();
+describe("bot games", () => {
+  it("recognises computers by title, engine name and event, but not human names that end in 'bot'", () => {
+    expect(isBotGame(game({ user: "Tim", score: 1, title: "BOT", opp: "maia9" }), "white")).toBe(true);
+    expect(isBotGame(game({ user: "Tim", score: 1, opp: "lichess AI level 6", oppElo: null }), "white")).toBe(true);
+    expect(isBotGame(game({ user: "Tim", score: 1, opp: "Stockfish" }), "white")).toBe(true);
+    expect(isBotGame({ ...game({ user: "Tim", score: 1, opp: "Nelson" }), event: "Play vs Computer" }, "white")).toBe(true);
+    expect(isBotGame(game({ user: "Tim", score: 1, opp: "Abbot" }), "white")).toBe(false);
+    expect(isBotGame(game({ user: "Tim", score: 1, opp: "robotnik" }), "white")).toBe(false);
+  });
+
+  it("never count toward the strength and are reported", () => {
+    const human = career("Tim", 1600, 40);
+    const bots = Array.from({ length: 30 }, () => game({ user: "Tim", score: 1, opp: "lichess AI level 8", oppElo: 2700 }));
+    const a = playerStrength(human, ["Tim"]);
+    const b = playerStrength([...human, ...bots], ["Tim"]);
+    expect(b.bot_games).toBe(30);
+    expect(b.estimate!.value).toBeCloseTo(a.estimate!.value, 9);
+  });
+});
+
+describe("strength from the player's own games", () => {
+  it("recovers a known strength within its own uncertainty and narrows with more games", () => {
+    const few = playerStrength(career("Tim", 1700, 30, { seed: 3 }), ["Tim"]).estimate!;
+    const many = playerStrength(career("Tim", 1700, 400, { seed: 3 }), ["Tim"]).estimate!;
+    expect(Math.abs(many.value - 1700)).toBeLessThan(2.5 * many.se);
+    expect(many.se).toBeLessThan(few.se / 2.5);
+    // 400 games of results: about ±20 on the scale, not a made-up exact number.
+    expect(many.se).toBeGreaterThan(10);
+    expect(many.fide_low).toBeLessThan(many.fide);
+    expect(many.fide_high).toBeGreaterThan(many.fide);
+  });
+
+  it("gives no strength below ten rated games against humans and ignores unrated ones", () => {
+    const games = [...career("Tim", 1500, 9), ...Array.from({ length: 5 }, () => game({ user: "Tim", score: 1, oppElo: null }))];
+    const r = playerStrength(games, ["Tim"]);
+    expect(r).toMatchObject({ estimate: null, rated_games: 9, unrated_games: 5 });
+  });
+
+  it("measures Chess.com Rapid and Lichess Blitz players on one scale, with more doubt between pools than within", () => {
+    const li = playerStrength(career("A", 1500, 300, { seed: 5 }), ["A"]).estimate!;
+    const cc = playerStrength(career("B", 1500, 300, { seed: 5, source: "chesscom", speed: "Rapid" }), ["B"]).estimate!;
+    const li2 = playerStrength(career("C", 1500, 300, { seed: 9 }), ["C"]).estimate!;
+    expect(Math.abs(li.value - cc.value)).toBeLessThan(3 * strengthGap(li, cc).sd);
+    expect(strengthGap(li, cc).sd).toBeGreaterThan(strengthGap(li, li2).sd);
+    expect(cc.columns.cc_rapid).toBeCloseTo(1, 6);
+  });
+
+  it("keeps two beginners apart below the FIDE floor instead of clamping them together", () => {
+    const weak = playerStrength(career("A", 900, 200, { seed: 2, source: "chesscom", speed: "Rapid" }), ["A"]).estimate!;
+    const weaker = playerStrength(career("B", 700, 200, { seed: 2, source: "chesscom", speed: "Rapid" }), ["B"]).estimate!;
+    expect(weak.value).toBeGreaterThan(weaker.value + 100);
+    expect(probStronger(weak, weaker)).toBeGreaterThan(0.95);
+    expect(weaker.below_floor).toBe(true);
+    expect(lichessBlitzToFide(weaker.value).rating).toBeLessThan(1400);
+  });
+
+  it("adds move quality: fewer errors than the opponents lift the estimate, by the measured weight", () => {
+    // Same results; in the analysed games Tim (White, even plies) gives away less than his opponents, or more.
+    // Win chances are White's: a Black error raises them, a White error lowers them.
+    const clean: Events = { 9: ["Mistake", 0.65], 15: ["Mistake", 0.8], 20: ["Inaccuracy", 0.75] };
+    const sloppy: Events = { 8: ["Mistake", 0.35], 14: ["Mistake", 0.2], 19: ["Inaccuracy", 0.25] };
+    const base = career("Tim", 1600, 40, { seed: 4 });
+    const with_ = (ev: Events): RawGame[] =>
+      base.map((g, i) => (i < 30 ? ({ ...g, moves_json: buildMoves(ev), summary_json: { white: { accuracy: 80 }, black: { accuracy: 80 }, analysis_status: "completed" } } as unknown as RawGame) : g));
+    const good = playerStrength(with_(clean), ["Tim"]).estimate!;
+    const bad = playerStrength(with_(sloppy), ["Tim"]).estimate!;
+    const plain = playerStrength(base, ["Tim"]).estimate!;
+    expect(good.quality!.error_ratio).toBeLessThan(1);
+    expect(bad.quality!.error_ratio).toBeGreaterThan(1);
+    expect(good.value).toBeGreaterThan(plain.value);
+    expect(bad.value).toBeLessThan(plain.value);
+    // Combining two measurements makes the estimate surer than results alone.
+    expect(good.se).toBeLessThan(plain.se);
+    // Move quality misses part of practical strength: it helps, but results carry most of the weight.
+    expect(good.quality!.weight).toBeGreaterThan(0);
+    expect(good.quality!.weight).toBeLessThan(0.5);
+  });
+});
+
+describe("ranking", () => {
+  const games = [...career("Ana", 1800, 60, { seed: 11 }), ...career("Ben", 1650, 60, { seed: 12 }), ...career("Cem", 1550, 60, { seed: 13 }), ...career("Dan", 1400, 60, { seed: 14 })];
+  const all = buildRanking(["Ana", "Ben", "Cem", "Dan"].map((n) => input(n, [n], games, n === "Ben")), games, { now: NOW });
+
+  it("never reorders two players when a third is hidden: each strength rests on that player's games alone", () => {
+    const without = buildRanking(["Ana", "Ben", "Dan"].map((n) => input(n, [n], games, n === "Ben")), games, { now: NOW });
+    for (const id of ["Ana", "Ben", "Dan"]) {
+      expect(without.rows.find((r) => r.id === id)!.strength!.value).toBe(all.rows.find((r) => r.id === id)!.strength!.value);
+    }
+    const order = (r: Ranking) => r.rows.map((x) => x.id).filter((id) => id !== "Cem");
+    expect(order(without)).toEqual(order(all));
+    expect(all.rows.map((r) => r.id)).toEqual(["Ana", "Ben", "Cem", "Dan"]);
+  });
+
+  it("says how sure each place is", () => {
+    const close = [...career("X", 1600, 15, { seed: 21 }), ...career("Y", 1610, 15, { seed: 22 })];
+    const r = buildRanking([input("X", ["X"], close), input("Y", ["Y"], close)], close);
+    // Fifteen games each and ten points apart: either could be first.
+    for (const row of r.rows) expect([row.odds!.low, row.odds!.high]).toEqual([1, 2]);
+    const clear = rankOdds([all.rows[0].strength!, all.rows[3].strength!], 1);
+    expect(clear[0]).toMatchObject({ low: 1, high: 1 });
+    expect(clear[0].first).toBeGreaterThan(0.99);
+  });
+
+  it("counts a direct game once, like any game, and lets it move a duel forecast only gradually", () => {
+    // Ana vs Ben games are part of both careers' samples.
+    const duel = Array.from({ length: 12 }, (_, i) => game({ user: "Ana", opp: "Ben", score: i < 9 ? 1 : 0, oppElo: 1650, ownElo: 1800 }));
+    const both = [...games, ...duel];
+    const ana = playerStrength(both, ["Ana"]).estimate!;
+    const ben = playerStrength(both, ["Ben"]).estimate!;
+    expect(ana.results.games).toBe(72);
+    expect(ben.results.games).toBe(72);
+    // 3:0 between friends barely moves the forecast; 30:5 against the odds clearly does.
+    const gap = 0;
+    const small = pairShift(gap, { games: 3, wins: 3, draws: 0 }).shift;
+    const big = pairShift(gap, { games: 35, wins: 30, draws: 0 }).shift;
+    expect(small).toBeGreaterThan(0);
+    expect(small).toBeLessThan(25);
+    expect(big).toBeGreaterThan(60);
+    expect(pairShift(gap, null).shift).toBe(0);
+    const f = pairForecastOf(ana, ben, null)!;
+    expect(f.p).toBeGreaterThan(0.5);
+    expect(f.low).toBeLessThan(f.p);
+    expect(f.high).toBeGreaterThan(f.p);
+  });
+
+  it("simulates the tournament from the strengths, the same way every time", () => {
+    const t1 = simulateTournament(all, () => null, { runs: 1500 })!;
+    const t2 = simulateTournament(all, () => null, { runs: 1500 })!;
+    expect(t1.rows).toEqual(t2.rows);
+    expect(t1.rows[0].id).toBe("Ana");
+    expect(t1.rows.reduce((s, r) => s + r.win, 0)).toBeCloseTo(1, 6);
+  });
+
+  it("plans the climb in games and errors from the same model, and the simulator agrees", () => {
+    const plan = climbPlan(all, "Ben")!;
+    expect(plan.target!.id).toBe("Ana");
+    expect(plan.gap).toBeGreaterThan(0);
+    expect(plan.gap_fide).toBeGreaterThanOrEqual(0);
+    if (plan.points !== null) {
+      expect(plan.points).toBeGreaterThan(plan.points_expected);
+      expect(whatIf(all, "Ben", plan.points, 0)!.rank).toBe(1);
+      expect(whatIf(all, "Ben", plan.points - 0.5, 0)!.rank).toBe(2);
+    }
+    // At the expected score nothing changes.
+    const same = whatIf(all, "Ben", plan.points_expected, 0)!;
+    expect(Math.abs(same.value - all.rows[1].strength!.value)).toBeLessThan(5);
+    expect(PLAN_GAMES).toBe(20);
+    expect(plan.chaser!.id).toBe("Cem");
+  });
+
+  it("names no type without enough analysed games and no practice gap within the noise", () => {
+    const types = archetypes(all);
+    for (const r of all.rows) expect(types[r.id].title).toBe("Noch offen");
+    expect(qualityMap(all)).toBeNull();
+  });
+});
+
+describe("records", () => {
+  const member = (id: string, is_me = false) => ({ id, name: is_me ? "Du" : id, is_me, usernames: [is_me ? "Tim" : id] });
+
+  it("only count above a bar, show the runner-up and keep bot games out", () => {
+    const tim = Array.from({ length: 7 }, (_, i) => game({ user: "Tim", score: 1, daysAgo: 40 - i }));
+    const ida = Array.from({ length: 6 }, (_, i) => game({ user: "Ida", score: 1, daysAgo: 30 - i }));
+    const max = Array.from({ length: 5 }, (_, i) => game({ user: "Max", score: 1, daysAgo: 20 - i }));
+    // Twenty wins against a bot are no streak.
+    const bot = Array.from({ length: 20 }, (_, i) => game({ user: "Max", score: 1, opp: "lichess AI level 3", oppElo: null, daysAgo: 10 - i / 10 }));
+    // An upset: 1500 beats 1800 (same pool), and a small one that misses the bar.
+    const upset = [game({ user: "Ida", score: 1, ownElo: 1500, oppElo: 1800, daysAgo: 3 }), game({ user: "Max", score: 1, ownElo: 1500, oppElo: 1650, daysAgo: 2 })];
+    const rec = groupRecords([member("ich", true), member("Ida"), member("Max")], [...tim, ...ida, ...max, ...bot, ...upset]);
+    const of = (k: string) => rec.find((r) => r.key === k)!;
+    expect(of("streak")).toMatchObject({ holder: { id: "ich" }, value: 7, text: "7 Siege in Folge", runner_up: { id: "Ida" } });
+    expect(of("upset")).toMatchObject({ holder: { id: "Ida" }, value: 300, runner_up: null });
+    // Nobody reached a comeback or a quick mate: listed as open with the bar.
+    expect(of("comeback")).toMatchObject({ holder: null, text: "noch offen" });
+    expect(of("mate").bar).toContain("25");
+  });
+
+  it("finds the longest run of wins against one friend", () => {
+    const g = [...Array.from({ length: 4 }, (_, i) => game({ user: "Tim", opp: "Ida", score: 1, daysAgo: 9 - i })), game({ user: "Tim", opp: "Ida", score: 0, daysAgo: 4 })];
+    const rec = groupRecords([member("ich", true), member("Ida")], g);
+    expect(rec.find((r) => r.key === "duel")).toMatchObject({ holder: { id: "ich" }, value: 4, detail: expect.stringContaining("gegen Ida") });
   });
 });
