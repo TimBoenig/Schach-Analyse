@@ -90,7 +90,7 @@ export interface GamePair {
   opp: GameFeatures;
 }
 
-interface Tally {
+export interface Tally {
   errors: number;
   units: number;
 }
@@ -137,7 +137,15 @@ const OVERALL = { key: "overall", count: lostChance(null), prior: 30 };
 
 /** ln(own rate / opponent rate) with its clustered (per game) standard error. */
 export function errorRatio(pairs: GamePair[], count: Counter, prior: number): { ln: number; se: number; games: number } | null {
-  const rows = pairs.map((p) => ({ u: count(p.own), o: count(p.opp) })).filter((r) => r.u.units > 0 || r.o.units > 0);
+  return tallyRatio(
+    pairs.map((p) => ({ u: count(p.own), o: count(p.opp) })),
+    prior,
+  );
+}
+
+/** errorRatio on ready tallies per game: `u` the player's own, `o` the opponent's. */
+export function tallyRatio(games: { u: Tally; o: Tally }[], prior: number): { ln: number; se: number; games: number } | null {
+  const rows = games.filter((r) => r.u.units > 0 || r.o.units > 0);
   const n = rows.length;
   if (n < 2) return null;
   let lu = 0;

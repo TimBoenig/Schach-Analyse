@@ -3154,3 +3154,36 @@ div.lg-fame-card {
 .legal-text p { margin: 0 0 10px; color: var(--text-2); }
 .legal-text a { color: var(--accent); }
 .placeholder-field { color: var(--loss); font-style: italic; }
+
+/* ---------- league strength ranges (2026-11) ---------- */
+/* The table's bar is a 95 % range on a shared FIDE axis, with the estimate as a tick. */
+.lg-bar.lg-ci {
+  position: relative;
+  overflow: visible;
+}
+.lg-bar.lg-ci > .band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 45%, transparent);
+  transform: none;
+  transition: opacity 0.8s var(--ease);
+}
+.lg-bar.lg-ci > i {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--tone);
+}
+.lg-bar.lg-ci.none {
+  opacity: 0.4;
+}
+.lg-heat.lo {
+  opacity: 0.55;
+  text-decoration: underline dotted;
+}

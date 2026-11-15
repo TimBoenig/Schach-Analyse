@@ -1,20 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { buildBattle, crowns, FACTOR_WEIGHTS, headToHead, RANK_FACTORS, type Ranking, type RankRow, rivalOf } from "../../src/domain/players";
+import { buildBattle, FACTOR_WEIGHTS, headToHead, RANK_FACTORS, type Ranking, type RankRow, rivalOf, type StrengthEstimate } from "../../src/domain/players";
 
-function row(id: string, cells: Record<string, [number, number, number?]>, overall: number | null = null, isMe = false): RankRow {
+/** A minimal strength at a value of the common scale (only `value` matters for the rival). */
+const strengthAt = (value: number) => ({ value, se: 30, columns: { li_blitz: 1 } }) as unknown as StrengthEstimate;
+
+function row(id: string, cells: Record<string, [number, number]>, overall: number | null = null, isMe = false): RankRow {
   return {
     id,
     name: id,
     is_me: isMe,
     rank: null,
-    overall,
+    strength: overall === null ? null : strengthAt(overall),
+    odds: null,
     games: 50,
     analyzed: 30,
+    rated_games: 50,
+    bot_games: 0,
     source: "lichess",
-    breakdown: [],
-    missing: [],
-    cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se, points]]) => [k, { value, se, rank: null, points: points ?? null, note: "" }])),
+    cells: Object.fromEntries(Object.entries(cells).map(([k, [value, se]]) => [k, { value, se, rank: null, note: "" }])),
   };
 }
 const ranking = (rows: RankRow[]): Ranking => ({ factors: RANK_FACTORS, period: "All Time", rows, rating_speed: "Blitz", speed_effects: {}, notes: [] });
@@ -24,7 +28,6 @@ describe("weights", () => {
   it("add up to 100 % and give the rating and raw points nothing", () => {
     expect(Object.values(FACTOR_WEIGHTS).reduce((a, b) => a + b, 0)).toBeCloseTo(100, 9);
     expect([FACTOR_WEIGHTS.rating, FACTOR_WEIGHTS.score]).toEqual([0, 0]);
-    expect(RANK_FACTORS.find((f) => f.key === "rating")!.weight).toBe(0);
   });
 });
 
@@ -71,16 +74,9 @@ describe("battle", () => {
     expect(b.verdict).toMatch(/^Lena gewinnt .* liegt aber Tim knapp vorn \(5\d:4\d\)\.$/);
   });
 
-  it("hands out crowns and names the rival", () => {
-    const rows = [
-      row("Lena", { accuracy: [80, 1, 90], tactics: [60, 5, 85], endgame: [50, 5, 40] }, 70),
-      row("Tim", { accuracy: [75, 1, 50], tactics: [55, 5, 60], endgame: [60, 5, 70] }, 60, true),
-      row("Max", { accuracy: [70, 1, 10], tactics: [50, 5, 5], endgame: [55, 5, 40] }, 30),
-    ];
-    const rk = ranking(rows);
-    const c = crowns(rk);
-    expect(c.find((x) => x.key === "precision")).toMatchObject({ holder_name: "Lena", clear: true });
-    expect(c.find((x) => x.key === "endgame")).toMatchObject({ holder_name: "Tim", clear: false });
+  it("names the friend closest in strength as the rival", () => {
+    const rk = ranking([row("Lena", {}, 1700), row("Tim", {}, 1640, true), row("Max", {}, 1500), row("Ida", {}, null)]);
     expect(rivalOf(rk, "Tim")!.id).toBe("Lena");
+    expect(rivalOf(rk, "Max")!.id).toBe("Tim");
   });
 });

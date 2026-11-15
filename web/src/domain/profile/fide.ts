@@ -61,6 +61,11 @@ type Column = keyof typeof COL;
 
 /** FIDE value of a Chess.com blitz row: survey value, or the straight line down to the floor. */
 function fideAtBlitz(ccBlitz: number): number {
+  return Math.max(FIDE_FLOOR, fideLine(ccBlitz));
+}
+
+/** fideAtBlitz without the floor: the straight line carries on below it (for ordering only). */
+function fideLine(ccBlitz: number): number {
   const first = TABLE.find((r) => r[0] === SURVEY_LOW)!;
   const fideLow = first[3] as number;
   if (ccBlitz >= SURVEY_LOW) {
@@ -68,7 +73,7 @@ function fideAtBlitz(ccBlitz: number): number {
     return interpolate(rows, ccBlitz);
   }
   const t = (ccBlitz - TABLE[0][0]) / (SURVEY_LOW - TABLE[0][0]);
-  return Math.max(FIDE_FLOOR, FIDE_FLOOR + t * (fideLow - FIDE_FLOOR));
+  return FIDE_FLOOR + t * (fideLow - FIDE_FLOOR);
 }
 
 /** Piecewise-linear lookup in increasing [x, y] pairs; the end segments carry on outside. */
@@ -116,4 +121,59 @@ export function toFide(rating: number, source: string, speed: string): FideRatin
   if (rating <= rows[0][0]) return { rating: FIDE_FLOOR, extrapolated: true, as_is: false };
   const ccBlitz = interpolate(rows, rating);
   return { rating: Math.round(fideAtBlitz(ccBlitz)), extrapolated: ccBlitz < SURVEY_LOW, as_is: false };
+}
+
+// ---------- one common scale for comparing players ----------
+//
+// Comparing friends needs a scale on which a difference means the same win
+// chance everywhere and which never clamps: FIDE (floor 1400, compressed low
+// end since the 2024 reform) gives two different beginners the same 1400.
+// The league therefore estimates on the Lichess blitz scale (a Glicko scale,
+// so 400 points are 10:1 odds, and the scale the published error-to-rating
+// fits were made on) and converts to FIDE only for display. Beyond the
+// survey's rows the lines carry on straight instead of clamping.
+
+/** Survey column of a platform and speed; "fide" for PGN files (taken as over-the-board Elo). */
+export function ratingColumn(source: string, speed: string): Column | "fide" {
+  return column(String(source || "").toLowerCase(), String(speed || "")) ?? "fide";
+}
+
+/** Chess.com blitz equivalent of a rating in a survey column (unclamped). */
+function ccBlitzOf(rating: number, col: Column | "fide"): number {
+  if (col === "fide") {
+    // Invert the (monotonic) FIDE line by bisection.
+    let lo = -2000;
+    let hi = 5000;
+    for (let i = 0; i < 50; i++) {
+      const mid = (lo + hi) / 2;
+      if (fideLine(mid) < rating) lo = mid;
+      else hi = mid;
+    }
+    return (lo + hi) / 2;
+  }
+  return interpolate(
+    TABLE.map((r) => [r[COL[col]], r[0]] as const),
+    rating,
+  );
+}
+
+const LICHESS_BLITZ = TABLE.map((r) => [r[0], r[COL.li_blitz]] as const);
+const FROM_LICHESS_BLITZ = TABLE.map((r) => [r[COL.li_blitz], r[0]] as const);
+
+/** A platform rating on the Lichess blitz scale, the league's common scale. */
+export function toLichessBlitz(rating: number, source: string, speed: string): number {
+  const col = ratingColumn(source, speed);
+  if (col === "li_blitz") return rating;
+  return interpolate(LICHESS_BLITZ, ccBlitzOf(rating, col));
+}
+
+/**
+ * A value of the Lichess blitz scale on the FIDE scale, for display. `below`
+ * is set under the FIDE floor: the number then only orders players and is
+ * shown as "unter 1400".
+ */
+export function lichessBlitzToFide(value: number): { rating: number; below: boolean; extrapolated: boolean } {
+  const cc = interpolate(FROM_LICHESS_BLITZ, value);
+  const line = fideLine(cc);
+  return { rating: Math.round(line), below: line < FIDE_FLOOR, extrapolated: cc < SURVEY_LOW };
 }
