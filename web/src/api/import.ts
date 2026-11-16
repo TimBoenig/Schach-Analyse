@@ -38,7 +38,8 @@ export interface ImportBatch {
   games: GameAnalysis[];
 }
 
-export type ExistsFn = (gameId: string) => Promise<boolean> | boolean;
+/** `game` lets the store recognise a known game by the platform's game number, not only by its PGN hash. */
+export type ExistsFn = (gameId: string, game?: GameAnalysis) => Promise<boolean> | boolean;
 export type ProgressFn = (current: number, total: number, label: string) => void;
 export type BatchFn = (games: GameAnalysis[]) => Promise<void> | void;
 
@@ -73,11 +74,11 @@ export async function importPgnText(
   const result: ImportResult = { ...emptyResult(), found: games.length, skipped };
   const fresh: GameAnalysis[] = [];
   for (const g of games) {
-    if (seen.has(g.game_id) || (await exists(g.game_id))) {
+    if (source) g.metadata.source = source;
+    if (seen.has(g.game_id) || (await exists(g.game_id, g))) {
       result.already_known += 1;
       continue;
     }
-    if (source) g.metadata.source = source;
     seen.add(g.game_id);
     fresh.push(g);
   }

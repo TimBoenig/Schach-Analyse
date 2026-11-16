@@ -19,7 +19,7 @@ function analysisStatus(game: GameAnalysis): "completed" | "paused" | "not_start
 
 export function toStoredGame(game: GameAnalysis, timestamp?: number): StoredGame {
   const meta = game.metadata;
-  const speed = meta.speed_category || "Blitz";
+  const speed = meta.speed_category || detectSpeedCategory(meta.time_control, meta.event, meta.source);
   const moves = game.moves.map((m) => ({ ...m }));
   const summary: GameSummary = { ...(game.summary ?? {}) };
   summary.white = { ...(summary.white ?? ({} as any)) };
@@ -109,7 +109,7 @@ export function fromStoredGame(row: StoredGame): GameAnalysis {
     source: row.source ?? "file",
     chess960: Boolean(row.chess960),
   });
-  if (!metadata.speed_category) metadata.speed_category = detectSpeedCategory(metadata.time_control, metadata.event);
+  if (!metadata.speed_category) metadata.speed_category = detectSpeedCategory(metadata.time_control, metadata.event, metadata.source);
 
   let moves: MoveData[] = Array.isArray(row.moves_json) ? row.moves_json.map((m) => ({ ...m })) : [];
   if (!moves.length && row.pgn) {

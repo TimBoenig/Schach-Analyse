@@ -10,6 +10,7 @@
 //   - tactics in the summary are recomputed from the moves.
 // The packed tuples are gzip-compressed where the browser supports it, which
 // brings a game to roughly 2–4 KB.
+import { detectSpeedCategory } from "../domain/metrics/speed";
 import { parsePgnText } from "../domain/pgn";
 import { analyzeGameTactics } from "../domain/tactics";
 import type { Classification, GameSummary, MoveData, PvLine, StoredGame } from "../domain/types";
@@ -234,7 +235,7 @@ export async function fromCloudGame(
     if (moves) {
       game.moves_json = moves;
       const summary: GameSummary = { ...(game.summary_json ?? {}) };
-      const speed = game.speed_category || "Blitz";
+      const speed = game.speed_category || detectSpeedCategory(game.time_control, game.event, game.source);
       for (const side of ["white", "black"] as const) {
         summary[side] = { ...(summary[side] ?? ({} as NonNullable<GameSummary["white"]>)) };
         (summary[side] as Record<string, unknown>).tactics = analyzeGameTactics(moves, side, game.result, speed);

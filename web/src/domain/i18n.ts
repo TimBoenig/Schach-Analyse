@@ -75,6 +75,7 @@ export const SPEED_LABELS: Record<string, string> = {
   Daily: "Fernschach",
   Correspondence: "Fernschach",
   Chess960: "Chess960",
+  Untimed: "Ohne Zeitangabe",
   Other: "Sonstige",
   Unknown: "Unbekannt",
   Standard: "Standard",

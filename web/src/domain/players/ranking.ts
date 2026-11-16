@@ -168,7 +168,7 @@ function speedSource(games: RawGame[], usernames: string[], speedLabel: string):
   return best?.[0] ?? null;
 }
 
-const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other");
+const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 
 const analyses = (n: number) => plural(n, "Analyse", "Analysen");
 

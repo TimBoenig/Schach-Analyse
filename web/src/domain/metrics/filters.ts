@@ -139,7 +139,7 @@ export function getUserColor(
 export const NO_BULLET = "No Bullet";
 
 function speedOf(game: FilterableGame): string {
-  return (game.speed_category || "").trim() || detectSpeedCategory(game.time_control, game.event);
+  return (game.speed_category || "").trim() || detectSpeedCategory(game.time_control, game.event, game.source);
 }
 
 /** Bullet and UltraBullet: under three minutes per side, decided mostly by the clock. */

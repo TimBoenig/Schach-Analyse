@@ -3,6 +3,7 @@ import { useEffect, useState } from "preact/hooks";
 import { Guide } from "./Guide";
 import { backgroundAnalyze, resumeQueue, subscribeQueue } from "../app/analysisService";
 import { repairOpeningNames } from "../app/openingNames";
+import { repairGames } from "../app/repairGames";
 import { onDataChanged } from "../storage/db";
 import { currentUser, hasAuthCallback, onAuthEvent, refreshSyncStatus, syncAvailable, syncNow } from "../storage/sync";
 import { AccountView, useSyncStatus } from "./AccountView";
@@ -142,11 +143,14 @@ export function App() {
   }, []);
   useEffect(() => subscribeQueue((q) => setAnalysing(Boolean(q.current) || q.queued.length > 0)), []);
   // Continue analyses that were still running when the app was last closed.
-  // Opening names are fixed first so the two never write the same game at once.
+  // Stored games are put right first (rating pool, double records, opening
+  // names) so repair and analysis never write the same game at once.
   useEffect(() => {
     const t = window.setTimeout(
       () =>
-        void repairOpeningNames()
+        void repairGames()
+          .catch(() => null)
+          .then(() => repairOpeningNames())
           .catch(() => 0)
           .then(() => resumeQueue())
           .then(() => backgroundAnalyze())

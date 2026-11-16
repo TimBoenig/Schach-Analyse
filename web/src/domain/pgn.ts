@@ -9,6 +9,7 @@
 import { type Chess, type Move, type Square } from "chess.js";
 
 import { md5 } from "./md5";
+import { detectSpeedCategory } from "./metrics/speed";
 import { STANDARD_START_FEN, applyNullMove, detectTermination, loadChess } from "./termination";
 import { type GameAnalysis, type MoveData, emptyMetadata, emptyMove } from "./types";
 
@@ -593,40 +594,6 @@ function initialClockSeconds(timeControl: string | undefined): number | null {
   return pyFloat(head);
 }
 
-/** Classify into UltraBullet, Bullet, Blitz, Rapid, Classical or Daily. */
-export function detectSpeedCategory(timeControl: string | null | undefined, event: string | null | undefined): string {
-  const tc = (timeControl ?? "").trim();
-  const slash = /^(\d+)\/(\d+)$/.exec(tc);
-  if (slash) {
-    const movesCount = Number(slash[1]);
-    const secCount = Number(slash[2]);
-    if (secCount >= 86400 || (movesCount === 1 && secCount >= 3600)) return "Daily";
-    if (secCount >= 1800) return "Classical";
-    if (secCount >= 600) return "Rapid";
-    return "Blitz";
-  }
-  const match = /^(\d+)(?:\+(\d+))?$/.exec(tc);
-  if (match) {
-    const total = Number(match[1]) + 40 * (match[2] ? Number(match[2]) : 0);
-    if (total < 30) return "UltraBullet";
-    if (total < 180) return "Bullet";
-    if (total < 600) return "Blitz";
-    if (total < 1800) return "Rapid";
-    if (total >= 86400) return "Daily";
-    return "Classical";
-  }
-  const evt = (event ?? "").toLowerCase();
-  const tcl = tc.toLowerCase();
-  const has = (k: string) => evt.includes(k) || tcl.includes(k);
-  if (has("ultrabullet")) return "UltraBullet";
-  if (has("bullet")) return "Bullet";
-  if (has("blitz")) return "Blitz";
-  if (has("rapid")) return "Rapid";
-  if (has("daily") || has("correspondence")) return "Daily";
-  if (has("classical")) return "Classical";
-  return "Blitz";
-}
-
 function toGameAnalysis(game: RawGame): GameAnalysis {
   const headers: Record<string, string> = Object.fromEntries(game.headers.entries());
   const h = (k: string): string | null => headers[k] ?? null;
@@ -677,7 +644,7 @@ function toGameAnalysis(game: RawGame): GameAnalysis {
     );
   }
 
-  metadata.speed_category = detectSpeedCategory(metadata.time_control, metadata.event);
+  metadata.speed_category = detectSpeedCategory(metadata.time_control, metadata.event, metadata.source);
   const [mode, desc] = detectTermination(headers, moves, metadata.starting_fen, false);
   metadata.termination_mode = mode;
   metadata.termination_description = desc;
@@ -732,3 +699,5 @@ export function parsePgnText(text: string): GameAnalysis[] {
   if (!games.length && skipped.length) throw new Error(skipped[0].reason);
   return games;
 }
+
+export { detectSpeedCategory };

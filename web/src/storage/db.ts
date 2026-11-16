@@ -1,6 +1,7 @@
 // Local-first persistence in IndexedDB. Every record carries `updated_at`
 // (ms) so the optional cloud sync can merge devices last-writer-wins;
 // deletions are soft (`deleted: true`) so they propagate too.
+import { platformGameKey } from "../domain/gameKey";
 import { parsePlayedAt } from "../domain/profile/features";
 import type { PvLine, StoredGame } from "../domain/types";
 
@@ -111,6 +112,8 @@ interface GameCache {
   records: Map<string, StoredGame>;
   /** Sorted live games, rebuilt lazily after a write. */
   live: StoredGame[] | null;
+  /** Number of moves of the live game stored under each platform game key, rebuilt lazily. */
+  platformKeys: Map<string, number> | null;
 }
 let gameCache: GameCache | null = null;
 let gameCacheLoad: Promise<GameCache> | null = null;
@@ -125,7 +128,7 @@ async function loadGameCache(): Promise<GameCache> {
     const load = (async () => {
       const db = await openDb();
       const all = (await req(db.transaction("games").objectStore("games").getAll())) as StoredGame[];
-      const cache: GameCache = { records: new Map(all.map((g) => [g.id, g])), live: null };
+      const cache: GameCache = { records: new Map(all.map((g) => [g.id, g])), live: null, platformKeys: null };
       if (gen === gameCacheGen) gameCache = cache;
       return cache;
     })();
@@ -149,6 +152,7 @@ function cacheWrite(games: StoredGame[]): void {
   if (!gameCache) return;
   for (const g of games) gameCache.records.set(g.id, g);
   gameCache.live = null;
+  gameCache.platformKeys = null;
 }
 
 /**
@@ -184,8 +188,28 @@ export async function getGame(id: string): Promise<StoredGame | undefined> {
   return g && !g.deleted ? g : undefined;
 }
 
-export async function gameExists(id: string): Promise<boolean> {
-  return (await getGame(id)) !== undefined;
+/**
+ * Whether a game is already stored. With `game` (an import candidate) the
+ * platform's own game number counts too: the same Lichess or Chess.com game
+ * with a slightly different PGN has another id but is no new game. A copy
+ * with more moves than the stored one (a running correspondence game) is new.
+ */
+export async function gameExists(id: string, game?: { pgn_content: string; metadata: { source: string }; moves: unknown[] }): Promise<boolean> {
+  if ((await getGame(id)) !== undefined) return true;
+  if (!game) return false;
+  const key = platformGameKey({ source: game.metadata.source, pgn: game.pgn_content });
+  if (!key) return false;
+  const cache = await loadGameCache();
+  if (!cache.platformKeys) {
+    cache.platformKeys = new Map();
+    for (const g of cache.records.values()) {
+      if (g.deleted) continue;
+      const k = platformGameKey(g);
+      if (k) cache.platformKeys.set(k, Math.max(cache.platformKeys.get(k) ?? 0, Array.isArray(g.moves_json) ? g.moves_json.length : 0));
+    }
+  }
+  const stored = cache.platformKeys.get(key);
+  return stored !== undefined && stored >= game.moves.length;
 }
 
 /** Saves games and stamps them as locally changed now. */
@@ -203,16 +227,28 @@ export async function putGames(games: StoredGame[], { touch = true, silent = fal
   if (!silent) notify();
 }
 
-export async function deleteGame(id: string): Promise<void> {
+export function deleteGame(id: string): Promise<void> {
+  return deleteGames([id]);
+}
+
+/** Deletes several games in one go (one write, one notification). */
+export async function deleteGames(ids: string[]): Promise<void> {
+  if (!ids.length) return;
   const db = await openDb();
   const tx = db.transaction("games", "readwrite");
   const store = tx.objectStore("games");
-  const g = (await req(store.get(id))) as StoredGame | undefined;
-  // Keep only a tombstone: identity + timestamps, no heavy payload.
-  const tomb = g ? { ...g, pgn: "", moves_json: [], summary_json: {}, deleted: true, updated_at: Date.now() } : null;
-  if (tomb) store.put(tomb);
+  const tombs: StoredGame[] = [];
+  const now = Date.now();
+  for (const id of ids) {
+    const g = (await req(store.get(id))) as StoredGame | undefined;
+    if (!g || g.deleted) continue;
+    // Keep only a tombstone: identity + timestamps, no heavy payload.
+    const tomb: StoredGame = { ...g, pgn: "", moves_json: [], summary_json: {}, deleted: true, updated_at: now };
+    store.put(tomb);
+    tombs.push(tomb);
+  }
   await done(tx);
-  if (tomb) cacheWrite([tomb]);
+  if (tombs.length) cacheWrite(tombs);
   broadcast();
   notify();
 }

@@ -4,6 +4,7 @@
 
 import { trClassification, trPhase, trPhaseIn, trPiece } from "../i18n";
 import { type Outcome, outcomeFor, parseMoves, parseSummary, type RawGame } from "../metrics/models";
+import { UNTIMED } from "../metrics/speed";
 import { analyzeGameTactics } from "../tactics";
 import { Board } from "../tactics/board";
 import { classifyGamePhase } from "../tactics/phase";
@@ -120,7 +121,7 @@ export function buildGameReview(
   const isWhite = userColor === "white";
   const oppColor = isWhite ? "black" : "white";
   const result = game.result || "*";
-  const speed = game.speed_category || "Blitz";
+  const speed = game.speed_category || UNTIMED;
   const tactics: Dict = analyzeGameTactics(game.moves, userColor, result, speed);
 
   const acc = sideAccuracy(game.summary, userColor);

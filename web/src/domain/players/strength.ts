@@ -154,7 +154,7 @@ export interface StrengthReport {
   unrated_games: number;
 }
 
-const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other");
+const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 const expected = (own: number, opp: number) => 1 / (1 + 10 ** ((opp - own) / 400));
 const eloOf = (v: unknown) => {
   const n = Number(v);
