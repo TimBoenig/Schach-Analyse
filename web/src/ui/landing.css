@@ -512,3 +512,91 @@
     animation: none;
   }
 }
+
+/* Guided start: name field, live import, first look */
+.ld-name {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 24px;
+}
+.ld-name input {
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 17px;
+}
+.ld-name input:focus {
+  outline: none;
+  border-color: var(--ld-teal);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ld-teal) 22%, transparent);
+}
+.ld-loadstep {
+  display: grid;
+  gap: 22px;
+}
+.ld-say-body {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+.ld-say-body p {
+  width: 100%;
+  box-sizing: border-box;
+}
+.ld-progress {
+  width: 100%;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.ld-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ld-teal), var(--ld-gold));
+  animation: ld-slide 1.3s ease-in-out infinite;
+}
+@keyframes ld-slide {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.ld-wdl {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 10px;
+  animation: ld-in 0.5s ease-out;
+}
+.ld-wdl span {
+  border-radius: 99px;
+}
+.ld-wdl .w { background: var(--ld-teal); }
+.ld-wdl .d { background: var(--text-3); }
+.ld-wdl .l { background: var(--blunder, #e5534b); }
+.ld-loadstep .ld-puzzle .ld-say canvas {
+  display: none;
+}
+@media (max-width: 560px) {
+  .ld-name {
+    flex-direction: column;
+  }
+  .ld-name .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.ld-step-label {
+  white-space: nowrap;
+}
