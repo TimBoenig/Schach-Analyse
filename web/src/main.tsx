@@ -12,6 +12,7 @@ import "./ui/arena.css";
 import "./ui/mobile.css";
 import "./ui/signal.css";
 import "./ui/landing.css";
+import "./ui/guide.css";
 
 // Bio links may drop the "#" part, so the landing page also answers at /hello (and the older /hallo).
 // The app itself lives at "/" with hash routes; switch over without a reload.

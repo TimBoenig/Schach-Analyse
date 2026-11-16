@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
 import { describe, expect, it } from "vitest";
 
-import { PUZZLE_FEN, PUZZLE_HINT } from "../../src/ui/landingPuzzle";
+import { DEMO_LINE, PUZZLE_FEN, PUZZLE_HINT } from "../../src/ui/landingPuzzle";
 import { parseHash, toHash } from "../../src/ui/router";
 
 describe("landing page", () => {
@@ -19,5 +19,15 @@ describe("landing page", () => {
       return t.isCheckmate();
     });
     expect(mates.map((m) => ({ from: m.from, to: m.to }))).toEqual([{ ...PUZZLE_HINT }]);
+  });
+});
+
+describe("landing demo line", () => {
+  it("is legal, marks the move that allows mate and ends in mate", () => {
+    const g = new Chess();
+    for (const step of DEMO_LINE) g.move(step.san);
+    expect(g.isCheckmate()).toBe(true);
+    const blunder = DEMO_LINE.findIndex((s) => s.badge === "Blunder");
+    expect(DEMO_LINE[blunder + 1].san.endsWith("#")).toBe(true);
   });
 });

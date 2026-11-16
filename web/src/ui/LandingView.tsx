@@ -14,6 +14,8 @@ import { type Arrow, Board } from "./Board";
 import { COACH_NAME, CoachAvatar, type Mood } from "./Coach";
 import { IconBolt, IconChevron, IconCpu, IconInsights, IconTraining, IconTrophy } from "./icons";
 import { PUZZLE_FEN, PUZZLE_HINT } from "./landingPuzzle";
+import { startGuide } from "./Guide";
+import { LandingHow } from "./LandingHow";
 import { Model3D } from "./Model3D";
 import { navigate } from "./router";
 import { getSetting } from "../storage/db";
@@ -153,7 +155,9 @@ function Intro() {
         },
       });
       const look = firstLook(games, who);
-      const queued = games.length ? await autoAnalyze(games.map((g) => g.game_id)).catch(() => false) : false;
+      const queued = games.length ? await autoAnalyze(games.map((g) => g.game_id), { quick: true }).catch(() => false) : false;
+      // Lucena keeps explaining inside the app while the engine works.
+      if (queued) startGuide();
       setLoad({ phase: "done", look, queued });
     } catch (e) {
       setLoad({ phase: "error", message: e instanceof Error ? e.message : String(e) });
@@ -177,7 +181,7 @@ function Intro() {
   else if (look && !look.games) say = `Ich habe bei ${SITE_LABEL[site as Site]} unter „${name.trim()}“ in den letzten Monaten keine Partien gefunden. Stimmt der Name?`;
   else if (look)
     say = `${plural(look.games, "Partie", "Partien")} geladen: ${plural(look.wins, "Sieg", "Siege")}, ${plural(look.draws, "Remis", "Remis")}, ${plural(look.losses, "Niederlage", "Niederlagen")}. ${
-      load.phase === "done" && load.queued ? "Ich gehe jetzt jeden Zug mit der Engine durch, das läuft im Hintergrund weiter." : "Jetzt kannst du sie analysieren lassen."
+      load.phase === "done" && load.queued ? "Ich schaue mir jetzt jede Partie kurz mit der Engine an, damit du schnell Ergebnisse siehst, und danach noch einmal gründlich. Das läuft im Hintergrund weiter." : "Jetzt kannst du sie analysieren lassen."
     }`;
   else say = "Löse solange dieses Rätsel:";
 
@@ -281,7 +285,7 @@ function Intro() {
             <p class="ld-lead">
               {noAccount
                 ? "Schau dich schon mal um. Sobald du Partien hast, holst du sie mit einem Tipp."
-                : "Je mehr Partien die Engine durchgeht, desto genauer werden deine Stärken und Schwächen. Du kannst schon jetzt reinschauen."}
+                : "Die Analyse läuft im Hintergrund weiter, unten siehst du den Fortschritt. Je mehr Partien fertig sind, desto genauer werden deine Stärken und Schwächen. In der App erkläre ich dir alles Schritt für Schritt."}
             </p>
             <div class="ld-cta-row">
               <button class="btn primary big ld-cta" onClick={openApp}>
@@ -362,6 +366,8 @@ export function LandingView() {
           <Model3D kind="king" size={120} class="ld-king" />
         </div>
       </section>
+
+      <LandingHow />
 
       <Intro />
 
