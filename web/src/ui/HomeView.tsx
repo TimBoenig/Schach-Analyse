@@ -31,11 +31,10 @@ import { syncAvailable } from "../storage/sync";
 import { Journey } from "./home/Journey";
 import { LeagueTeaser } from "./home/LeagueTeaser";
 import { HomeNudge } from "./HomeNudge";
-import { CountUp, Hero, HeroStat, ResultRibbon } from "./kit";
+import { CountUp, Foot, Hero, HeroStat, ResultRibbon, InsightText } from "./kit";
 import { PageHeader } from "./Layout";
 import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring } from "./charts";
 import { CoachAvatar, COACH_NAME, type Mood } from "./Coach";
-import { Model3D } from "./Model3D";
 import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
 import { formatDate, shortOpening, streakText } from "./labels";
 import { navigate } from "./router";
@@ -266,10 +265,10 @@ export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: str
           </span>
         )}
       </p>
-      <p class="small faint tile-foot">
+      <Foot>
         Zahl unten rechts = Partien an dem Tag, grüner Rand = gut gepunktet, roter Rand = schwacher Tag. Tippe einen Tag an.{" "}
         {note ?? "Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien."}
-      </p>
+      </Foot>
     </>
   );
 }
@@ -424,7 +423,6 @@ export function HomeView() {
         tabs={false}
         title={
           <div class="home-hello">
-            <Model3D kind="king" size={104} />
             <div class="home-greeting">
               <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
               <span class="home-date small muted">{TODAY_LABEL()}</span>
@@ -581,9 +579,9 @@ export function HomeView() {
       {changeRows.length ? (
         <>
           <ChangeBars rows={changeRows} threshold={5} />
-          <p class="faint small tile-foot">
+          <Foot>
             Grün: mindestens 5 Punkte besser, rot: 5 Punkte schlechter. Dahinter der aktuelle Wert von 0 bis 100. Blass: wenige Daten.
-          </p>
+          </Foot>
         </>
       ) : (
         <p class="muted small">Noch keine analysierten Partien in diesem Zeitraum.</p>
@@ -719,7 +717,7 @@ export function HomeView() {
                         </span>
                       )}
                     </div>
-                    <div class="small">{w.text}</div>
+                    <InsightText text={w.text} />
                     {cat && (
                       <button class="btn small" style={{ marginTop: "8px" }} onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
                         <IconPlay /> {CATEGORIES[cat].label}

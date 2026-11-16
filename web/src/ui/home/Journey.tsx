@@ -5,15 +5,10 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { nextMilestone, PACE_DAYS, ratingJourney } from "../../domain/profile";
 import { getSetting, setSetting } from "../../storage/db";
-import { IconCrown, IconPlay, IconReset, IconTrophy } from "../icons";
-import { ScaleTrack, type TrackMarker } from "../kit";
-import { useNarrow } from "../useNarrow";
+import { IconPlay, IconReset, IconTrophy } from "../icons";
 
 export const GOAL_KEY = "goal.rating";
 const GOAL_STEP = 50;
-// Round numbers the track's ticks may step in, smallest that keeps them readable.
-const TICK_STEPS = [25, 50, 100, 200, 400];
-const MAX_TICKS = 7;
 
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
 
@@ -24,9 +19,9 @@ function etaText(days: number): string {
 }
 
 /**
- * The journey on a phone: one bar from the first rating to the goal. Four
- * dots with labels need three stacked lanes on a narrow track; a filled bar
- * says the same in two lines.
+ * The journey as one line, like a progress bar: gold from the first rating up
+ * to today, the goal at the far end with the only symbol on it. Start, best
+ * and goal are plain dots, so no marker speaks a different visual language.
  */
 function JourneyBar({ start, current, peak, goal }: { start: number; current: number; peak: number; goal: number }) {
   const lo = Math.min(start, current);
@@ -36,18 +31,24 @@ function JourneyBar({ start, current, peak, goal }: { start: number; current: nu
     <div class="journey-bar" role="img" aria-label={`Start ${start}, jetzt ${current}, Bestwert ${peak}, Ziel ${goal}`}>
       <div class="journey-bar-track">
         <span class="journey-bar-fill" style={{ width: pct(current) }} />
+        <span class="journey-bar-start" />
         {peak > current && <span class="journey-bar-peak" style={{ left: pct(peak) }} />}
-        <span class="journey-bar-goal" style={{ left: pct(goal) }} />
-        <span class="journey-bar-me" style={{ left: pct(current) }} />
+        <span class="journey-bar-goal" style={{ left: pct(goal) }}>
+          <IconTrophy />
+        </span>
+        <span class="journey-bar-me" style={{ left: pct(current) }}>
+          <span class="journey-bar-flag tnum">{current}</span>
+        </span>
       </div>
       <div class="journey-bar-labels">
         <span>
           Start <strong class="tnum">{start}</strong>
         </span>
-        <span class="journey-bar-now">
-          Du <strong class="tnum">{current}</strong>
-          {peak > current && <span class="faint"> · Bestwert {peak}</span>}
-        </span>
+        {peak > current && (
+          <span class="journey-bar-now">
+            Bestwert <strong class="tnum">{peak}</strong>
+          </span>
+        )}
         <span>
           Ziel <strong class="tnum">{goal}</strong>
         </span>
@@ -64,7 +65,6 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
   }, []);
   const own = goals[speed] ?? null;
   const j = useMemo(() => ratingJourney(series, own), [series, own]);
-  const narrow = useNarrow();
   if (!j) return null;
 
   const setGoal = (value: number | null) => {
@@ -75,20 +75,6 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
     void setSetting(GOAL_KEY, next);
   };
 
-  const lo = Math.min(j.start, j.current);
-  const step = TICK_STEPS.find((s) => (j.goal - lo) / s <= MAX_TICKS - 2) ?? TICK_STEPS[TICK_STEPS.length - 1];
-  const min = Math.floor((lo - step / 2) / step) * step;
-  const max = Math.ceil((Math.max(j.goal, j.peak) + step / 2) / step) * step;
-  const ticks: number[] = [];
-  for (let t = min; t <= max; t += step) ticks.push(t);
-
-  const markers: TrackMarker[] = [
-    { id: "start", label: "Start", value: j.start, tone: "tone-quiet", mark: <IconPlay />, title: "Deine erste Wertung in dieser Bedenkzeit" },
-    ...(j.peak > j.current ? [{ id: "peak", label: "Bestwert", value: j.peak, tone: "tone-b", mark: <IconCrown />, title: "Deine höchste Wertung bisher" }] : []),
-    { id: "goal", label: "Ziel", value: j.goal, tone: j.reached ? "tone-win" : "tone-d", mark: <IconTrophy />, title: "Dein Ziel" },
-    { id: "me", label: "Du", value: j.current, tone: "tone-me", me: true },
-  ];
-
   const left = j.goal - j.current;
   const pace = j.per_month;
   return (
@@ -97,7 +83,7 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
         <strong>Dein Weg zu {j.goal}</strong>
         <span class="faint small">Wertung {speed}</span>
       </div>
-      {narrow ? <JourneyBar start={j.start} current={j.current} peak={j.peak} goal={j.goal} /> : <ScaleTrack markers={markers} min={min} max={max} ticks={ticks} />}
+      <JourneyBar start={j.start} current={j.current} peak={j.peak} goal={j.goal} />
       <div class={`ar-answer${j.reached ? " on" : ""}`} role="status">
         <p>
           {j.reached ? (
@@ -108,10 +94,10 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
             <>
               Noch <strong class="tnum">{left} Punkte</strong> bis {j.goal}.{" "}
               {j.eta_days !== null && pace !== null ? (
-                <>
+                <span class="journey-pace">
                   In den letzten {PACE_DAYS} Tagen ging es um <span class="pos tnum">+{de1(pace)}</span> pro Monat nach oben. Bei dem Tempo bist du in etwa{" "}
                   <strong>{etaText(j.eta_days)}</strong> da.
-                </>
+                </span>
               ) : pace !== null ? (
                 <>
                   Deine Wertung {pace <= -3 ? "fällt gerade" : "bewegt sich gerade kaum"} (<span class={pace <= -3 ? "neg tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span> pro Monat).

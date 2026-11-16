@@ -368,7 +368,7 @@ export function BarList({
       {hasRef && referenceLabel && (
         <Legend
           items={[
-            { label: ownLabel, color: rows[0]?.color ?? "var(--accent)" },
+            { label: ownLabel, color: rows.every((r) => r.color === rows[0]?.color) ? (rows[0]?.color ?? "var(--accent)") : "var(--text-2)" },
             { label: referenceLabel, color: "var(--text-3)", dashed: true },
           ]}
         />

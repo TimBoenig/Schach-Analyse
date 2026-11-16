@@ -10,6 +10,7 @@ import "./ui/styles.css";
 import "./ui/design.css";
 import "./ui/arena.css";
 import "./ui/mobile.css";
+import "./ui/signal.css";
 import "./ui/landing.css";
 
 // Bio links may drop the "#" part, so the landing page also answers at /hello (and the older /hallo).

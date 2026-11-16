@@ -65,13 +65,12 @@ import { filterGames, parsePlayedAt, withoutBots } from "../../domain/metrics";
 import type { PlayerProfile } from "../../domain/profile";
 import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
-import { ScaleTrack, type TrackMarker, useEntrance, WhatIfSlider } from "../kit";
+import { Foot, ScaleTrack, type TrackMarker, useEntrance, WhatIfSlider } from "../kit";
 import { CoachAvatar } from "../Coach";
-import { Model3D } from "../Model3D";
 import { IconBolt, IconChevron, IconCrown, IconEye, IconEyeOff, IconFilter, IconFlame, IconReset, IconRise, IconShield, IconSpark, IconStar, IconSwords, IconTrophy } from "../icons";
 import { SPEED_DE } from "../labels";
 import { navigate, toHash } from "../router";
-import { Section, SectionNav, type StatSection } from "../StatsLayout";
+import { Section, SectionJump, type StatSection } from "../StatsLayout";
 import { trFilter } from "../../domain/i18n";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
@@ -244,7 +243,9 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
     <section class="card lg-hero span-12" id="lg-hero">
       <div class="lg-hero-head">
         <div class="lg-hero-lead">
-          <Model3D kind="trophy" size={116} />
+          <span class="lg-hero-mark" aria-hidden="true">
+            <IconTrophy />
+          </span>
           <div>
           <span class="lg-kicker">Liga · {plural(ranked.length, "Spieler", "Spieler")}</span>
           <h2 class="lg-hero-title">{title}</h2>
@@ -442,9 +443,9 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
           );
         })}
       </ol>
-      <p class="faint small tile-foot">
+      <Foot>
         Jeder wird nur an den eigenen Partien gemessen: Ergebnisse gegen die Wertung der Gegner und die Fehler pro Zug im Vergleich zu ihnen. Wer dazukommt oder ausgeblendet wird, ändert an der Reihenfolge der anderen nichts. Die eigene Wertung zählt nicht.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -490,9 +491,9 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
           </div>
         ))}
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein. {pct0(t.draw_rate * 100)} enden remis.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -569,9 +570,9 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) =>
           )}
         </div>
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         Gerechnet mit genau dem Modell der Tabelle: neue Partien gegen Gegner auf deinem üblichen Niveau kommen zu deinen bisherigen dazu.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -683,11 +684,11 @@ function CrosstableCard({
           </tbody>
         </table>
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         {mode === "results"
           ? `Punkte der Zeile gegen die Spalte aus ${plural(cross.total_games, "direkten Partie", "direkten Partien")}. Tippe auf ein Feld: dann battlen die beiden unten.`
           : "Erwartete Punkte der Zeile gegen die Spalte in Prozent, aus eurem Spiel ohne Wertung und den direkten Partien."}
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -886,9 +887,9 @@ function BattleArena({
           );
         })}
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         Eine Runde gewinnt, wer dort mit mindestens 65 % Wahrscheinlichkeit wirklich besser ist (ab 80 % deutlich, ab 95 % klar); darunter bleibt sie offen. Tippe auf eine Runde für die Werte.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -1088,10 +1089,10 @@ function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }
           ))}
         </div>
       )}
-      <p class="faint small tile-foot">
+      <Foot>
         Auf der Diagonale holt jemand genau die Punkte, die die Züge wert sind. Striche: ±1 Standardfehler. Ein Satz darunter erst, wenn der Abstand zur Diagonale zu 95 % kein Zufall ist; jeder wird dabei nur mit sich selbst verglichen.
         {map.missing.length ? ` Ohne beide Werte: ${map.missing.join(", ")}.` : ""}
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -1123,9 +1124,9 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
           );
         })}
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         Ein Titel gibt es nur für einen Bereich, der zu 95 % über dem eigenen Niveau liegt; zwei Freunde können denselben Titel tragen. „Allrounder“: mindestens vier Bereiche genau gemessen und keiner fällt heraus. „Noch offen“: zu wenig analysierte Partien.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -1232,7 +1233,7 @@ function FormRace({ rows, tones, span, onSpan, dataWeeks }: { rows: MomentumRow[
       ) : (
         <p class="muted small">In diesem Zeitraum gibt es noch zu wenige analysierte Partien für eine Formkurve.</p>
       )}
-      <p class="faint small tile-foot">Gleitender Schnitt über drei Wochen. Tippe auf einen Namen, um ihn hervorzuheben.</p>
+      <Foot>Gleitender Schnitt über drei Wochen. Tippe auf einen Namen, um ihn hervorzuheben.</Foot>
     </section>
   );
 }
@@ -1274,9 +1275,9 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
           );
         })}
       </div>
-      <p class="faint small tile-foot">
+      <Foot>
         ↑ und ↓ nur, wenn der Unterschied in der fairen Genauigkeit mit 95 % kein Zufall ist (je mindestens 10 analysierte Partien); sonst „stabil“, mit weniger Partien „offen“. Wertung: letzte {FORM_DAYS} Tage.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -1597,7 +1598,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
         </div>
       ) : (
         <>
-          <SectionNav sections={LEAGUE_SECTIONS} />
+          <SectionJump sections={LEAGUE_SECTIONS} />
           <div class={`dash${loading ? " busy" : ""}`}>
             <Section section={LEAGUE_SECTIONS[0]} defaultOpen>
               <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />

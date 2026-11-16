@@ -8,9 +8,9 @@ import { MIN_BUCKET_MOVES } from "../domain/profile/evidence";
 import { AreaChart, BarList, type BarRow, monthStart, StackBar } from "./charts";
 import { Coach, NeedNames } from "./Coach";
 import { ErrorTiles } from "./InsightsView";
-import { CountUp, Hero, HeroStat } from "./kit";
+import { CountUp, Foot, Hero, HeroStat } from "./kit";
 import { PageHeader } from "./Layout";
-import { type MovesSection, scrollToSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type MovesSection, scrollToSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
 import { ClassBadge, ClassTiles, monthName, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
@@ -162,7 +162,7 @@ export function MovesView() {
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
-      <SectionNav sections={STAT_SECTIONS.moves} />
+      <SectionJump sections={STAT_SECTIONS.moves} />
       <div class="dash">
         <SectionHead section={sec("bilanz")} quiet />
         <Hero
@@ -241,7 +241,7 @@ export function MovesView() {
             ) : (
               <p class="muted small">Für einen Verlauf braucht es analysierte Partien aus mindestens zwei Monaten.</p>
             )}
-            <p class="small faint tile-foot">Links soll die Kurve steigen, rechts fallen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer.</p>
+            <Foot>Links soll die Kurve steigen, rechts fallen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer.</Foot>
           </section>
         </Section>
 

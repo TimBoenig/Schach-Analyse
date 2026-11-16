@@ -167,6 +167,16 @@
   }
 }
 
+:root[data-board="schiefer"] {
+  --sq-light: #d3d8e0;
+  --sq-dark: #5c6c86;
+  --sq-last: rgba(251, 189, 35, 0.5);
+}
+:root[data-board="salbei"] {
+  --sq-light: #dfe3d5;
+  --sq-dark: #7c917e;
+  --sq-last: rgba(251, 189, 35, 0.5);
+}
 :root[data-board="holz"] {
   --sq-light: #ecd9b9;
   --sq-dark: #ae8a68;

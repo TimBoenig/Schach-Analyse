@@ -33,7 +33,7 @@ import { ColumnChart, type Column } from "./charts";
 import { IconPlay } from "./icons";
 import { navigate, type TrainingTab } from "./router";
 import { COACH_NAME, Coach, CoachAvatar, NeedNames } from "./Coach";
-import { CountUp, Hero, HeroStat, Meter, ScaleTrack } from "./kit";
+import { CountUp, Foot, Hero, HeroStat, Meter, ScaleTrack } from "./kit";
 import { Examples, skillCategory } from "./ProfileView";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
 import { type TrainingState, useTraining } from "./training/useTraining";
@@ -519,10 +519,10 @@ function WeekStrip({ t }: { t: TrainingState }) {
           );
         })}
       </div>
-      <p class="small faint tile-foot">
+      <Foot>
         Deine größte Schwäche kommt dreimal pro Woche dran, die zweite zweimal, die dritte einmal – nie zweimal am Stück. Sonntag ist
         Wiederholung. Verteiltes, gemischtes Üben bleibt nachweislich besser hängen als alles an einem Tag.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -740,7 +740,7 @@ function ProgressTab({ t }: { t: TrainingState }) {
                 onPick={(id) => navigate({ view: "training", tab: "uebungen", category: id })}
               />
             </div>
-            {rated.some((c) => c.attempts < TREND_MIN_ATTEMPTS) && <p class="small faint tile-foot">Blasse Punkte: noch unter {TREND_MIN_ATTEMPTS} Versuchen, also nur ein erster Eindruck.</p>}
+            {rated.some((c) => c.attempts < TREND_MIN_ATTEMPTS) && <Foot>Blasse Punkte: noch unter {TREND_MIN_ATTEMPTS} Versuchen, also nur ein erster Eindruck.</Foot>}
           </>
         )}
       </Hero>
@@ -776,10 +776,10 @@ function ProgressTab({ t }: { t: TrainingState }) {
             </div>
           ))}
         </div>
-        <p class="small faint tile-foot">
+        <Foot>
           Eine Übung gilt als sicher, wenn du sie dreimal hintereinander auf Anhieb gelöst hast. Danach kommt sie nur noch in
           großen Abständen (1, 3, 7, 14, 30 Tage) wieder.
-        </p>
+        </Foot>
       </section>
     </div>
   );
@@ -870,7 +870,7 @@ function OpeningProgressCard({ t }: { t: TrainingState }) {
           {all ? "Weniger anzeigen" : `Alle ${rows.length} Linien`}
         </button>
       )}
-      <p class="small faint tile-foot">Jede fehlerfreie Runde hebt eine Linie eine Stufe höher, ein Fehler setzt sie zurück. Ab Stufe 3 gilt sie als sicher.</p>
+      <Foot>Jede fehlerfreie Runde hebt eine Linie eine Stufe höher, ein Fehler setzt sie zurück. Ab Stufe 3 gilt sie als sicher.</Foot>
     </section>
   );
 }
@@ -938,10 +938,10 @@ function TransferCard({ t }: { t: TrainingState }) {
           </div>
         ))}
       </div>
-      <p class="small faint tile-foot">
+      <Foot>
         Fehler pro 100 eigene Züge. Eine Änderung zählt erst ab je 10 Partien und wenn sie statistisch klar ist – so siehst du echte
         Fortschritte statt Zufall.
-      </p>
+      </Foot>
     </section>
   );
 }
@@ -971,7 +971,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
     );
   }
 
-  const header = <PageHeader about={false} />;
+  const header = <PageHeader />;
 
   if (t.loading) {
     return (

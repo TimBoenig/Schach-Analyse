@@ -152,7 +152,6 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   return (
     <div>
       <PageHeader
-        about={false}
         actions={
           <button class="btn small" onClick={() => reset()}>
             <IconReset /> Startstellung

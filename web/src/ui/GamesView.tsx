@@ -577,7 +577,6 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   return (
     <div>
       <PageHeader
-        about={false}
         actions={
           <>
         {busy ? (

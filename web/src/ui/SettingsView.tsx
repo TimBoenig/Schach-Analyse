@@ -12,7 +12,7 @@ import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
 import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
-import { BOARD_THEMES, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
+import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
 import { BRILLIANT_STYLE_LABELS, fxPrefs, loadFxPrefs, prefersReducedMotion, setFxPrefs, type BrilliantStyle, type FxPrefs } from "./fxPrefs";
@@ -76,11 +76,11 @@ function BrilliantSetting() {
 
 function AppearanceCard() {
   const [theme, setThemeState] = useState<ThemeMode>("system");
-  const [board, setBoard] = useState<BoardTheme>("gruen");
+  const [board, setBoard] = useState<BoardTheme>(DEFAULT_BOARD);
   const [tipsBack, setTipsBack] = useState(false);
   useEffect(() => {
     void getSetting<ThemeMode>("ui.theme", "system").then(setThemeState);
-    void getSetting<BoardTheme>("ui.board", "gruen").then(setBoard);
+    void getSetting<BoardTheme>("ui.board", DEFAULT_BOARD).then(setBoard);
   }, []);
   return (
     <div class="card settings-card">
