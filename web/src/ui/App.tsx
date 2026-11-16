@@ -14,6 +14,7 @@ import { ErrorBoundary } from "./ErrorBoundary";
 import { IconAccount, IconSearch } from "./icons";
 import { AREAS, type Area, areaOf, MAIN_AREAS, ShellContext } from "./Layout";
 import { InsightsView } from "./InsightsView";
+import { LandingView } from "./LandingView";
 import { LegalView } from "./LegalView";
 import { MovesView } from "./MovesView";
 import { OpeningsView } from "./OpeningsView";
@@ -157,6 +158,9 @@ export function App() {
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.
   useEffect(() => window.scrollTo(0, 0), [route.view]);
 
+
+  // The social-media landing page stands alone, without nav rail or tab bar.
+  if (route.view === "landing") return <ErrorBoundary area="Die Startseite"><LandingView /></ErrorBoundary>;
 
   const area = areaOf(route);
   const areaButton = (a: Area, kind: "nav-item" | "tab") => (
