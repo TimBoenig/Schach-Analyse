@@ -35,6 +35,7 @@ import { CountUp, Hero, HeroStat, ResultRibbon } from "./kit";
 import { PageHeader } from "./Layout";
 import { AreaChart, ChangeBars, type ChangeRow, monthStart, Ring } from "./charts";
 import { CoachAvatar, COACH_NAME, type Mood } from "./Coach";
+import { Model3D } from "./Model3D";
 import { IconBoard, IconFreeBoard, IconPlay, IconUpload } from "./icons";
 import { formatDate, shortOpening, streakText } from "./labels";
 import { navigate } from "./router";
@@ -422,9 +423,12 @@ export function HomeView() {
         class="home-head"
         tabs={false}
         title={
-          <div class="home-greeting">
-            <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
-            <span class="home-date small muted">{TODAY_LABEL()}</span>
+          <div class="home-hello">
+            <Model3D kind="king" size={104} />
+            <div class="home-greeting">
+              <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
+              <span class="home-date small muted">{TODAY_LABEL()}</span>
+            </div>
           </div>
         }
         actions={
@@ -448,7 +452,7 @@ export function HomeView() {
             <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
             {BRAND}
           </p>
-          <CoachAvatar size={112} mood="wow" />
+          <CoachAvatar size={148} mood="wow" />
           <h1>Hi, ich bin {COACH_NAME}!</h1>
           <p class="muted">
             Ich bin dein Schachtrainer. Ich schaue mir deine Partien an, erkläre dir jeden Fehler in einfachen Worten und
@@ -616,7 +620,7 @@ export function HomeView() {
           class="home-hero"
           kicker={
             <span class="home-kicker">
-              <CoachAvatar size={26} mood={heroMood} /> {COACH_NAME} · {vsLabel}
+              <CoachAvatar size={40} mood={heroMood} /> {COACH_NAME} · {vsLabel}
             </span>
           }
           title={heroTitle}

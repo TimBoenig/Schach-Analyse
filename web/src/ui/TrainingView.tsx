@@ -389,7 +389,7 @@ function TodayTab({ t, start }: { t: TrainingState; start: (s: SessionSpec) => v
         class="plan-arena"
         kicker={
           <span class="home-kicker">
-            <CoachAvatar mood={open.length ? "happy" : "wow"} size={26} /> {COACH_NAME} · Dein Plan für heute · {plan.minutes} Minuten
+            <CoachAvatar mood={open.length ? "happy" : "wow"} size={40} /> {COACH_NAME} · Dein Plan für heute · {plan.minutes} Minuten
           </span>
         }
         title={open.length ? plan.headline : "Plan für heute erledigt. Stark!"}

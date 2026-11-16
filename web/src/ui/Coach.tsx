@@ -1,31 +1,23 @@
 // Mike, the app's trainer: a friendly face that explains pages, moves and
 // training results in plain words instead of bare numbers.
 import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 import type { Classification } from "../domain/types";
+import type { Mood } from "./coach/net";
+import { Orb } from "./coach/orb";
 import { IconClose } from "./icons";
 import { navigate } from "./router";
 
 export const COACH_NAME = "Mike";
 
-export type Mood = "happy" | "think" | "wow" | "sad";
+export type { Mood };
 
-const MOUTH: Record<Mood, string> = {
-  happy: "M50 69 Q60 78 70 69",
-  think: "M52 71 Q58 68 67 70",
-  wow: "M55 68 Q60 66 65 68 Q66 75 60 76 Q54 75 55 68 Z",
-  sad: "M51 73 Q60 67 69 73",
-};
-
-const BROWS: Record<Mood, [string, string]> = {
-  happy: ["M44 47 Q50 44 55 46", "M65 46 Q70 44 76 47"],
-  think: ["M44 48 Q50 47 55 48", "M65 44 Q70 41 76 44"],
-  wow: ["M44 44 Q50 40 55 43", "M65 43 Q70 40 76 44"],
-  sad: ["M44 48 Q50 47 55 43", "M65 43 Q70 47 76 48"],
-};
-
-/** Mike's portrait; the mood changes brows and mouth. */
+/**
+ * Mike's portrait: an AI in a glass sphere. The neural network inside turns in
+ * 3D and fires signals, the eyes follow the pointer, and the mood sets colour,
+ * tempo and expression. With reduced motion it is a still picture.
+ */
 export function CoachAvatar({
   mood = "happy",
   size = 56,
@@ -33,99 +25,25 @@ export function CoachAvatar({
   mood?: Mood;
   size?: number;
 }) {
-  const [b1, b2] = BROWS[mood];
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const orb = useRef<Orb | null>(null);
+  useEffect(() => {
+    if (!canvas.current) return;
+    const still = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const o = new Orb(canvas.current, size, mood, still);
+    orb.current = o;
+    return () => o.destroy();
+    // A new mood is handed over below, without rebuilding the network.
+  }, [size]);
+  useEffect(() => orb.current?.setMood(mood), [mood]);
   return (
-    <svg
-      key={mood}
+    <canvas
+      ref={canvas}
       class={`coach-avatar mood-${mood}`}
-      width={size}
-      height={size}
-      viewBox="0 0 120 120"
+      style={{ "--coach-size": `${size}px` }}
       role="img"
       aria-label={COACH_NAME}
-    >
-      <defs>
-        <clipPath id="coach-clip">
-          <circle cx="60" cy="60" r="60" />
-        </clipPath>
-        <linearGradient id="coach-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#8fc35a" />
-          <stop offset="1" stop-color="#5d8f3a" />
-        </linearGradient>
-      </defs>
-      <g clip-path="url(#coach-clip)">
-        <g class="coach-figure">
-          <rect width="120" height="120" fill="url(#coach-bg)" />
-          <path
-            d="M60 22 L96 60 L60 98 L24 60 Z"
-            fill="#ffffff"
-            opacity="0.08"
-          />
-          {/* shirt and collar */}
-          <path
-            d="M12 124 C16 98 36 88 60 88 C84 88 104 98 108 124 Z"
-            fill="#2f3b4a"
-          />
-          <path
-            d="M47 89 L60 104 L73 89 L67 86 L60 95 L53 86 Z"
-            fill="#f4f1ea"
-          />
-          <circle cx="88" cy="100" r="2.6" fill="#8fc35a" />
-          <path d="M85.6 103 h4.8 l1.6 5 h-8 Z" fill="#8fc35a" />
-          {/* neck, ears, head */}
-          <path d="M51 74 h18 v16 q-9 6 -18 0 Z" fill="#e2ad83" />
-          <circle cx="34" cy="58" r="6.5" fill="#efbf95" />
-          <circle cx="86" cy="58" r="6.5" fill="#efbf95" />
-          <ellipse cx="60" cy="56" rx="26" ry="29" fill="#f6cfa6" />
-          {/* hair */}
-          <path
-            d="M33 54 C29 30 44 20 61 20 C79 20 92 30 87 54 C85 44 80 38 72 37 C64 31 49 32 41 40 C37 44 35 48 33 54 Z"
-            fill="#5a3a26"
-          />
-          <path
-            d="M41 40 C47 33 58 31 66 34 C58 36 50 38 44 44 Z"
-            fill="#6e4a32"
-          />
-          {/* brows, eyes, cheeks, mouth */}
-          <path
-            d={b1}
-            stroke="#4a2f1f"
-            stroke-width="3"
-            stroke-linecap="round"
-            fill="none"
-          />
-          <path
-            d={b2}
-            stroke="#4a2f1f"
-            stroke-width="3"
-            stroke-linecap="round"
-            fill="none"
-          />
-          <g class="coach-eyes">
-            <circle cx="50" cy="56" r="3.6" fill="#2a2522" />
-            <circle cx="70" cy="56" r="3.6" fill="#2a2522" />
-            <circle cx="51.2" cy="54.8" r="1.1" fill="#fff" />
-            <circle cx="71.2" cy="54.8" r="1.1" fill="#fff" />
-          </g>
-          <circle cx="44" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
-          <circle cx="76" cy="66" r="4.5" fill="#f19a8b" opacity="0.35" />
-          <path
-            d="M58 60 Q60 64 62 60"
-            stroke="#d99a73"
-            stroke-width="2"
-            fill="none"
-            stroke-linecap="round"
-          />
-          <path
-            d={MOUTH[mood]}
-            stroke="#7a3b2e"
-            stroke-width="3"
-            stroke-linecap="round"
-            fill={mood === "wow" ? "#7a3b2e" : "none"}
-          />
-        </g>
-      </g>
-    </svg>
+    />
   );
 }
 
