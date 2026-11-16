@@ -199,7 +199,7 @@ function Intro() {
       <div class="ld-stage" key={step}>
         {step === 0 && (
           <div class="ld-chat">
-            <div class="ld-mike-big">
+            <div class="ld-lucena-big">
               <CoachAvatar mood={mood} size={132} />
             </div>
             <h2>Hi, ich bin {COACH_NAME}.</h2>
@@ -222,7 +222,7 @@ function Intro() {
               void fetchGames();
             }}
           >
-            <div class="ld-mike-big">
+            <div class="ld-lucena-big">
               <CoachAvatar mood={mood} size={110} />
             </div>
             <h2>Wie heißt du bei {SITE_LABEL[site as Site]}?</h2>
@@ -274,7 +274,7 @@ function Intro() {
 
         {step === 3 && (
           <div class="ld-chat">
-            <div class="ld-mike-big">
+            <div class="ld-lucena-big">
               <CoachAvatar mood="wow" size={132} />
             </div>
             <h2>{noAccount ? "Bis bald am Brett." : "Dein Profil wartet."}</h2>
