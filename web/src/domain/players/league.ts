@@ -7,7 +7,7 @@
 // games, so adding or hiding a friend never reorders the others, and nothing
 // is claimed from a gap that chance could explain.
 
-import { lichessBlitzToFide } from "../profile/fide";
+import { lichessBlitzToElo } from "../profile/fide";
 import { normalCdf } from "./compare";
 import { type HeadToHead } from "./h2h";
 import type { Ranking, RankRow } from "./ranking";
@@ -255,7 +255,7 @@ export function archetypes(ranking: Ranking): Record<string, Archetype> {
 }
 
 export interface AreaCell {
-  /** FIDE value for display; value/se on the common scale. */
+  /** Elo number for display; value/se on the common scale. */
   value: number;
   se: number;
   offset: number;
@@ -385,8 +385,8 @@ export interface ClimbPlan {
   target: { id: string; name: string; rank: number } | null;
   /** Elo missing to them on the common scale (estimates). */
   gap: number;
-  /** The same gap as the difference of the shown FIDE numbers. */
-  gap_fide: number;
+  /** The same gap as the difference of the shown Elo numbers. */
+  gap_elo: number;
   /** Chance you are already the stronger one (the gap is within the uncertainty). */
   p_already: number | null;
   /** Points from the next PLAN_GAMES games at your usual opponents' level that would pass them (null: not even all of them). */
@@ -396,10 +396,10 @@ export interface ClimbPlan {
   /** Share fewer errors per move (0..1) that alone would pass them (null without move quality or beyond MAX_ERROR_CUT). */
   error_cut: number | null;
   /** Player directly below: the gap, and the points from PLAN_GAMES games that would let them pass you. */
-  chaser: { id: string; name: string; gap: number; gap_fide: number; p_ahead: number; points: number | null } | null;
+  chaser: { id: string; name: string; gap: number; gap_elo: number; p_ahead: number; points: number | null } | null;
 }
 
-const fideOf = (v: number) => lichessBlitzToFide(v).rating;
+const eloOf = (v: number) => lichessBlitzToElo(v);
 const expectedPoints = (s: StrengthEstimate, games: number) => games * logistic(s.value - s.results.avg_opp);
 
 /** Smallest score out of `games` (in half points) that lifts `s` above `target`; null if none does. */
@@ -434,13 +434,13 @@ export function climbPlan(ranking: Ranking, id: string): ClimbPlan | null {
     rank: me.rank,
     target: above ? { id: above.id, name: above.name, rank: above.rank as number } : null,
     gap: above ? above.strength.value - s.value : 0,
-    gap_fide: above ? fideOf(above.strength.value) - fideOf(s.value) : 0,
+    gap_elo: above ? eloOf(above.strength.value) - eloOf(s.value) : 0,
     p_already: above ? probStronger(s, above.strength) : null,
     points: above ? pointsToPass(s, above.strength.value) : null,
     points_expected: expectedPoints(s, PLAN_GAMES),
     error_cut: errorCut,
     chaser: below
-      ? { id: below.id, name: below.name, gap: s.value - below.strength.value, gap_fide: fideOf(s.value) - fideOf(below.strength.value), p_ahead: probStronger(s, below.strength), points: pointsToPass(below.strength, s.value) }
+      ? { id: below.id, name: below.name, gap: s.value - below.strength.value, gap_elo: eloOf(s.value) - eloOf(below.strength.value), p_ahead: probStronger(s, below.strength), points: pointsToPass(below.strength, s.value) }
       : null,
   };
 }

@@ -28,7 +28,7 @@ import {
   crossHighlights,
   type Crosstable,
   expectedPoints,
-  fideText,
+  eloText,
   FORM_DAYS,
   type FormRow,
   type GroupPoint,
@@ -60,7 +60,7 @@ import {
   type TrackedPlayer,
   whatIf,
 } from "../../domain/players";
-import { lichessBlitzToFide } from "../../domain/profile/fide";
+import { ELO_SCALE_LABEL, lichessBlitzToElo } from "../../domain/profile/fide";
 import { filterGames, parsePlayedAt, withoutBots } from "../../domain/metrics";
 import type { PlayerProfile } from "../../domain/profile";
 import type { StoredGame } from "../../domain/types";
@@ -129,16 +129,15 @@ function RankingMembers({ friends, tones }: { friends: TrackedPlayer[]; tones: T
 
 // ---------- hero: the league track and "what if" ----------
 
-/** A value of the common scale as a FIDE number for axes and gaps (may fall below the 1400 floor). */
-const fideOf = (v: number) => lichessBlitzToFide(v).rating;
-/** "FIDE 1620" or "unter 1400". */
-const fideLabel = (v: number) => fideText(v);
+/** A value of the common scale as the shown Elo number, for axes and gaps. */
+const eloOf = (v: number) => lichessBlitzToElo(v);
+const eloLabel = (v: number) => eloText(v);
 const strengthOf = (r: RankRow) => r.strength?.value ?? null;
 
-/** Track bounds on the FIDE scale: the group's 95 % ranges, rounded out to 50. */
+/** Track bounds on the shown Elo scale: the group's 95 % ranges, rounded out to 50. */
 function trackBounds(rows: RankRow[]): { min: number; max: number; ticks: number[] } {
-  const lo = Math.min(...rows.map((r) => r.strength?.fide_low ?? Infinity));
-  const hi = Math.max(...rows.map((r) => r.strength?.fide_high ?? -Infinity));
+  const lo = Math.min(...rows.map((r) => r.strength?.elo_low ?? Infinity));
+  const hi = Math.max(...rows.map((r) => r.strength?.elo_high ?? -Infinity));
   const min = Math.floor((lo - 25) / 50) * 50;
   const max = Math.max(min + 100, Math.ceil((hi + 25) / 50) * 50);
   const step = Math.max(50, Math.ceil((max - min) / 4 / 50) * 50);
@@ -150,13 +149,12 @@ function trackBounds(rows: RankRow[]): { min: number; max: number; ticks: number
 /** "Platz 2" when sure, "Platz 1–3" otherwise. */
 const placeRange = (r: RankRow) => (r.odds && r.odds.low !== r.odds.high ? `${r.odds.low}–${r.odds.high}` : String(r.rank ?? "–"));
 
-/** Every ranked player on one line, at their strength on the FIDE scale. */
+/** Every ranked player on one line, at their shown Elo strength. */
 function Track({ rows, value, tones }: { rows: RankRow[]; value: (r: RankRow) => number | null; tones: Tones }) {
   const b = trackBounds(rows);
   const markers: TrackMarker[] = rows.map((r) => {
     const v = value(r) ?? 0;
-    // Below the FIDE floor the position stays apart, but the label must not claim a FIDE number.
-    return { id: r.id, label: r.name, value: clamp(fideOf(v), b.min, b.max), valueText: fideLabel(v).replace("unter ", "<"), tone: tones[r.id], me: r.is_me };
+    return { id: r.id, label: r.name, value: clamp(eloOf(v), b.min, b.max), valueText: eloLabel(v), tone: tones[r.id], me: r.is_me };
   });
   return <ScaleTrack markers={markers} min={b.min} max={b.max} ticks={b.ticks} />;
 }
@@ -168,7 +166,7 @@ function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s:
   const cut = sim.cut ?? 0;
   const changed = sim.points !== undefined || sim.cut !== undefined;
   const result = whatIf(ranking, me.id, points, cut);
-  const delta = result ? fideOf(result.value) - fideOf(s.value) : 0;
+  const delta = result ? eloOf(result.value) - eloOf(s.value) : 0;
   return (
     <div class="lg-whatif">
       <div class="lg-sliders">
@@ -204,7 +202,7 @@ function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s:
           <>
             <span>
               Damit wärst du auf <strong>Platz {result.rank}</strong>
-              {result.rank !== me.rank && me.rank !== null ? ` statt ${me.rank}` : ""} mit <strong class="tnum">FIDE {fideLabel(result.value)}</strong>{" "}
+              {result.rank !== me.rank && me.rank !== null ? ` statt ${me.rank}` : ""} mit <strong class="tnum">Elo {eloLabel(result.value)}</strong>{" "}
               <span class={`tnum ${delta >= 0 ? "pos" : "neg"}`}>({signed(delta, 0)})</span>
               {result.passed.length ? `, vor ${result.passed.join(" und ")}` : ""}.
             </span>
@@ -248,7 +246,7 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
           <span class="lg-kicker">Liga · {plural(ranked.length, "Spieler", "Spieler")}</span>
           <h2 class="lg-hero-title">{title}</h2>
           <p class="lg-hero-sub">
-            Spielstärke FIDE {fideLabel(lead.value)} (95 %: {lead.fide_low}–{lead.fide_high})
+            Spielstärke Elo {eloLabel(lead.value)} (95 %: {lead.elo_low}–{lead.elo_high})
             {leader.odds ? ` · zu ${winPct(leader.odds.first)} wirklich der Stärkste` : ""}
             {lw !== null ? ` · gewinnt ${winPct(lw)} der simulierten Turniere` : ""}
           </p>
@@ -259,8 +257,8 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
             <span class="lg-hero-me-text">
               <strong>Dein Platz{me.odds && me.odds.low !== me.odds.high ? ` (sicher: ${placeRange(me)})` : ""}</strong>
               <span class="faint small">
-                {above ? `${fideOf(strengthOf(above) as number) - fideOf(strengthOf(me) as number)} hinter ${above.name} (zu ${winPct(pAbove as number)} wirklich stärker)` : "niemand vor dir"}
-                {below ? ` · ${fideOf(strengthOf(me) as number) - fideOf(strengthOf(below) as number)} vor ${below.name} (zu ${winPct(pBelow as number)} sicher)` : ""}
+                {above ? `${eloOf(strengthOf(above) as number) - eloOf(strengthOf(me) as number)} hinter ${above.name} (zu ${winPct(pAbove as number)} wirklich stärker)` : "niemand vor dir"}
+                {below ? ` · ${eloOf(strengthOf(me) as number) - eloOf(strengthOf(below) as number)} vor ${below.name} (zu ${winPct(pBelow as number)} sicher)` : ""}
               </span>
             </span>
           </div>
@@ -311,7 +309,7 @@ export function Breakdown({ row }: { row: RankRow }) {
       value: s.results.value,
       se: s.results.se,
       weight: 1 - wq,
-      note: `${half(s.results.points)} aus ${s.results.games} gegen Ø FIDE ${fideLabel(s.results.avg_opp)}`,
+      note: `${half(s.results.points)} aus ${s.results.games} gegen Ø Elo ${eloLabel(s.results.avg_opp)}`,
       cls: "g-res",
     },
     ...(q
@@ -343,14 +341,14 @@ export function Breakdown({ row }: { row: RankRow }) {
             <span class="faint small">{p.note}</span>
             <span class="tnum small muted">zählt {pct0(p.weight * 100)}</span>
             <strong class="tnum">
-              {fideLabel(p.value)} <span class="faint small">±{Math.round(fideOf(p.value + 1.96 * p.se) - fideOf(p.value))}</span>
+              {eloLabel(p.value)} <span class="faint small">±{Math.round(eloOf(p.value + 1.96 * p.se) - eloOf(p.value))}</span>
             </strong>
           </div>
         ))}
       </div>
       <p class="faint small" style={{ margin: "6px 0 0" }}>
         {q
-          ? "Beide Werte sind Spielstärken auf der FIDE-Skala aus denselben Gegnern. Je genauer ein Wert, desto mehr zählt er."
+          ? "Beide Werte sind Spielstärken auf derselben Elo-Skala aus denselben Gegnern. Je genauer ein Wert, desto mehr zählt er."
           : `Zugqualität zählt ab 5 analysierten Partien mit gewertetem Gegner.`}
         {row.bot_games ? ` ${plural(row.bot_games, "Partie gegen einen Computer bleibt", "Partien gegen Computer bleiben")} draußen.` : ""}
       </p>
@@ -363,12 +361,12 @@ function RangeBar({ row, bounds, tone, on }: { row: RankRow; bounds: { min: numb
   const s = row.strength;
   if (!s) return <span class="lg-bar lg-ci none" />;
   const pos = (v: number) => clamp(((v - bounds.min) / (bounds.max - bounds.min)) * 100, 0, 100);
-  const a = pos(s.fide_low);
-  const b = pos(s.fide_high);
+  const a = pos(s.elo_low);
+  const b = pos(s.elo_high);
   return (
-    <span class="lg-bar lg-ci" title={`95 %: FIDE ${s.fide_low}–${s.fide_high}`}>
+    <span class="lg-bar lg-ci" title={`95 %: Elo ${s.elo_low}–${s.elo_high}`}>
       <span class={`band ${tone}`} style={{ left: `${a}%`, width: `${Math.max(2, b - a)}%`, opacity: on ? undefined : 0 }} />
-      <i class={tone} style={{ left: `${pos(fideOf(s.value))}%` }} />
+      <i class={tone} style={{ left: `${pos(eloOf(s.value))}%` }} />
     </span>
   );
 }
@@ -377,12 +375,12 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
   const [open, setOpen] = useState<string | null>(null);
   const on = useEntrance();
   const ranked = ranking.rows.filter((r) => r.strength);
-  const bounds = ranked.length ? trackBounds(ranked) : { min: 1400, max: 2000 };
+  const bounds = ranked.length ? trackBounds(ranked) : { min: 800, max: 1600 };
   return (
     <section class="card tile span-7 lg-table">
       <div class="tile-head">
         <h3>Tabelle</h3>
-        <span class="tile-sub">Spielstärke (FIDE-Skala) mit 95-%-Spanne · {trFilter(ranking.period)} · antippen für die Herkunft</span>
+        <span class="tile-sub">Spielstärke als Elo ({ELO_SCALE_LABEL}) mit 95-%-Spanne · {trFilter(ranking.period)} · antippen für die Herkunft</span>
       </div>
       <ol class="lg-rows">
         {ranking.rows.map((r, i) => {
@@ -416,8 +414,8 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                 </span>
                 <span class="lg-row-score">
                   <RangeBar row={r} bounds={bounds} tone={tones[r.id]} on={on} />
-                  <strong class="tnum" title={r.strength ? `FIDE ${r.strength.fide_low}–${r.strength.fide_high} (95 %)` : undefined}>
-                    {r.strength ? (r.strength.below_floor ? "<1400" : r.strength.fide) : "–"}
+                  <strong class="tnum" title={r.strength ? `Elo ${r.strength.elo_low}–${r.strength.elo_high} (95 %)` : undefined}>
+                    {r.strength ? r.strength.elo : "–"}
                   </strong>
                 </span>
               </button>
@@ -425,7 +423,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                 <div class="lg-row-detail">
                   <p class="faint small lg-row-basis">
                     Grundlage: {plural(r.rated_games, "gewertete Partie", "gewertete Partien")} gegen Menschen, {r.analyzed} analysiert
-                    {r.strength ? ` · 95 %: FIDE ${r.strength.fide_low}–${r.strength.fide_high}` : ""}
+                    {r.strength ? ` · 95 %: Elo ${r.strength.elo_low}–${r.strength.elo_high}` : ""}
                     {r.odds ? ` · Platz ${placeRange(r)} in 90 % der möglichen Reihenfolgen, Platz 1 zu ${winPct(r.odds.first)}` : ""}
                   </p>
                   <Breakdown row={r} />
@@ -507,7 +505,7 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) =>
         <h3>
           <IconRise /> {t ? `So überholst du ${t.name}` : "Du stehst ganz oben"}
         </h3>
-        <span class="tile-sub">{t ? `${plan.gap_fide} FIDE-Punkte bis Platz ${t.rank}` : "jetzt heißt es: verteidigen"}</span>
+        <span class="tile-sub">{t ? `${plan.gap_elo} Elo-Punkte bis Platz ${t.rank}` : "jetzt heißt es: verteidigen"}</span>
       </div>
       <div class="lg-climb-grid">
         <div>
@@ -557,7 +555,7 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) =>
           <h4>{ch ? `Hinter dir: ${ch.name}` : "Hinter dir"}</h4>
           {ch ? (
             <p class="small">
-              <strong class="tnum">{ch.gap_fide}</strong> FIDE-Punkte zurück, du bist zu {winPct(ch.p_ahead)} wirklich stärker.{" "}
+              <strong class="tnum">{ch.gap_elo}</strong> Elo-Punkte zurück, du bist zu {winPct(ch.p_ahead)} wirklich stärker.{" "}
               {ch.points !== null
                 ? `Mit ${half(ch.points)} aus ${PLAN_GAMES} Partien wäre ${ch.name} an dir vorbei.`
                 : `Selbst mit ${PLAN_GAMES} Siegen in Folge käme ${ch.name} nicht an dir vorbei.`}
@@ -914,7 +912,7 @@ function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
   );
 }
 
-/** Every player's parts of the game on the FIDE scale, marked where one stands out against the player's own level. */
+/** Every player's parts of the game on the shown Elo scale, marked where one stands out against the player's own level. */
 function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones: Tones; standing: GroupStanding | null }) {
   const table = useMemo(() => areaTable(ranking), [ranking]);
   const leaderOf = (area: Area) => table.leaders.find((l) => l.area === area);
@@ -924,7 +922,7 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
         <h3>
           <IconCrown /> Stärken-Matrix
         </h3>
-        <span class="tile-sub">jeder Bereich als Spielstärke (FIDE-Skala), gemessen an den eigenen Zügen</span>
+        <span class="tile-sub">jeder Bereich als Elo-Spielstärke, gemessen an den eigenen Zügen</span>
       </div>
       <div class="table-scroll">
         <table class="lg-matrix-table">
@@ -944,7 +942,7 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
                   <Who name={r.name} tone={tones[r.id]} />
                 </th>
                 <td>
-                  <span class={`lg-heat${r.strength ? "" : " none"}`}>{r.strength ? fideLabel(r.strength.value).replace("unter ", "<") : "–"}</span>
+                  <span class={`lg-heat${r.strength ? "" : " none"}`}>{r.strength ? eloLabel(r.strength.value) : "–"}</span>
                 </td>
                 {AREAS.map((a) => {
                   const c = table.cells[r.id]?.[a];
@@ -957,7 +955,7 @@ function StrengthMatrix({ ranking, tones, standing }: { ranking: Ranking; tones:
                         class={`lg-heat${c ? "" : " none"}${c?.stands_out === 1 ? " hi" : ""}${c?.stands_out === -1 ? " lo" : ""}`}
                         title={
                           c
-                            ? `${r.name} · ${AREA_LABEL[a]}: FIDE ${fideLabel(c.value)}, ${off >= 0 ? "+" : ""}${off} gegenüber dem eigenen Schnitt${c.stands_out === 1 ? " (klare Stärke)" : c.stands_out === -1 ? " (klare Schwäche)" : ""}${crown ? ` · Bester der Gruppe (zu ${winPct(lead.p)} gegen jeden)` : ""}`
+                            ? `${r.name} · ${AREA_LABEL[a]}: Elo ${eloLabel(c.value)}, ${off >= 0 ? "+" : ""}${off} gegenüber dem eigenen Schnitt${c.stands_out === 1 ? " (klare Stärke)" : c.stands_out === -1 ? " (klare Schwäche)" : ""}${crown ? ` · Bester der Gruppe (zu ${winPct(lead.p)} gegen jeden)` : ""}`
                             : "zu wenig analysierte Partien"
                         }
                       >
@@ -1021,8 +1019,8 @@ function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }
   }
   const h = clamp(Math.round(w * 0.66), 250, 360);
   const pad = { l: 46, r: 14, t: 14, b: 34 };
-  // Both axes on the same FIDE scale, so the diagonal means "scores what the moves are worth".
-  const vals = map.points.flatMap((p) => [fideOf(p.x - p.x_se), fideOf(p.x + p.x_se), fideOf(p.y - p.y_se), fideOf(p.y + p.y_se)]);
+  // Both axes on the same Elo scale, so the diagonal means "scores what the moves are worth".
+  const vals = map.points.flatMap((p) => [eloOf(p.x - p.x_se), eloOf(p.x + p.x_se), eloOf(p.y - p.y_se), eloOf(p.y + p.y_se)]);
   const span = Math.max(60, Math.max(...vals) - Math.min(...vals));
   const v0 = Math.min(...vals) - span * 0.1;
   const v1 = Math.max(...vals) + span * 0.1;
@@ -1059,12 +1057,12 @@ function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }
             Lässt Punkte liegen
           </text>
           {map.points.map((p) => {
-            const x = fideOf(p.x);
-            const y = fideOf(p.y);
+            const x = eloOf(p.x);
+            const y = eloOf(p.y);
             return (
               <g key={p.id} class={`pt ${tones[p.id]}${p.is_me ? " me" : ""}`}>
-                <line class="err" x1={sx(fideOf(p.x - p.x_se))} x2={sx(fideOf(p.x + p.x_se))} y1={sy(y)} y2={sy(y)} />
-                <line class="err" x1={sx(x)} x2={sx(x)} y1={sy(fideOf(p.y - p.y_se))} y2={sy(fideOf(p.y + p.y_se))} />
+                <line class="err" x1={sx(eloOf(p.x - p.x_se))} x2={sx(eloOf(p.x + p.x_se))} y1={sy(y)} y2={sy(y)} />
+                <line class="err" x1={sx(x)} x2={sx(x)} y1={sy(eloOf(p.y - p.y_se))} y2={sy(eloOf(p.y + p.y_se))} />
                 <circle cx={sx(x)} cy={sy(y)} r={13} />
                 <text class="ini" x={sx(x)} y={sy(y) + 4} text-anchor="middle">
                   {p.name.slice(0, 1).toUpperCase()}
@@ -1367,7 +1365,7 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
         <span class="rank-explain-chev" aria-hidden="true" />
       </summary>
       <p class="small muted">
-        Jeder bekommt eine Spielstärke auf der FIDE-Skala, nur aus den eigenen Partien im Zeitraum. Niemand wird an der Gruppe gemessen: kommt ein Freund dazu oder wird ausgeblendet, bleibt die Reihenfolge der anderen gleich.
+        Jeder bekommt eine Elo-Zahl, nur aus den eigenen Partien im Zeitraum. Sie liegt auf der {ELO_SCALE_LABEL}: Wer dort Rapid spielt, kann sie direkt mit der eigenen Wertung vergleichen, Lichess-Wertungen werden umgerechnet. Anders als bei FIDE gibt es keine Untergrenze bei 1400, auch Einsteiger bekommen ihren eigenen Wert. Niemand wird an der Gruppe gemessen: kommt ein Freund dazu oder wird ausgeblendet, bleibt die Reihenfolge der anderen gleich.
       </p>
       <div class="scoring">
         <div class="scoring-group">

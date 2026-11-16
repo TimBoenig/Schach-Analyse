@@ -18,7 +18,7 @@ import { detectSpeedCategory } from "../metrics/speed";
 import { toLichessBlitz } from "../profile/fide";
 import { fmt as fmtDot } from "../profile/num";
 import { headToHead } from "./h2h";
-import { fideText, performanceMle } from "./strength";
+import { eloText, performanceMle } from "./strength";
 
 // German decimal comma: "92,5".
 const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", ",");
@@ -140,7 +140,7 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
         title: "Stärkste Phase",
         bar: `ab ${PEAK_GAMES} gewerteten Partien`,
         higher: true,
-        text: (v) => `Leistung FIDE ${fideText(v)}`,
+        text: (v) => `Leistung Elo ${eloText(v)}`,
         detail: (c) => `über ${PEAK_GAMES} Partien in Folge, ${until(c)}`,
       },
       best: (list) => {

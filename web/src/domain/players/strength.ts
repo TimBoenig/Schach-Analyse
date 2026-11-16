@@ -43,7 +43,7 @@ import { outcomeFor, parseMoves, parseSummary, type RawGame } from "../metrics/m
 import { parsePlayedAt } from "../metrics/played";
 import { detectSpeedCategory } from "../metrics/speed";
 import { MIN_GROUP_GAMES } from "../profile/evidence";
-import { lichessBlitzToFide, ratingColumn, toLichessBlitz } from "../profile/fide";
+import { lichessBlitzToElo, ratingColumn, toLichessBlitz } from "../profile/fide";
 import { type Tally, tallyRatio } from "../profile/strength";
 import { OPPONENT_ERROR_THRESHOLD, PUNISH_KEEP_THRESHOLD } from "../profile/features";
 import { classifyFenPhase } from "../tactics/phase";
@@ -75,6 +75,8 @@ export const QUALITY_PERSON_SD = 150;
 export const RESULT_QUALITY_RHO = 0.5;
 // Pseudo-moves at the pooled error rate for the ratio (as the profile's overall).
 const QUALITY_PRIOR = 30;
+/** Lowest row of the rating survey on the common scale; below it conversions are straight-line guesses. */
+const SURVEY_LOW_VALUE = 1090;
 const Z95 = 1.96;
 // Cap on |ln(error ratio)|: a factor of about 3.3 either way.
 const MAX_LN_RATIO = 1.2;
@@ -130,12 +132,10 @@ export interface StrengthEstimate {
   se: number;
   /** Share of the estimate resting on each rating pool (survey column), for the conversion error. */
   columns: Record<string, number>;
-  /** The estimate on the FIDE scale with its 95 % range (for display). */
-  fide: number;
-  fide_low: number;
-  fide_high: number;
-  /** Below the FIDE floor of 1400: the number only orders players. */
-  below_floor: boolean;
+  /** The estimate as the shown Elo number (see fide.ts) with its 95 % range. */
+  elo: number;
+  elo_low: number;
+  elo_high: number;
   /** Below the survey's range: the conversion is a straight-line guess. */
   extrapolated: boolean;
   results: ResultsPart;
@@ -161,7 +161,7 @@ const eloOf = (v: unknown) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-/** The parts of the game the strengths section places on the scale (as the profile's FIDE map). */
+/** The parts of the game the strengths section places on the scale (as the profile's strength map). */
 export const AREAS = ["opening", "middlegame", "endgame", "tactics", "safety"] as const;
 export type Area = (typeof AREAS)[number];
 type Pair = { u: Tally; o: Tally };
@@ -330,16 +330,14 @@ export function playerStrength(games: RawGame[], usernames: string[], { format =
   if (q) for (const x of quality) add(x.col, combined.wq / quality.length);
 
   const margin = Z95 * Math.sqrt(combined.se ** 2 + conversionVar(columns));
-  const mid = lichessBlitzToFide(combined.value);
   report.estimate = {
     value: combined.value,
     se: combined.se,
     columns,
-    fide: mid.rating,
-    fide_low: lichessBlitzToFide(combined.value - margin).rating,
-    fide_high: lichessBlitzToFide(combined.value + margin).rating,
-    below_floor: mid.below,
-    extrapolated: mid.extrapolated,
+    elo: lichessBlitzToElo(combined.value),
+    elo_low: lichessBlitzToElo(combined.value - margin),
+    elo_high: lichessBlitzToElo(combined.value + margin),
+    extrapolated: combined.value < SURVEY_LOW_VALUE,
     results,
     quality: q ? { value: q.value, se: q.se, k_sd: q.k_sd, noise_se: q.noise_se, games: q.games, error_ratio: q.ratio, weight: combined.wq } : null,
     areas: q ? areaStrengths(quality.map((x) => x.t), combined) : [],
@@ -518,8 +516,7 @@ export function projectedStrength(e: StrengthEstimate, games: number, points: nu
   return combineParts(r, q).value;
 }
 
-/** A value of the common scale for display: FIDE, "unter 1400" below the floor. */
-export function fideText(value: number): string {
-  const f = lichessBlitzToFide(value);
-  return f.below ? "unter 1400" : String(f.rating);
+/** A value of the common scale as the shown Elo number. */
+export function eloText(value: number): string {
+  return String(lichessBlitzToElo(value));
 }

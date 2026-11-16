@@ -25,5 +25,5 @@ export { duelInsights, openingPreview, PHASE_DE } from "./rivalry";
 export type { DuelGame, DuelInsights, OpeningPreview, Phase, PreviewLine } from "./rivalry";
 export { AREA_LABEL, archetypes, areaTable, climbPlan, expectedPoints, PAIR_SD, pairForecast, pairForecastOf, PLAN_GAMES, practiceGap, qualityMap, simulateTournament, TOURNAMENT_RUNS, whatIf } from "./league";
 export type { AreaCell, AreaLeader, Archetype, ClimbPlan, MapPoint, PairForecast, QualityMap, Tournament, TournamentRow } from "./league";
-export { AREAS, fideText, MIN_QUALITY_GAMES, MIN_RATED_GAMES, playerStrength, probStronger, strengthGap } from "./strength";
+export { AREAS, eloText, MIN_QUALITY_GAMES, MIN_RATED_GAMES, playerStrength, probStronger, strengthGap } from "./strength";
 export type { Area, AreaStrength, RankOdds, StrengthEstimate, StrengthReport } from "./strength";

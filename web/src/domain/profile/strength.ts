@@ -1,5 +1,4 @@
-// "Your endgame plays like FIDE 1750": each part of the game placed on the
-// FIDE scale.
+// "Your endgame plays like 1250": each part of the game as an Elo number.
 //
 // The yardstick is the opponents in the same games, not a fixed table. A
 // fixed "accuracy X is typical for rating Y" table only holds for the engine,
@@ -9,60 +8,59 @@
 // opponents, though, are measured with exactly the same engine, depth and
 // formula, and their ratings are known. So for every part of the game:
 //
-//   estimate = opponents' average rating (FIDE scale)
-//              − C · ln(your error rate / their error rate)
+//   estimate = opponents' average rating
+//              − 849 · ln(your error rate / their error rate)
 //
-// - The log of the error ratio is the scaling law behind every published
-//   error-to-rating relation: Regan's intrinsic ratings (IPR = 3571 − 15413 · AE,
-//   errors scaled logarithmically) and the Lichess-database fit
-//   Elo = 5189 − 849 · ln(ACPL) (Bianco 2026, 14,307 players). A ratio also
-//   cancels any factor by which this engine finds more or fewer errors than
-//   a deeper one.
-// - C: the Lichess-band errors (113, 77, 51, 21 centipawns at 1100, 1500,
-//   1900, 2300) converted to FIDE with the ChessGoals survey give 370 to 670
-//   FIDE points per unit of ln. We use 450, near the low end, so the estimates
-//   rather understate than overstate how far a part of the game sits from the
-//   opponents' level.
+// - Computed on the Lichess blitz scale, the scale the published fit
+//   Elo = 5189 − 849 · ln(ACPL) was made on (Lichess database, Bianco 2026,
+//   14,307 players); Regan's intrinsic ratings use the same log scaling. A
+//   ratio also cancels any factor by which this engine finds more or fewer
+//   errors than a deeper one. The league (players/strength.ts) uses the same
+//   constant and scale.
+// - Shown as the site's Elo number (`lichessBlitzToElo`: Chess.com rapid
+//   equivalent). FIDE was dropped as the display scale: nothing exists below
+//   1400 there and the 2024 reform squeezed everything under 2000, so most
+//   hobby players read nearly the same value.
 // - Errors: lost winning chance per own move after the book (the win-%
 //   version of centipawn loss) for the phases and the whole game, blunders per
 //   move for piece safety, unpunished opponent errors for tactics.
 //
 // Thin data must not produce bold numbers: a single game says ±400 Elo
 // (Patzer's Review), so every estimate carries a standard error (per game,
-// clustered, delta method) and is shrunk toward the player's own rating on
-// the FIDE scale: skills of one player rarely sit more than one or two hundred
-// points apart. The 95 % margin is shown with the value.
+// clustered, delta method) and is shrunk toward the player's own rating:
+// skills of one player rarely sit more than one or two hundred points apart.
+// The 95 % margin is shown with the value.
 
-import { FIDE_FLOOR, toFide } from "./fide";
+import { ELO_MIN, lichessBlitzToElo, toLichessBlitz } from "./fide";
 import type { GameFeatures } from "./features";
 import { ratingSource } from "./benchmarks";
 import { SKILL_NAMES } from "./skills";
 
-/** FIDE points per unit of ln(error ratio). See the header for the derivation. */
-export const ELO_PER_LN_ERRORS = 450;
+/** Lichess blitz points per unit of ln(error ratio). See the header. */
+export const ELO_PER_LN_ERRORS = 849;
 /**
- * Least noise of one game's estimate (FIDE points, 1 SD). Published checks put
+ * Least noise of one game's estimate (Lichess points, 1 SD). Published checks put
  * a single game at about ±400 and need some 40 games for ±50 (Patzer's Review
  * 2020); the per-game delta method alone is too optimistic on a handful of
  * games, so it never goes below this.
  */
-export const PER_GAME_ELO_SD = 250;
-/** Spread of a player's skills around their overall strength (prior SD, FIDE points). */
+export const PER_GAME_ELO_SD = 400;
+/** Spread of a player's skills around their overall strength (prior SD, Lichess points; the league uses the same). */
 export const SKILL_SPREAD = 150;
-/** Above this 95 % margin a value is drawn faint and never called a strength. */
-export const RELIABLE_ELO_MARGIN = 150;
+/** Above this 95 % margin (shown Elo) a value is drawn faint and never called a strength. */
+export const RELIABLE_ELO_MARGIN = 200;
 /** Fewer analysed games with known opponent ratings give no estimate at all. */
 export const MIN_STRENGTH_GAMES = 5;
-export const STRENGTH_MIN = FIDE_FLOOR;
-export const STRENGTH_MAX = 2800;
+export const STRENGTH_MIN = ELO_MIN;
+export const STRENGTH_MAX = 3000;
 const Z95 = 1.96;
 
 export interface SkillStrength {
   key: string;
   name: string;
-  /** Estimated FIDE rating of this part of the game, within STRENGTH_MIN..STRENGTH_MAX. */
+  /** Estimated Elo of this part of the game, within STRENGTH_MIN..STRENGTH_MAX. */
   rating: number;
-  /** 95 % uncertainty in FIDE points. */
+  /** 95 % uncertainty in Elo points. */
   margin: number;
   /** -1 below the scale, 1 above it, 0 inside. */
   capped: -1 | 0 | 1;
@@ -76,12 +74,10 @@ export interface StrengthMap {
   skills: SkillStrength[];
   /** The whole game (all moves after the book) on the same scale. */
   overall: SkillStrength | null;
-  /** Average opponent on the FIDE scale: the level the error ratios are measured against. */
-  opponents_fide: number;
-  /** The player's own rating on the FIDE scale (null without one). */
-  own_fide: number | null;
-  /** Part of the conversion lies below the survey's range (rough near the FIDE floor). */
-  extrapolated: boolean;
+  /** Average opponent as Elo: the level the error ratios are measured against. */
+  opponents_elo: number;
+  /** The player's own rating as Elo (null without one). */
+  own_elo: number | null;
 }
 
 /** One analysed game seen from both sides. */
@@ -183,9 +179,12 @@ function settle(key: string, anchor: number, prior: number, ratio: { ln: number;
   const wObs = 1 / seObs ** 2;
   const wPrior = 1 / SKILL_SPREAD ** 2;
   const mean = (observed * wObs + prior * wPrior) / (wObs + wPrior);
-  const margin = Math.round((Z95 / Math.sqrt(wObs + wPrior)) / 10) * 10;
-  const capped: -1 | 0 | 1 = mean < STRENGTH_MIN ? -1 : mean > STRENGTH_MAX ? 1 : 0;
-  const rating = Math.round(Math.min(STRENGTH_MAX, Math.max(STRENGTH_MIN, mean)) / 10) * 10;
+  // Blend on the Lichess scale, then read value and 95 % range as shown Elo.
+  const half = Z95 / Math.sqrt(wObs + wPrior);
+  const elo = lichessBlitzToElo(mean);
+  const margin = Math.round((lichessBlitzToElo(mean + half) - lichessBlitzToElo(mean - half)) / 20) * 10;
+  const capped: -1 | 0 | 1 = elo <= STRENGTH_MIN ? -1 : elo > STRENGTH_MAX ? 1 : 0;
+  const rating = Math.round(Math.min(STRENGTH_MAX, Math.max(STRENGTH_MIN, elo)) / 10) * 10;
   return {
     key,
     name: key === "overall" ? "Gesamt" : SKILL_NAMES[key],
@@ -199,22 +198,17 @@ function settle(key: string, anchor: number, prior: number, ratio: { ln: number;
 }
 
 /**
- * Every part of the game on the FIDE scale, strongest first. Needs analysed
- * games whose opponent rating is known; null below MIN_STRENGTH_GAMES of them.
- * `ownFide` is the player's current rating on the FIDE scale (the prior).
+ * Every part of the game as Elo, strongest first. Needs analysed games whose
+ * opponent rating is known; null below MIN_STRENGTH_GAMES of them.
+ * `ownLichess` is the player's current rating on the Lichess blitz scale (the prior).
  */
-export function strengthMap(pairs: GamePair[], ownFide: number | null): StrengthMap | null {
+export function strengthMap(pairs: GamePair[], ownLichess: number | null): StrengthMap | null {
   const rated = pairs.filter((p) => p.own.analyzed && p.own.opp_rating > 0);
   if (rated.length < MIN_STRENGTH_GAMES) return null;
   let sum = 0;
-  let extrapolated = false;
-  for (const p of rated) {
-    const fide = toFide(p.own.opp_rating, ratingSource(p.own), p.own.rec.speed);
-    sum += fide.rating;
-    extrapolated ||= fide.extrapolated;
-  }
+  for (const p of rated) sum += toLichessBlitz(p.own.opp_rating, ratingSource(p.own), p.own.rec.speed);
   const anchor = sum / rated.length;
-  const prior = ownFide ?? anchor;
+  const prior = ownLichess ?? anchor;
   const skills: SkillStrength[] = [];
   for (const m of METRICS) {
     const ratio = errorRatio(rated, m.count, m.prior);
@@ -224,8 +218,7 @@ export function strengthMap(pairs: GamePair[], ownFide: number | null): Strength
   return {
     skills: skills.sort((a, b) => b.rating - a.rating),
     overall: all ? settle("overall", anchor, prior, all) : null,
-    opponents_fide: Math.round(anchor),
-    own_fide: ownFide,
-    extrapolated: extrapolated || (ownFide !== null && ownFide <= FIDE_FLOOR),
+    opponents_elo: lichessBlitzToElo(anchor),
+    own_elo: ownLichess !== null ? lichessBlitzToElo(ownLichess) : null,
   };
 }

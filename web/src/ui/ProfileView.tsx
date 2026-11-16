@@ -1,7 +1,7 @@
 import { useState } from "preact/hooks";
 
 import { trSpeed } from "../domain/i18n";
-import { MIN_STRENGTH_GAMES, sourceName, STRENGTH_MAX, STRENGTH_MIN, STYLE_MIN_GAMES, typicalLabel as referenceName, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
+import { ELO_SCALE_LABEL, MIN_STRENGTH_GAMES, sourceName, STRENGTH_MAX, STRENGTH_MIN, STYLE_MIN_GAMES, typicalLabel as referenceName, type GameRef, type Insight, type PlayerProfile, type RatingContext, type SkillScore, type StyleAxis } from "../domain/profile";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../domain/training";
 import { AreaChart, BarList, Donut, Gauge, Legend, monthStart, RadarChart, ratingSeriesPoints } from "./charts";
 import type { BarRow, Segment } from "./charts";
@@ -142,8 +142,8 @@ const STRENGTH_GRID = 200;
 // clearly apart; inside the margins it could just as well be the other way round.
 const STRENGTH_CLEAR_GAP = 100;
 
-/** "1650", "unter 1400", "über 2800". */
-function fideText(r: { rating: number; capped: number }): string {
+/** "1250", "unter 100", "über 3000". */
+function eloText(r: { rating: number; capped: number }): string {
   return r.capped > 0 ? `über ${STRENGTH_MAX}` : r.capped < 0 ? `unter ${STRENGTH_MIN}` : String(r.rating);
 }
 
@@ -156,7 +156,7 @@ function ratioText(ratio: number): string {
 
 /**
  * The page's opening card: who you are as a player in one line, and every part
- * of your game placed on the FIDE scale ("your endgame plays like FIDE 1750").
+ * of your game as an Elo number ("your endgame plays like 1250").
  */
 function PlayerCard({ profile }: { profile: PlayerProfile }) {
   const [picked, setPicked] = useState<string | null>(null);
@@ -181,7 +181,7 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
   );
 
   const shown = sm ? [...map, ...(sm.overall ? [sm.overall] : [])] : [];
-  const values = [...shown.map((s) => s.rating), ...(rc ? [rc.fide] : [])];
+  const values = [...shown.map((s) => s.rating), ...(rc ? [rc.elo] : [])];
   const min = Math.max(STRENGTH_MIN, Math.floor((Math.min(...values) - STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
   const max = Math.min(STRENGTH_MAX, Math.ceil((Math.max(...values) + STRENGTH_ROOM) / STRENGTH_GRID) * STRENGTH_GRID);
   const ticks: number[] = [];
@@ -191,20 +191,20 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
       id: s.key,
       label: s.key === "overall" ? "Gesamt" : (RADAR_LABELS[s.key] ?? s.name),
       value: s.rating,
-      valueText: `${fideText(s)} ±${s.margin}`,
+      valueText: `${eloText(s)} ±${s.margin}`,
       tone: STRENGTH_TONE[s.key] ?? "tone-quiet",
       mark: STRENGTH_MARK[s.key],
       faint: !s.reliable,
-      title: `${s.name}: etwa FIDE ${fideText(s)} (±${s.margin})`,
+      title: `${s.name}: etwa Elo ${eloText(s)} (±${s.margin})`,
     })),
     ...(rc
-      ? [{ id: "me", label: "Du", value: rc.fide, tone: "tone-me", me: true, title: `Deine Wertung ${rc.rating} (${sourceName(rc.source)} ${trSpeed(rc.speed)}) entspricht etwa FIDE ${rc.fide}` }]
+      ? [{ id: "me", label: "Du", value: rc.elo, tone: "tone-me", me: true, title: `Deine Wertung ${rc.rating} (${sourceName(rc.source)} ${trSpeed(rc.speed)}) entspricht etwa Elo ${rc.elo} (${ELO_SCALE_LABEL})` }]
       : []),
   ];
   const sel = shown.find((s) => s.key === picked) ?? null;
   const selSkill = sel ? profile.skills.find((s) => s.key === sel.key) : undefined;
   const cat = sel ? skillCategory(sel.key, profile.exercises) : undefined;
-  const gap = sel && rc && !sel.capped ? sel.rating - rc.fide : null;
+  const gap = sel && rc && !sel.capped ? sel.rating - rc.elo : null;
   const overall = sm?.overall ?? null;
 
   return (
@@ -218,7 +218,7 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
           <HeroStat
             big={<CountUp value={rc.rating} />}
             label={`Wertung ${trSpeed(rc.speed)}`}
-            sub={`≈ FIDE ${rc.fide}${rc.performance ? ` · Performance ${rc.performance}` : ""}`}
+            sub={[rc.elo !== rc.rating ? `≈ Elo ${rc.elo}` : "", rc.performance ? `Performance ${rc.performance}` : ""].filter(Boolean).join(" · ") || undefined}
           />
         ) : profile.analyzed_games ? (
           <HeroStat big={<CountUp value={o.avg_accuracy} format={(v) => v.toFixed(1).replace(".", ",")} />} label="Genauigkeit" sub="über alle analysierten Partien" />
@@ -229,23 +229,23 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
         <div class="ar-block">
           <div class="ar-block-head">
             <strong>So stark spielen die Teile deines Spiels</strong>
-            <span class="faint small">als FIDE-Elo geschätzt · Punkt antippen</span>
+            <span class="faint small">als Elo geschätzt ({ELO_SCALE_LABEL}) · Punkt antippen</span>
           </div>
           <ScaleTrack rows room={104} markers={markers} min={min} max={max} ticks={ticks} picked={picked} onPick={(id) => setPicked(id === "me" || id === picked ? null : id)} />
           <div class={`ar-answer${sel ? " on" : ""}`} role="status">
             {sel ? (
               <>
                 <p>
-                  <strong>{sel.name}</strong>: etwa <strong class="tnum">FIDE {fideText(sel)}</strong>{" "}
+                  <strong>{sel.name}</strong>: etwa <strong class="tnum">Elo {eloText(sel)}</strong>{" "}
                   <span class="tnum">(±{sel.margin})</span>
                   {gap !== null && Math.abs(gap) > sel.margin ? (
                     <>
-                      , das sind <span class={`tnum ${gap > 0 ? "pos" : "neg"}`}>{Math.abs(gap)} Punkte {gap > 0 ? "über" : "unter"}</span> deiner Wertung auf FIDE-Skala
+                      , das sind <span class={`tnum ${gap > 0 ? "pos" : "neg"}`}>{Math.abs(gap)} Punkte {gap > 0 ? "über" : "unter"}</span> deiner eigenen Wertung
                     </>
                   ) : gap !== null ? (
                     ", im Rahmen der Unsicherheit auf deinem Niveau"
                   ) : null}
-                  . Du machst hier {ratioText(sel.error_ratio)} als deine Gegner (Ø FIDE {sm.opponents_fide}) in denselben {sel.games} Partien.
+                  . Du machst hier {ratioText(sel.error_ratio)} als deine Gegner (Ø Elo {sm.opponents_elo}) in denselben {sel.games} Partien.
                   {!sel.reliable ? " Noch wenige Daten, der Wert kann sich deutlich bewegen." : ""}
                   {selSkill ? <span class="small faint player-card-detail"> {selSkill.detail}</span> : null}
                 </p>
@@ -259,26 +259,25 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
               <p>
                 {overall ? (
                   <>
-                    Nach Zugqualität spielst du insgesamt wie etwa <strong class="tnum">FIDE {fideText(overall)}</strong> (±{overall.margin}).{" "}
+                    Nach Zugqualität spielst du insgesamt wie etwa <strong class="tnum">Elo {eloText(overall)}</strong> (±{overall.margin}).{" "}
                   </>
                 ) : null}
                 {clear ? (
                   <>
-                    Am stärksten: <strong>{top.name}</strong> ({fideText(top)}). Am meisten Luft: <strong>{bottom.name}</strong> ({fideText(bottom)}).{" "}
+                    Am stärksten: <strong>{top.name}</strong> ({eloText(top)}). Am meisten Luft: <strong>{bottom.name}</strong> ({eloText(bottom)}).{" "}
                   </>
                 ) : (
                   "Die Teile deines Spiels liegen im Rahmen der Unsicherheit eng beieinander. "
                 )}
                 <span class="faint">
-                  Gemessen an den Fehlern deiner Gegner in denselben Partien, umgerechnet auf die FIDE-Skala; ± ist die 95-%-Unsicherheit, blasse Punkte haben noch wenige Daten.
-                  {sm.extrapolated ? " Unter etwa FIDE 1650 ist die Umrechnung grob." : ""}
+                  Gemessen an den Fehlern deiner Gegner in denselben Partien, als Elo auf der {ELO_SCALE_LABEL}, dieselbe Skala wie in der Liga und ohne Untergrenze bei 1400; ± ist die 95-%-Unsicherheit, blasse Punkte haben noch wenige Daten.
                 </span>
               </p>
             )}
           </div>
         </div>
       ) : profile.analyzed_games ? (
-        <p class="faint small">Für die Einordnung auf der FIDE-Skala braucht es mindestens {MIN_STRENGTH_GAMES} analysierte Partien mit bekannter Gegnerwertung.</p>
+        <p class="faint small">Für die Einordnung als Elo braucht es mindestens {MIN_STRENGTH_GAMES} analysierte Partien mit bekannter Gegnerwertung.</p>
       ) : null}
     </PageHero>
   );

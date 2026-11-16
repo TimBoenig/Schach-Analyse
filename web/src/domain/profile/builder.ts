@@ -11,6 +11,7 @@ import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./feat
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmtDe, pyRound, stdev } from "./num";
 import { expectedScore, mainRatingSources, type OpponentReference, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
+import { toLichessBlitz } from "./fide";
 import { type GamePair, strengthMap } from "./strength";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
 import { buildDeepInsights } from "./insights";
@@ -104,7 +105,7 @@ export function buildPlayerProfile(
   const acc = new StatsAccumulator();
   const feats: GameFeatures[] = [];
   // The opponents of the analysed games, measured with the same engine and
-  // formulas: the reference for "typical" values and the FIDE estimates.
+  // formulas: the reference for "typical" values and the Elo estimates.
   const oppAcc = new StatsAccumulator();
   const pairs: GamePair[] = [];
   for (const [game, color] of matched) {
@@ -163,7 +164,7 @@ export function buildPlayerProfile(
   if (!analyzed.length) return profile;
 
   profile.skills = settleSkills(withTypical(computeSkills(stats, feats), rating?.rating ?? null, reference));
-  profile.strength = strengthMap(pairs, rating?.fide ?? null);
+  profile.strength = strengthMap(pairs, rating ? toLichessBlitz(rating.rating, rating.source, rating.speed) : null);
   [profile.strengths, profile.weaknesses] = strengthsWeaknesses(profile.skills, profile.rating?.rating ?? null);
   const [best, worst] = openings(feats);
   profile.openings_best = best;

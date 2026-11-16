@@ -19,7 +19,7 @@ import {
 } from "../../src/domain/players";
 import { pairShift, PLAN_GAMES } from "../../src/domain/players/league";
 import { rankOdds } from "../../src/domain/players/strength";
-import { lichessBlitzToFide, toLichessBlitz } from "../../src/domain/profile/fide";
+import { toLichessBlitz } from "../../src/domain/profile/fide";
 import { buildPlayerProfile } from "../../src/domain/profile";
 import { Board } from "../../src/domain/tactics/board";
 import { classifyFenPhase, classifyGamePhase } from "../../src/domain/tactics/phase";
@@ -136,8 +136,8 @@ describe("strength from the player's own games", () => {
     expect(many.se).toBeLessThan(few.se / 2.5);
     // 400 games of results: about ±20 on the scale, not a made-up exact number.
     expect(many.se).toBeGreaterThan(10);
-    expect(many.fide_low).toBeLessThan(many.fide);
-    expect(many.fide_high).toBeGreaterThan(many.fide);
+    expect(many.elo_low).toBeLessThan(many.elo);
+    expect(many.elo_high).toBeGreaterThan(many.elo);
   });
 
   it("gives no strength below ten rated games against humans and ignores unrated ones", () => {
@@ -155,13 +155,15 @@ describe("strength from the player's own games", () => {
     expect(cc.columns.cc_rapid).toBeCloseTo(1, 6);
   });
 
-  it("keeps two beginners apart below the FIDE floor instead of clamping them together", () => {
+  it("keeps two beginners apart below 1400 instead of clamping them together", () => {
     const weak = playerStrength(career("A", 900, 200, { seed: 2, source: "chesscom", speed: "Rapid" }), ["A"]).estimate!;
     const weaker = playerStrength(career("B", 700, 200, { seed: 2, source: "chesscom", speed: "Rapid" }), ["B"]).estimate!;
     expect(weak.value).toBeGreaterThan(weaker.value + 100);
     expect(probStronger(weak, weaker)).toBeGreaterThan(0.95);
-    expect(weaker.below_floor).toBe(true);
-    expect(lichessBlitzToFide(weaker.value).rating).toBeLessThan(1400);
+    // Shown as two different Elo numbers far below 1400, not one floor value.
+    expect(weak.elo - weaker.elo).toBeGreaterThan(100);
+    expect(weak.elo).toBeLessThan(1000);
+    expect(weaker.elo).toBeGreaterThan(100);
   });
 
   it("adds move quality: fewer errors than the opponents lift the estimate, by the measured weight", () => {
@@ -245,7 +247,7 @@ describe("ranking", () => {
     const plan = climbPlan(all, "Ben")!;
     expect(plan.target!.id).toBe("Ana");
     expect(plan.gap).toBeGreaterThan(0);
-    expect(plan.gap_fide).toBeGreaterThanOrEqual(0);
+    expect(plan.gap_elo).toBeGreaterThanOrEqual(0);
     if (plan.points !== null) {
       expect(plan.points).toBeGreaterThan(plan.points_expected);
       expect(whatIf(all, "Ben", plan.points, 0)!.rank).toBe(1);

@@ -59,12 +59,7 @@ const SURVEY_LOW = 1100; // lowest Chess.com blitz row with FIDE players
 const COL = { cc_blitz: 0, cc_bullet: 1, cc_rapid: 2, li_blitz: 4, li_bullet: 5, li_rapid: 6, li_classical: 7 } as const;
 type Column = keyof typeof COL;
 
-/** FIDE value of a Chess.com blitz row: survey value, or the straight line down to the floor. */
-function fideAtBlitz(ccBlitz: number): number {
-  return Math.max(FIDE_FLOOR, fideLine(ccBlitz));
-}
-
-/** fideAtBlitz without the floor: the straight line carries on below it (for ordering only). */
+/** FIDE value of a Chess.com blitz row; below the survey the straight line carries on (PGN ratings only). */
 function fideLine(ccBlitz: number): number {
   const first = TABLE.find((r) => r[0] === SURVEY_LOW)!;
   const fideLow = first[3] as number;
@@ -102,27 +97,6 @@ function column(source: string, speed: string): Column | null {
   return null;
 }
 
-export interface FideRating {
-  rating: number;
-  /** Below the survey's range: anchored on the FIDE floor, rough. */
-  extrapolated: boolean;
-  /** The rating came from a PGN file and is taken as an over-the-board (FIDE-like) rating. */
-  as_is: boolean;
-}
-
-/**
- * A platform rating on the FIDE scale. PGN files mostly come from
- * over-the-board events and carry FIDE or national Elo, so they stay as they are.
- */
-export function toFide(rating: number, source: string, speed: string): FideRating {
-  const col = column(String(source || "").toLowerCase(), String(speed || ""));
-  if (col === null) return { rating: Math.max(FIDE_FLOOR, Math.round(rating)), extrapolated: rating < FIDE_FLOOR, as_is: true };
-  const rows = TABLE.map((r) => [r[COL[col]], r[0]] as const);
-  if (rating <= rows[0][0]) return { rating: FIDE_FLOOR, extrapolated: true, as_is: false };
-  const ccBlitz = interpolate(rows, rating);
-  return { rating: Math.round(fideAtBlitz(ccBlitz)), extrapolated: ccBlitz < SURVEY_LOW, as_is: false };
-}
-
 // ---------- one common scale for comparing players ----------
 //
 // Comparing friends needs a scale on which a difference means the same win
@@ -158,7 +132,6 @@ function ccBlitzOf(rating: number, col: Column | "fide"): number {
 }
 
 const LICHESS_BLITZ = TABLE.map((r) => [r[0], r[COL.li_blitz]] as const);
-const FROM_LICHESS_BLITZ = TABLE.map((r) => [r[COL.li_blitz], r[0]] as const);
 
 /** A platform rating on the Lichess blitz scale, the league's common scale. */
 export function toLichessBlitz(rating: number, source: string, speed: string): number {
@@ -167,13 +140,28 @@ export function toLichessBlitz(rating: number, source: string, speed: string): n
   return interpolate(LICHESS_BLITZ, ccBlitzOf(rating, col));
 }
 
-/**
- * A value of the Lichess blitz scale on the FIDE scale, for display. `below`
- * is set under the FIDE floor: the number then only orders players and is
- * shown as "unter 1400".
- */
-export function lichessBlitzToFide(value: number): { rating: number; below: boolean; extrapolated: boolean } {
-  const cc = interpolate(FROM_LICHESS_BLITZ, value);
-  const line = fideLine(cc);
-  return { rating: Math.round(line), below: line < FIDE_FLOOR, extrapolated: cc < SURVEY_LOW };
+// ---------- the Elo number the league shows ----------
+//
+// FIDE is a poor display scale for club and hobby players: nothing is
+// published below 1400 and the 2024 reform squeezed everything under 2000, so
+// most beginners would read the same number. The league therefore shows its
+// strengths as Chess.com rapid equivalents: the largest pool in the survey
+// (N = 10,156), the one most beginners play in, and wide open at the low end
+// (a few hundred points up to 1400 instead of one floor value).
+
+/** What the shown number is, for captions. */
+export const ELO_SCALE_LABEL = "Chess.com-Rapid-Skala";
+/** Lowest value shown; Chess.com itself has no ratings below 100. */
+export const ELO_MIN = 100;
+
+const ELO_FROM_LICHESS_BLITZ = TABLE.map((r) => [r[COL.li_blitz], r[COL.cc_rapid]] as const);
+
+/** A value of the common (Lichess blitz) scale as the Elo number shown to players. */
+export function lichessBlitzToElo(value: number): number {
+  return Math.max(ELO_MIN, Math.round(interpolate(ELO_FROM_LICHESS_BLITZ, value)));
+}
+
+/** A platform rating as the Elo number shown to players (same scale as the league). */
+export function toElo(rating: number, source: string, speed: string): number {
+  return lichessBlitzToElo(toLichessBlitz(rating, source, speed));
 }
