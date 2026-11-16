@@ -694,7 +694,7 @@
 }
 
 @media (max-width: 560px) {
-  /* 3D objects and Mike shrink with the page; the canvases just scale down. */
+  /* 3D objects and Lucena shrink with the page; the canvases just scale down. */
   .home-hello {
     gap: 8px;
   }

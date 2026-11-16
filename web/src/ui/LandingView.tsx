@@ -1,5 +1,5 @@
 // The page visitors from social media land on (#/hallo): who we are in one
-// screen, a short hands-on intro with Mike, and one tap into the real app at
+// screen, a short hands-on intro with Lucena, and one tap into the real app at
 // every point. It shows no numbers about anybody: everything on it is either a
 // fact about the app or clearly marked as an example.
 import { Chess, type Square } from "chess.js";
@@ -56,14 +56,14 @@ const SKILLS: { id: string; title: string; icon: () => preact.JSX.Element; mood:
   },
 ];
 
-// German piece letters, so Mike says "Td8#" like a German scoresheet.
+// German piece letters, so Lucena says "Td8#" like a German scoresheet.
 const deSan = (san: string) => san.replace(/[RNBQ]/g, (c) => ({ R: "T", N: "S", B: "L", Q: "D" })[c] ?? c);
 
 function openApp(): void {
   navigate({ view: "home" });
 }
 
-/** The mate-in-one board: try a move, Mike reacts, a hint follows after two misses. */
+/** The mate-in-one board: try a move, Lucena reacts, a hint follows after two misses. */
 function Puzzle({ onSolved }: { onSolved: () => void }) {
   const [fen, setFen] = useState(PUZZLE_FEN);
   const [last, setLast] = useState<{ from: string; to: string } | null>(null);
@@ -127,7 +127,7 @@ function Puzzle({ onSolved }: { onSolved: () => void }) {
   );
 }
 
-/** Mike's guided tour: four short steps, each one asks for a tap. */
+/** Lucena's guided tour: four short steps, each one asks for a tap. */
 function Intro() {
   const [step, setStep] = useState(0);
   const [speed, setSpeed] = useState<Speed | null>(null);
@@ -156,7 +156,7 @@ function Intro() {
       <div class="ld-stage" key={step}>
         {step === 0 && (
           <div class="ld-chat">
-            <div class="ld-mike-big">
+            <div class="ld-lucena-big">
               <CoachAvatar mood={mood} size={132} />
             </div>
             <h2>Hi, ich bin {COACH_NAME}.</h2>
@@ -207,7 +207,7 @@ function Intro() {
 
         {step === 3 && (
           <div class="ld-chat">
-            <div class="ld-mike-big">
+            <div class="ld-lucena-big">
               <CoachAvatar mood="wow" size={132} />
             </div>
             <h2>{solved ? "Starker Zug vorhin." : "Bereit?"} Jetzt deine Partien.</h2>

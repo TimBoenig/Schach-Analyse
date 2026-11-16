@@ -14,7 +14,7 @@ Einstellungen zwischen Geräten ab.
 
 ## Startseite, Zeitraum und Export
 
-- **Start** (`#/`) ist das tägliche Dashboard: Mike mit dem wichtigsten Befund, „Heute“ (Tagesplan-Ring, Serie,
+- **Start** (`#/`) ist das tägliche Dashboard: Lucena mit dem wichtigsten Befund, „Heute“ (Tagesplan-Ring, Serie,
   Wochenquote), „Deine Form“ (letzte zehn Ergebnisse als Kette, Wertung mit Verlauf, Genauigkeit zuletzt), Vergleich des
   gewählten Zeitraums mit dem Zeitraum davor, die **Stellung des Tages** (eine Aufgabe aus den eigenen Partien, direkt
   auf der Startseite lösbar, zählt in den Trainingsfortschritt), Baustellen, ein Wegweiser zu den Statistik-Seiten,

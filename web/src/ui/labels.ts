@@ -186,7 +186,7 @@ export function detailSegments(counts: Partial<Record<string, number>>): { label
   }));
 }
 
-/** Mike's one-line verdict for a move, chess.com review style. */
+/** Lucena's one-line verdict for a move, chess.com review style. */
 export function moveVerdict(move: Pick<MoveData, "move_number" | "fen_before" | "san" | "classification">): string {
   const m = `${move.move_number}${move.fen_before.split(" ")[1] === "w" ? "." : "..."} ${move.san}`;
   switch (move.classification) {
