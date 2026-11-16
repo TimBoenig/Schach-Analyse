@@ -15,6 +15,7 @@ import {
   type SpeedLog,
 } from "../domain/analysisDepth";
 import { mergeQueue, pickBackgroundGames } from "../domain/analysisQueue";
+import { needsDeeperPass, QUICK_SETTINGS, type Pass } from "../domain/firstPass";
 import { getUserColor } from "../domain/metrics";
 import { playerUsernames } from "../domain/players/models";
 import { analyzeGame, firstUnanalyzedIndex, type AnalysisSettings } from "../domain/analyzer";
@@ -73,6 +74,12 @@ export interface QueueState {
   scope: DepthScope | null;
   /** Engines searching in parallel. */
   engines: number;
+  /** Quick first look, the deeper second pass, or a normal analysis. */
+  pass: Pass | null;
+  /** Games finished since the queue last ran empty. */
+  finished: number;
+  /** Games waiting for the deeper second pass after the quick one. */
+  deeper: number;
 }
 
 let state: QueueState = {
@@ -85,6 +92,9 @@ let state: QueueState = {
   settings: null,
   scope: null,
   engines: 1,
+  pass: null,
+  finished: 0,
+  deeper: 0,
 };
 // Explicitly requested games still waiting; they stay ahead of the background queue.
 let priority = new Set<string>();
@@ -95,6 +105,28 @@ const listeners = new Set<(s: QueueState) => void>();
 // The queue outlives a reload or a closed tab (iOS discards background PWAs
 // often): open games are remembered on this device and resumed on the next start.
 const QUEUE_KEY = "schach.analysis.queue";
+// Games that got the quick first look and still wait for the deeper pass.
+const DEEPER_KEY = "schach.analysis.deeper";
+const deeper = new Set<string>();
+
+function rememberDeeper(): void {
+  try {
+    if (deeper.size) localStorage.setItem(DEEPER_KEY, JSON.stringify([...deeper]));
+    else localStorage.removeItem(DEEPER_KEY);
+  } catch {
+    // Private mode: the deeper pass is simply skipped after a reload.
+  }
+  emit({ deeper: deeper.size });
+}
+
+function readIds(key: string): string[] {
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 function rememberQueue(): void {
   try {
@@ -114,17 +146,16 @@ function emit(patch: Partial<QueueState>): void {
 
 /** Re-queues games whose analysis was still open when the app was closed. */
 export async function resumeQueue(): Promise<number> {
-  let ids: string[] = [];
-  try {
-    const raw: unknown = JSON.parse(localStorage.getItem(QUEUE_KEY) || "[]");
-    if (Array.isArray(raw)) ids = raw.filter((x): x is string => typeof x === "string");
-  } catch {
-    return 0;
-  }
+  for (const id of readIds(DEEPER_KEY)) deeper.add(id);
+  if (deeper.size) rememberDeeper();
+  const ids = readIds(QUEUE_KEY);
   const rows = await Promise.all(ids.map((id) => getGame(id)));
   const open = ids.filter((_, i) => rows[i] && rows[i]!.summary_json?.analysis_status !== "completed");
   if (open.length) await enqueue(open);
-  else rememberQueue();
+  else {
+    rememberQueue();
+    if (deeper.size) void pump();
+  }
   return open.length;
 }
 
@@ -217,7 +248,7 @@ export const AUTO_ANALYZE_KEY = "analysis.auto";
  * Queues freshly imported games when automatic analysis is on; returns whether it did.
  * Bullet games stay out when the user chose to skip them.
  */
-export async function autoAnalyze(ids: string[]): Promise<boolean> {
+export async function autoAnalyze(ids: string[], { quick = false }: { quick?: boolean } = {}): Promise<boolean> {
   if (!ids.length || !(await getSetting<boolean>(AUTO_ANALYZE_KEY, true))) return false;
   let pick = ids;
   if (await getSetting<boolean>(SKIP_BULLET_KEY, false)) {
@@ -225,7 +256,11 @@ export async function autoAnalyze(ids: string[]): Promise<boolean> {
     pick = ids.filter((_, i) => rows[i] && !isBulletGame(rows[i]!));
   }
   if (!pick.length) return false;
-  await enqueue(pick);
+  if (quick) {
+    // Quick first look now; the deeper pass follows once every game has one.
+    for (const id of pick) quickIds.add(id);
+    await enqueue(pick, { settings: QUICK_SETTINGS });
+  } else await enqueue(pick);
   return true;
 }
 
@@ -274,7 +309,9 @@ export interface EnqueueOptions {
 }
 
 // Per-game overrides (re-analysis with other limits), used once.
-const overrides = new Map<string, { settings?: AnalysisSettings; restart?: boolean }>();
+const overrides = new Map<string, { settings?: AnalysisSettings; restart?: boolean; deeper?: boolean }>();
+// Games queued for the quick first look.
+const quickIds = new Set<string>();
 
 // Played date per game, for the newest-first order (read once per game).
 const playedAt = new Map<string, number | null>();
@@ -304,6 +341,8 @@ function abortRunning(): void {
 
 export function cancelAll(): void {
   priority = new Set();
+  deeper.clear();
+  rememberDeeper();
   emit({ queued: [] });
   abortRunning();
 }
@@ -350,13 +389,22 @@ async function pump(): Promise<void> {
   if (running) return;
   running = true;
   void holdWakeLock(true);
+  emit({ finished: 0 });
   try {
-    while (state.queued.length) {
+    for (;;) {
+      if (!state.queued.length) {
+        // Every game had its quick look: now the deeper pass, newest first.
+        if (!deeper.size) break;
+        const ids = [...deeper];
+        for (const id of ids) overrides.set(id, { restart: true, deeper: true });
+        emit({ queued: mergeQueue({ queued: [], add: ids, priority: new Set(), playedAt: (id) => playedAt.get(id) }).queued });
+      }
       const [id, ...rest] = state.queued;
       priority.delete(id);
       emit({ queued: rest, current: id, done: 0, total: 0, error: null });
       try {
         await analyseOne(id);
+        emit({ finished: state.finished + 1 });
       } catch (e) {
         if (e instanceof EngineFailure) {
           // Typical on phones: the WASM worker dies (memory) or stalls in a
@@ -375,7 +423,7 @@ async function pump(): Promise<void> {
   } finally {
     running = false;
     void holdWakeLock(false);
-    emit({ current: null, live: null, settings: null, scope: null });
+    emit({ current: null, live: null, settings: null, scope: null, pass: null });
   }
 }
 
@@ -383,6 +431,12 @@ async function analyseOne(id: string): Promise<void> {
   const row = await getGame(id);
   const override = overrides.get(id);
   overrides.delete(id);
+  const quick = quickIds.delete(id);
+  const isDeeper = Boolean(override?.deeper);
+  if (isDeeper) {
+    deeper.delete(id);
+    rememberDeeper();
+  }
   if (!row) return;
   const game = fromStoredGame(row);
   await (depthLoaded ?? refreshDepth());
@@ -395,13 +449,16 @@ async function analyseOne(id: string): Promise<void> {
   const restart = Boolean(override?.restart);
   const book = await loadBookData();
   abort = new AbortController();
-  emit({ live: game, total: game.moves.length, settings: first, scope, engines: pool.capacity });
+  const pass: Pass = quick ? "quick" : isDeeper ? "deep" : "normal";
+  emit({ live: game, total: game.moves.length, settings: first, scope, engines: pool.capacity, pass });
   const from = restart ? 0 : firstUnanalyzedIndex(game);
   const started = Date.now();
   const enginesAtStart = pool.capacity;
   let lastSave = Date.now();
-  const savePartial = () =>
-    putGames([toStoredGame({ ...game, summary: { analysis_status: "paused" } }, row.timestamp)], { silent: true });
+  // The deeper pass never stores half a game: until it finishes, the quick
+  // result stays complete and keeps feeding the statistics.
+  const savePartial = async () =>
+    isDeeper ? undefined : putGames([toStoredGame({ ...game, summary: { analysis_status: "paused" } }, row.timestamp)], { silent: true });
   let summary;
   try {
     summary = await analyzeGame(game, pool, {
@@ -435,5 +492,12 @@ async function analyseOne(id: string): Promise<void> {
     saveSpeed(first, (summary.analyzed_moves ?? 0) - from, Date.now() - started, enginesAtStart);
   }
   await putGames([toStoredGame(game, row.timestamp)]);
+  if (quick) {
+    const own = scopeOf(row, await getSetting<string[]>("usernames", []));
+    if (needsDeeperPass(liveDepth[own])) {
+      deeper.add(id);
+      rememberDeeper();
+    }
+  }
   emit({ live: { ...game } });
 }

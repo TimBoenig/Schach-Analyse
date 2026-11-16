@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 
+import { Guide } from "./Guide";
 import { backgroundAnalyze, resumeQueue, subscribeQueue } from "../app/analysisService";
 import { repairOpeningNames } from "../app/openingNames";
 import { onDataChanged } from "../storage/db";
@@ -242,6 +243,7 @@ export function App() {
       <nav class="tabbar" aria-label="Hauptnavigation">
         {TAB_AREAS.map((a) => areaButton(a, "tab"))}
       </nav>
+      <Guide />
       <main class="main">
         <ErrorBoundary key={route.view}>
           {route.view === "home" && <HomeView />}

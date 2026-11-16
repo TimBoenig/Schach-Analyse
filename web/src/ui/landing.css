@@ -600,3 +600,95 @@
 .ld-step-label {
   white-space: nowrap;
 }
+
+/* ---------- so funktioniert's ---------- */
+
+.ld-how {
+  max-width: 1180px;
+  margin: clamp(48px, 8vw, 96px) auto 0;
+  padding: 0 clamp(16px, 4vw, 40px);
+}
+.ld-how-head {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto clamp(24px, 4vw, 44px);
+}
+.ld-how-head h2 {
+  margin: 0;
+  font-size: clamp(28px, 4.4vw, 46px);
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.ld-how-head .ld-lead {
+  margin: 14px auto 0;
+}
+.ld-how-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(20px, 4vw, 48px);
+  align-items: center;
+}
+.ld-how-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  position: relative;
+}
+.ld-how-step {
+  display: flex;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  transition: background 0.2s ease;
+}
+.ld-how-step:hover {
+  background: var(--surface);
+}
+.ld-how-step h3 {
+  margin: 6px 0 4px;
+  font-size: 17px;
+}
+.ld-how-step p {
+  margin: 0;
+  color: var(--text-2);
+  line-height: 1.5;
+  font-size: 15px;
+}
+.ld-how-num {
+  font-weight: 800;
+  font-size: 16px;
+  line-height: 1;
+}
+.ld-demo {
+  padding: 18px;
+  border-radius: 26px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 30px 70px -40px rgba(0, 0, 0, 0.6);
+}
+.ld-demo-board {
+  max-width: 420px;
+  margin: 0 auto;
+}
+.ld-demo-say {
+  margin-top: 14px;
+  min-height: 64px;
+}
+.ld-demo-say p {
+  animation: guide-pop 0.3s ease;
+}
+.ld-demo-note {
+  text-align: center;
+  margin: 8px 0 0;
+}
+@media (max-width: 860px) {
+  .ld-how-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ld-how-step {
+    padding: 12px 4px;
+  }
+}
