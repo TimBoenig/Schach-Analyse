@@ -11,13 +11,13 @@ import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./char
 import type { BarRow, Column } from "./charts";
 import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
-import { CountUp, Hero, HeroStat, WdlBar } from "./kit";
+import { CountUp, Foot, Hero, HeroStat, WdlBar } from "./kit";
 import { balanceText } from "./labels";
 import { navigate } from "./router";
 import { ConditionFinder } from "./stats/Lab";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
-import { type InsightsSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type InsightsSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 
@@ -142,7 +142,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
         ) : (
           <p class="muted small">Für einen belastbaren Vorher-nachher-Vergleich braucht es mindestens zehn analysierte Partien.</p>
         )}
-        <p class="small faint tile-foot">„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.</p>
+        <Foot>„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.</Foot>
       </Tile>
 
     </>
@@ -185,9 +185,9 @@ function precisionTiles(p: PrecisionStats, overall: number) {
         {ratingRows.length ? (
           <>
             <BarList rows={ratingRows} referenceLabel="Elo-Erwartung" />
-            <p class="small faint tile-foot">
+            <Foot>
               Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus {plural(p.rated_games, "Partie", "Partien")} mit beiden Wertungen.
-            </p>
+            </Foot>
           </>
         ) : (
           <p class="muted small">Deine Partien enthalten keine Wertungen beider Spieler.</p>
@@ -197,7 +197,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     curve: (
       <Tile title="Wo deine Partien kippen" sub="Ø Gewinnchance nach Zug" span={6}>
         <AreaChart points={curve} format={(v) => `${Math.round(v)} %`} domain={[0, 100]} reference={{ value: 50, label: "Ausgeglichen" }} />
-        <p class="small faint tile-foot">Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.</p>
+        <Foot>Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.</Foot>
       </Tile>
     ),
     consistency: (
@@ -214,7 +214,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     byResult: (
       <Tile title="Genauigkeit nach Ergebnis" sub="Durchschnitt" span={6}>
         <BarList rows={resultRows} />
-        <p class="small faint tile-foot">Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.</p>
+        <Foot>Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.</Foot>
       </Tile>
     ),
     turnarounds: (
@@ -254,7 +254,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     color: (
       <Tile title="Nach Farbe" sub="Punkte-Quote" span={4}>
         <BarList rows={scoreRows(p.by_color, overall)} referenceLabel="Dein Schnitt" />
-        <p class="small faint tile-foot">± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</p>
+        <Foot>± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</Foot>
       </Tile>
     ),
   };
@@ -309,7 +309,7 @@ export function ErrorTiles({ d }: { d: DeepInsights }) {
 
         <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
           <ColumnChart columns={moveCols} />
-          <p class="small faint tile-foot">Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</p>
+          <Foot>Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</Foot>
         </Tile>
 
         <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
@@ -328,7 +328,7 @@ export function ErrorTiles({ d }: { d: DeepInsights }) {
 
         <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={6}>
           <BarList rows={situationRows} max={errorMax(situationRows)} />
-          <p class="small faint tile-foot">Gewinnchance vor deinem Zug, aus deiner Sicht.</p>
+          <Foot>Gewinnchance vor deinem Zug, aus deiner Sicht.</Foot>
         </Tile>
 
     </>
@@ -442,7 +442,7 @@ export function InsightsView() {
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
-      <SectionNav sections={STAT_SECTIONS.insights} />
+      <SectionJump sections={STAT_SECTIONS.insights} />
       <div class="dash">
         <SectionHead section={sec("blick")} quiet />
         <Hero

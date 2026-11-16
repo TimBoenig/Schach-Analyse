@@ -6,11 +6,11 @@ import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "../dom
 import { AreaChart, BarList, Donut, Gauge, Legend, monthStart, RadarChart, ratingSeriesPoints } from "./charts";
 import type { BarRow, Segment } from "./charts";
 import { IconPlay } from "./icons";
-import { CountUp, Hero as PageHero, HeroStat, ScaleTrack, type TrackMarker } from "./kit";
+import { CountUp, Foot, Hero as PageHero, HeroStat, ScaleTrack, type TrackMarker, InsightText } from "./kit";
 import { navigate } from "./router";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
-import { type ProfileSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type ProfileSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
 import { monthName } from "./MoveTally";
 
@@ -99,11 +99,16 @@ function InsightList({ items, tone, empty }: { items: Insight[]; tone: "pos" | "
       {items.map((s) => (
         <div class={`insight ${tone}`} key={s.key}>
           <div class="t">{s.title}</div>
-          <div class="small">{s.text}</div>
+          <InsightText text={s.text} />
         </div>
       ))}
     </div>
   );
+}
+
+/** Bar colour by grade: teal where the skill is a strength, coral where it holds the player back. */
+function gradeColor(score: number): string {
+  return score >= 65 ? "var(--win)" : score < 50 ? "var(--loss)" : "var(--accent)";
 }
 
 /** Style axes as dots on a track with their ± band. */
@@ -269,9 +274,6 @@ function PlayerCard({ profile }: { profile: PlayerProfile }) {
                 ) : (
                   "Die Teile deines Spiels liegen im Rahmen der Unsicherheit eng beieinander. "
                 )}
-                <span class="faint">
-                  Gemessen an den Fehlern deiner Gegner in denselben Partien, als Elo auf der {ELO_SCALE_LABEL}, dieselbe Skala wie in der Liga und ohne Untergrenze bei 1400; ± ist die 95-%-Unsicherheit, blasse Punkte haben noch wenige Daten.
-                </span>
               </p>
             )}
           </div>
@@ -454,6 +456,7 @@ export function ProfileView() {
     valueText: s.sample > 0 && s.grade !== "Keine Uhrdaten" ? `${s.grade} · ${Math.round(s.score)}` : s.grade,
     faint: !s.reliable,
     note: skillNote(s),
+    color: s.sample > 0 ? gradeColor(s.score) : undefined,
   }));
 
   const monthly = (profile.trends.monthly ?? []) as { month: string; avg_accuracy: number | null; games: number }[];
@@ -476,7 +479,7 @@ export function ProfileView() {
   return (
     <div class="profile" style={{ opacity: loading ? 0.6 : 1 }}>
       {header}
-      <SectionNav sections={sections} />
+      <SectionJump sections={sections} />
 
       <div class="dash">
         <SectionHead section={sec("ueberblick")} quiet />
@@ -497,10 +500,10 @@ export function ProfileView() {
 
               <Card title="Fähigkeiten im Detail" sub="0–100 Punkte" span={6}>
                 <BarList rows={skillRows} referenceLabel={typicalLabel} />
-                <p class="faint small tile-foot">
+                <Foot>
                   Blasse Balken beruhen auf wenigen Daten. Solche Werte gleicht die App zum Richtwert hin aus, statt sie auf 0
                   oder 100 springen zu lassen; ± zeigt, wie genau ein Wert ist.
-                </p>
+                </Foot>
               </Card>
             </Section>
 
@@ -525,9 +528,6 @@ export function ProfileView() {
             <Section section={sec("stil")}>
               {profile.style ? (
                 <Card title={`Spielstil: ${profile.style.label}`} span={6}>
-                  <p class="small" style={{ marginTop: 0 }}>
-                    {profile.style.description}
-                  </p>
                   <StyleAxes axes={profile.style.axes} />
                   {profile.style.facts.length > 0 && (
                     <ul class="facts">
@@ -549,7 +549,7 @@ export function ProfileView() {
                     {profile.patterns.map((p) => (
                       <div class={`insight ${p.severity === "positiv" ? "pos" : p.severity === "hoch" ? "neg" : "mid"}`} key={p.key}>
                         <div class="t">{p.title}</div>
-                        <div class="small">{p.text}</div>
+                        <InsightText text={p.text} />
                         <Examples refs={p.examples} />
                       </div>
                     ))}
@@ -588,14 +588,14 @@ export function ProfileView() {
         )}
       </div>
       {rc && !profile.is_empty && (
-        <p class="faint small" style={{ marginTop: "14px" }}>
+        <Foot label="Womit wird hier verglichen?">
           {rc.reference === "opponents"
             ? `„Ø deiner Gegner“ ist, was deine Gegner in denselben ${rc.reference_games} analysierten Partien erreicht haben, mit derselben Engine gemessen; das ist genauer als jede feste Tabelle. `
             : "„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. "}
           Performance und Ø Gegner zählen nur Partien auf {sourceName(rc.source)} im {trSpeed(rc.speed)}, damit keine Wertungen
           verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung
           und der des Gegners.
-        </p>
+        </Foot>
       )}
     </div>
   );

@@ -5,7 +5,8 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { useWidth } from "./charts";
-import { balanceText } from "./labels";
+import { IconInfo } from "./icons";
+import { balanceText, splitProof } from "./labels";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -87,6 +88,37 @@ export function Hero({
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * How a card measures: closed by default, one tap away. Pages state the
+ * finding; the method only has to be there for whoever asks.
+ */
+export function Foot({ children, label = "Wie wird das gemessen?" }: { children: ComponentChildren; label?: string }) {
+  return (
+    <details class="foot">
+      <summary>
+        <IconInfo />
+        <span>{label}</span>
+      </summary>
+      <p>{children}</p>
+    </details>
+  );
+}
+
+/**
+ * A finding reads as one short sentence; the numbers behind it (the bracket
+ * the profile appends) follow as a quiet second line instead of stretching
+ * the sentence into a paragraph.
+ */
+export function InsightText({ text }: { text: string }) {
+  const [claim, proof] = splitProof(text);
+  return (
+    <>
+      <div class="small">{claim}</div>
+      {proof && <div class="insight-proof tnum">{proof}</div>}
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 // Shared frame of the statistics pages (Überblick, Ergebnisse, Züge & Fehler,
-// Eröffnungen): a sticky "Springe zu" index and labelled sections. Every
+// Eröffnungen): labelled sections. Every
 // statistic has exactly one home, listed in STAT_SECTIONS, so the command
 // palette can find a card by its name. The tabs between the pages come from
 // the area definition in Layout.tsx.
@@ -122,39 +122,19 @@ function useFold(key: string, defaultOpen: boolean, id: string): [boolean, (open
   ];
 }
 
-/** Sticky index of the sections on this page; marks the one in view. */
-export function SectionNav({ sections }: { sections: StatSection[] }) {
-  const [active, setActive] = useState(sections[0]?.id ?? "");
+/**
+ * Scrolls to a section asked for from another page once this page's sections
+ * are on screen. Renders nothing: the tabs of the area are the only bar in the
+ * header, and the section headings (folding ones on phones) are the index.
+ */
+export function SectionJump({ sections }: { sections: StatSection[] }) {
   useEffect(() => {
     if (pendingSection && sections.some((s) => s.id === pendingSection)) {
       const id = pendingSection;
       window.setTimeout(() => scrollToSection(id), 80);
     }
-    if (typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const top = entries.filter((e) => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (top) setActive(top.target.id.slice(2));
-      },
-      // A heading counts as current while it is in the upper part of the screen.
-      { rootMargin: "-10% 0px -70% 0px" },
-    );
-    for (const s of sections) {
-      const el = document.getElementById(`s-${s.id}`);
-      if (el) io.observe(el);
-    }
-    return () => io.disconnect();
   }, [sections.map((s) => s.id).join()]);
-  return (
-    <nav class="section-nav" aria-label="Auf dieser Seite">
-      <span class="section-nav-label faint small">Springe zu</span>
-      {sections.map((s) => (
-        <button key={s.id} class={`chip${active === s.id ? " on" : ""}`} onClick={() => scrollToSection(s.id)}>
-          {s.title}
-        </button>
-      ))}
-    </nav>
-  );
+  return null;
 }
 
 /**

@@ -152,7 +152,7 @@ interface Shell {
 export const ShellContext = createContext<Shell>({ route: { view: "home" }, openPalette: () => undefined });
 
 /** Tabs between the sub-pages of the current area. */
-export function AreaTabs({ about = true }: { about?: boolean }) {
+export function AreaTabs() {
   const { route } = useContext(ShellContext);
   const area = areaOf(route);
   const current = subPageOf(route);
@@ -195,7 +195,6 @@ export function AreaTabs({ about = true }: { about?: boolean }) {
           );
         })}
       </nav>
-      {about && current?.about && <p class="area-about small muted">{current.about}</p>}
     </div>
   );
 }
@@ -210,7 +209,6 @@ export function PageHeader({
   actions,
   toolbar,
   tabs = true,
-  about = true,
   class: cls,
 }: {
   title?: ComponentChildren;
@@ -218,7 +216,6 @@ export function PageHeader({
   /** Filters: beside the title on wide screens, under the tabs on narrow ones. */
   toolbar?: ComponentChildren;
   tabs?: boolean;
-  about?: boolean;
   class?: string;
 }) {
   const { route, openPalette } = useContext(ShellContext);
@@ -246,7 +243,7 @@ export function PageHeader({
           )}
         </span>
       </div>
-      {tabs && <AreaTabs about={about} />}
+      {tabs && <AreaTabs />}
       {toolbar && <div class="page-toolbar narrow">{toolbar}</div>}
     </header>
   );

@@ -359,7 +359,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           </div>
           <p style={{ marginTop: 0 }}>{ex.prompt}</p>
           {steps > 1 && at === 0 && !solved && <p class="small muted">Diese Aufgabe hat {steps} Züge: Nach deinem Zug antwortet der Gegner.</p>}
-          <p class="small muted">
+          <p class="small muted puzzle-source">
             Aus deiner Partie gegen <strong>{ex.opponent || "?"}</strong>
             {ex.date ? ` (${formatDate(ex.date)})` : ""}. Gespielt: <strong>{ex.played_san}</strong> ({trClassification(ex.classification)},{" "}
             {trPhase(ex.phase)}, −{(ex.wp_loss * 100).toFixed(0)} %).

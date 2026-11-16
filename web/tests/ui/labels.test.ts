@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { lineScoreWhite } from "../../src/domain/analyzer";
-import { accClass, balanceText, loadedAgo, monthLabel, outcomeFor, shortOpening, streakText } from "../../src/ui/labels";
+import { accClass, balanceText, loadedAgo, monthLabel, outcomeFor, shortOpening, splitProof, streakText } from "../../src/ui/labels";
 
 describe("game list labels", () => {
   it.each([
@@ -81,5 +81,25 @@ describe("streakText", () => {
     [[], null],
   ])("counts only the newest run of equal results: %j", (scores, text) => {
     expect(streakText(scores)).toBe(text);
+  });
+});
+
+describe("splitProof", () => {
+  it.each([
+    [
+      "Du kämpfst in schlechteren Stellungen und rettest oft noch Punkte. (35 % gehalten, 22 von 62)",
+      "Du kämpfst in schlechteren Stellungen und rettest oft noch Punkte.",
+      "35 % gehalten, 22 von 62",
+    ],
+    // A bracket inside the sentence belongs to the claim; only the closing one is evidence.
+    [
+      "Die Zeiteinteilung kostet dich Punkte (Zeitnot oder Zeitverluste). (9 Niederlagen durch Zeit, Patzerrisiko 0,3×)",
+      "Die Zeiteinteilung kostet dich Punkte (Zeitnot oder Zeitverluste).",
+      "9 Niederlagen durch Zeit, Patzerrisiko 0,3×",
+    ],
+    ["In Blitz spielst du mit Ø 85,2 % am genauesten.", "In Blitz spielst du mit Ø 85,2 % am genauesten.", null],
+    ["39 % deiner Figuren sind Bauern (51 von 131). Prüfe vor jedem Zug.", "39 % deiner Figuren sind Bauern (51 von 131). Prüfe vor jedem Zug.", null],
+  ])("separates the closing evidence bracket from %s", (text, claim, proof) => {
+    expect(splitProof(text)).toEqual([claim, proof]);
   });
 });

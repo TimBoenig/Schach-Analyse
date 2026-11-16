@@ -224,3 +224,13 @@ export function loadedAgo(ms: number | null, now = Date.now()): string {
   if (d === 1) return "gestern geladen";
   return `vor ${d} Tagen geladen`;
 }
+
+/**
+ * Splits a finding into its claim and the numbers behind it. The profile
+ * appends the evidence as a closing bracket after the sentence; a bracket
+ * inside the sentence is part of the claim and stays there.
+ */
+export function splitProof(text: string): [claim: string, proof: string | null] {
+  const m = /^(.*?[.!?])\s+\((.+)\)\s*$/s.exec(text);
+  return m ? [m[1], m[2]] : [text, null];
+}

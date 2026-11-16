@@ -1,0 +1,578 @@
+/* ==========================================================================
+   Signal layer (2026-11): colour as a guide, not as decoration.
+
+   The minimal layer made everything black, grey and white. This layer keeps
+   its calm surfaces but gives colour fixed jobs, the same on every page:
+     gold   = you, the open page, the next step (what to look at or press)
+     teal   = good: strengths, gains, above expectation
+     coral  = bad: weaknesses, losses, below expectation
+     slate  = neutral facts and everything that belongs to others
+   It also tightens sizes, uses wide screens and holds the phone trims that
+   go with it. Loaded after mobile.css, before landing.css.
+   ========================================================================== */
+
+:root {
+  --bg: #111112;
+  --bg-elev: #161618;
+  --surface: #19191b;
+  --surface-2: #222225;
+  --surface-3: #2e2e33;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #f6f5f1;
+  --text-2: #a9a9ae;
+  --text-3: #74747b;
+  --accent: #fbbd23;
+  --accent-2: #ffd466;
+  --accent-soft: rgba(251, 189, 35, 0.13);
+  --accent-text: #1c1400;
+  --cta: #fbbd23;
+  --cta-hover: #ffcc4a;
+  --cta-edge: #b8860b;
+  --gold: #fbbd23;
+  --win: #21c08b;
+  --good: #21c08b;
+  --best: #21c08b;
+  --loss: #f2604f;
+  --pos-soft: rgba(33, 192, 139, 0.14);
+  --neg-soft: rgba(242, 96, 79, 0.14);
+  --bubble: #222225;
+  --radius: 16px;
+  --radius-sm: 11px;
+  --eval-light: #d9dce3;
+  --eval-dark: #2a2a2f;
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f5f2;
+  --bg-elev: #fbfaf8;
+  --surface: #ffffff;
+  --surface-2: #f1f0ec;
+  --surface-3: #e4e2dc;
+  --border: rgba(20, 16, 0, 0.09);
+  --border-strong: rgba(20, 16, 0, 0.18);
+  --text: #131210;
+  --text-2: #5a5952;
+  --text-3: #8a887f;
+  --accent: #956300;
+  --accent-2: #7a5100;
+  --accent-soft: rgba(230, 160, 0, 0.16);
+  --accent-text: #ffffff;
+  --cta: #f7b512;
+  --cta-hover: #ffc531;
+  --cta-edge: #c48a00;
+  --gold: #c98f00;
+  --win: #0f8f66;
+  --good: #0f8f66;
+  --best: #0f8f66;
+  --loss: #d23f2e;
+  --pos-soft: rgba(15, 143, 102, 0.12);
+  --neg-soft: rgba(210, 63, 46, 0.11);
+  --bubble: #f1f0ec;
+  --eval-light: #ffffff;
+  --eval-dark: #3a3a40;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg: #f6f5f2;
+    --bg-elev: #fbfaf8;
+    --surface: #ffffff;
+    --surface-2: #f1f0ec;
+    --surface-3: #e4e2dc;
+    --border: rgba(20, 16, 0, 0.09);
+    --border-strong: rgba(20, 16, 0, 0.18);
+    --text: #131210;
+    --text-2: #5a5952;
+    --text-3: #8a887f;
+    --accent: #956300;
+    --accent-2: #7a5100;
+    --accent-soft: rgba(230, 160, 0, 0.16);
+    --accent-text: #ffffff;
+    --cta: #f7b512;
+    --cta-hover: #ffc531;
+    --cta-edge: #c48a00;
+    --gold: #c98f00;
+    --win: #0f8f66;
+    --good: #0f8f66;
+    --best: #0f8f66;
+    --loss: #d23f2e;
+    --pos-soft: rgba(15, 143, 102, 0.12);
+    --neg-soft: rgba(210, 63, 46, 0.11);
+    --bubble: #f1f0ec;
+    --eval-light: #ffffff;
+    --eval-dark: #3a3a40;
+  }
+}
+
+/* ---------- header: one row ---------- */
+
+/* Title, the tabs of the area and the filters share one line on wide screens.
+   The title row dissolves into the header so the tabs can sit between the
+   title and the tools without a second bar. */
+.page-head {
+  margin-bottom: 18px;
+}
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  margin: 0 0 12px;
+}
+.page-head .page-title {
+  margin-bottom: 12px;
+}
+@media (min-width: 1024px) {
+  .page-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 20px;
+    min-height: 44px;
+  }
+  .page-head .page-title {
+    display: contents;
+  }
+  .page-head .area-tabs {
+    order: 1;
+    min-width: 0;
+  }
+  .page-head .page-title > .spacer,
+  .page-head .page-title > .spacer ~ * {
+    order: 2;
+  }
+}
+@media (max-width: 760px) {
+  .page-title {
+    font-size: 22px;
+  }
+}
+
+/* The open tab is the gold one: the same signal as the open area in the rail. */
+.area-tabs-row button,
+.area-tabs-row button:first-child {
+  padding: 7px 14px;
+  font-size: 13.5px;
+}
+.area-tabs-row button.active {
+  background: var(--cta);
+  color: #1c1400;
+}
+
+/* Filters: three slim selects. */
+.page-toolbar .filters select,
+.page-title select {
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13px;
+}
+
+/* ---------- start page greeting ---------- */
+
+.home-greeting > span:first-child {
+  font-family: var(--font);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  background: none;
+  color: var(--text);
+  padding: 0;
+}
+.home-greeting {
+  gap: 2px;
+}
+.home-date {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+}
+@media (max-width: 760px) {
+  .home-greeting > span:first-child {
+    font-size: 22px;
+  }
+}
+
+/* ---------- wide screens ---------- */
+
+@media (min-width: 1024px) {
+  .main {
+    max-width: 1760px;
+  }
+}
+
+/* ---------- type: smaller, denser ---------- */
+
+.lg-hero {
+  padding: 22px 22px 20px;
+}
+.lg-hero-head {
+  margin-bottom: 16px;
+}
+.lg-hero-title {
+  font-size: clamp(22px, 2.3vw, 32px);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  margin: 6px 0 6px;
+}
+.lg-hero-sub {
+  font-size: 14px;
+  max-width: 76ch;
+}
+.lg-kicker {
+  font-size: 11px;
+  color: var(--accent);
+}
+.lg-hero-place {
+  font-size: 28px;
+  color: var(--accent);
+}
+.lg-hero-me {
+  padding: 8px 16px 8px 14px;
+  border-radius: 14px;
+}
+.section-head h2 {
+  font-family: var(--font);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.dash > .section-head {
+  padding-top: 22px;
+  margin-top: 8px;
+}
+.ar-answer {
+  font-size: 14px;
+  padding: 11px 14px;
+  border-radius: 12px;
+}
+.ar-stat {
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+.ar-stat-value {
+  font-size: 23px;
+}
+
+/* The flat mark beside the league headline (was a 3D cup). */
+.lg-hero-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lg-hero-mark svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* ---------- the journey: one gold line ---------- */
+
+.journey-bar {
+  gap: 12px;
+  margin: 30px 6px 4px;
+}
+.journey-bar-track {
+  height: 8px;
+  background: var(--surface-3);
+}
+.journey-bar-fill {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cta) 45%, transparent), var(--cta));
+}
+.journey-bar-start {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transform: translate(-30%, -50%);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 3px var(--cta);
+}
+.journey-bar-me {
+  width: 18px;
+  height: 18px;
+  background: var(--cta);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--cta) 28%, transparent);
+}
+.journey-bar-flag {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 9px);
+  transform: translateX(-50%);
+  padding: 1px 7px;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--cta);
+  color: #1c1400;
+}
+.journey-bar-peak {
+  width: 10px;
+  height: 10px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--text-2);
+}
+.journey-bar-goal {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: -13px;
+  background: var(--surface);
+  color: var(--cta);
+  box-shadow: inset 0 0 0 2px var(--cta);
+}
+.journey-bar-goal svg {
+  width: 13px;
+  height: 13px;
+}
+.journey-bar-labels {
+  font-size: 12.5px;
+}
+
+/* ---------- less text ---------- */
+
+/* How a card measures (kit.tsx Foot): one quiet line, the text on a tap. */
+.foot {
+  margin: auto 0 0;
+  padding-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+.foot > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 8px;
+  user-select: none;
+}
+.foot > summary::-webkit-details-marker {
+  display: none;
+}
+.foot > summary svg {
+  width: 14px;
+  height: 14px;
+}
+.foot > summary:hover,
+.foot[open] > summary {
+  color: var(--text-2);
+}
+.foot > p {
+  margin: 6px 0 0;
+  max-width: 90ch;
+  line-height: 1.5;
+}
+.dash + .foot,
+.profile > .foot {
+  margin-top: 14px;
+}
+
+/* Findings: green where it is a strength, coral where it costs points. */
+.insight {
+  padding: 10px 12px 10px 14px;
+  box-shadow: inset 3px 0 0 var(--border-strong);
+}
+.insight.pos {
+  background: var(--pos-soft);
+  box-shadow: inset 3px 0 0 var(--win);
+}
+.insight.neg {
+  background: var(--neg-soft);
+  box-shadow: inset 3px 0 0 var(--loss);
+}
+.insight.mid {
+  background: var(--accent-soft);
+  box-shadow: inset 3px 0 0 var(--cta);
+}
+.insight .t {
+  font-size: 14px;
+}
+.insight-proof {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.players-section .section-head h2,
+.dash > .section-head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* ---------- gold is you ---------- */
+
+/* On every track, bar and table the player's own marker is gold; friends keep
+   their own colours, none of them close to gold. */
+:root {
+  --p1: #4cc4e6;
+  --p5: #a8b3c4;
+}
+:root[data-theme="light"] {
+  --p1: #0b7fa3;
+  --p5: #5d6b80;
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --p1: #0b7fa3;
+    --p5: #5d6b80;
+  }
+}
+.tone-me {
+  --tone: var(--cta);
+  --tone-ink: #1c1400;
+}
+.lg-tug-a.tone-me,
+.lg-tug-b.tone-me,
+.rv-fc-me.tone-me,
+.rv-phase-bar > span.tone-me {
+  background: var(--cta);
+}
+
+/* ---------- phones: smaller, tighter, less to read ---------- */
+
+@media (max-width: 560px) {
+  .main {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .dash {
+    gap: 10px;
+  }
+  .card,
+  .card.tile {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .lg-hero,
+  .card.lg-hero.home-hero {
+    padding: 16px 14px 14px;
+  }
+  .lg-hero-title {
+    font-size: 20px;
+    line-height: 1.15;
+  }
+  .lg-hero-sub {
+    font-size: 13px;
+  }
+  .lg-hero-place {
+    font-size: 24px;
+  }
+  .lg-hero-me {
+    padding: 8px 12px;
+  }
+  .card h3,
+  .tile-head h3 {
+    font-size: 15px;
+  }
+  .btn.big {
+    min-height: 44px;
+    padding: 10px 18px;
+    font-size: 15px;
+  }
+  .ar-answer {
+    font-size: 13px;
+    padding: 10px 12px;
+  }
+  .ar-block {
+    margin-top: 14px;
+    gap: 8px;
+  }
+
+  /* Findings: the sentence only; the numbers behind it stay on wider screens. */
+  .insight-proof,
+  .journey-pace,
+  .puzzle-source {
+    display: none;
+  }
+  .insight {
+    padding: 9px 10px 9px 12px;
+  }
+  .insights .insight {
+    margin-bottom: 8px;
+  }
+
+  /* A sub-line beside a card title never takes a second row. */
+  .tile-head .tile-sub {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Start: the week strip and the shortcuts repeat what the tab bar offers. */
+  .home-today .week-strip,
+  .hero-links .link-chip:nth-child(n + 2) {
+    display: none;
+  }
+  .home-today {
+    margin-top: 12px;
+  }
+  .today-strip {
+    padding: 12px;
+    gap: 10px;
+  }
+  .form-card .tile-head .tile-sub:last-child {
+    display: none;
+  }
+  /* Twelve results on one line. */
+  .ar-ribbon {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+  .ar-ribbon-tile {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+    height: 24px;
+    border-radius: 7px;
+    font-size: 11px;
+  }
+  /* Six figures in two rows of three. */
+  .form-card .ar-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .form-card .ar-stat {
+    padding: 9px 10px;
+    border-radius: 10px;
+  }
+  .form-card .ar-stat .kpi-label {
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .form-card .ar-stat-value {
+    font-size: 18px;
+  }
+  .form-card .ar-stat .faint {
+    display: none;
+  }
+  .recent-row:nth-child(n + 5) {
+    display: none;
+  }
+  .journey-bar {
+    margin: 28px 4px 2px;
+  }
+}
+
+/* Gold buttons carry dark text in both themes: white on gold is hard to read. */
+.btn.primary,
+.btn.primary:hover:not(:disabled) {
+  color: #1c1400;
+}
+.welcome-steps li::before {
+  color: #1c1400;
+}

@@ -10,6 +10,7 @@ import { useWidth } from "../charts";
 import { formatDate, SPEED_DE } from "../labels";
 import { navigate } from "../router";
 import { Avatar, de, formatFactor, pct0, plural } from "./common";
+import { Foot } from "../kit";
 
 function ratingLine(p: PlayerProfile | null): string {
   const r = p?.rating;
@@ -107,10 +108,10 @@ export function FaceOff({
             </span>
             <span>{name}</span>
           </div>
-          <p class="faint small" style={{ margin: "6px 0 0" }}>
+          <Foot label="Woraus wird das berechnet?">
             {p.basis}
             {p.elo_pct !== null ? ` Nach Wertung wären es ${pct0(p.elo_pct)}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.` : ""}
-          </p>
+          </Foot>
         </div>
       )}
       <div class="rv-hero-stats">
@@ -187,10 +188,10 @@ export function TaleOfTape({ name, tone, matchup }: { name: string; tone: string
         <p class="muted small">Analysiere Partien von dir und {name} (je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.</p>
       )}
       {rows.length > 0 && (
-        <p class="faint small tile-foot">
+        <Foot>
           Links du, rechts {name}. Balken: Wahrscheinlichkeit, wer hier wirklich besser ist, „klar“ ab 95 %.{missing ? ` ${plural(missing, "Wert", "Werte")} ohne genug Daten.` : ""}
           {matchup.notes.length ? ` ${matchup.notes.join(" ")}` : ""}
-        </p>
+        </Foot>
       )}
     </section>
   );
@@ -362,7 +363,7 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
           ))}
         </div>
       )}
-      <p class="faint small tile-foot">Entscheidend ist der Zug, nach dem der Verlierer nie mehr ausgleichen konnte. Sätze erscheinen erst ab 8 Fällen und 95 % Sicherheit.</p>
+      <Foot>Entscheidend ist der Zug, nach dem der Verlierer nie mehr ausgleichen konnte. Sätze erscheinen erst ab 8 Fällen und 95 % Sicherheit.</Foot>
     </section>
   );
 }
@@ -409,7 +410,7 @@ export function NextGameCard({ name, preview }: { name: string; preview: Opening
           );
         })}
       </div>
-      <p class="faint small tile-foot">Prozent: wie oft eure Partie so beginnt, wenn ihr beide spielt wie sonst. „Liegt dir“ nur, wenn eine Bilanz ab 8 Partien klar von 50 % abweicht.</p>
+      <Foot>Prozent: wie oft eure Partie so beginnt, wenn ihr beide spielt wie sonst. „Liegt dir“ nur, wenn eine Bilanz ab 8 Partien klar von 50 % abweicht.</Foot>
     </section>
   );
 }
