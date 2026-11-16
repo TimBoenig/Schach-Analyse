@@ -62,7 +62,7 @@ export function openSection(view: StatsView, id: string): void {
   window.setTimeout(() => scrollToSection(id), 60);
 }
 
-function scrollToSection(id: string): boolean {
+export function scrollToSection(id: string): boolean {
   const el = document.getElementById(`s-${id}`);
   if (!el) return false;
   // On phones the section may be folded: open it, then scroll once its cards are there.

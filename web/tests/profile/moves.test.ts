@@ -41,7 +41,11 @@ describe("move tally", () => {
       ["g060", "Great", "5. d4"],
       ["g060", "Brilliant", "3. Bc4"],
     ]);
-    expect(t.top_games.map((g) => g.game_id)).toEqual(["g060", "g061"]);
+    // Opening a top game lands on its brilliant move, or on the first great one when it has none.
+    expect(t.top_games.map((g) => [g.game_id, g.first_ply])).toEqual([
+      ["g060", t.highlights[2].ply_index],
+      ["g061", t.highlights[0].ply_index],
+    ]);
     expect(t.records).toEqual({
       games_with_brilliant: 1,
       most_brilliant: 1,

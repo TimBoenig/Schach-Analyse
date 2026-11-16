@@ -1,13 +1,37 @@
+import { useEffect, useRef } from "preact/hooks";
+
+import { playUltraBrilliant } from "./fx/ultraBrilliant";
+import { fxPrefs, prefersReducedMotion } from "./fxPrefs";
 import { badgeFor } from "./labels";
 
-/** Celebration over the board when the player finds a brilliant move: ring burst, sparks and the badge popping in. */
-export function BrilliantFx({ square, flipped }: { square: string; flipped: boolean }) {
+/**
+ * Celebration over the board when the player finds a brilliant move: ring burst,
+ * sparks and the badge popping in. With the "Ultra" setting the whole screen
+ * joins in; devices that ask for reduced motion always get the quiet one.
+ */
+export function BrilliantFx({ square, flipped, san }: { square: string; flipped: boolean; san?: string }) {
   const file = square.charCodeAt(0) - 97;
   const rank = Number(square[1]) - 1;
   const x = flipped ? 7 - file : file;
   const y = flipped ? rank : 7 - rank;
+  const ref = useRef<HTMLDivElement>(null);
+  const prefs = fxPrefs();
+  const ultra = prefs.brilliant === "ultra" && !prefersReducedMotion();
+  // Runs once per celebration: the callers remount this component for every new move.
+  useEffect(() => {
+    const el = ref.current;
+    if (!ultra || !el) return;
+    const r = el.getBoundingClientRect();
+    return playUltraBrilliant({
+      x: r.left + ((x + 0.5) / 8) * r.width,
+      y: r.top + ((y + 0.5) / 8) * r.height,
+      shake: el.parentElement,
+      sound: prefs.sound,
+      san,
+    });
+  }, []);
   return (
-    <div class="brilliant-fx" aria-hidden="true">
+    <div class={`brilliant-fx${ultra ? " ultra" : ""}`} aria-hidden="true" ref={ref}>
       <div class="brilliant-flash" />
       <div class="brilliant-spot" style={{ left: `${(x + 0.5) * 12.5}%`, top: `${(y + 0.5) * 12.5}%` }}>
         <span class="brilliant-ring" />

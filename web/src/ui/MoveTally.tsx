@@ -25,25 +25,41 @@ export function ClassTiles({
   tally,
   keys = TALLY_CLASSES,
   compact = false,
+  onPick,
 }: {
   tally: MoveTally;
   keys?: readonly TallyClass[];
   compact?: boolean;
+  /** Returns what a tap on a tile does, or nothing for a tile that stays plain. */
+  onPick?: (key: TallyClass) => (() => void) | undefined;
 }) {
   return (
     <div class={`cls-tiles${compact ? " compact" : ""}`}>
       {tally.classes
         .filter((c) => keys.includes(c.key))
-        .map((c) => (
-          <div class="cls-tile" key={c.key} style={{ "--tone": CLASS_COLOR[c.key] }} title={`${de(c.per_100)} pro 100 Züge`}>
-            <div class="cls-tile-head">
-              <ClassBadge c={c.key} />
-              <span>{classLabel(c.key)}</span>
+        .map((c) => {
+          const pick = c.count ? onPick?.(c.key) : undefined;
+          const body = (
+            <>
+              <div class="cls-tile-head">
+                <ClassBadge c={c.key} />
+                <span>{classLabel(c.key)}</span>
+              </div>
+              <div class="cls-tile-count tnum">{c.count.toLocaleString("de-DE")}</div>
+              <div class="cls-tile-sub">{perGameText(c.count, tally.games, c.games_with)}</div>
+            </>
+          );
+          const shared = { class: "cls-tile", key: c.key, style: { "--tone": CLASS_COLOR[c.key] } };
+          return pick ? (
+            <button {...shared} onClick={pick} title="Diese Züge ansehen">
+              {body}
+            </button>
+          ) : (
+            <div {...shared} title={`${de(c.per_100)} pro 100 Züge`}>
+              {body}
             </div>
-            <div class="cls-tile-count tnum">{c.count.toLocaleString("de-DE")}</div>
-            <div class="cls-tile-sub">{perGameText(c.count, tally.games, c.games_with)}</div>
-          </div>
-        ))}
+          );
+        })}
     </div>
   );
 }

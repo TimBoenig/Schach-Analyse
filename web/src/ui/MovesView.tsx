@@ -10,7 +10,7 @@ import { Coach, NeedNames } from "./Coach";
 import { ErrorTiles } from "./InsightsView";
 import { CountUp, Hero, HeroStat } from "./kit";
 import { PageHeader } from "./Layout";
-import { type MovesSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
+import { type MovesSection, scrollToSection, Section, SectionHead, SectionNav, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { formatDate, detailSegments } from "./labels";
 import { ClassBadge, ClassTiles, monthName, TallyLegend, VersusBars } from "./MoveTally";
 import { navigate } from "./router";
@@ -178,7 +178,8 @@ export function MovesView() {
           <div class="tally-share">
             <StackBar segments={segments} height={18} legend={false} />
           </div>
-          <ClassTiles tally={t} />
+          {/* The brilliant and great tiles lead to the list of those moves further down. */}
+          <ClassTiles tally={t} onPick={(k) => (k === "Brilliant" || k === "Great" ? () => scrollToSection("glanz") : undefined)} />
           <BlunderCostBlock facts={profile.facts} />
         </Hero>
 
@@ -338,7 +339,7 @@ export function MovesView() {
             {t.top_games.length ? (
               <div class="op-games">
                 {t.top_games.map((g) => (
-                  <button key={g.game_id} class="op-game hl-game" onClick={() => navigate({ view: "analysis", gameId: g.game_id })}>
+                  <button key={g.game_id} class="op-game hl-game" onClick={() => navigate({ view: "analysis", gameId: g.game_id, ply: g.first_ply !== undefined ? g.first_ply + 1 : undefined })}>
                     <span class="hl-count">
                       {g.brilliant > 0 && (
                         <span>
