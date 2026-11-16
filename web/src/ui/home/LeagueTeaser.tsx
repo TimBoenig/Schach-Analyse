@@ -7,8 +7,8 @@ import { statsFormat } from "../../domain/analysisDepth";
 import { trFilter } from "../../domain/i18n";
 import { PAGE_PERIODS } from "../../domain/periods";
 import { withoutBots } from "../../domain/metrics";
-import { buildRanking, comparisonPeriod, fideText, playerUsernames, rankedFriends, type Ranking, type StrengthEstimate, type TrackedPlayer } from "../../domain/players";
-import { lichessBlitzToFide } from "../../domain/profile/fide";
+import { buildRanking, comparisonPeriod, eloText, playerUsernames, rankedFriends, type Ranking, type StrengthEstimate, type TrackedPlayer } from "../../domain/players";
+import { lichessBlitzToElo } from "../../domain/profile/fide";
 import type { StoredGame } from "../../domain/types";
 import { IconPlayers, IconTrophy } from "../icons";
 import { ScaleTrack } from "../kit";
@@ -78,12 +78,12 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
   const ranked = ranking?.rows.filter((r) => r.strength !== null) ?? [];
   const mine = ranked.find((r) => r.is_me);
   if (!ranking || !mine || ranked.length < 2) return null;
-  // The shown numbers are FIDE-scale strengths, so gaps are their differences.
-  const fide = (r: (typeof ranked)[number]) => lichessBlitzToFide((r.strength as StrengthEstimate).value).rating;
+  // The shown numbers are Elo strengths (see fide.ts), so gaps are their differences.
+  const elo = (r: (typeof ranked)[number]) => lichessBlitzToElo((r.strength as StrengthEstimate).value);
   const i = ranked.indexOf(mine);
   const above = i > 0 ? ranked[i - 1] : null;
   const below = ranked[i + 1] ?? null;
-  const values = ranked.map(fide);
+  const values = ranked.map(elo);
   const min = Math.floor((Math.min(...values) - 40) / 50) * 50;
   const max = Math.max(min + 100, Math.ceil((Math.max(...values) + 40) / 50) * 50);
   const step = Math.max(50, Math.ceil((max - min) / 4 / 50) * 50);
@@ -96,8 +96,8 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
           Deine Liga: Platz {mine.rank} von {ranked.length}
         </h3>
         <span class="tile-sub">
-          {above ? `${fide(above) - fide(mine)} Elo hinter ${above.name}` : "du führst"}
-          {below ? ` · ${fide(mine) - fide(below)} vor ${below.name}` : ""}
+          {above ? `${elo(above) - elo(mine)} Elo hinter ${above.name}` : "du führst"}
+          {below ? ` · ${elo(mine) - elo(below)} vor ${below.name}` : ""}
           {` · ${trFilter(ranking.period)}`}
         </span>
         <span class="spacer" />
@@ -106,7 +106,7 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
         </button>
       </div>
       <ScaleTrack
-        markers={ranked.map((r) => ({ id: r.id, label: r.name, value: fide(r), valueText: fideText((r.strength as StrengthEstimate).value).replace("unter ", "<"), tone: r.is_me ? "tone-me" : toneOf(players, r.id), me: r.is_me }))}
+        markers={ranked.map((r) => ({ id: r.id, label: r.name, value: elo(r), valueText: eloText((r.strength as StrengthEstimate).value), tone: r.is_me ? "tone-me" : toneOf(players, r.id), me: r.is_me }))}
         min={min}
         max={max}
         ticks={ticks}

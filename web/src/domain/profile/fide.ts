@@ -158,7 +158,6 @@ function ccBlitzOf(rating: number, col: Column | "fide"): number {
 }
 
 const LICHESS_BLITZ = TABLE.map((r) => [r[0], r[COL.li_blitz]] as const);
-const FROM_LICHESS_BLITZ = TABLE.map((r) => [r[COL.li_blitz], r[0]] as const);
 
 /** A platform rating on the Lichess blitz scale, the league's common scale. */
 export function toLichessBlitz(rating: number, source: string, speed: string): number {
@@ -167,13 +166,23 @@ export function toLichessBlitz(rating: number, source: string, speed: string): n
   return interpolate(LICHESS_BLITZ, ccBlitzOf(rating, col));
 }
 
-/**
- * A value of the Lichess blitz scale on the FIDE scale, for display. `below`
- * is set under the FIDE floor: the number then only orders players and is
- * shown as "unter 1400".
- */
-export function lichessBlitzToFide(value: number): { rating: number; below: boolean; extrapolated: boolean } {
-  const cc = interpolate(FROM_LICHESS_BLITZ, value);
-  const line = fideLine(cc);
-  return { rating: Math.round(line), below: line < FIDE_FLOOR, extrapolated: cc < SURVEY_LOW };
+// ---------- the Elo number the league shows ----------
+//
+// FIDE is a poor display scale for club and hobby players: nothing is
+// published below 1400 and the 2024 reform squeezed everything under 2000, so
+// most beginners would read the same number. The league therefore shows its
+// strengths as Chess.com rapid equivalents: the largest pool in the survey
+// (N = 10,156), the one most beginners play in, and wide open at the low end
+// (a few hundred points up to 1400 instead of one floor value).
+
+/** What the shown number is, for captions. */
+export const ELO_SCALE_LABEL = "Chess.com-Rapid-Skala";
+/** Lowest value shown; Chess.com itself has no ratings below 100. */
+export const ELO_MIN = 100;
+
+const ELO_FROM_LICHESS_BLITZ = TABLE.map((r) => [r[COL.li_blitz], r[COL.cc_rapid]] as const);
+
+/** A value of the common (Lichess blitz) scale as the Elo number shown to players. */
+export function lichessBlitzToElo(value: number): number {
+  return Math.max(ELO_MIN, Math.round(interpolate(ELO_FROM_LICHESS_BLITZ, value)));
 }
