@@ -58,6 +58,7 @@ export function parseHash(hash: string): Route {
     }
     case "konto":
       return { view: "account" };
+    case "hello":
     case "hallo":
       return { view: "landing" };
     case "rechtliches": {
@@ -94,7 +95,7 @@ export function toHash(r: Route): string {
     case "account":
       return "#/konto";
     case "landing":
-      return "#/hallo";
+      return "#/hello";
     case "legal":
       return r.tab && r.tab !== "impressum" ? `#/rechtliches/${r.tab}` : "#/rechtliches";
     case "games":
