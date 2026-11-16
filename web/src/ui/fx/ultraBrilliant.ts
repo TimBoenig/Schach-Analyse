@@ -22,7 +22,7 @@ const HOLD = 4.3;
 const FADE = 0.6;
 
 const QUIPS = [
-  "Coach Mike fällt gerade vom Stuhl.",
+  "Lucena fällt gerade vom Stuhl.",
   "Die Schachgöttin höchstpersönlich applaudiert.",
   "Dieser Zug gehört in ein Museum.",
   "Bitte einrahmen und an die Wand hängen.",

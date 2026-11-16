@@ -1,4 +1,4 @@
-// Mike, the app's trainer: a friendly face that explains pages, moves and
+// Lucena, the app's trainer: a friendly face that explains pages, moves and
 // training results in plain words instead of bare numbers.
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -9,12 +9,12 @@ import { Orb } from "./coach/orb";
 import { IconClose } from "./icons";
 import { navigate } from "./router";
 
-export const COACH_NAME = "Mike";
+export const COACH_NAME = "Lucena";
 
 export type { Mood };
 
 /**
- * Mike's portrait: an AI in a glass sphere. The neural network inside turns in
+ * Lucena's portrait: an AI in a glass sphere. The neural network inside turns in
  * 3D and fires signals, the eyes follow the pointer, and the mood sets colour,
  * tempo and expression. With reduced motion it is a still picture.
  */
@@ -47,7 +47,7 @@ export function CoachAvatar({
   );
 }
 
-/** Mike's mood for a move verdict. */
+/** Lucena's mood for a move verdict. */
 export function moodFor(c: Classification | null | undefined): Mood {
   switch (c) {
     case "Brilliant":
@@ -64,7 +64,7 @@ export function moodFor(c: Classification | null | undefined): Mood {
   }
 }
 
-/** Mike speaking: avatar plus speech bubble. */
+/** Lucena speaking: avatar plus speech bubble. */
 export function Coach({
   mood = "happy",
   title,
@@ -114,7 +114,7 @@ export function resetTips(): void {
   }
 }
 
-/** A page intro from Mike that explains what the page is for; closing it is remembered on this device. */
+/** A page intro from Lucena that explains what the page is for; closing it is remembered on this device. */
 export function CoachTip({
   id,
   title,

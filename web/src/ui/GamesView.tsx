@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { autoAnalyze, cancelAll, cancelGame, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
-import { importChesscomGames, importLichessGames, importPgnText, type ImportResult } from "../api/import";
+import { importPgnText, type ImportResult } from "../api/import";
+import { importAccount } from "../app/accountImport";
 import { parsePgnTextDetailed } from "../domain/pgn";
 import { extractGameTimestamp, getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import { trFilter } from "../domain/i18n";
@@ -103,17 +104,14 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
         await onBatch(batch.games);
         res = batch.result;
       } else {
-        const name = user.trim();
-        const last = await getSetting<Record<string, string>>("import.lastUser", {});
-        await setSetting("import.lastUser", { ...last, [source]: name });
-        const opts = { onBatch, signal: abort.current.signal, onProgress: (_c: number, _t: number, label: string) => setProgress(label) };
-        res =
-          source === "chesscom"
-            ? (await importChesscomGames(name, gameExists, months === "all" ? null : Number(months), opts)).result
-            : (await importLichessGames(name, gameExists, Number(count), opts)).result;
-        // Remember the player as one of "my" names so the profile picks the games up.
-        const names = await getSetting<string[]>("usernames", []);
-        if (name && !names.some((n) => n.toLowerCase() === name.toLowerCase())) await setSetting("usernames", [...names, name]);
+        const done = await importAccount(source, user, {
+          months: months === "all" ? null : Number(months),
+          count: Number(count),
+          signal: abort.current.signal,
+          onProgress: setProgress,
+        });
+        ids.push(...done.games.map((g) => g.game_id));
+        res = done.result;
       }
       setResult(res);
       onImported(ids);
@@ -256,14 +254,7 @@ async function quickImportChesscom(onProgress: (label: string) => void, skipBull
   const last = await getSetting<Record<string, string>>("import.lastUser", {});
   const name = (last.chesscom ?? "").trim();
   if (!name) return null;
-  const fresh: GameAnalysis[] = [];
-  const { result } = await importChesscomGames(name, gameExists, QUICK_MONTHS, {
-    onProgress: (_c, _t, label) => onProgress(label),
-    onBatch: async (games) => {
-      fresh.push(...games);
-      await storeImported(games);
-    },
-  });
+  const { result, games: fresh } = await importAccount("chesscom", name, { months: QUICK_MONTHS, onProgress });
   const ids = fresh
     .filter((g) => !(skipBullet && isBulletGame(g.metadata)))
     .map((g) => g.game_id);

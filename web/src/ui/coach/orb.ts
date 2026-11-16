@@ -1,6 +1,6 @@
-// Draws Mike: a glass sphere with a living neural network inside and two eyes
+// Draws Lucena: a glass sphere with a living neural network inside and two eyes
 // that follow the pointer. Plain 2D canvas with hand-made perspective, so it
-// needs no 3D library, no WebGL context (pages show several Mikes at once) and
+// needs no 3D library, no WebGL context (pages show several Lucenas at once) and
 // costs a fraction of a millisecond per frame.
 import { blendLook, buildNet, MOODS, nodeCount, project, rng, rotate, type Mood, type MoodLook, type Net, type Rgb } from "./net";
 
@@ -144,7 +144,7 @@ export class Orb {
       this.draw();
       return;
     }
-    // Mike blinks while his expression changes, and a "wow" sends out a ring.
+    // Lucena blinks while his expression changes, and a "wow" sends out a ring.
     this.blinkAt = this.time;
     if (mood === "wow") this.burst = 0;
     if (mood === "happy") this.smileAt = this.time + 0.2;

@@ -1,4 +1,4 @@
-// Mike's neural network: the geometry behind the animated avatar.
+// Lucena's neural network: the geometry behind the animated avatar.
 import { describe, expect, it } from "vitest";
 
 import { blendLook, buildNet, MOODS, nodeCount, project, rotate } from "../../src/ui/coach/net";

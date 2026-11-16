@@ -1,4 +1,4 @@
-// Geometry of Mike's "mind": a small neural network inside a glass sphere.
+// Geometry of Lucena's "mind": a small neural network inside a glass sphere.
 // Pure maths (no DOM), so the drawing code in orb.ts stays thin and this part is testable.
 
 export type Mood = "happy" | "think" | "wow" | "sad";
@@ -106,7 +106,7 @@ export interface MoodLook {
   spin: number;
   /** Overall brightness, 0..1. */
   glow: number;
-  /** Where Mike looks when nothing else draws his attention (x right, y up, -1..1). */
+  /** Where Lucena looks when nothing else draws his attention (x right, y up, -1..1). */
   gaze: [number, number];
   /** Eye height and width relative to the default eye. */
   eyeH: number;

@@ -31,7 +31,7 @@ const PHASES: [string, string][] = [
 ];
 const PHASE_IN: Record<string, string> = { opening: "in der Eröffnung", middlegame: "im Mittelspiel", endgame: "im Endspiel" };
 
-/** Mike's one-sentence summary of the tally. */
+/** Lucena's one-sentence summary of the tally. */
 function headline(t: MoveTally): { mood: "wow" | "happy" | "think"; text: string } {
   const b = t.counts.Brilliant;
   const g = t.counts.Great;

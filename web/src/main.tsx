@@ -12,6 +12,10 @@ import "./ui/arena.css";
 import "./ui/mobile.css";
 import "./ui/landing.css";
 
+// Bio links may drop the "#" part, so the landing page also answers at /hallo.
+// The app itself lives at "/" with hash routes; switch over without a reload.
+if (/^\/hallo\/?$/.test(location.pathname)) history.replaceState(null, "", `/${location.hash || "#/hallo"}`);
+
 initAppearance();
 // The AI coach was removed; drop its stored provider settings and API key.
 try {

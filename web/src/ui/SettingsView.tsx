@@ -135,7 +135,7 @@ function AppearanceCard() {
             setTipsBack(true);
           }}
         >
-          {tipsBack ? "Mikes Tipps sind wieder da ✓" : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
+          {tipsBack ? "Lucenas Tipps sind wieder da ✓" : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
         </button>
       </div>
     </div>
