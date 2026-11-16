@@ -8,6 +8,7 @@ export type SettingsTab = "analyse" | "daten";
 
 export type Route =
   | { view: "home" }
+  | { view: "landing" }
   | { view: "games"; import?: boolean }
   | { view: "insights" }
   | { view: "openings" }
@@ -57,6 +58,8 @@ export function parseHash(hash: string): Route {
     }
     case "konto":
       return { view: "account" };
+    case "hallo":
+      return { view: "landing" };
     case "rechtliches": {
       const tab = (["impressum", "datenschutz", "lizenzen"] as const).find((t) => t === parts[1]);
       return { view: "legal", tab };
@@ -90,6 +93,8 @@ export function toHash(r: Route): string {
       return r.tab ? `#/einstellungen/${r.tab}` : "#/einstellungen";
     case "account":
       return "#/konto";
+    case "landing":
+      return "#/hallo";
     case "legal":
       return r.tab && r.tab !== "impressum" ? `#/rechtliches/${r.tab}` : "#/rechtliches";
     case "games":
