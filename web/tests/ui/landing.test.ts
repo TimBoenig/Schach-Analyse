@@ -6,8 +6,9 @@ import { parseHash, toHash } from "../../src/ui/router";
 
 describe("landing page", () => {
   it("has its own short address for the social-media bio link", () => {
+    expect(parseHash("#/hello")).toEqual({ view: "landing" });
     expect(parseHash("#/hallo")).toEqual({ view: "landing" });
-    expect(toHash({ view: "landing" })).toBe("#/hallo");
+    expect(toHash({ view: "landing" })).toBe("#/hello");
   });
 
   it("asks a puzzle with exactly one mating move, which is the hint", () => {

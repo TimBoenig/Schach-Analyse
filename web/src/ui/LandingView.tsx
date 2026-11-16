@@ -1,4 +1,4 @@
-// The page visitors from social media land on (#/hallo): who we are in one
+// The page visitors from social media land on (#/hello): who we are in one
 // screen, a short hands-on intro with Lucena, and one tap into the real app at
 // every point. The only numbers about a person are the visitor's own, counted
 // from the games they just imported.
@@ -326,7 +326,7 @@ export function LandingView() {
   return (
     <div class="landing">
       <header class="ld-top">
-        <a class="ld-brand" href="#/hallo" aria-label={BRAND}>
+        <a class="ld-brand" href="#/hello" aria-label={BRAND}>
           <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span>{BRAND}</span>
         </a>
