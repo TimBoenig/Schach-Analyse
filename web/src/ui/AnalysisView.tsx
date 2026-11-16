@@ -8,10 +8,11 @@ import { lineScoreWhite, pvToSan } from "../domain/analyzer";
 import { type Explanation, explainMoveDetailed } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
+import { glanzzuege, nextStop, stopsOf, type JumpSide } from "../domain/moveJump";
 import { buildGameReview, openingParts } from "../domain/profile";
 import { bookKey } from "../domain/book";
 import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
-import type { GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
+import type { Classification, GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
 import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../storage/db";
 import { fromStoredGame } from "../storage/rows";
 import { BrilliantFx } from "./BrilliantFx";
@@ -249,10 +250,32 @@ function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: 
   );
 }
 
-function ClassTable({ game }: { game: GameAnalysis }) {
+/**
+ * Counts per classification for both sides. Each number is a button: it jumps
+ * to that move on the board, and further clicks walk through the others.
+ */
+function ClassTable({ game, idx, onJump }: { game: GameAnalysis; idx: number; onJump: (stop: number) => void }) {
   const w = game.summary.white;
   const b = game.summary.black;
   if (!w || !b) return null;
+  const cell = (c: Classification, side: JumpSide, count: number) => {
+    const stops = stopsOf(game.moves, [c], side);
+    const cls = side === "white" ? "w" : "b";
+    if (!stops.length) return <span class={cls} style={{ color: CLASS_COLOR[c] }}>{count}</span>;
+    const at = stops.indexOf(idx);
+    const who = side === "white" ? "Weiß" : "Schwarz";
+    return (
+      <button
+        class={`${cls} cls-jump${at >= 0 ? " on" : ""}`}
+        style={{ color: CLASS_COLOR[c] }}
+        onClick={() => onJump(nextStop(stops, idx)!)}
+        title="Zum Zug springen"
+        aria-label={`${classLabel(c)}, ${who}: ${count}. Zum ${at >= 0 && stops.length > 1 ? "nächsten " : ""}Zug springen`}
+      >
+        {at >= 0 && stops.length > 1 ? `${at + 1}/${stops.length}` : count}
+      </button>
+    );
+  };
   return (
     <div class="class-wrap">
       <div class="class-table">
@@ -263,12 +286,13 @@ function ClassTable({ game }: { game: GameAnalysis }) {
         {CLASSIFICATION_ORDER.map((c) => (
           <>
             <span>{classLabel(c)}</span>
-            <span class="w" style={{ color: CLASS_COLOR[c] }}>{w[c] ?? 0}</span>
+            {cell(c, "white", Number(w[c] ?? 0))}
             <img src={badgeFor(c) ?? ""} alt="" />
-            <span class="b" style={{ color: CLASS_COLOR[c] }}>{b[c] ?? 0}</span>
+            {cell(c, "black", Number(b[c] ?? 0))}
           </>
         ))}
       </div>
+      <p class="faint small class-hint">Tippe auf eine Zahl, um zu diesen Zügen zu springen.</p>
     </div>
   );
 }
@@ -548,6 +572,17 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       .map((m, i) => (SERIOUS_ERROR_CLASSES.has(m.classification) && m.fen_before.split(" ")[1] === side ? i : -1))
       .filter((i) => i >= 0);
   }, [game, userColor]);
+  // Jumps from the report: the board sits above the report on phones, so bring it back into view.
+  const boardRef = useRef<HTMLDivElement>(null);
+  const jumpTo = (stop: number) => {
+    goTo(stop);
+    const el = boardRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (r.top < 0 || r.bottom > window.innerHeight) {
+      el.scrollIntoView({ block: "start", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
+  };
   const jumpError = (d: 1 | -1) => {
     const target = d === 1 ? errorPlies.find((p) => p + 1 > idx) : [...errorPlies].reverse().find((p) => p + 1 < idx);
     if (target !== undefined) goTo(target + 1);
@@ -590,6 +625,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   useEffect(() => {
     if (!review) setTab("moves");
   }, [review]);
+
+  const highlights = useMemo(() => (game ? glanzzuege(game.moves) : []), [game]);
 
   const exploreFen = explore ? explore.fens[explore.fens.length - 1] : null;
   const live = usePositionLines(exploreFen, engine.live ? 3 : 2);
@@ -830,7 +867,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </button>
       </div>
       <div class="analysis">
-        <div class="board-area">
+        <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
           <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
           <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
@@ -848,7 +885,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             />
             {/* Stepping onto a brilliant move replays its celebration, in a finished analysis as in exploration. */}
             {lastMove && (explore ? lastVerdict?.classification : move?.classification) === "Brilliant" && (
-              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} />
+              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} san={explore ? explore.sans[explore.sans.length - 1] : move?.san} />
             )}
           </div>
           {playerLine(bottom, 3)}
@@ -1048,7 +1085,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     </div>
                   ))}
                 </div>
-                <ClassTable game={game} />
+                <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
+                {highlights.length > 0 && (
+                  <>
+                    <h4>Glanzzüge dieser Partie</h4>
+                    <div class="glanz-moves">
+                      {highlights.map((h) => (
+                        <button
+                          key={h.stop}
+                          class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
+                          style={{ "--tone": CLASS_COLOR[h.classification] }}
+                          onClick={() => jumpTo(h.stop)}
+                          title={`${classLabel(h.classification)}: zum Zug springen`}
+                        >
+                          <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
+                          <span class={`side-dot ${h.side}`} />
+                          {h.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {review.phases.length > 0 && (
                   <>
                     <h4>Genauigkeit nach Phase</h4>
@@ -1088,7 +1145,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     const m = game.moves[k.ply_index];
                     const badge = m ? badgeFor(m.classification) : null;
                     return (
-                      <button key={k.ply_index} class="moment" onClick={() => goTo(k.ply_index + 1)}>
+                      <button key={k.ply_index} class="moment" onClick={() => jumpTo(k.ply_index + 1)}>
                         {badge ? <img src={badge} alt="" /> : null}
                         <span>
                           <strong>{k.title.includes(k.move_label) ? k.title : `${k.move_label} ${k.title}`}</strong>

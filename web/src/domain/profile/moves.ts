@@ -76,6 +76,8 @@ export interface TallyGame {
   brilliant: number;
   great: number;
   accuracy: number;
+  /** Where the game's first brilliant move is, else its first great one (profiles cached before this lack it). */
+  first_ply?: number;
 }
 
 export interface TallyFinding {
@@ -259,6 +261,7 @@ export function buildMoveTally(feats: GameFeatures[]): MoveTally | null {
       brilliant: c.Brilliant,
       great: c.Great,
       accuracy: f.rec.game_acc,
+      first_ply: (f.moves.find((m) => m.classification === "Brilliant") ?? f.moves.find((m) => m.classification === "Great"))?.ply_index,
     }));
 
   const noBlunder = (f: GameFeatures) => !f.moves.some((m) => m.classification === "Blunder");
