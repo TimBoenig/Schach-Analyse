@@ -692,3 +692,23 @@
     font-size: 12.5px;
   }
 }
+
+@media (max-width: 560px) {
+  /* 3D objects and Mike shrink with the page; the canvases just scale down. */
+  .home-hello {
+    gap: 8px;
+  }
+  .home-hello .model3d {
+    --model-size: 60px !important;
+  }
+  .lg-hero-lead {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .lg-hero-lead .model3d {
+    --model-size: 56px !important;
+  }
+  .welcome-hero .coach-avatar {
+    --coach-size: 120px !important;
+  }
+}

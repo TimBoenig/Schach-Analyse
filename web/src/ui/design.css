@@ -461,10 +461,6 @@ textarea:focus {
 
 /* ---------- coach Mike ---------- */
 
-.coach-avatar {
-  box-shadow: 0 0 0 1px var(--border-strong);
-}
-
 .coach-bubble,
 .card .coach-bubble {
   border-radius: 6px 18px 18px 18px;
@@ -1128,36 +1124,16 @@ h3,
   letter-spacing: -0.02em;
 }
 
-/* ---------- coach Mike: alive, but quiet ---------- */
+/* ---------- coach Mike: an AI in a glass sphere (drawn in coach/orb.ts) ---------- */
 
 .coach-avatar {
-  overflow: visible;
+  display: inline-block;
+  width: var(--coach-size, 56px);
+  height: var(--coach-size, 56px);
+  vertical-align: middle;
+  border-radius: 0;
+  box-shadow: none;
   animation: coach-pop 0.5s var(--ease) both;
-}
-
-.coach-figure {
-  transform-origin: 60px 100px;
-  animation: coach-breathe 4.8s ease-in-out infinite;
-}
-
-.coach-eyes {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: coach-blink 5.2s infinite;
-}
-
-.coach-avatar.mood-wow .coach-figure {
-  animation:
-    coach-jump 0.7s var(--ease) 1,
-    coach-breathe 4.8s ease-in-out 0.7s infinite;
-}
-
-.coach-avatar.mood-think .coach-figure {
-  animation: coach-tilt 3.6s ease-in-out infinite;
-}
-
-.coach-avatar.mood-sad .coach-figure {
-  animation: coach-sink 0.6s var(--ease) both;
 }
 
 .coach-bubble {
@@ -1174,58 +1150,6 @@ h3,
   }
 }
 
-@keyframes coach-breathe {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-1.5px);
-  }
-}
-
-@keyframes coach-blink {
-  0%,
-  92%,
-  100% {
-    transform: scaleY(1);
-  }
-  95% {
-    transform: scaleY(0.1);
-  }
-}
-
-@keyframes coach-jump {
-  0% {
-    transform: translateY(0);
-  }
-  40% {
-    transform: translateY(-8px) rotate(-3deg);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-@keyframes coach-tilt {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  50% {
-    transform: rotate(-4deg);
-  }
-}
-
-@keyframes coach-sink {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(3px);
-  }
-}
-
 @keyframes coach-bubble-in {
   from {
     transform: translateX(-6px) scale(0.98);
@@ -1237,8 +1161,6 @@ h3,
 
 @media (prefers-reduced-motion: reduce) {
   .coach-avatar,
-  .coach-figure,
-  .coach-eyes,
   .coach-bubble {
     animation: none !important;
   }

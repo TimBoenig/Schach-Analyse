@@ -37,3 +37,7 @@ from lila (lichess' server and site, AGPL-3.0) is copied.
 
 The Python desktop app in the repository root is separate and still uses
 Stockfish and PyQt6 (both GPL); it is not part of the web app.
+
+The 3D coach (`src/ui/coach/`) and the 3D objects (`src/ui/three/`, own small
+WebGL renderer, shapes generated from code) are this project's own code: no 3D
+library and no downloaded model files are used.

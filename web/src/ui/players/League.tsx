@@ -67,6 +67,7 @@ import type { StoredGame } from "../../domain/types";
 import { useWidth } from "../charts";
 import { ScaleTrack, type TrackMarker, useEntrance, WhatIfSlider } from "../kit";
 import { CoachAvatar } from "../Coach";
+import { Model3D } from "../Model3D";
 import { IconBolt, IconChevron, IconCrown, IconEye, IconEyeOff, IconFilter, IconFlame, IconReset, IconRise, IconShield, IconSpark, IconStar, IconSwords, IconTrophy } from "../icons";
 import { SPEED_DE } from "../labels";
 import { navigate, toHash } from "../router";
@@ -244,7 +245,9 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
   return (
     <section class="card lg-hero span-12" id="lg-hero">
       <div class="lg-hero-head">
-        <div>
+        <div class="lg-hero-lead">
+          <Model3D kind="trophy" size={116} />
+          <div>
           <span class="lg-kicker">Liga · {plural(ranked.length, "Spieler", "Spieler")}</span>
           <h2 class="lg-hero-title">{title}</h2>
           <p class="lg-hero-sub">
@@ -252,6 +255,7 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
             {leader.odds ? ` · zu ${winPct(leader.odds.first)} wirklich der Stärkste` : ""}
             {lw !== null ? ` · gewinnt ${winPct(lw)} der simulierten Turniere` : ""}
           </p>
+          </div>
         </div>
         {me && (
           <div class="lg-hero-me">
