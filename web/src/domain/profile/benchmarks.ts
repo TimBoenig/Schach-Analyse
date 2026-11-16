@@ -5,11 +5,11 @@
 // between rating anchors. They only hold for the engine and accuracy formula
 // they were guessed for, so they are a fallback: with enough analysed games the
 // profile compares with the opponents of the same games instead
-// (`OpponentReference`), and the FIDE estimates in strength.ts never use them.
+// (`OpponentReference`), and the Elo estimates in strength.ts never use them.
 
 import type { GameFeatures } from "./features";
 import type { RatingContext, SkillScore } from "./models";
-import { toFide } from "./fide";
+import { toElo } from "./fide";
 import { pyRound } from "./num";
 import {
   consistencyScore,
@@ -228,14 +228,12 @@ export function ratingContext(feats: GameFeatures[], reference: OpponentReferenc
   const line = rated.filter((f) => f.rec.speed === cur.speed && ratingSource(f) === source);
   const n = rated.length;
   const avgOpp = line.length ? line.reduce((s, f) => s + (f.opp_rating as number), 0) / line.length : null;
-  const fide = toFide(cur.rating, source, cur.speed);
   const useOpp = reference !== null && reference.games >= MIN_REFERENCE_GAMES;
   return {
     rating: cur.rating,
     speed: cur.speed,
     source,
-    fide: fide.rating,
-    fide_extrapolated: fide.extrapolated,
+    elo: toElo(cur.rating, source, cur.speed),
     rated_games: n,
     provisional_games: provisional.size,
     line_games: line.length,

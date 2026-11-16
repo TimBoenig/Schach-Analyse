@@ -137,7 +137,7 @@ export interface PlayerProfile {
   facts: GameFact[];
   /** Rating context: current rating, performance and rating-based expectations. */
   rating: RatingContext | null;
-  /** Parts of the game on the FIDE scale, measured against the opponents (null without enough rated, analysed games). */
+  /** Parts of the game as Elo, measured against the opponents (null without enough rated, analysed games). */
   strength: StrengthMap | null;
   /** Error map, timing, tilt and session effects (null until a game is analyzed). */
   deep: DeepInsights | null;
@@ -155,10 +155,8 @@ export interface RatingContext {
   speed: string;
   /** Platform of that rating ("chesscom", "lichess", "file"). */
   source: string;
-  /** That rating converted to the FIDE scale (see fide.ts). */
-  fide: number;
-  /** The conversion lies below the survey's range (rough, near the FIDE floor). */
-  fide_extrapolated: boolean;
+  /** That rating as the site's Elo number (see fide.ts, same scale as the league). */
+  elo: number;
   /** Games with both ratings known (basis for the expectation). */
   rated_games: number;
   /** Rated games left out because the rating was still settling (new account). */

@@ -16,6 +16,7 @@ import { gamesInPeriod, type ExportSetting } from "./export";
 import { trClassification, trColor, trFilter, trMotif, trPhase, trPhaseIn, trPiece, trSpeed, trTermination } from "./i18n";
 import { classifyTermination, dateWindow, getUserColor, outcomeFor, parseMoves, parsePlayedAt, parseSummary } from "./metrics";
 import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile, sourceName } from "./profile";
+import { ELO_SCALE_LABEL } from "./profile/fide";
 import { SERIOUS_ERROR_CLASSES, userWp } from "./profile/features";
 import type { MoveBucket, ScoreBucket } from "./profile/insights";
 import type { OpeningStat } from "./profile/openings";
@@ -264,7 +265,7 @@ const LEGEND = `## 2. Legende: So liest du die Daten
 - **Schwere Fehler** = Fehler + Patzer + Verpasst. „je 100 Züge“ zählt nur die eigenen Züge.
 - **Phasen**: Eröffnung bis zum Ende der Theorie bzw. der Entwicklung, Endspiel bei wenig Figurenmaterial, dazwischen Mittelspiel.
 - **Fähigkeiten** (0–100): aus vielen Zügen geschätzte Teilstärken; „Vergleich“ = was die Gegner in denselben Partien erreicht haben (ab 10 analysierten Partien, sonst grober Richtwert für die Wertung), „±“ = Unsicherheit, „wenig Daten“ = noch nicht belastbar.
-- **FIDE-Skala**: Fehlerquote im Verhältnis zu den Gegnern derselben Partien, ausgehend von deren Wertung (auf FIDE umgerechnet); halb so viele Fehler wie die Gegner ≈ 310 FIDE-Punkte über ihnen, zur eigenen Wertung hin geglättet, mit 95-%-Unsicherheit. Online-Wertungen sind keine FIDE-Elo.
+- **Elo je Bereich**: Fehlerquote im Verhältnis zu den Gegnern derselben Partien, ausgehend von deren Wertung; zur eigenen Wertung hin geglättet, mit 95-%-Unsicherheit. Alle Elo-Zahlen stehen auf der ${ELO_SCALE_LABEL} (Lichess-Wertungen umgerechnet), ohne Untergrenze bei 1400; es sind keine FIDE-Elo.
 - **Stichprobe**: Die App nennt Stärken, Schwächen und Befunde nur mit genug Partien und einem statistischen Test. Die Rohdaten-Tabellen enthalten aber auch kleine Gruppen; achte auf die Spalte n bzw. Partien.
 - **Partie-Nummern**: P001 ist die neueste Partie. Dieselbe Nummer gilt in allen Abschnitten.
 - **Notation**: Züge in englischer Kurznotation (N = Springer, B = Läufer, R = Turm, Q = Dame, K = König). Stellungen als FEN.`;
@@ -293,7 +294,7 @@ function ratingSection(p: PlayerProfile): string {
   const refName = rc.reference === "opponents" ? `Ø Gegner (${rc.reference_games} Partien, gleiche Engine)` : "grober Richtwert";
   const rows: unknown[][] = [
     ["Wertung (meistgespielte Bedenkzeit)", `${rc.rating} (${sourceName(rc.source)}, ${trSpeed(rc.speed)})`],
-    ["Dieselbe Wertung auf FIDE-Skala (ChessGoals-Umfrage 2026)", `≈ ${rc.fide}${rc.fide_extrapolated ? " (grob, unter dem Umfragebereich)" : ""}`],
+    [`Dieselbe Wertung als Elo (${ELO_SCALE_LABEL}, ChessGoals-Umfrage 2026)`, `≈ ${rc.elo}`],
     ["Partien mit beiden Wertungen", rc.rated_games],
     [`Ø Gegnerwertung (${sourceName(rc.source)}, ${trSpeed(rc.speed)}, ${rc.line_games} Partien)`, rc.avg_opponent ?? "–"],
     ["Performance (dieselben Partien)", rc.performance ?? "–"],
@@ -409,7 +410,7 @@ function skillsSection(p: PlayerProfile): string {
   return [
     `## 8. Fähigkeiten\n\n${table(["Fähigkeit", "Wert", "Vergleich", "Unsicherheit", "Partien", "Belastbar", "Grundlage"], rows)}`,
     fide.length
-      ? `\n**Auf der FIDE-Skala** (Fehlerquote gegen die Gegner derselben Partien, Ø Gegner ≈ FIDE ${sm!.opponents_fide}; 95-%-Unsicherheit)\n\n${table(["Bereich", "FIDE", "Unsicherheit", "Fehler eigen / Gegner", "Partien", "Belastbar"], fide)}`
+      ? `\n**Als Elo (${ELO_SCALE_LABEL})** (Fehlerquote gegen die Gegner derselben Partien, Ø Gegner ≈ ${sm!.opponents_elo}; 95-%-Unsicherheit)\n\n${table(["Bereich", "Elo", "Unsicherheit", "Fehler eigen / Gegner", "Partien", "Belastbar"], fide)}`
       : "",
   ].join("\n");
 }

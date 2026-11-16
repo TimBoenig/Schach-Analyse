@@ -5,19 +5,21 @@ import type { GameRecord } from "../../src/domain/metrics/models";
 import {
   buildPlayerProfile,
   ELO_PER_LN_ERRORS,
-  FIDE_FLOOR,
+  ELO_MIN,
   type GamePair,
   MIN_STRENGTH_GAMES,
   performanceRating,
   STRENGTH_MIN,
   strengthMap,
-  toFide,
+  lichessBlitzToElo,
+  toElo,
+  toLichessBlitz,
 } from "../../src/domain/profile";
 import { buildMoves, gameRow } from "./fixtures";
 
-describe("FIDE conversion", () => {
-  it("maps each platform and speed through the survey to the same FIDE value", () => {
-    // One survey row: Chess.com blitz 1500 = bullet 1385 = rapid 1655 = Lichess blitz 1755 = Lichess rapid 1905 = FIDE 1740.
+describe("Elo conversion", () => {
+  it("maps each platform and speed through the survey to the same Elo", () => {
+    // One survey row: Chess.com blitz 1500 = bullet 1385 = rapid 1655 = Lichess blitz 1755 = Lichess rapid 1905.
     for (const [rating, source, speed] of [
       [1500, "chesscom", "Blitz"],
       [1385, "chesscom", "Bullet"],
@@ -25,31 +27,17 @@ describe("FIDE conversion", () => {
       [1755, "lichess", "Blitz"],
       [1905, "lichess", "Rapid"],
     ] as const) {
-      expect(toFide(rating, source, speed)).toEqual({ rating: 1740, extrapolated: false, as_is: false });
+      expect(toElo(rating, source, speed)).toBe(1655);
     }
-    // A Lichess number is not a Chess.com number: the same 1800 is ~100 FIDE points apart.
-    expect(toFide(1800, "chesscom", "Blitz").rating - toFide(1800, "lichess", "Blitz").rating).toBeGreaterThan(80);
   });
 
-  it("never goes below the FIDE floor and flags the part below the survey", () => {
-    expect(toFide(400, "chesscom", "Rapid")).toEqual({ rating: FIDE_FLOOR, extrapolated: true, as_is: false });
-    const low = toFide(1000, "chesscom", "Rapid");
-    expect(low.extrapolated).toBe(true);
-    expect(low.rating).toBeGreaterThan(FIDE_FLOOR);
-    expect(low.rating).toBeLessThan(1660);
-    // PGN files carry over-the-board ratings and stay as they are.
-    expect(toFide(1873, "file", "Classical")).toEqual({ rating: 1873, extrapolated: false, as_is: true });
-  });
-
-  it("rises with the rating on every column", () => {
-    for (const [source, speed] of [["chesscom", "Blitz"], ["chesscom", "Rapid"], ["lichess", "Classical"], ["lichess", "Bullet"]]) {
-      let prev = 0;
-      for (let r = 600; r <= 2900; r += 50) {
-        const f = toFide(r, source, speed).rating;
-        expect(f).toBeGreaterThanOrEqual(prev);
-        prev = f;
-      }
-    }
+  it("gives every beginner an own value instead of one floor", () => {
+    const values = [300, 500, 700, 900, 1100, 1300].map((r) => toElo(r, "chesscom", "Rapid"));
+    // The shown scale is Chess.com rapid, so these read back as themselves.
+    expect(values).toEqual([300, 500, 700, 900, 1100, 1300]);
+    const lichess = [700, 900, 1100, 1300].map((r) => toElo(r, "lichess", "Blitz"));
+    for (let i = 1; i < lichess.length; i++) expect(lichess[i]).toBeGreaterThan(lichess[i - 1] + 100);
+    expect(toElo(-500, "chesscom", "Rapid")).toBe(ELO_MIN);
   });
 });
 
@@ -80,13 +68,14 @@ function side(i: number, perMove: number, oppRating: number, blunderEvery = 0): 
 const pairs = (n: number, own: number, opp: number, oppRating = 1500, blunders: [number, number] = [0, 0]): GamePair[] =>
   Array.from({ length: n }, (_, i) => ({ own: side(i, own, oppRating, blunders[0]), opp: side(i + 1000, opp, 1500, blunders[1]) }));
 
-describe("skill strength on the FIDE scale", () => {
-  const anchor = toFide(1500, "chesscom", "Blitz").rating; // 1740
+describe("skill strength as Elo", () => {
+  const anchor = toLichessBlitz(1500, "chesscom", "Blitz"); // 1755, prior on the Lichess scale
+  const anchorElo = toElo(1500, "chesscom", "Blitz"); // 1655
 
-  it("places a player who errs like the opponents at the opponents' FIDE level", () => {
+  it("places a player who errs like the opponents at the opponents' level", () => {
     const m = strengthMap(pairs(40, 3, 3), anchor)!;
-    expect(m.opponents_fide).toBe(anchor);
-    for (const s of [...m.skills, m.overall!]) expect(Math.abs(s.rating - anchor)).toBeLessThanOrEqual(s.margin);
+    expect(m.opponents_elo).toBe(anchorElo);
+    for (const s of [...m.skills, m.overall!]) expect(Math.abs(s.rating - anchorElo)).toBeLessThanOrEqual(s.margin);
   });
 
   it("does not care how many errors the engine finds, only the ratio", () => {
@@ -94,15 +83,16 @@ describe("skill strength on the FIDE scale", () => {
     const deep = strengthMap(pairs(40, 4, 6), anchor)!;
     const shallow = strengthMap(pairs(40, 2, 3), anchor)!;
     expect(shallow.overall!.rating).toBe(deep.overall!.rating);
-    expect(shallow.overall!.rating).toBeGreaterThan(anchor);
+    expect(shallow.overall!.rating).toBeGreaterThan(anchorElo);
   });
 
-  it("reads half the opponents' errors as about 450 · ln 2 above them once the data is plentiful", () => {
+  it("reads half the opponents' errors as about 849 · ln 2 Lichess points above them once the data is plentiful", () => {
     const m = strengthMap(pairs(300, 2, 4), anchor)!;
     const full = ELO_PER_LN_ERRORS * Math.log(2);
     expect(m.overall!.error_ratio).toBeCloseTo(0.5, 1);
-    expect(m.overall!.rating - anchor).toBeGreaterThan(full - 60);
-    expect(m.overall!.rating - anchor).toBeLessThanOrEqual(full + 10);
+    const top = lichessBlitzToElo(anchor + full);
+    expect(m.overall!.rating).toBeGreaterThan(top - 80);
+    expect(m.overall!.rating).toBeLessThanOrEqual(top + 10);
     expect(m.overall!.reliable).toBe(true);
   });
 
@@ -119,11 +109,11 @@ describe("skill strength on the FIDE scale", () => {
     expect(strengthMap(pairs(20, 2, 4, 0), anchor)).toBeNull();
   });
 
-  it("stays finite when one side never blunders and caps at the FIDE floor", () => {
+  it("stays finite when one side never blunders and caps at the lowest shown Elo", () => {
     const clean = strengthMap(pairs(60, 3, 3, 1500, [0, 12]), anchor)!;
     const safety = clean.skills.find((s) => s.key === "safety")!;
     expect(Number.isFinite(safety.rating)).toBe(true);
-    expect(safety.rating).toBeGreaterThan(anchor);
+    expect(safety.rating).toBeGreaterThan(anchorElo);
     // Weak opponents and far more errors: below the scale, said as such.
     const weak = strengthMap(pairs(300, 12, 2, 400), null)!;
     expect(weak.overall!.capped).toBe(-1);
@@ -155,7 +145,7 @@ describe("rating context against the right games", () => {
     expect(rc.avg_opponent).toBe(1200);
     expect(rc.performance).toBe(performanceRating([{ opp: 1200, score: 1 }, { opp: 1250, score: 0 }, { opp: 1150, score: 1 }]));
     expect(rc.rated_games).toBe(5);
-    expect(rc.fide).toBe(toFide(1200, "chesscom", "Rapid").rating);
+    expect(rc.elo).toBe(1200);
   });
 
   it("measures 'typical' on the opponents of the same games once there are enough", () => {

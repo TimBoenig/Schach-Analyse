@@ -46,7 +46,6 @@ export { blunderCost, CONDITION_KEYS, conditionResult, conditionValues, DAYPARTS
 export type { BlunderCost, ConditionPick, ConditionResult, Daypart, GameFact, OppBand } from "./lab";
 export { ELO_PER_LN_ERRORS, errorRatio, MIN_STRENGTH_GAMES, RELIABLE_ELO_MARGIN, SKILL_SPREAD, STRENGTH_MAX, STRENGTH_MIN, strengthMap } from "./strength";
 export type { GamePair, SkillStrength, StrengthMap } from "./strength";
-export { FIDE_FLOOR, toFide } from "./fide";
-export type { FideRating } from "./fide";
+export { ELO_MIN, ELO_SCALE_LABEL, lichessBlitzToElo, toElo, toLichessBlitz } from "./fide";
 export { ETA_MAX_DAYS, nextMilestone, PACE_DAYS, PACE_MIN, ratingJourney } from "./journey";
 export type { RatingJourney } from "./journey";
