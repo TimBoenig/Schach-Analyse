@@ -24,6 +24,7 @@ import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
 import { Dock, Sidebar } from "./Shell";
 import { StageHost } from "./stage/Host";
+import { StudioRoute } from "./studio/StudioRoute";
 import { startSeenSync } from "./stage/seenSync";
 import { currentShow, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
@@ -137,7 +138,7 @@ export function App() {
   // A device that has never seen the app starts with Lucena, fullscreen: who
   // she is, the import of the first games, a walk through the areas.
   useEffect(() => {
-    if (wasSeen("onboarding")) return;
+    if (wasSeen("onboarding") || route.view === "studio") return;
     let alive = true;
     void Promise.all([getSetting<string[]>("usernames", []), listGames()])
       .then(([names, games]) => {
@@ -148,6 +149,14 @@ export function App() {
       alive = false;
     };
   }, []);
+
+  // The hidden video studio fills the whole window, like the landing page.
+  if (route.view === "studio")
+    return (
+      <ErrorBoundary area="Das Videostudio">
+        <StudioRoute />
+      </ErrorBoundary>
+    );
 
   // The social-media landing page stands alone, without sidebar or tab bar.
   if (route.view === "landing")
