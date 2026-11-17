@@ -351,7 +351,6 @@
 
   /* Findings: the sentence only; the numbers behind it stay on wider screens. */
   .insight-proof,
-  .journey-pace,
   .puzzle-source {
     display: none;
   }
@@ -371,7 +370,6 @@
   }
 
   /* Start: the week strip and the shortcuts repeat what the tab bar offers. */
-  .home-today .week-strip,
   .hero-links .link-chip:nth-child(n + 2) {
     display: none;
   }

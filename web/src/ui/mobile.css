@@ -317,9 +317,6 @@
 
 @media (max-width: 560px) {
   /* Both names on one phone line (games of friends): the ratings give way. */
-  .game-item .players .player-elo {
-    display: none;
-  }
   .game-item {
     min-height: 68px;
   }
@@ -437,48 +434,10 @@
   }
 
   /* Training today: the two settings get a full row each, so their values are readable. */
-  .plan-arena-bar .field {
-    flex: 1 1 100%;
-  }
-  .plan-arena-bar .field select {
-    width: 100%;
-  }
-  .plan-arena-bar .btn.ghost {
-    margin-left: auto;
-  }
 
   /* Training week: seven rows instead of tiles too narrow for "Wiederholung & Partien". */
-  .plan-week {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 6px;
-  }
-  .plan-day {
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    min-height: 46px;
-    padding: 8px 14px;
-  }
-  .plan-day .week-dow {
-    flex: 0 0 26px;
-  }
-  .plan-day .week-theme {
-    flex: 1;
-    min-width: 0;
-  }
-  .plan-day .week-state {
-    margin: 0 0 0 auto;
-    white-space: nowrap;
-  }
 
   /* Opening progress rows: name, state, steps and tries on one line. */
-  .cat-row:has(.box-steps) {
-    grid-template-columns: minmax(0, 1fr) auto auto 34px;
-    gap: 10px;
-  }
-  .cat-row:has(.box-steps) > :last-child {
-    text-align: right;
-  }
 
   /* Record tiles two abreast, not five long rows. */
   .records {
@@ -598,13 +557,6 @@
 
 @media (max-width: 560px) {
   /* "118,0 / 121,7" stays on one line in a half-width cell. */
-  .hero .hero-cell .kpi-big {
-    font-size: 27px;
-    white-space: nowrap;
-  }
-  .hero .hero-cell .kpi-unit {
-    font-size: 14px;
-  }
 }
 
 /* ---------- league ---------- */
@@ -707,8 +659,5 @@
   }
   .lg-hero-lead .model3d {
     --model-size: 56px !important;
-  }
-  .welcome-hero .coach-avatar {
-    --coach-size: 120px !important;
   }
 }

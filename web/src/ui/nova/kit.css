@@ -295,3 +295,18 @@ dialog {
     columns: 1;
   }
 }
+
+/* Players hero: long button labels ("Neue Partien deiner Freunde analysieren")
+   wrap on phones instead of pushing the page wider than the screen. */
+.players-hero-actions .btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+@media (max-width: 640px) {
+  .players-hero-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}

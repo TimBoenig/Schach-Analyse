@@ -1,11 +1,10 @@
 /* ==========================================================================
    Design layer: "Grand Salon" (2026-11)
 
-   Loaded after styles.css. It adds no features; it sets the look of every
-   page: ink black (or warm paper) with two soft glows, champagne gold as the
-   one accent, a serif for headlines and big numbers, pill-shaped controls,
-   softly lit cards, and a floating icon rail instead of a wide sidebar.
-   Component rules in styles.css keep their layout; this file sets the look.
+   Loaded after styles.css. It once set an older look (warm accent, serif
+   headlines, floating icon rail); its colours now come from nova/tokens.css
+   and nova/ overrides the shell, so what remains here is mostly spacing and
+   component shapes that the newer layers build on.
    ========================================================================== */
 
 /* ---------- base ---------- */
@@ -34,8 +33,8 @@ p {
   background: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-/* Two soft lights behind everything: gold from the top left, teal from the
-   right. Fixed, so it costs nothing while scrolling. */
+/* Two soft lights behind everything (--glow-a, --glow-b); nova sets both to
+   transparent, so the page stays calm. Fixed, so it costs nothing. */
 .app::before {
   content: "";
   position: fixed;
@@ -332,8 +331,6 @@ kbd {
   gap: 16px;
 }
 
-.kpi-big,
-.kpi-value,
 .form-big,
 .donut-center .v {
   font-family: var(--font-display);
@@ -342,33 +339,11 @@ kbd {
   font-variant-numeric: lining-nums tabular-nums;
 }
 
-.kpi-big {
-  font-size: 56px;
-  line-height: 0.95;
-}
-
-.kpi-value {
-  font-size: 40px;
-  line-height: 1;
-}
-
-.kpi-unit {
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.kpi-cell,
 .hero-cell {
   padding: 20px 22px;
 }
 
-.kpi-cell {
-  gap: 6px;
-}
-
-.hero-cell,
-.kpi-cell,
-.summary-hero .hero-cell:nth-child(3) {
+.hero-cell {
   border-color: var(--border);
 }
 
@@ -524,11 +499,6 @@ textarea:focus {
   background: color-mix(in srgb, var(--text) 3.5%, transparent);
 }
 
-.game-item .stripe {
-  margin: 2px 0;
-  border-radius: 2px;
-}
-
 .game-item .players {
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -609,16 +579,9 @@ textarea:focus {
   .page-title {
     font-size: 38px;
   }
-  .kpi-big {
-    font-size: 44px;
-  }
-  .kpi-value {
-    font-size: 32px;
-  }
   .section-head h2 {
     font-size: 26px;
   }
-  .kpi-cell,
   .hero-cell {
     padding: 16px;
   }
@@ -731,39 +694,6 @@ textarea:focus {
 }
 
 /* ---------- training: opening picker ---------- */
-.opening-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.opening-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 10px 16px;
-  border-radius: 16px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text);
-  cursor: pointer;
-  text-align: left;
-  transition: border-color 0.15s, transform 0.15s;
-}
-.opening-chip:hover {
-  transform: translateY(-1px);
-}
-.opening-chip.on {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent) inset;
-}
-.opening-chip-name {
-  font-weight: 600;
-}
-.opening-chip-meta {
-  font-size: 12px;
-  color: var(--text-2);
-}
 
 /* ---------- training: refutation line ---------- */
 .refutation {
@@ -981,22 +911,17 @@ input[type="search"] {
 /* ---------- big numbers and headlines in the serif ---------- */
 
 .acc-box .value,
-.plan-headline,
-.op-hero-kpis strong,
 .explorer-score strong,
 .form-big,
-.welcome-hero h1,
 .duel-acc,
-.cls-tile-count,
-.battle-big {
+.cls-tile-count {
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.01em;
   font-variant-numeric: lining-nums tabular-nums;
 }
 
-.cls-tile-count,
-.op-hero-kpis strong {
+.cls-tile-count {
   font-size: 36px;
   line-height: 1;
 }
@@ -1006,16 +931,7 @@ input[type="search"] {
   line-height: 1.05;
 }
 
-.welcome-hero h1 {
-  font-size: 44px;
-  line-height: 1.05;
-}
-
 /* Inner tiles: one step lighter than the card, fully rounded. */
-.week-day,
-.plan-day {
-  border-radius: 16px;
-}
 
 /* ==========================================================================
    Minimal layer (2026-11): calm, Trade-Republic-like.
@@ -1223,12 +1139,6 @@ h3,
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
-.player-avatar {
-  border-radius: 999px;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: 22px;
-}
 .h2h-bar-wrap {
   display: flex;
   flex-direction: column;
@@ -1303,19 +1213,6 @@ h3,
 .trend-verdict.down {
   color: var(--loss);
 }
-.box-steps {
-  display: flex;
-  gap: 4px;
-}
-.box-steps span {
-  flex: 1;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--surface-3);
-}
-.box-steps span.on {
-  background: var(--accent);
-}
 
 /* ---------- training: opening library, learn mode ---------- */
 .library-grid {
@@ -1343,9 +1240,6 @@ h3,
 .library-lines {
   display: grid;
   gap: 4px;
-}
-.box-steps span.half {
-  background: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .learn-mode {
   display: flex;
@@ -3075,7 +2969,6 @@ div.lg-fame-card {
 .legal-text h3 { margin: 20px 0 6px; font-size: 1rem; }
 .legal-text p { margin: 0 0 10px; color: var(--text-2); }
 .legal-text a { color: var(--accent); }
-.placeholder-field { color: var(--loss); font-style: italic; }
 
 /* ---------- league strength ranges (2026-11) ---------- */
 /* The table's bar is a 95 % range on a shared FIDE axis, with the estimate as a tick. */
