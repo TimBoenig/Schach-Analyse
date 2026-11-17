@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { autoAnalyze, cancelAll, cancelGame, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
+import { autoAnalyze, cancelAll, enqueue, subscribeQueue, type QueueState } from "../app/analysisService";
 import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
 import { importPgnText, type ImportResult } from "../api/import";
@@ -13,11 +13,12 @@ import type { GameAnalysis, StoredGame } from "../domain/types";
 import { gameExists, getSetting, listGames, onDataChanged, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
 import { IconPlay, IconPlus, IconStop, IconSync } from "./icons";
-import { SPEED_DE, accClass, balanceText, formatDate, monthLabel, outcomeFor, resultText, shortOpening, streakText } from "./labels";
+import { GameRows, GamesSummary, status, summarize } from "./games/GameList";
+import { SPEED_DE } from "./labels";
 import { isTyping } from "./keys";
-import { CountUp, Hero, HeroStat, ResultRibbon, WdlBar } from "./kit";
 import { navigate } from "./router";
-import { Coach, CoachAvatar } from "./Coach";
+import { CoachAvatar } from "./Coach";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
 import { PeriodSelect } from "./useProfile";
@@ -25,27 +26,6 @@ import { ENGINE_NAME } from "../engine/info";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
-
-/** Stops this game's analysis (or drops it from the queue); the rest keeps running. */
-function CancelButton({ id, label }: { id: string; label: string }) {
-  return (
-    <button
-      class="btn small ghost"
-      aria-label={label}
-      title={label}
-      onClick={(e) => {
-        e.stopPropagation();
-        cancelGame(id);
-      }}
-    >
-      <IconStop />
-    </button>
-  );
-}
-
-function status(g: StoredGame): "completed" | "paused" | "not_started" {
-  return (g.summary_json?.analysis_status as "completed" | "paused" | "not_started") ?? "not_started";
-}
 
 function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: (ids: string[]) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -262,203 +242,6 @@ async function quickImportChesscom(onProgress: (label: string) => void, skipBull
   return { name, result, queued: ids.length };
 }
 
-interface Summary {
-  games: number;
-  wins: number;
-  draws: number;
-  losses: number;
-  accuracy: number | null;
-  analyzed: number;
-}
-
-function summarize(games: StoredGame[], usernames: string[]): Summary {
-  const s: Summary = { games: 0, wins: 0, draws: 0, losses: 0, accuracy: null, analyzed: 0 };
-  let accSum = 0;
-  for (const g of games) {
-    const color = getUserColor(g, usernames);
-    if (!color) continue;
-    s.games++;
-    const o = outcomeFor(g.result, color);
-    if (o === "win") s.wins++;
-    else if (o === "draw") s.draws++;
-    else if (o === "loss") s.losses++;
-    const acc = g.summary_json?.[color]?.accuracy;
-    if (status(g) === "completed" && typeof acc === "number") {
-      s.analyzed++;
-      accSum += acc;
-    }
-  }
-  s.accuracy = s.analyzed ? accSum / s.analyzed : null;
-  return s;
-}
-
-const RIBBON_GAMES = 14;
-const OUTCOME_SCORE = { win: 1, draw: 0.5, loss: 0 } as const;
-const OUTCOME_WORD = { win: "Sieg", draw: "Remis", loss: "Niederlage" } as const;
-
-/** What the newest results add up to, as the headline of the page. */
-function formHeadline(recent: (keyof typeof OUTCOME_SCORE)[]): string {
-  if (!recent.length) return "Deine Partien";
-  const scores: number[] = recent.map((o) => OUTCOME_SCORE[o]);
-  const last = scores.slice(0, 10);
-  const points = last.reduce<number>((sum, v) => sum + v, 0);
-  return streakText(scores) ?? `${String(points).replace(".", ",")} ${points === 1 ? "Punkt" : "Punkte"} aus den letzten ${last.length} Partien`;
-}
-
-/** The list's opening card: the current run, the last results as tiles and the balance of everything shown. */
-function SummaryHero({ s, games, usernames }: { s: Summary; games: StoredGame[]; usernames: string[] }) {
-  const decided = s.wins + s.draws + s.losses;
-  // `games` is newest first; only decided own games count for the run.
-  const recent = games
-    .map((g) => ({ g, o: outcomeFor(g.result, getUserColor(g, usernames)) }))
-    .filter((x): x is { g: StoredGame; o: keyof typeof OUTCOME_SCORE } => x.o !== null)
-    .slice(0, RIBBON_GAMES);
-  return (
-    <Hero
-      class="reveal games-hero"
-      kicker={`Deine Partien · ${s.games} · ${s.analyzed} analysiert`}
-      title={formHeadline(recent.map((x) => x.o))}
-      sub={
-        <>
-          {balanceText(s.wins, s.draws, s.losses)}
-          {s.accuracy !== null ? ` · Ø Genauigkeit ${s.accuracy.toFixed(1).replace(".", ",")} %` : ""}
-        </>
-      }
-      aside={decided ? <HeroStat big={<CountUp value={((s.wins + s.draws / 2) / decided) * 100} format={(v) => `${Math.round(v)} %`} />} label="Punkte-Quote" sub="aller gezeigten Partien" /> : undefined}
-    >
-      <ResultRibbon
-        games={[...recent].reverse().map(({ g, o }) => {
-          const white = getUserColor(g, usernames) === "white";
-          return { id: g.id, score: OUTCOME_SCORE[o], title: `${formatDate(g.date)} gegen ${white ? g.black : g.white}: ${OUTCOME_WORD[o]}` };
-        })}
-        onPick={(id) => navigate({ view: "analysis", gameId: id })}
-      />
-      <WdlBar wins={s.wins} draws={s.draws} losses={s.losses} />
-    </Hero>
-  );
-}
-
-const SPARK_W = 92;
-const SPARK_H = 30;
-
-/**
- * The game at a glance: the player's winning chance move by move, green above
- * the middle line and red below it, so a thrown win or a comeback shows in the list.
- */
-function GameSpark({ g, color }: { g: StoredGame; color: "white" | "black" }) {
-  const moves = Array.isArray(g.moves_json) ? g.moves_json : [];
-  if (moves.length < 4) return null;
-  const wp = moves.map((m) => (color === "white" ? m.win_chance_after : 1 - m.win_chance_after));
-  const x = (i: number) => (i / (wp.length - 1)) * SPARK_W;
-  const y = (v: number) => SPARK_H - Math.min(1, Math.max(0, v)) * SPARK_H;
-  const mid = SPARK_H / 2;
-  const half = (clamp: (v: number) => number) => `M0,${mid} ${wp.map((v, i) => `L${x(i).toFixed(1)},${y(clamp(v)).toFixed(1)}`).join(" ")} L${SPARK_W},${mid} Z`;
-  return (
-    <svg class="game-spark" width={SPARK_W} height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label="Verlauf deiner Gewinnchance">
-      <path class="up" d={half((v) => Math.max(v, 0.5))} />
-      <path class="down" d={half((v) => Math.min(v, 0.5))} />
-      <line x1="0" x2={SPARK_W} y1={mid} y2={mid} />
-    </svg>
-  );
-}
-
-// Rows that take part in the opening stagger; the rest appear at once.
-const STAGGER_ROWS = 10;
-
-function GameRow({
-  g,
-  usernames,
-  queue,
-  index,
-  narrow,
-}: {
-  g: StoredGame;
-  usernames: string[];
-  queue: QueueState | null;
-  /** Phone: name the opponent and the outcome instead of both players and the raw result. */
-  narrow: boolean;
-  /** Place in the list; the first rows rise in one after another. */
-  index: number;
-}) {
-  const color = getUserColor(g, usernames);
-  const st = status(g);
-  const acc = color ? g.summary_json?.[color]?.accuracy : undefined;
-  const outcome = outcomeFor(g.result, color);
-  const isCurrent = queue?.current === g.id;
-  const isMe = (name: string) => usernames.some((u) => u.toLowerCase() === name.toLowerCase());
-  // Two names with ratings do not fit a phone line; the user knows their own
-  // name, so the row shows who they played and with which colour.
-  const versus = narrow && color !== null;
-  const opponent = color === "white" ? { name: g.black, elo: g.black_elo } : { name: g.white, elo: g.white_elo };
-  return (
-    <div class={`game-item ${outcome ?? ""}`} role="button" style={{ "--i": Math.min(index, STAGGER_ROWS) }} onClick={() => navigate({ view: "analysis", gameId: g.id })}>
-      <div class="stripe" />
-      {versus ? (
-        <div class="players versus">
-          <span class={`side-dot ${color}`} title={color === "white" ? "Du hattest Weiß" : "Du hattest Schwarz"} />
-          <span class="versus-name">{opponent.name}</span>
-          {opponent.elo ? <span class="faint versus-elo">{opponent.elo}</span> : null}
-        </div>
-      ) : (
-        <div class="players">
-          <span class="side-dot white" />
-          <span class={isMe(g.white) ? "me" : ""}>
-            {g.white}
-            {g.white_elo ? <span class="faint player-elo"> {g.white_elo}</span> : null}
-          </span>
-          <span class="faint">–</span>
-          <span class="side-dot black" />
-          <span class={isMe(g.black) ? "me" : ""}>
-            {g.black}
-            {g.black_elo ? <span class="faint player-elo"> {g.black_elo}</span> : null}
-          </span>
-        </div>
-      )}
-      <div class="right">
-        {acc !== undefined && st === "completed" ? (
-          <>
-            {color && <GameSpark g={g} color={color} />}
-            <div class="acc-box">
-              <div class={`acc ${accClass(acc)}`}>{acc.toFixed(1).replace(".", ",")}</div>
-              <div class="acc-label">Genauigkeit</div>
-            </div>
-          </>
-        ) : isCurrent ? (
-          <span class="row" style={{ gap: "6px" }}>
-            <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
-            <CancelButton id={g.id} label="Analyse abbrechen" />
-          </span>
-        ) : queue?.queued.includes(g.id) ? (
-          <span class="row" style={{ gap: "6px" }}>
-            <span class="pill">wartet</span>
-            <CancelButton id={g.id} label="Aus der Warteschlange nehmen" />
-          </span>
-        ) : st === "completed" ? (
-          <span class="pill">analysiert</span>
-        ) : (
-          <button
-            class="btn small"
-            onClick={(e) => {
-              e.stopPropagation();
-              // An explicit request goes ahead of the background queue.
-              void enqueue([g.id], { front: true });
-            }}
-          >
-            <IconPlay /> Analysieren
-          </button>
-        )}
-      </div>
-      <div class="meta">
-        <span class={`pill ${outcome ?? ""}`}>{versus && outcome ? OUTCOME_WORD[outcome] : resultText(g.result)}</span>
-        {g.speed_category && <span>{SPEED_DE[g.speed_category] ?? g.speed_category}</span>}
-        {/* The month header above already names the year. */}
-        <span>{narrow ? formatDate(g.date).replace(/\.\d{4}$/, ".") : formatDate(g.date)}</span>
-        {g.opening && <span class="opening">· {shortOpening(g.opening)}</span>}
-      </div>
-    </div>
-  );
-}
-
 export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const [games, setGames] = useState<StoredGame[] | null>(null);
   const [usernames, setUsernames] = useState<string[]>([]);
@@ -495,6 +278,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   };
 
   useEffect(() => subscribeQueue(setQueue), []);
+  usePageGuide("games", Boolean(games?.length && usernames.length));
   useEffect(() => {
     const load = async () => {
       setGames(await listGames());
@@ -558,22 +342,6 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const busy = Boolean(queue?.current) || (queue?.queued.length ?? 0) > 0;
   const remaining = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
 
-  // Month headers keep long histories scannable.
-  const rows: preact.JSX.Element[] = [];
-  let lastMonth = "";
-  for (const g of filtered.slice(0, limit)) {
-    const m = monthLabel(g.date);
-    if (m !== lastMonth) {
-      rows.push(
-        <div class="month-head" key={`m-${m}`}>
-          {m}
-        </div>,
-      );
-      lastMonth = m;
-    }
-    rows.push(<GameRow key={g.id} g={g} usernames={usernames} queue={queue} index={rows.length} narrow={narrow} />);
-  }
-
   return (
     <div>
       <PageHeader
@@ -601,6 +369,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <button class="btn" onClick={() => setShowImport(true)}>
           <IconPlus /> Importieren
         </button>
+        {games && games.length > 0 && <GuideButton id="games" />}
           </>
         }
       />
@@ -617,22 +386,24 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       )}
 
       {justImported.length > 0 && !busy && (
-        <Coach
-          title={`${justImported.length} neue Partien sind da!`}
-          actions={
-            <button
-              class="btn primary"
-              onClick={() => {
-                void enqueue(justImported);
-                setJustImported([]);
-              }}
-            >
-              Jetzt analysieren
-            </button>
-          }
-        >
-          Soll ich sie mir gleich anschauen? Danach siehst du zu jedem Zug, wie gut er war.
-        </Coach>
+        <div class="notice gl-fresh" role="status">
+          <span class="orb-mini" aria-hidden="true" />
+          <span>
+            <strong>
+              {justImported.length} {justImported.length === 1 ? "neue Partie ist" : "neue Partien sind"} da.
+            </strong>{" "}
+            Soll ich sie gleich analysieren? Danach siehst du zu jedem Zug, wie gut er war.
+          </span>
+          <button
+            class="btn primary small"
+            onClick={() => {
+              void enqueue(justImported);
+              setJustImported([]);
+            }}
+          >
+            <IconPlay /> Jetzt analysieren
+          </button>
+        </div>
       )}
 
       {busy && queue && (
@@ -660,10 +431,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         </div>
       )}
 
-      {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <SummaryHero s={summary} games={filtered} usernames={usernames} />}
+      {games && games.length > 0 && usernames.length > 0 && summary.games > 0 && <GamesSummary s={summary} games={filtered} usernames={usernames} period={trFilter(period)} />}
 
       {games && games.length > 0 && (
-        <div class="filters games-filters">
+        <div class="gl-filters">
           <div class="segmented">
             {(
               [
@@ -678,13 +449,13 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             ))}
           </div>
           {othersCount > 0 && (
-            <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label="Spieler" style={{ flex: "1 1 120px", maxWidth: "220px" }}>
+            <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label="Spieler">
               <option value="mine">Meine Partien</option>
               <option value="all">Auch andere Spieler ({othersCount})</option>
             </select>
           )}
           {speeds.length > 1 && (
-            <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label="Bedenkzeit" style={{ flex: "1 1 120px", maxWidth: "200px" }}>
+            <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label="Bedenkzeit">
               <option value="all">Alle Bedenkzeiten</option>
               {speeds.map((sp) => (
                 <option key={sp} value={sp}>
@@ -706,15 +477,15 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             placeholder={narrow ? "Spieler oder Eröffnung suchen" : "Spieler oder Eröffnung suchen  ( / )"}
             value={search}
             onInput={(e) => setSearch(e.currentTarget.value)}
-            style={{ flex: "1 1 200px", width: "auto" }}
+            class="gl-search"
           />
         </div>
       )}
 
       {games === null ? (
-        <div class="game-list">
+        <div class="gl-list">
           {[0, 1, 2, 3].map((k) => (
-            <div key={k} class="skeleton" style={{ height: "64px" }} />
+            <div key={k} class="skeleton" style={{ height: "58px" }} />
           ))}
         </div>
       ) : games.length === 0 ? (
@@ -736,8 +507,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           )}
         </div>
       ) : (
-        <div class="game-list">
-          {rows}
+        <div class="gl-list">
+          <GameRows games={filtered.slice(0, limit)} all={filtered} usernames={usernames} queue={queue} />
           {filtered.length > limit && (
             <button class="btn" onClick={() => setLimit((l) => l + 60)}>
               Weitere {Math.min(60, filtered.length - limit)} anzeigen
