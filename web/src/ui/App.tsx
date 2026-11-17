@@ -24,7 +24,8 @@ import { ProfileView } from "./ProfileView";
 import { SettingsView } from "./SettingsView";
 import { Dock, Sidebar } from "./Shell";
 import { StageHost } from "./stage/Host";
-import { openStage, wasSeen } from "./stage/store";
+import { startSeenSync } from "./stage/seenSync";
+import { currentShow, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 
@@ -130,6 +131,9 @@ export function App() {
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.
   useEffect(() => window.scrollTo(0, 0), [route.view]);
 
+  // What Lucena already explained follows the account to every device.
+  useEffect(() => startSeenSync(), []);
+
   // A device that has never seen the app starts with Lucena, fullscreen: who
   // she is, the import of the first games, a walk through the areas.
   useEffect(() => {
@@ -137,7 +141,7 @@ export function App() {
     let alive = true;
     void Promise.all([getSetting<string[]>("usernames", []), listGames()])
       .then(([names, games]) => {
-        if (alive && !names.length && !games.length) openStage({ kind: "onboarding" });
+        if (alive && !names.length && !games.length && !currentShow() && takeAuto()) openStage({ kind: "onboarding" });
       })
       .catch(() => undefined);
     return () => {

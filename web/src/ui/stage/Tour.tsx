@@ -1,18 +1,21 @@
 // Lucena's walk through the four areas, opened from the sidebar at any time.
 // The first start (Onboarding.tsx) plays the same stops after the import.
-import { useState } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 
 import { IconChevron } from "../icons";
 import { navigate } from "../router";
 import { Illus } from "./Illus";
 import { TOUR_STOPS } from "./script";
 import { Stage, StagePoint } from "./Stage";
+import { markSeen } from "./store";
 
 export function Tour({ onClose, start = 0 }: { onClose: () => void; start?: number }) {
   const [index, setIndex] = useState(Math.min(Math.max(start, 0), TOUR_STOPS.length - 1));
   const stop = TOUR_STOPS[index];
   const last = index === TOUR_STOPS.length - 1;
   const next = () => (last ? onClose() : setIndex(index + 1));
+  // The stop introduced its page, so that page's guide does not open by itself later.
+  useEffect(() => markSeen(`page:${stop.guide}`), [stop.id]);
   return (
     <Stage
       steps={TOUR_STOPS.length}

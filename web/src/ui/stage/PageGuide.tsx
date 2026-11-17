@@ -7,7 +7,8 @@ import { IconChevron } from "../icons";
 import { type GuideId, PAGE_GUIDES } from "./guides";
 import { Illus } from "./Illus";
 import { Stage, StagePoint } from "./Stage";
-import { currentShow, markSeen, openStage, wasSeen } from "./store";
+import { hydrateSeen } from "./seenSync";
+import { autoFree, currentShow, markSeen, openStage, takeAuto, wasSeen } from "./store";
 
 const seenId = (id: GuideId) => `page:${id}`;
 
@@ -21,6 +22,8 @@ export function PageGuide({ id, onClose }: { id: GuideId; onClose: () => void })
     onClose();
   };
   const next = () => (last ? close() : setIndex(index + 1));
+  // Counted as seen as soon as it opens: a reload or a jump away mid-guide must not bring it back.
+  useEffect(() => markSeen(seenId(id)), [id]);
   return (
     <Stage
       steps={guide.steps.length}
@@ -61,18 +64,27 @@ export function PageGuide({ id, onClose }: { id: GuideId; onClose: () => void })
 }
 
 /**
- * Opens the page's guide once, on the first visit with something to show.
+ * Opens the page's guide once, on the first visit with something to show,
+ * and only if Lucena has not opened anything by herself in this visit yet.
  * `ready` stays false while the page is empty or loading: an explanation of
  * charts that are not there yet would only confuse.
  */
 export function usePageGuide(id: GuideId, ready: boolean): void {
   useEffect(() => {
-    if (!ready || wasSeen(seenId(id)) || currentShow()) return;
+    if (!ready || wasSeen(seenId(id)) || currentShow() || !autoFree()) return;
+    let alive = true;
     // A moment to see the page first; the guide then explains what is there.
     const t = window.setTimeout(() => {
-      if (!currentShow() && !wasSeen(seenId(id))) openStage({ kind: "page", subject: id });
+      // Read on another device? The synced settings may know by now.
+      void hydrateSeen().then(() => {
+        if (!alive || currentShow() || wasSeen(seenId(id)) || !takeAuto()) return;
+        openStage({ kind: "page", subject: id });
+      });
     }, 700);
-    return () => window.clearTimeout(t);
+    return () => {
+      alive = false;
+      window.clearTimeout(t);
+    };
   }, [id, ready]);
 }
 

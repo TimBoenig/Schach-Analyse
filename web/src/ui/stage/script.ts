@@ -2,6 +2,7 @@
 // app works stand here: every number about a player comes from that player's
 // own games, on the screen that shows it. Pure data and rules, no DOM.
 import type { Route } from "../router";
+import type { GuideId } from "./guides";
 import type { IllusKind } from "./Illus";
 
 export interface Point {
@@ -18,6 +19,8 @@ export interface TourStop {
   points: Point[];
   /** The page the stop is about, with the label of the button that opens it. */
   go: { label: string; route: Route };
+  /** That page's own guide: the stop already introduced it, so it does not open again by itself. */
+  guide: GuideId;
 }
 
 export const TOUR_STOPS: TourStop[] = [
@@ -31,6 +34,7 @@ export const TOUR_STOPS: TourStop[] = [
       { title: "Jede Partie bekommt einen Bericht", text: "Mit Note, Wendepunkt und dem, was du daraus mitnimmst." },
     ],
     go: { label: "Partien öffnen", route: { view: "games" } },
+    guide: "games",
   },
   {
     id: "stats",
@@ -42,6 +46,7 @@ export const TOUR_STOPS: TourStop[] = [
       { title: "Vier Blickwinkel", text: "Überblick, Ergebnisse, Züge und Fehler, Eröffnungen." },
     ],
     go: { label: "Statistik ansehen", route: { view: "profile" } },
+    guide: "profile",
   },
   {
     id: "training",
@@ -53,6 +58,7 @@ export const TOUR_STOPS: TourStop[] = [
       { title: "Fortschritt, den du siehst", text: "Ich merke mir, was sitzt, und frage erst nach einer Pause wieder." },
     ],
     go: { label: "Training ansehen", route: { view: "training" } },
+    guide: "training",
   },
   {
     id: "players",
@@ -64,6 +70,7 @@ export const TOUR_STOPS: TourStop[] = [
       { title: "Gegner im Blick", text: "Wie spielt jemand, welche Eröffnungen, wo macht er Fehler?" },
     ],
     go: { label: "Spieler ansehen", route: { view: "players" } },
+    guide: "players",
   },
 ];
 
