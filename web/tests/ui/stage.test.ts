@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { PAGE_GUIDES } from "../../src/ui/stage/guides";
 import { backStep, canAdvance, onboardPath, TOUR_STOPS, tourStop } from "../../src/ui/stage/script";
-import { closeStage, currentShow, markSeen, openStage, resetSeen, type SeenStore, subscribeStage, wasSeen } from "../../src/ui/stage/store";
+import { autoFree, closeStage, currentShow, markSeen, mergeSeen, onSeenChange, openStage, resetSeen, type SeenStore, seenList, subscribeStage, takeAuto, wasSeen } from "../../src/ui/stage/store";
 import { AREAS } from "../../src/ui/Layout";
 import { toHash } from "../../src/ui/router";
 
@@ -55,6 +55,57 @@ describe("stage store", () => {
     expect(wasSeen("onboarding", null)).toBe(false);
     expect(() => markSeen("onboarding", null)).not.toThrow();
   });
+
+  it("counts the first report and the analysis guide as one explanation", () => {
+    const store = memoryStore();
+    markSeen("report:first", store);
+    expect(wasSeen("page:analysis", store)).toBe(true);
+    const other = memoryStore();
+    markSeen("page:analysis", other);
+    expect(wasSeen("report:first", other)).toBe(true);
+    // Unrelated pages stay on their own.
+    markSeen("page:profile", other);
+    expect(seenList(other)).toEqual(["page:analysis", "report:first", "page:profile"]);
+  });
+
+  it("reports each change for the synced copy, but not ids that came from it", () => {
+    const store = memoryStore();
+    const heard: string[][] = [];
+    const off = onSeenChange((l) => heard.push(l));
+    markSeen("page:games", store);
+    markSeen("page:games", store);
+    expect(mergeSeen(["page:games", "page:moves", "page:moves"], store)).toBe(true);
+    expect(mergeSeen(["page:moves"], store)).toBe(false);
+    resetSeen(store, memoryStore());
+    off();
+    markSeen("page:home", store);
+    // One mark, nothing for the repeat or the merge, the reset, then silence after off().
+    expect(heard).toEqual([["page:games"], []]);
+    expect(seenList(store)).toEqual(["page:home"]);
+  });
+});
+
+describe("one show by herself per visit", () => {
+  it("lets Lucena open one thing unasked per session, and the reset frees it again", () => {
+    const session = memoryStore();
+    expect(autoFree(session)).toBe(true);
+    expect(takeAuto(session)).toBe(true);
+    // The next page guide of the same visit waits.
+    expect(autoFree(session)).toBe(false);
+    expect(takeAuto(session)).toBe(false);
+    // A new visit (fresh session storage) may again.
+    expect(takeAuto(memoryStore())).toBe(true);
+    resetSeen(memoryStore(), session);
+    expect(autoFree(session)).toBe(true);
+  });
+
+  it("falls back to this page load when session storage is blocked", () => {
+    resetSeen(null, null);
+    expect(takeAuto(null)).toBe(true);
+    expect(autoFree(null)).toBe(false);
+    resetSeen(null, null);
+    expect(autoFree(null)).toBe(true);
+  });
 });
 
 describe("first start", () => {
@@ -96,6 +147,12 @@ describe("first start", () => {
     expect(TOUR_STOPS.map((s) => toHash(s.go.route))).toEqual(areas.map((a) => toHash(a.sub[0].route)));
     expect(tourStop("tour:training")?.id).toBe("training");
     expect(tourStop("ready")).toBeUndefined();
+  });
+
+  it("names the guide of the page each stop opens, so it is not told twice", () => {
+    // The first page of each area, by its guide: Partien, Überblick, Training (Heute), Gegner & Freunde.
+    expect(TOUR_STOPS.map((s) => s.guide)).toEqual(["games", "profile", "training", "players"]);
+    for (const s of TOUR_STOPS) expect(PAGE_GUIDES[s.guide], s.id).toBeDefined();
   });
 });
 

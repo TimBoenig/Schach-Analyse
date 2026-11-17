@@ -39,7 +39,7 @@ import { OpeningLine } from "./OpeningLine";
 import { GradeBadge, ReportPanel } from "./report/ReportPanel";
 import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { REPORT_INTRO } from "./stage/ReportStory";
-import { markSeen, openStage, wasSeen } from "./stage/store";
+import { currentShow, markSeen, openStage, takeAuto, wasSeen } from "./stage/store";
 import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
@@ -630,9 +630,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
   const highlights = useMemo(() => (game ? glanzzuege(game.moves) : []), [game]);
 
-  // The first report ever opened is told by Lucena in full screen; later ones from the button.
+  // The first report ever opened is told by Lucena in full screen; later ones
+  // from the button. It counts as the page's explanation (store.ts SAME_STORY)
+  // and as the one show of this visit.
   useEffect(() => {
-    if (tab === "report" && review && row && !wasSeen(REPORT_INTRO)) {
+    if (tab === "report" && review && row && !wasSeen(REPORT_INTRO) && !currentShow() && takeAuto()) {
       markSeen(REPORT_INTRO);
       openStage({ kind: "report", subject: row.id });
     }
@@ -1070,7 +1072,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             ) : (
               <div>
                 <div class="an-intro">
-                  {review ? (
+                  {/* With the report open below, its grade, headline and story button stand there; here only the hint. */}
+                  {review && tab === "report" ? null : review ? (
                     <>
                       <div class="an-intro-top">
                         <GradeBadge grade={review.grade} size="small" />

@@ -91,6 +91,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   }, []);
   useEffect(() => {
     if (step === "name") window.setTimeout(() => input.current?.focus({ preventScroll: true }), 420);
+    // A page this walk introduced does not open its own guide by itself later.
+    const shown = tourStop(step);
+    if (shown) markSeen(`page:${shown.guide}`);
   }, [step]);
 
   const finish = (to?: () => void) => {
