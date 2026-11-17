@@ -93,6 +93,30 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
       {a.id === "games" && analysing && <span class="side-status" title="Analyse läuft" />}
     </button>
   );
+  // An area with its sub-pages below while it is open; the others stay folded
+  // so the list stays short. Settings too: wide screens show no tab row, so
+  // "Analyse" and "Daten & Export" are only reachable from here. Account and
+  // legal notice have their own entries at the bottom and are not repeated.
+  const entry = (a: Area) => {
+    const subs = a.sub.filter((s) => s.route.view !== "account" && s.route.view !== "legal");
+    return (
+      <>
+        {item(a)}
+        {area.id === a.id && subs.length > 1 && (
+          <div class="side-sub" role="group" aria-label={a.label}>
+            {subs.map((s) => {
+              const on = s.match(route);
+              return (
+                <button key={s.label} class={`side-subitem${on ? " active" : ""}`} aria-current={on ? "page" : undefined} onClick={() => onNavigate(s.route)}>
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </>
+    );
+  };
   return (
     <aside class="side" aria-label="Hauptnavigation">
       <a class="side-brand" href="#/" title={BRAND}>
@@ -106,22 +130,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
       </button>
       <nav class="side-nav" aria-label="Bereiche">
         {MAIN_AREAS.map((a) => (
-          <div key={a.id}>
-            {item(a)}
-            {/* The sub-pages of the open area; the others stay folded so the list stays short. */}
-            {area.id === a.id && a.sub.length > 1 && (
-              <div class="side-sub" role="group" aria-label={a.label}>
-                {a.sub.map((s) => {
-                  const on = s.match(route);
-                  return (
-                    <button key={s.label} class={`side-subitem${on ? " active" : ""}`} aria-current={on ? "page" : undefined} onClick={() => onNavigate(s.route)}>
-                      {s.label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          <div key={a.id}>{entry(a)}</div>
         ))}
       </nav>
       <div class="side-spacer" />
@@ -149,7 +158,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
         </span>
       </button>
       <AccountItem active={route.view === "account"} onClick={() => onNavigate({ view: "account" })} />
-      {item(SETTINGS_AREA)}
+      {entry(SETTINGS_AREA)}
       <div class="side-meta">
         <button onClick={onKeys}>
           Tastenkürzel <kbd>?</kbd>
