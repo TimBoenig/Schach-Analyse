@@ -51,6 +51,7 @@ export {
   dueExercises,
   estimateMinutes,
   exerciseState,
+  gameExercises,
   LIBRARY_GROUPS,
   logTotals,
   pickSession,

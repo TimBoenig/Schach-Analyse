@@ -9,6 +9,7 @@ import {
   type Exercise,
   type ExerciseProgress,
   exerciseState,
+  gameExercises,
   logTotals,
   pickSession,
   poolTotals,
@@ -181,5 +182,14 @@ describe("sessionResult", () => {
     [{ w1: true, w2: false, m1: false }, "mixed"],
   ] as const)("judges %j as %s", (results, verdict) => {
     expect(sessionResult(parts, results).verdict).toBe(verdict);
+  });
+});
+
+describe("exercises from one game", () => {
+  it("collects the positions of that game in the order they happened, without openings", () => {
+    const at = (id: string, game: string, ply: number, kind: Exercise["kind"] = "puzzle") => ({ ...ex(id, "blunder", kind), game_id: game, ply_index: ply }) as Exercise;
+    const pool = [at("late", "g1", 40), at("other", "g2", 10), at("early", "g1", 12), at("end", "g1", 70, "playout"), at("line", "g1", 0, "repertoire")];
+    expect(gameExercises(pool, "g1")).toEqual(["early", "late", "end"]);
+    expect(gameExercises(pool, "g3")).toEqual([]);
   });
 });

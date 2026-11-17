@@ -248,3 +248,11 @@ export function startCategory(rows: CategoryOverview[], asked?: string): Categor
   if (asked && (CATEGORY_ORDER as string[]).includes(asked)) return asked as Category;
   return order.find((c) => (by.get(c)?.due ?? 0) > 0) ?? order.find((c) => (by.get(c)?.total ?? 0) > 0) ?? order[0];
 }
+
+/** The exercises made from one game's positions (its errors and missed chances), in the order they happened. */
+export function gameExercises(pool: Exercise[], gameId: string): string[] {
+  return pool
+    .filter((e) => e.kind !== "repertoire" && e.game_id === gameId)
+    .sort((a, b) => ((a.kind !== "repertoire" && a.ply_index) || 0) - ((b.kind !== "repertoire" && b.ply_index) || 0))
+    .map((e) => e.id);
+}

@@ -2,7 +2,7 @@
 // progress page. A running session replaces all three (focus mode).
 import { useState } from "preact/hooks";
 
-import { CATEGORIES, type Category, pickSession } from "../domain/training";
+import { CATEGORIES, type Category, gameExercises, pickSession } from "../domain/training";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
 import { navigate, type TrainingTab } from "./router";
@@ -16,6 +16,8 @@ import { TodayPage } from "./training/Today";
 import { useTraining } from "./training/useTraining";
 
 const GUIDE: Record<TrainingTab, GuideId> = { heute: "training", uebungen: "exercises", fortschritt: "progress" };
+// Route part of a link that practises one game: #/training/uebungen/partie-<game id>.
+const GAME_PREFIX = "partie-";
 
 export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; category?: string }) {
   const t = useTraining();
@@ -23,6 +25,16 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
   const [autoStarted, setAutoStarted] = useState(false);
   const ready = !t.loading && !t.error && Boolean(t.usernames?.length) && !session;
   usePageGuide(GUIDE[tab], ready);
+
+  // "Fehler üben" in a game report: the exercises made from that game, in move order.
+  const fromGame = category?.startsWith(GAME_PREFIX) ? category.slice(GAME_PREFIX.length) : null;
+  const [noGameExercises, setNoGameExercises] = useState(false);
+  if (!autoStarted && !t.loading && fromGame) {
+    setAutoStarted(true);
+    const ids = gameExercises(t.pool, fromGame);
+    if (ids.length) setSession({ title: "Fehler aus dieser Partie", ids });
+    else setNoGameExercises(true);
+  }
 
   // A link from the statistics ("Blunder-Check üben") starts that area at once.
   // Openings are the exception: they are the player's own choice, so the link
@@ -82,6 +94,14 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
           <span>Noch keine Partie analysiert: Endspiel-Grundlagen und Eröffnungen kannst du schon üben. Aufgaben aus deinen Fehlern kommen dazu, sobald Partien analysiert sind.</span>
           <button class="btn small" onClick={() => navigate({ view: "games" })}>
             Zu den Partien
+          </button>
+        </div>
+      )}
+      {noGameExercises && (
+        <div class="card notice tn-notice">
+          <span>Aus dieser Partie steht gerade keine Übung in deiner Bibliothek. Hier sind die übrigen Bereiche.</span>
+          <button class="btn small" onClick={() => setNoGameExercises(false)}>
+            Ausblenden
           </button>
         </div>
       )}

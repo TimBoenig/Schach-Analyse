@@ -17,6 +17,8 @@ export type { Evolution, EvolutionBlock, FeedbackItem, GameTypeStat, MetricChang
 export type { AccuracySpread, CurvePoint, PrecisionStats, RatingBucket, ScoreStat, Turnarounds } from "./precision";
 export { buildMoveTally, HIGHLIGHT_CLASSES, SERIOUS_CLASSES, sumOf, TALLY_CLASSES, TOP_CLASSES, totalOf } from "./moves";
 export type { ClassTally, Counts, MoveHighlight, MoveTally, TallyBlock, TallyClass, TallyFinding, TallyGame } from "./moves";
+export { ownStanding, parseGrade, reportMoments, sameSpeedAccuracies, winCurve } from "./reportCard";
+export type { Grade, Standing, WinPoint } from "./reportCard";
 export { errorExtremes, KIND_GROUPS, kindRows, lastMonths, MIN_TREND_MOVES, monthlyQuality, phaseQuality, spanQuality, tallySummary } from "./moveKinds";
 export type { ErrorBucket, ErrorExtreme, KindGroup, KindRow, MonthQuality, PhaseQuality, SpanQuality, TallySummary } from "./moveKinds";
 export { buildOpeningInsights, movesText, openingLabel, openingMain, openingParts } from "./openings";
