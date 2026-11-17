@@ -462,6 +462,7 @@ function periodRows(feats: GameFeatures[], key: (ts: number) => string, field: s
     return {
       [field]: k,
       games: fs.length,
+      analyzed: analyzed.length,
       wins: finished.filter((f) => f.rec.is_win).length,
       draws: finished.filter((f) => f.rec.is_draw).length,
       losses: finished.filter((f) => f.rec.is_loss).length,

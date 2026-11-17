@@ -1,0 +1,558 @@
+/* ==========================================================================
+   Nova profile (Statistik · Überblick): summary, skills table, findings,
+   style axes and the long view.
+   ========================================================================== */
+
+/* ---------- summary ---------- */
+
+.pf-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px;
+  scroll-margin-top: 16px;
+}
+.pf-hero-id {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pf-hero-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  font-size: clamp(24px, 2.4vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.pf-hero-title span {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.pf-hero-sub {
+  max-width: 76ch;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.pf-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.pf-stats .stat {
+  padding: 0 22px;
+  border-left: 1px solid var(--border);
+}
+.pf-stats .stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.pf-stats .stat:last-child {
+  padding-right: 0;
+}
+.pf-stats .level,
+.pf-stats .split {
+  margin: 4px 0 2px;
+}
+
+/* ---------- skills ---------- */
+
+.sk {
+  scroll-margin-top: 16px;
+}
+.sk-body {
+  display: grid;
+  grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+  align-items: start;
+  gap: 8px 36px;
+}
+.sk-web {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 360px;
+  margin: 26px auto 0;
+}
+.sk-legend {
+  display: flex;
+  gap: 16px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.sk-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sk-key {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  border-top: 2px solid var(--accent);
+}
+.sk-key.ref {
+  border-top: 2px dashed var(--text-3);
+}
+.sk-table {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.sk-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.25fr) minmax(90px, 1.6fr) 62px 22px;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 9px 8px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+.sk-table.with-elo .sk-row {
+  grid-template-columns: minmax(150px, 1.25fr) minmax(90px, 1.6fr) 62px 78px 22px;
+}
+.sk-head {
+  padding-top: 0;
+  padding-bottom: 8px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.sk-row .num {
+  text-align: right;
+}
+.sk-item + .sk-item {
+  border-top: 1px solid var(--border);
+}
+.sk-item > .sk-row {
+  transition: background 0.15s;
+}
+.sk-item > .sk-row:hover,
+.sk-item.active > .sk-row {
+  background: var(--surface-2);
+}
+.sk-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  font-weight: 600;
+}
+.sk-grade {
+  color: var(--text-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.sk-grade.good {
+  color: var(--win);
+}
+.sk-grade.bad {
+  color: var(--loss);
+}
+.sk-score {
+  font-size: 15px;
+  font-weight: 700;
+}
+.sk-elo {
+  color: var(--text-2);
+  font-weight: 600;
+}
+.sk-score small,
+.sk-elo small {
+  margin-left: 4px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+}
+.sk-chevron {
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  transition: transform 0.2s var(--ease);
+}
+.sk-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+.sk-item.open .sk-chevron {
+  transform: rotate(90deg);
+}
+.sk-item.faint .sk-name,
+.sk-item.faint .sk-score {
+  color: var(--text-2);
+}
+.sk-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 8px 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.55;
+  animation: stage-rise 0.3s var(--ease);
+}
+.sk-detail p {
+  margin: 0;
+}
+.sk-detail strong {
+  color: var(--text);
+}
+.sk .foot {
+  margin-top: 14px;
+}
+
+/* ---------- findings ---------- */
+
+.fd {
+  scroll-margin-top: 16px;
+}
+.fd-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+.fd-cols > div {
+  min-width: 0;
+  padding: 0 24px;
+}
+.fd-cols > div:first-child {
+  padding-left: 0;
+}
+.fd-cols > div:last-child {
+  padding-right: 0;
+  border-left: 1px solid var(--border);
+}
+.fd-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+.fd-title.pos::before,
+.fd-title.neg::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--win);
+}
+.fd-title.neg::before {
+  background: var(--loss);
+}
+.fd-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fd-item {
+  display: flex;
+  gap: 12px;
+  padding: 11px 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.fd-item + .fd-item {
+  border-top: 1px solid var(--border);
+}
+.fd-item strong {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.fd-item .small {
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.fd-mark {
+  width: 3px;
+  flex-shrink: 0;
+  margin: 3px 0;
+  border-radius: 3px;
+  background: var(--text-3);
+}
+.fd-item.pos .fd-mark {
+  background: var(--win);
+}
+.fd-item.neg .fd-mark {
+  background: var(--loss);
+}
+.fd-item.mid .fd-mark {
+  background: var(--warn);
+}
+.fd .insight-proof {
+  margin-top: 3px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.fd .examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.fd .facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.fd .facts li {
+  position: relative;
+  padding-left: 14px;
+}
+.fd .facts li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+
+/* Style axes: two poles, the player's dot between them with its ± band. */
+.axes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.axis {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(80px, 2fr) minmax(84px, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+.axis-end {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 550;
+  text-align: right;
+}
+.axis-end.right {
+  text-align: left;
+}
+.axis-end.on {
+  color: var(--text);
+}
+.axis-track {
+  position: relative;
+  height: 6px;
+  border-radius: 6px;
+  background: var(--surface-3);
+}
+.axis-track::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  background: var(--border-strong);
+}
+.axis-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.axis-dot {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--surface);
+}
+
+/* ---------- long view ---------- */
+
+.tr {
+  min-width: 0;
+}
+.tr .card-head {
+  margin-bottom: 10px;
+}
+.tr-figure {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.tr-figure strong {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.tr-figure .delta {
+  align-self: center;
+}
+.tr-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.tr-facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tr-facts dt {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.tr-facts dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+.tr-facts dd span {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 450;
+}
+.tr .foot {
+  margin-top: 12px;
+}
+
+/* ---------- narrower screens ---------- */
+
+@media (max-width: 1100px) {
+  .pf-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 0;
+  }
+  .pf-stats .stat:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .pf-stats .stat:nth-child(even) {
+    padding-right: 0;
+  }
+  .sk-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .pf .tr.span-7,
+  .pf .tr.span-5 {
+    grid-column: span 12;
+  }
+}
+@media (max-width: 760px) {
+  .pf-hero {
+    padding: 18px 16px;
+    gap: 18px;
+  }
+  .fd-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .fd-cols > div,
+  .fd-cols > div:first-child,
+  .fd-cols > div:last-child {
+    padding: 0;
+    border-left: 0;
+  }
+  .fd-cols > div + div {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+  .sk-row,
+  .sk-table.with-elo .sk-row {
+    grid-template-columns: minmax(0, 1fr) 56px 18px;
+    gap: 6px 10px;
+    padding: 10px 4px;
+  }
+  .sk-row > span:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .sk-head > span:nth-child(2),
+  .sk-elo,
+  .sk-head > span:nth-child(4) {
+    display: none;
+  }
+  .axis {
+    grid-template-columns: minmax(64px, 1fr) minmax(60px, 1.2fr) minmax(64px, 1fr);
+    gap: 8px;
+  }
+  .axis-end {
+    font-size: 11.5px;
+    overflow-wrap: anywhere;
+    hyphens: auto;
+  }
+  .sk-web {
+    margin-top: 0;
+  }
+}
+/* Phones: rating and record take a row each, the two comparisons share one. */
+@media (max-width: 520px) {
+  .pf-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px 18px;
+    padding-top: 16px;
+  }
+  .pf-stats .stat,
+  .pf-stats .stat:nth-child(even) {
+    padding: 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .pf-stats .stat:nth-child(-n + 2) {
+    grid-column: 1 / -1;
+  }
+  .pf-stats .stat:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+.fd-more {
+  margin-top: 8px;
+}
+.tr-pool {
+  width: auto;
+  min-height: 34px;
+  padding: 4px 30px 4px 12px;
+  font-size: 13px;
+  font-weight: 550;
+}

@@ -39,7 +39,7 @@ import { AreaChart, BarList, RadarChart, ratingSeriesPoints, StackBar } from "./
 import type { BarRow } from "./charts";
 import { Calendar, FormStats, RecentGames } from "./HomeView";
 import { ClassTiles, VersusBars } from "./MoveTally";
-import { StyleAxes } from "./ProfileView";
+import { StyleAxes } from "./profile/Findings";
 import { IconEye, IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { loadedAgo, SPEED_DE } from "./labels";
 import { navigate, toHash } from "./router";

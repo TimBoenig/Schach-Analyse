@@ -34,7 +34,8 @@ import { IconPlay } from "./icons";
 import { navigate, type TrainingTab } from "./router";
 import { COACH_NAME, Coach, CoachAvatar, NeedNames } from "./Coach";
 import { CountUp, Foot, Hero, HeroStat, Meter, ScaleTrack } from "./kit";
-import { Examples, skillCategory } from "./ProfileView";
+import { Examples } from "./profile/Findings";
+import { skillCategory } from "./profile/SkillsCard";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./training/Runners";
 import { type TrainingState, useTraining } from "./training/useTraining";
 
