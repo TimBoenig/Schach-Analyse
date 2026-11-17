@@ -29,14 +29,15 @@ import {
   moveVerdict,
   resultText,
   shortOpening,
+  SPEED_DE,
 } from "./labels";
 import { isTyping } from "./keys";
 import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
-import { Coach, moodFor } from "./Coach";
 import { OpeningLine } from "./OpeningLine";
-import { ReportPanel } from "./report/ReportPanel";
+import { GradeBadge, ReportPanel } from "./report/ReportPanel";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { REPORT_INTRO } from "./stage/ReportStory";
 import { markSeen, openStage, wasSeen } from "./stage/store";
 import { useBook } from "./useBook";
@@ -672,6 +673,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     [game?.game_id, game?.moves.length],
   );
 
+  usePageGuide("analysis", Boolean(row && game));
+
   if (row === undefined) return <div class="skeleton" style={{ height: "60vh" }} />;
   if (!row || !game) {
     return (
@@ -863,32 +866,48 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
   return (
     <div>
-      <div class="page-title">
-        <button class="btn icon" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
+      <header class="an-head">
+        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
           <IconBack />
         </button>
-        <span class="game-title">
-          <span class="game-title-names">
-            {game.metadata.white} – {game.metadata.black}
-          </span>
-          <span class="game-title-result tnum">{resultText(game.metadata.result)}</span>
-        </span>
+        <div class="an-head-title">
+          <h1>
+            <span class="an-player">
+              <span class="side-dot white" />
+              {game.metadata.white}
+              {game.metadata.white_elo ? <span class="faint tnum">{game.metadata.white_elo}</span> : null}
+            </span>
+            <span class="an-result tnum">{resultText(game.metadata.result)}</span>
+            <span class="an-player">
+              <span class="side-dot black" />
+              {game.metadata.black}
+              {game.metadata.black_elo ? <span class="faint tnum">{game.metadata.black_elo}</span> : null}
+            </span>
+          </h1>
+          <p class="an-head-sub">
+            {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
         <span class="spacer" />
-        <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
-          <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
-        </button>
-        <button
-          class="btn icon ghost danger"
-          aria-label="Partie löschen"
-          onClick={() => {
-            if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) {
-              void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
-            }
-          }}
-        >
-          <IconTrash />
-        </button>
-      </div>
+        <div class="an-head-actions">
+          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
+            <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
+          </button>
+          <GuideButton id="analysis" />
+          <button
+            class="btn icon ghost danger"
+            aria-label="Partie löschen"
+            title="Partie löschen"
+            onClick={() => {
+              if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) {
+                void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+              }
+            }}
+          >
+            <IconTrash />
+          </button>
+        </div>
+      </header>
       <div class="analysis">
         <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
@@ -1017,54 +1036,66 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </>
             ) : move ? (
               <div class="move-explain">
-                <Coach
-                  mood={moodFor(move.classification)}
-                  tone={CLASS_COLOR[move.classification]}
-                  title={
-                    <>
-                      {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" />}
-                      <span style={{ color: CLASS_COLOR[move.classification] }}>{moveVerdict(move)}</span>
-                    </>
-                  }
-                >
-                  {move.classification === "Book" ? (
-                    <BookNote move={move} next={book?.[bookKey(gameFen)]} />
-                  ) : (
-                    // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
-                    (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
-                      <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
-                    )
-                  )}
-                  {reasons.length > 0 && (
-                    <ul class="reasons">
-                      {reasons.map((r) => (
-                        <li key={r}>{r}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
-                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
-                    <div class="small" style={{ marginTop: "4px" }}>
-                      Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
-                    </div>
-                  )}
-                </Coach>
+                <div class="an-verdict" style={{ "--tone": CLASS_COLOR[move.classification] ?? "var(--text-3)" }}>
+                  <div class="an-verdict-head">
+                    {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" width={26} height={26} />}
+                    <strong>{moveVerdict(move)}</strong>
+                  </div>
+                  <div class="an-verdict-body">
+                    {move.classification === "Book" ? (
+                      <BookNote move={move} next={book?.[bookKey(gameFen)]} />
+                    ) : (
+                      // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
+                      (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
+                        <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
+                      )
+                    )}
+                    {reasons.length > 0 && (
+                      <ul class="reasons">
+                        {reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
+                    {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
+                      <div class="small" style={{ marginTop: "4px" }}>
+                        Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             ) : (
               <div>
-                <Coach
-                  mood="happy"
-                  title={review && tab === "moves" ? review.headline : "Lass uns die Partie zusammen durchgehen!"}
-                >
-                  <p class="small">
-                    {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
-                  </p>
-                  <p class="small">
-                    Blättere mit den Pfeilen oder wische über das Brett. Ich sage dir zu jedem Zug, wie gut er war und was
-                    besser gewesen wäre. Ziehe selbst eine Figur, um eine eigene Variante auszuprobieren.
-                  </p>
-                </Coach>
+                <div class="an-intro">
+                  {review ? (
+                    <>
+                      <div class="an-intro-top">
+                        <GradeBadge grade={review.grade} size="small" />
+                        <div class="an-intro-text">
+                          <span class="eyebrow">Lucena · deine Partie</span>
+                          <strong>{review.headline}</strong>
+                        </div>
+                      </div>
+                      <div class="an-intro-actions">
+                        <button class="btn primary small" onClick={() => openStage({ kind: "report", subject: row.id })}>
+                          <IconPlay /> Lucena erklärt die Partie
+                        </button>
+                        <button class="btn small" onClick={() => setTab("report")}>
+                          Bericht lesen
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div class="an-intro-text">
+                      <span class="eyebrow">Lucena · deine Partie</span>
+                      <strong>{status === "completed" ? "Geh die Partie Zug für Zug durch." : "Sobald die Partie analysiert ist, sage ich dir zu jedem Zug, wie gut er war."}</strong>
+                    </div>
+                  )}
+                  <p class="an-intro-hint">Pfeiltasten oder Wischen übers Brett blättern. Zieh selbst eine Figur, um eine eigene Variante auszuprobieren.</p>
+                </div>
                 <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             )}

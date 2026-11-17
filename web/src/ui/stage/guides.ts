@@ -58,7 +58,8 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
         sub: "Links das Brett, rechts die Züge. Jeder Zug trägt sein Urteil.",
         illus: "engine",
         points: [
-          { title: "Pfeile auf dem Brett", text: "Grün ist der beste Zug, orange der gespielte. Mit den Pfeiltasten gehst du durch die Partie." },
+          { title: "Durch die Partie", text: "Pfeiltasten oder ein Wisch übers Brett. „Fehler“ unter dem Brett springt direkt zu deinen Fehlern." },
+          { title: "Eigene Varianten", text: "Zieh selbst eine Figur. Ich bewerte deine Züge sofort und du kommst jederzeit zur Partie zurück." },
           { title: "Die Linie unter dem Brett", text: "Zeigt, wer wann besser stand. Jeder Knick ist ein Moment, der die Partie gedreht hat." },
         ],
       },
@@ -67,7 +68,7 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
         sub: "Eine Note, der Wendepunkt, deine drei Phasen und was du daraus mitnimmst.",
         points: [
           { title: "Die Note", text: "Misst deine Züge, nicht das Ergebnis. Eine verlorene Partie kann eine gute Note haben." },
-          { title: "Im Vollbild", text: "Mit „Bericht mit Lucena“ gehe ich die Partie Schritt für Schritt mit dir durch." },
+          { title: "Im Vollbild", text: "Mit „Lucena erklärt die Partie“ gehe ich sie Schritt für Schritt mit dir durch: Note, Wendepunkt, dein bester und dein teuerster Zug." },
         ],
       },
     ],

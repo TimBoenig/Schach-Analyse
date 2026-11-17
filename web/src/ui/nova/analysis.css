@@ -1,0 +1,174 @@
+/* ==========================================================================
+   Nova analysis page (AnalysisView): the game header, Lucena's card at the
+   start of a game and the verdict of each move. The board and move list
+   keep their own rules.
+   ========================================================================== */
+
+.an-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 18px;
+}
+.an-head-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.an-head h1 {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.an-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.an-player .faint {
+  font-size: 15px;
+  font-weight: 550;
+}
+.an-player .side-dot {
+  width: 11px;
+  height: 11px;
+}
+.an-result {
+  padding: 2px 9px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 650;
+}
+.an-head-sub {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.an-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- start of the game ---------- */
+
+.an-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.an-intro-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.an-intro-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.an-intro-text strong {
+  font-size: 15.5px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-wrap: balance;
+}
+.an-intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.an-intro-hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.rp-grade.small {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+}
+.rp-grade.small strong {
+  font-size: 24px;
+}
+.rp-grade.small .rp-grade-label,
+.rp-grade.small .rp-grade-word {
+  font-size: 10px;
+}
+.rp-grade.small .rp-grade-word {
+  margin-top: 2px;
+}
+
+/* ---------- one move's verdict ---------- */
+
+.an-verdict {
+  --tone: var(--text-3);
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 9%, var(--surface-2));
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+.an-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.an-verdict-head img {
+  flex-shrink: 0;
+}
+.an-verdict-head strong {
+  color: color-mix(in srgb, var(--tone) 70%, var(--text));
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+.an-verdict-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.an-verdict-body strong {
+  color: var(--text);
+}
+.an-verdict-body .reasons {
+  margin: 0;
+  padding-left: 18px;
+}
+.an-verdict-body .reasons li + li {
+  margin-top: 3px;
+}
+
+@media (max-width: 640px) {
+  .an-head h1 {
+    font-size: 17px;
+  }
+  .an-player .faint {
+    font-size: 13px;
+  }
+  .an-head-title {
+    flex: 1 1 200px;
+  }
+  .an-head-actions .wide-label {
+    display: none;
+  }
+}
+.an-head .spacer {
+  flex: 1;
+}

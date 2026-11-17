@@ -239,3 +239,11 @@ a {
   background-clip: text;
   color: transparent;
 }
+
+/* The last move on the default slate board (and on grey) in iris instead of
+   the classic yellow, which read as gold. The wooden and green boards keep
+   their classic highlight, since that is what they imitate. */
+:root[data-board="schiefer"],
+:root[data-board="grau"] {
+  --sq-last: rgba(124, 140, 255, 0.55);
+}
