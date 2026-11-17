@@ -3,6 +3,18 @@
 // last-writer-wins on `updated_at`. Games travel in a compact form (see
 // compact.ts): metadata, PGN, summary and packed move ratings, never the full
 // engine lines. Engine evaluations stay device-local.
+//
+// A round (`syncWith`) works in small, independent steps so that one slow
+// request or one broken record can never hold up the rest:
+//   1. read only the headers (id, timestamp, analysis status) of what changed
+//      online, a few bytes per record;
+//   2. compare them with the local records and download the games that are
+//      newer or richer online, a few dozen per request, each batch stored at
+//      once;
+//   3. upload what is newer or richer here, in size-limited batches that are
+//      split on failure until the one bad record is isolated.
+// Every few hours (and at sign-in or on request) the headers of *all* records
+// are compared, which also repairs anything an earlier round missed.
 // supabase-js is loaded on demand so it stays out of the startup bundle.
 import type { AuthChangeEvent, SupabaseClient, User } from "@supabase/supabase-js";
 
@@ -11,14 +23,38 @@ import {
   getSetting,
   listAllGameRecords,
   listSettingRecords,
-  putGames,
+  mergeGames,
+  mergeSettingRecords,
   putSettingRecords,
   setSetting,
   type SettingRecord,
 } from "./db";
-import { COMPACT_VERSION, fromCloudGame, keepRicherMoves, toCloudGame, type CloudGame } from "./compact";
+import {
+  analysisRank,
+  COMPACT_VERSION,
+  fromCloudGameSafe,
+  mergeIncomingGame,
+  statusRank,
+  toCloudGame,
+  type CloudGame,
+} from "./compact";
 
 type Kind = "game" | "setting";
+
+/** What the server tells about a record without sending its data. */
+interface RemoteHead {
+  kind: Kind;
+  id: string;
+  updated_at: number;
+  deleted: boolean;
+  server_seq: number;
+  /** analysis_status of a game's summary; null for settings and tombstones. */
+  status: string | null;
+  /** Version of the compact move format; null when the game carries no packed moves. */
+  moves_v: string | null;
+  /** First move of a full `moves_json` written by an old client; null for compact records. */
+  legacy: string | null;
+}
 
 interface RemoteRow {
   kind: Kind;
@@ -30,11 +66,33 @@ interface RemoteRow {
 }
 
 /** Local settings that describe sync state itself must not sync. */
-const LOCAL_ONLY_SETTINGS = new Set(["sync.lastSeq", "sync.lastPushAt", "sync.lastSyncAt", "sync.compact"]);
-const PAGE = 200;
+const isLocalOnly = (key: string) => key.startsWith("sync.");
+// The aliases read single values out of the record's JSON on the server, so the
+// data itself never travels just to be compared.
+const HEAD_COLUMNS: string =
+  "kind,id,updated_at,deleted,server_seq,status:data->summary_json->>analysis_status,moves_v:data->moves_c->>v,legacy:data->moves_json->0->>uci";
+const DATA_COLUMNS: string = "kind,id,data,updated_at,deleted,server_seq";
+
+/** Request sizes and pauses; tests shrink them to exercise splitting and retrying quickly. */
+export const tuning = {
+  /** Headers asked per request. The server may cap this lower: pages are read until one comes back empty. */
+  headPage: 1000,
+  /** Games downloaded per request (about 9 KB each). */
+  fetchChunk: 40,
+  /** Records and bytes (of data) per upload request. */
+  pushItems: 50,
+  pushBytes: 250_000,
+  /** Pause before the first retry of a failed request; doubles with each further one. */
+  retryDelayMs: 500,
+};
+const ATTEMPTS = 3;
 // Rows committed concurrently can land with a lower sequence number than one
-// already pulled; re-reading a small window is harmless because merging is idempotent.
+// already read; re-reading a small window is harmless because merging is idempotent.
 const SEQ_OVERLAP = 50;
+const FULL_EVERY_MS = 6 * 60 * 60 * 1000;
+// A local change made while a round runs carries a timestamp from after the round
+// began; the margin also covers a clock that is a moment off.
+const CLOCK_MARGIN_MS = 2000;
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
@@ -96,69 +154,138 @@ export async function currentUser(): Promise<User | null> {
   return data.session?.user ?? null;
 }
 
-export interface MergeResult<T> {
-  toLocal: T[];
-  toRemote: T[];
+// ---- requests ----
+
+/** Thrown when the server cannot be reached at all: there is no point in going on with this round. */
+class RoundAbort extends Error {}
+
+const sleep = (ms: number) => (ms > 0 ? new Promise<void>((resolve) => setTimeout(resolve, ms)) : Promise.resolve());
+
+function messageOf(e: unknown): string {
+  return e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
 }
 
-/** Last-writer-wins merge on updated_at; ties keep the local copy. */
-export function mergeRecords<T extends { updated_at: number }>(
-  local: Map<string, T>,
-  remote: Map<string, T>,
-  lastPushAt: number,
-): MergeResult<T> {
-  const toLocal: T[] = [];
-  const toRemote: T[] = [];
-  for (const [id, r] of remote) {
-    const l = local.get(id);
-    if (!l || r.updated_at > l.updated_at) toLocal.push(r);
-  }
-  for (const [id, l] of local) {
-    const r = remote.get(id);
-    if (r ? l.updated_at > r.updated_at : l.updated_at > lastPushAt) toRemote.push(l);
-  }
-  return { toLocal, toRemote };
+function chunks<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
 }
 
-async function pullSince(sb: SupabaseClient, sinceSeq: number): Promise<{ rows: RemoteRow[]; maxSeq: number }> {
-  const rows: RemoteRow[] = [];
+/** Runs requests with a few retries. */
+class Requests {
+  async run(request: () => PromiseLike<{ data: unknown; error: unknown }>, attempts = ATTEMPTS): Promise<unknown[]> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const { data, error } = await request();
+        if (error) throw error;
+        return Array.isArray(data) ? data : [];
+      } catch (e) {
+        if (attempt >= attempts) throw e;
+        await sleep(tuning.retryDelayMs * 2 ** (attempt - 1));
+      }
+    }
+  }
+
+  /**
+   * Called when a request failed for good. A server that does not answer a
+   * trivial question is out of reach and the round stops; one that does has
+   * rejected this particular request, which is then split or given up on.
+   */
+  async assertReachable(sb: SupabaseClient): Promise<void> {
+    try {
+      await this.run(() => sb.from("sync_records").select("id").limit(1), 1);
+    } catch (e) {
+      throw new RoundAbort(messageOf(e));
+    }
+  }
+}
+
+/**
+ * Asks for records by id until all that exist have arrived. A server can cap
+ * the rows per answer below the number asked for, so a short answer is no
+ * sign that the rest is missing; an empty one is.
+ */
+async function byId<T extends { id: string }>(ids: string[], request: (part: string[]) => Promise<T[]>): Promise<T[]> {
+  const out: T[] = [];
+  let todo = ids;
+  while (todo.length) {
+    const rows = await request(todo);
+    if (!rows.length) break;
+    out.push(...rows);
+    const got = new Set(rows.map((r) => r.id));
+    todo = todo.filter((id) => !got.has(id));
+  }
+  return out;
+}
+
+/** Headers of everything that changed online after `sinceSeq`, newest state per record. */
+async function pullHeads(net: Requests, sb: SupabaseClient, sinceSeq: number): Promise<{ heads: Map<string, RemoteHead>; maxSeq: number }> {
+  const heads = new Map<string, RemoteHead>();
   let cursor = Math.max(0, sinceSeq - SEQ_OVERLAP);
   let maxSeq = sinceSeq;
   for (;;) {
-    const { data, error } = await sb
-      .from("sync_records")
-      .select("kind,id,data,updated_at,deleted,server_seq")
-      .gt("server_seq", cursor)
-      .order("server_seq", { ascending: true })
-      .limit(PAGE);
-    if (error) throw error;
-    const page = (data ?? []) as RemoteRow[];
-    rows.push(...page);
-    if (page.length) {
-      cursor = page[page.length - 1].server_seq;
-      maxSeq = Math.max(maxSeq, cursor);
-    }
-    if (page.length < PAGE) break;
+    const page = (await net.run(() =>
+      sb.from("sync_records").select(HEAD_COLUMNS).gt("server_seq", cursor).order("server_seq", { ascending: true }).limit(tuning.headPage),
+    )) as RemoteHead[];
+    // Only an empty page ends the loop: the server may hand out fewer rows than asked for.
+    if (!page.length) break;
+    for (const h of page) heads.set(`${h.kind}:${h.id}`, h);
+    const next = Math.max(cursor, page[page.length - 1].server_seq);
+    if (next === cursor) break; // a page that does not move on would repeat forever
+    cursor = next;
+    maxSeq = Math.max(maxSeq, cursor);
   }
-  return { rows, maxSeq };
+  return { heads, maxSeq };
 }
 
-async function push(
+async function headsFor(net: Requests, sb: SupabaseClient, kind: Kind, ids: string[]): Promise<Map<string, RemoteHead>> {
+  const out = new Map<string, RemoteHead>();
+  for (const part of chunks(ids, 100)) {
+    const rows = await byId(part, async (todo) => (await net.run(() => sb.from("sync_records").select(HEAD_COLUMNS).eq("kind", kind).in("id", todo))) as RemoteHead[]);
+    for (const h of rows) out.set(h.id, h);
+  }
+  return out;
+}
+
+/**
+ * Downloads records by id. A request that fails is retried and then split in
+ * halves, so a record the server cannot deliver ends up alone in `lost`
+ * while everything around it still arrives.
+ */
+async function fetchRows(
+  net: Requests,
   sb: SupabaseClient,
-  userId: string,
   kind: Kind,
-  items: { id: string; data: unknown; updated_at: number; deleted: boolean }[],
-) {
-  for (let i = 0; i < items.length; i += 25) {
-    const batch = items.slice(i, i + 25).map((it) => ({ user_id: userId, kind, ...it }));
-    const { error } = await sb.from("sync_records").upsert(batch, { onConflict: "user_id,kind,id" });
-    if (error) throw error;
+  ids: string[],
+  attempts = ATTEMPTS,
+): Promise<{ rows: RemoteRow[]; lost: string[] }> {
+  try {
+    const rows = await byId(ids, async (todo) => (await net.run(() => sb.from("sync_records").select(DATA_COLUMNS).eq("kind", kind).in("id", todo), attempts)) as RemoteRow[]);
+    return { rows, lost: [] };
+  } catch (e) {
+    if (e instanceof RoundAbort) throw e;
+    await net.assertReachable(sb);
+    if (ids.length === 1) return { rows: [], lost: ids };
+    // The server answers, so this batch holds a record it chokes on: one try per half is enough.
+    const mid = ids.length >> 1;
+    const a = await fetchRows(net, sb, kind, ids.slice(0, mid), 1);
+    const b = await fetchRows(net, sb, kind, ids.slice(mid), 1);
+    return { rows: [...a.rows, ...b.rows], lost: [...a.lost, ...b.lost] };
   }
 }
+
+// ---- status ----
 
 export interface SyncReport {
   pulled: number;
   pushed: number;
+  /** Records that could not be transferred this time; they are tried again next round. */
+  failed: number;
+}
+
+export interface SyncOptions {
+  /** Compare every record, not only what changed since the last round. */
+  full?: boolean;
 }
 
 export type SyncPhase = "off" | "signed-out" | "idle" | "running" | "error";
@@ -199,114 +326,279 @@ export async function refreshSyncStatus(): Promise<SyncStatus> {
 }
 
 let running: Promise<SyncReport> | null = null;
+let runningFull = false;
 
 /** Pull remote changes, merge, push local changes. Concurrent calls share one run. */
-export function syncNow(): Promise<SyncReport> {
-  if (!running) {
-    running = (async () => {
-      const sb = await supabase();
-      const user = await currentUser();
-      if (!sb || !user) {
-        setStatus({ phase: sb ? "signed-out" : "off", email: null, error: null });
-        return { pulled: 0, pushed: 0 };
-      }
-      setStatus({ phase: "running", email: user.email ?? null, error: null });
-      try {
-        const report = await syncWith(sb, user.id);
-        setStatus({ phase: "idle", lastAt: Date.now() });
-        return report;
-      } catch (e) {
-        setStatus({ phase: "error", error: describeSyncError(e) });
-        throw e;
-      }
-    })().finally(() => (running = null));
+export function syncNow(opts: SyncOptions = {}): Promise<SyncReport> {
+  if (running) {
+    // A full comparison asked for during an ordinary round runs right after it.
+    if (opts.full && !runningFull) return running.then(() => syncNow(opts), () => syncNow(opts));
+    return running;
   }
+  runningFull = Boolean(opts.full);
+  running = (async () => {
+    const sb = await supabase();
+    const user = await currentUser();
+    if (!sb || !user) {
+      setStatus({ phase: sb ? "signed-out" : "off", email: null, error: null });
+      return { pulled: 0, pushed: 0, failed: 0 };
+    }
+    setStatus({ phase: "running", email: user.email ?? null, error: null });
+    try {
+      const report = await syncWith(sb, user.id, opts);
+      if (report.failed) setStatus({ phase: "error", error: describeFailed(report.failed) });
+      else setStatus({ phase: "idle", lastAt: Date.now(), error: null });
+      return report;
+    } catch (e) {
+      setStatus({ phase: "error", error: describeSyncError(e) });
+      throw e;
+    }
+  })().finally(() => (running = null));
   return running;
+}
+
+function describeFailed(n: number): string {
+  return `${n === 1 ? "Ein Eintrag" : `${n} Einträge`} konnte${n === 1 ? "" : "n"} gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.`;
 }
 
 /** German message for a failed round; a paused or unreachable server is the usual cause. */
 export function describeSyncError(e: unknown): string {
-  const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : String(e);
+  const msg = messageOf(e);
   if (typeof navigator !== "undefined" && navigator.onLine === false) return "Offline. Der Abgleich läuft weiter, sobald du wieder Internet hast.";
   if (/failed to fetch|network|load failed|timeout|503|504|522|540/i.test(msg)) {
     return "Der Sync-Server antwortet nicht. Deine Daten bleiben sicher auf diesem Gerät und werden später abgeglichen.";
   }
+  if (/402|quota|exceed/i.test(msg)) return "Der Sync-Server hat sein Datenkontingent aufgebraucht. Deine Daten bleiben auf diesem Gerät; der Abgleich läuft später weiter.";
   if (/jwt|token|session/i.test(msg)) return "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.";
   return `Abgleich fehlgeschlagen: ${msg}`;
 }
 
-/** One pull-merge-push round for `userId` (exported for tests with a fake client). */
-export async function syncWith(sb: SupabaseClient, userId: string): Promise<SyncReport> {
-  const user = { id: userId };
+// ---- one round ----
+
+/** True when the online copy carries analysis the local game lacks. */
+function cloudHasMore(head: RemoteHead, local: StoredGame): boolean {
+  return !head.deleted && !local.deleted && (statusRank(head.status) ?? 0) > analysisRank(local);
+}
+
+/** True when the online record is in an older format than this version writes. */
+function needsRecompact(head: RemoteHead): boolean {
+  return head.legacy != null || (head.moves_v != null && Number(head.moves_v) < COMPACT_VERSION);
+}
+
+interface PushItem {
+  id: string;
+  data: unknown;
+  updated_at: number;
+  deleted: boolean;
+}
+
+/**
+ * One round for `userId` (exported for tests with a fake client).
+ *
+ * Nothing in it relies on the round being fast or on the network behaving: what
+ * was downloaded is stored batch by batch, a record that cannot be transferred
+ * is remembered and retried later, and anything changed on this device while the
+ * round runs (for example an analysis that just finished) is uploaded by the next one.
+ */
+export async function syncWith(sb: SupabaseClient, userId: string, opts: SyncOptions = {}): Promise<SyncReport> {
+  // Local changes after this moment belong to the next round, however long this one takes.
+  const startedAt = Date.now();
+  const net = new Requests();
 
   const owner = await getSetting<string>("sync.owner", "");
-  // A different account on this device starts from a full pull/push.
-  const lastSeq = owner === user.id ? await getSetting<number>("sync.lastSeq", 0) : 0;
-  const lastPushAt = owner === user.id ? await getSetting<number>("sync.lastPushAt", 0) : 0;
+  const mine = owner === userId;
+  // A different account on this device starts from scratch.
+  const lastSeq = mine ? await getSetting<number>("sync.lastSeq", 0) : 0;
+  const lastPushAt = mine ? await getSetting<number>("sync.lastPushAt", 0) : 0;
+  const lastFullAt = mine ? await getSetting<number>("sync.lastFullAt", 0) : 0;
+  const retry = new Set(mine ? await getSetting<string[]>("sync.retry", []) : []);
+  const compactDone = mine && (await getSetting<number>("sync.compact", 0)) >= COMPACT_VERSION;
+  // A full round compares the headers of every record; it also finds records an
+  // earlier round missed (an upload that never happened, a game that could not be read).
+  const full = Boolean(opts.full) || !mine || !compactDone || startedAt - lastFullAt > FULL_EVERY_MS;
 
-  const { rows, maxSeq } = await pullSince(sb, lastSeq);
-  const remoteGames = new Map<string, StoredGame>();
-  const remoteSettings = new Map<string, SettingRecord>();
-  for (const r of rows) {
-    if (r.kind === "game") {
-      remoteGames.set(r.id, { ...(r.data as StoredGame), id: r.id, updated_at: r.updated_at, deleted: r.deleted });
-    } else if (!LOCAL_ONLY_SETTINGS.has(r.id)) {
-      remoteSettings.set(r.id, { key: r.id, value: r.data, updated_at: r.updated_at, deleted: r.deleted });
-    }
-  }
+  const { heads, maxSeq } = await pullHeads(net, sb, full ? 0 : lastSeq);
 
   const localGames = new Map((await listAllGameRecords()).map((g) => [g.id, g]));
-  const localSettings = new Map(
-    (await listSettingRecords()).filter((s) => !s.key.startsWith("sync.")).map((s) => [s.key, s]),
-  );
+  const localSettings = new Map((await listSettingRecords()).filter((s) => !isLocalOnly(s.key)).map((s) => [s.key, s]));
 
-  const games = mergeRecords(localGames, remoteGames, lastPushAt);
-  const settings = mergeRecords(localSettings, remoteSettings, lastPushAt);
+  // ---- what to download, what to upload ----
+  const wantGames = new Set<string>();
+  const sendGames = new Set<string>();
+  const wantSettings = new Set<string>();
+  const sendSettings = new Set<string>();
 
-  // Only games that win the merge are unpacked (rebuilding moves from the PGN costs time).
-  const incoming: StoredGame[] = [];
-  for (const g of games.toLocal) {
-    const { id, updated_at, deleted, ...data } = g;
-    const decoded = await fromCloudGame(data as unknown as CloudGame, { id, updated_at, deleted: Boolean(deleted) });
-    const { game, repush } = keepRicherMoves(localGames.get(id), decoded);
-    incoming.push(game);
-    if (repush) games.toRemote.push(game);
+  for (const h of heads.values()) {
+    if (h.kind === "game") {
+      const l = localGames.get(h.id);
+      if (!l) {
+        // A deletion of a game this device never had needs no download.
+        if (!h.deleted) wantGames.add(h.id);
+        continue;
+      }
+      const cloudNewer = h.updated_at - l.updated_at;
+      // The newer copy wins, but never at the cost of analysis; at equal age only a full
+      // round looks again, which retries games whose analysis could not be read before.
+      if (cloudNewer > 0 || (cloudHasMore(h, l) && (cloudNewer < 0 || full))) wantGames.add(h.id);
+      else if (cloudNewer < 0) sendGames.add(h.id);
+    } else if (!isLocalOnly(h.id)) {
+      const l = localSettings.get(h.id);
+      if (!l || h.updated_at > l.updated_at) wantSettings.add(h.id);
+      else if (h.updated_at < l.updated_at) sendSettings.add(h.id);
+    }
   }
-  await putGames(incoming, { touch: false });
-  if (settings.toLocal.length) await putSettingRecords(settings.toLocal);
-
-  // Records uploaded by an older version carry the full analysis; re-upload
-  // everything once in the compact form to shrink the online copy.
-  const compactDone = owner === user.id && (await getSetting<number>("sync.compact", 0)) >= COMPACT_VERSION;
-  if (!compactDone) {
-    const skip = new Set([...games.toRemote, ...games.toLocal].map((g) => g.id));
-    for (const g of localGames.values()) if (!skip.has(g.id)) games.toRemote.push(g);
+  // Records the server does not know: new here, or (in a full round) never received.
+  for (const l of localGames.values()) {
+    if (heads.has(`game:${l.id}`)) continue;
+    if (full ? !l.deleted : l.updated_at > lastPushAt) sendGames.add(l.id);
+  }
+  for (const l of localSettings.values()) {
+    if (!heads.has(`setting:${l.key}`) && (full || l.updated_at > lastPushAt)) sendSettings.add(l.key);
+  }
+  // Records uploaded by an older version carry the full analysis; send them once
+  // more in the compact form to shrink the online copy.
+  for (const h of heads.values()) {
+    const l = h.kind === "game" ? localGames.get(h.id) : undefined;
+    if (l && !l.deleted && needsRecompact(h) && !wantGames.has(l.id)) sendGames.add(l.id);
+  }
+  // What failed to upload last time.
+  for (const k of retry) {
+    if (k.startsWith("game:") && localGames.has(k.slice(5)) && !wantGames.has(k.slice(5))) sendGames.add(k.slice(5));
+    if (k.startsWith("setting:") && localSettings.has(k.slice(8))) sendSettings.add(k.slice(8));
   }
 
-  const pushStarted = Date.now();
-  const gameItems = [];
-  for (const g of games.toRemote) {
-    gameItems.push({ id: g.id, data: await toCloudGame(g), updated_at: g.updated_at, deleted: Boolean(g.deleted) });
-  }
-  await push(sb, user.id, "game", gameItems);
-  await push(
-    sb,
-    user.id,
-    "setting",
-    settings.toRemote.map((s) => ({ id: s.key, data: s.value ?? null, updated_at: s.updated_at, deleted: Boolean(s.deleted) })),
-  );
+  // ---- download ----
+  let pulled = 0;
+  const repush = new Set<string>();
+  const missed = new Set<string>();
 
-  await putSettingRecords(
-    [
-      { key: "sync.owner", value: user.id, updated_at: 0 },
+  const downloadGames = async (ids: string[]): Promise<void> => {
+    for (const part of chunks(ids, tuning.fetchChunk)) {
+      const { rows, lost } = await fetchRows(net, sb, "game", part);
+      for (const id of lost) missed.add(id);
+      const decoded: StoredGame[] = [];
+      for (const r of rows) {
+        const g = await fromCloudGameSafe(r.data as CloudGame, { id: r.id, updated_at: r.updated_at, deleted: r.deleted });
+        if (g) decoded.push(g);
+        else missed.add(r.id);
+      }
+      // Decided against what is stored at this moment, not against the snapshot above.
+      const written = await mergeGames(decoded, (current, incoming) => {
+        const merged = mergeIncomingGame(current, incoming);
+        if (!merged) return null;
+        if (merged.repush) repush.add(incoming.id);
+        return merged.game;
+      });
+      pulled += written.length;
+    }
+  };
+
+  await downloadGames([...wantGames]);
+  for (const part of chunks([...wantSettings], 100)) {
+    const { rows, lost } = await fetchRows(net, sb, "setting", part);
+    for (const id of lost) missed.add(`setting:${id}`);
+    pulled += await mergeSettingRecords(rows.map((r) => ({ key: r.id, value: r.data, updated_at: r.updated_at, deleted: r.deleted })));
+  }
+
+  // ---- upload ----
+  // Decided late and from fresh records: games finish analysing while a round runs.
+  let fresh = new Map((await listAllGameRecords()).map((g) => [g.id, g]));
+  let sendIds = [...new Set([...sendGames, ...repush])].filter((id) => fresh.has(id));
+  repush.clear();
+
+  // The online copy may have changed since the headers were read (another device is
+  // uploading too). Never overwrite a newer or richer one: download it instead.
+  const online = await headsFor(net, sb, "game", sendIds);
+  // The same version is already there (a record carrying a timestamp from another
+  // device's clock looks changed here, for instance).
+  sendIds = sendIds.filter((id) => {
+    const h = online.get(id);
+    const l = fresh.get(id)!;
+    return !(h && h.updated_at === l.updated_at && !needsRecompact(h) && (statusRank(h.status) ?? 0) >= analysisRank(l));
+  });
+  const late = sendIds.filter((id) => {
+    const h = online.get(id);
+    return h !== undefined && (h.updated_at > fresh.get(id)!.updated_at || cloudHasMore(h, fresh.get(id)!));
+  });
+  if (late.length) {
+    await downloadGames(late);
+    const skip = new Set(late);
+    fresh = new Map((await listAllGameRecords()).map((g) => [g.id, g]));
+    // Games where our analysis outweighed the newer online copy go up again.
+    sendIds = [...new Set([...sendIds.filter((id) => !skip.has(id)), ...repush])].filter((id) => fresh.has(id));
+  }
+
+  const failed = new Set<string>();
+  let pushed = 0;
+  const upload = async (kind: Kind, items: PushItem[], attempts = ATTEMPTS): Promise<void> => {
+    try {
+      await net.run(
+        () =>
+          sb.from("sync_records").upsert(
+            items.map((it) => ({ user_id: userId, kind, ...it })),
+            { onConflict: "user_id,kind,id" },
+          ),
+        attempts,
+      );
+      pushed += items.length;
+    } catch (e) {
+      if (e instanceof RoundAbort) throw e;
+      await net.assertReachable(sb);
+      if (items.length === 1) failed.add(`${kind}:${items[0].id}`);
+      else {
+        // The server answers, so this batch holds a record it refuses: halve until it
+        // stands alone; the others still go up.
+        const mid = items.length >> 1;
+        await upload(kind, items.slice(0, mid), 1);
+        await upload(kind, items.slice(mid), 1);
+      }
+    }
+  };
+
+  let batch: PushItem[] = [];
+  let bytes = 0;
+  const flush = async (kind: Kind) => {
+    if (batch.length) await upload(kind, batch);
+    batch = [];
+    bytes = 0;
+  };
+  const add = async (kind: Kind, item: PushItem) => {
+    const size = JSON.stringify(item.data ?? null).length;
+    if (batch.length && (batch.length >= tuning.pushItems || bytes + size > tuning.pushBytes)) await flush(kind);
+    batch.push(item);
+    bytes += size;
+  };
+
+  for (const id of sendIds) {
+    const g = fresh.get(id)!;
+    await add("game", { id, data: await toCloudGame(g), updated_at: g.updated_at, deleted: Boolean(g.deleted) });
+  }
+  await flush("game");
+  for (const k of sendSettings) {
+    const s = localSettings.get(k);
+    if (s) await add("setting", { id: k, data: s.value ?? null, updated_at: s.updated_at, deleted: Boolean(s.deleted) });
+  }
+  await flush("setting");
+
+  // ---- remember where we are ----
+  const complete = missed.size === 0;
+  const state: SettingRecord[] = [
+    { key: "sync.lastPushAt", value: startedAt - CLOCK_MARGIN_MS, updated_at: 0 },
+    { key: "sync.retry", value: [...failed], updated_at: 0 },
+  ];
+  // The position moves on only when everything announced was downloaded; otherwise
+  // the next round reads the same headers again (what arrived is skipped as equal).
+  if (complete) {
+    state.push(
+      { key: "sync.owner", value: userId, updated_at: 0 },
       { key: "sync.lastSeq", value: maxSeq, updated_at: 0 },
-      { key: "sync.lastPushAt", value: pushStarted, updated_at: 0 },
-      { key: "sync.lastSyncAt", value: Date.now(), updated_at: 0 },
       { key: "sync.compact", value: COMPACT_VERSION, updated_at: 0 },
-    ],
-    true,
-  );
-  return { pulled: games.toLocal.length + settings.toLocal.length, pushed: games.toRemote.length + settings.toRemote.length };
+    );
+    if (full) state.push({ key: "sync.lastFullAt", value: startedAt, updated_at: 0 });
+    if (failed.size === 0) state.push({ key: "sync.lastSyncAt", value: Date.now(), updated_at: 0 });
+  }
+  await putSettingRecords(state, true);
+  return { pulled, pushed, failed: missed.size + failed.size };
 }
 
 async function requireClient(): Promise<SupabaseClient> {
@@ -432,18 +724,21 @@ export async function setDisplayName(name: string): Promise<void> {
   if (error) throw new Error(translateAuthError(error.message));
 }
 
-/** Number of games this account keeps online (not counting deleted ones). */
-export async function cloudGameCount(): Promise<number | null> {
+export interface CloudStats {
+  /** Games this account keeps online (not counting deleted ones). */
+  games: number;
+  /** Of those, the ones with a completed analysis. */
+  analysed: number;
+}
+
+export async function cloudGameStats(): Promise<CloudStats | null> {
   const sb = await supabase();
   const user = await currentUser();
   if (!sb || !user) return null;
-  const { count, error } = await sb
-    .from("sync_records")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("kind", "game")
-    .eq("deleted", false);
-  return error ? null : (count ?? 0);
+  const live = () =>
+    sb.from("sync_records").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("kind", "game").eq("deleted", false);
+  const [all, done] = await Promise.all([live(), live().eq("data->summary_json->>analysis_status", "completed")]);
+  return all.error || done.error ? null : { games: all.count ?? 0, analysed: done.count ?? 0 };
 }
 
 /**

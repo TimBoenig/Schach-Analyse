@@ -7,7 +7,7 @@ import { onDataChanged, listGames } from "../storage/db";
 import {
   accountInfo,
   changePassword,
-  cloudGameCount,
+  cloudGameStats,
   deleteAccount,
   deleteCloudData,
   resendConfirmation,
@@ -26,6 +26,7 @@ import {
   clearAuthCallback,
   getAuthCallback,
   type AccountInfo,
+  type CloudStats,
   type SyncStatus,
 } from "../storage/sync";
 import { SUPPORT_EMAIL } from "../brand";
@@ -159,7 +160,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
   const [showPw, setShowPw] = useState(recovery);
   const [confirm, setConfirm] = useState<"data" | "account" | null>(null);
   const [info, setInfo] = useState<AccountInfo | null>(null);
-  const [online, setOnline] = useState<number | null>(null);
+  const [online, setOnline] = useState<CloudStats | null>(null);
   const [editName, setEditName] = useState(false);
   const [name, setName] = useState("");
 
@@ -170,7 +171,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
     });
   }, [status.email]);
   useEffect(() => {
-    void cloudGameCount().then(setOnline);
+    void cloudGameStats().then(setOnline);
   }, [status.lastAt]);
 
   const run = async (fn: () => Promise<void>) => {
@@ -187,7 +188,9 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
 
   const running = status.phase === "running";
   const shownName = info?.displayName || (status.email ?? "").split("@")[0];
-  const allSafe = counts && counts.games > 0 && online !== null && online >= counts.games;
+  // Games alone are not enough: a game that is online without its analysis would
+  // have to be analysed again on the next device.
+  const allSafe = counts && counts.games > 0 && online !== null && online.games >= counts.games && online.analysed >= counts.analysed;
   return (
     <div class="dash">
       <section class="card tile span-6 account-hero">
@@ -248,8 +251,15 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
             disabled={busy || running}
             onClick={() =>
               run(async () => {
-                const r = await syncNow();
-                setMsg({ text: r.pulled || r.pushed ? `Fertig: ${r.pulled} empfangen, ${r.pushed} gesendet.` : "Alles ist auf dem neuesten Stand." });
+                // The button compares everything, not only what changed since the last round.
+                const r = await syncNow({ full: true });
+                setMsg({
+                  text: r.failed
+                    ? `${r.pulled} empfangen, ${r.pushed} gesendet. ${r.failed} Einträge folgen im nächsten Versuch.`
+                    : r.pulled || r.pushed
+                      ? `Fertig: ${r.pulled} empfangen, ${r.pushed} gesendet.`
+                      : "Alles ist auf dem neuesten Stand.",
+                });
               })
             }
           >
@@ -269,7 +279,9 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
             {counts && counts.games > 0 && online !== null
               ? allSafe
                 ? `Alle ${counts.games} Partien gesichert`
-                : `${online} von ${counts.games} Partien online`
+                : online.games < counts.games
+                  ? `${online.games} von ${counts.games} Partien online`
+                  : `${online.analysed} von ${counts.analysed} Analysen online`
               : " "}
           </span>
         </div>

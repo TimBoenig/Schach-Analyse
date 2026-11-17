@@ -250,22 +250,85 @@ export async function fromCloudGame(
 }
 
 /**
+ * How much analysis a game carries: 2 completed, 1 started, 0 none. The
+ * cloud only has to send the status for a device to compare copies of a game
+ * without downloading them; records without a status are judged by their moves.
+ */
+export function analysisRank(g: { summary_json?: GameSummary; moves_json?: MoveData[] }): number {
+  return statusRank(g.summary_json?.analysis_status) ?? (hasAnalysis(g.moves_json) ? 1 : 0);
+}
+
+/** The same ranking from a status text alone (null when the record has none). */
+export function statusRank(status: string | null | undefined): number | null {
+  if (status === "completed") return 2;
+  if (status === "paused") return 1;
+  if (status === "not_started") return 0;
+  return null;
+}
+
+/**
  * When a newer online copy arrives for a game this device analysed itself,
  * keep the local moves if they describe the same analysis: they still carry
- * the full engine lines the compact copy dropped. If the online copy has no
- * analysis at all, ours wins and must be uploaded again (`repush`).
+ * the full engine lines the compact copy dropped. If the online copy has less
+ * analysis than ours (none, or only a partial run), ours wins and must be
+ * uploaded again (`repush`).
  */
 export function keepRicherMoves(local: StoredGame | undefined, incoming: StoredGame): { game: StoredGame; repush: boolean } {
   const plain = { game: incoming, repush: false };
-  if (!local || local.deleted || incoming.deleted || !hasAnalysis(local.moves_json) || incoming.pgn !== local.pgn) return plain;
+  if (!local || local.deleted || incoming.deleted || incoming.pgn !== local.pgn) return plain;
+  const ours = analysisRank(local);
+  if (ours === 0) return plain;
+  if (analysisRank(incoming) < ours) {
+    return { game: { ...incoming, moves_json: local.moves_json, summary_json: local.summary_json, updated_at: Date.now() }, repush: true };
+  }
   const a = local.moves_json;
   const b = incoming.moves_json;
-  if (!hasAnalysis(b)) {
-    return { game: { ...incoming, moves_json: a, summary_json: local.summary_json, updated_at: Date.now() }, repush: true };
-  }
   if (a.length !== b.length) return plain;
   for (let i = 0; i < a.length; i++) {
     if (a[i].uci !== b[i].uci || a[i].classification !== b[i].classification) return plain;
   }
   return { game: { ...incoming, moves_json: a }, repush: false };
+}
+
+/**
+ * What this device stores when the cloud's copy of a game arrives, given the
+ * copy it holds right now (null = leave it as it is). The newer record wins,
+ * except that a copy with less analysis never pushes out one with more of the
+ * same game: a re-filed or re-imported game gets a fresh timestamp but no
+ * analysis, and last-writer-wins alone would then erase the analysis.
+ */
+export function mergeIncomingGame(
+  current: StoredGame | undefined,
+  incoming: StoredGame,
+): { game: StoredGame; repush: boolean } | null {
+  if (!current) return { game: incoming, repush: false };
+  if (incoming.updated_at > current.updated_at) return keepRicherMoves(current, incoming);
+  const sameGame = !current.deleted && !incoming.deleted && incoming.pgn === current.pgn;
+  if (sameGame && analysisRank(incoming) > analysisRank(current)) return { game: incoming, repush: false };
+  return null;
+}
+
+/**
+ * `fromCloudGame` for a batch: one record that cannot be read is kept as an
+ * unanalysed game (or skipped when not even the game itself is there) instead
+ * of stopping everything behind it.
+ */
+export async function fromCloudGameSafe(
+  data: CloudGame,
+  meta: { id: string; updated_at: number; deleted: boolean },
+): Promise<StoredGame | null> {
+  try {
+    return await fromCloudGame(data, meta);
+  } catch {
+    if (!data || typeof data.pgn !== "string") return null;
+    const { moves_c: _c, moves_json: _m, ...rest } = data;
+    return {
+      ...(rest as StoredGame),
+      id: meta.id,
+      updated_at: meta.updated_at,
+      deleted: meta.deleted,
+      moves_json: [],
+      summary_json: { ...(data.summary_json ?? {}), analysis_status: "not_started", analyzed_moves: 0 },
+    };
+  }
 }
