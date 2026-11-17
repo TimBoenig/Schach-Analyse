@@ -270,8 +270,12 @@
   stroke-dasharray: 4 5;
 }
 .trend-ref-label {
-  fill: var(--text-3);
+  fill: var(--text-2);
   font-size: 11px;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 .trend-cross {
   stroke: var(--border-strong);

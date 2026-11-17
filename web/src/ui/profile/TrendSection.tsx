@@ -1,16 +1,15 @@
 // "Verlauf": rating and accuracy over the whole history. The page's period
 // filter does not cut these two charts (three months of a profile showed two
 // lonely month dots here); they bring their own span and step.
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 
-import { buildProfileInWorker } from "../../app/profileClient";
-import { statsFormat } from "../../domain/analysisDepth";
 import type { RatingContext } from "../../domain/profile";
 import { typicalLabel } from "../../domain/profile";
-import { accuracyHistory, bucketLabel, type DayRow, dayStart, defaultRange, rangeChoices, type RangeOption, ratingHistory, type RatingSeries } from "../../domain/profile/history";
+import { accuracyHistory, bucketLabel, type DayRow, dayStart, defaultRange, rangeChoices, ratingHistory, type RatingSeries } from "../../domain/profile/history";
 import type { StoredGame } from "../../domain/types";
 import { Foot } from "../kit";
-import type { ProfileFilters } from "../useProfile";
+import { type ProfileFilters, useAllTimeProfile } from "../useProfile";
+import { Delta, RangeChips } from "../viz/Range";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
 
 const DAY = 86400;
@@ -23,51 +22,14 @@ interface Trends {
   daily: DayRow[];
 }
 
-/** Rating lines and daily accuracy over every game, with the page's format and colour applied. */
-function useFullTrends(games: StoredGame[], usernames: string[], filters: ProfileFilters, excludeBullet: boolean): Trends | null {
-  const [trends, setTrends] = useState<Trends | null>(null);
-  useEffect(() => {
-    if (!games.length || !usernames.length) return;
-    let alive = true;
-    void buildProfileInWorker({ games, usernames, format: statsFormat(filters.format, excludeBullet), color: filters.color, date: "All Time" })
-      .then((p) => {
-        if (!alive) return;
-        const t = p.trends as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
-        setTrends({ ratings: t.ratings ?? {}, daily: t.daily ?? [] });
-      })
-      .catch(() => alive && setTrends({ ratings: {}, daily: [] }));
-    return () => {
-      alive = false;
-    };
-  }, [games, usernames, filters.format, filters.color, excludeBullet]);
-  return trends;
-}
-
-function RangeChips({ choices, value, onChange }: { choices: RangeOption[]; value: string; onChange: (key: string) => void }) {
-  if (choices.length < 2) return null;
-  return (
-    <div class="segmented small-seg" role="group" aria-label="Zeitraum">
-      {choices.map((c) => (
-        <button key={c.key} class={c.key === value ? "active" : ""} aria-pressed={c.key === value} onClick={() => onChange(c.key)}>
-          {c.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function Delta({ value, unit = "" }: { value: number; unit?: string }) {
-  const flat = Math.abs(value) < 0.05;
-  return (
-    <span class={`delta ${flat ? "" : value > 0 ? "up" : "down"}`}>
-      {flat ? "±0" : `${value > 0 ? "+" : "−"}${Number.isInteger(value) ? Math.abs(value) : de(Math.abs(value))}`}
-      {unit}
-    </span>
-  );
-}
-
 export function TrendSection({ games, usernames, filters, excludeBullet, rating }: { games: StoredGame[]; usernames: string[]; filters: ProfileFilters; excludeBullet: boolean; rating: RatingContext | null }) {
-  const trends = useFullTrends(games, usernames, filters, excludeBullet);
+  const full = useAllTimeProfile(games, usernames, filters, excludeBullet);
+  // Rating lines and daily accuracy over every game; null while the worker still builds them.
+  const trends = useMemo((): Trends | null => {
+    if (full.loading) return null;
+    const t = (full.profile?.trends ?? {}) as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
+    return { ratings: t.ratings ?? {}, daily: t.daily ?? [] };
+  }, [full]);
   const [pool, setPool] = useState<string | null>(null);
   const [range, setRange] = useState<string | null>(null);
 

@@ -37,6 +37,35 @@ export interface TrendChartProps {
 
 const PAD = { top: 14, right: 14, bottom: 26, left: 44 };
 
+/**
+ * Where the name of the reference line goes: at its left or right end, just
+ * above or below it, wherever the data line keeps the most room. Pinned to
+ * the left it sat on the first points of every line that starts near the
+ * reference.
+ */
+function placeLabel(text: string, refY: number, xs: number[], ys: number[], left: number, right: number): { x: number; y: number; anchor: "start" | "end" } {
+  // 11 px text is about 6 px per character.
+  const width = text.length * 6 + 6;
+  const options = [
+    { x: left, y: refY - 6, anchor: "start" as const, from: left, to: left + width, mid: refY - 10 },
+    { x: right, y: refY - 6, anchor: "end" as const, from: right - width, to: right, mid: refY - 10 },
+    { x: left, y: refY + 14, anchor: "start" as const, from: left, to: left + width, mid: refY + 10 },
+    { x: right, y: refY + 14, anchor: "end" as const, from: right - width, to: right, mid: refY + 10 },
+  ];
+  // The line's height at a given x, read off the segment that spans it.
+  const lineAt = (px: number): number => {
+    if (px <= xs[0]) return ys[0];
+    for (let i = 1; i < xs.length; i++) if (px <= xs[i]) return ys[i - 1] + ((ys[i] - ys[i - 1]) * (px - xs[i - 1])) / (xs[i] - xs[i - 1] || 1);
+    return ys[ys.length - 1];
+  };
+  const room = (o: (typeof options)[number]) => {
+    let min = Infinity;
+    for (let px = o.from; px <= o.to; px += 6) min = Math.min(min, Math.abs(lineAt(px) - o.mid));
+    return min;
+  };
+  return options.reduce((best, o) => (room(o) > room(best) + 2 ? o : best));
+}
+
 export function TrendChart({ points, format = (v) => String(Math.round(v)), height = 230, color = "var(--accent)", reference, bounds, dots = false, label }: TrendChartProps) {
   const [ref, width] = useWidth<HTMLDivElement>(560);
   const [hover, setHover] = useState<number | null>(null);
@@ -66,6 +95,8 @@ export function TrendChart({ points, format = (v) => String(Math.round(v)), heig
   const maxWeight = Math.max(0, ...points.map((p) => p.weight ?? 0));
   const barW = Math.max(3, Math.min(22, (innerW / points.length) * 0.5));
   const gradient = `trend-fill-${label.replace(/[^a-z0-9]/gi, "")}`;
+
+  const refLabel = reference ? placeLabel(`${reference.label} ${format(reference.value)}`, y(reference.value), xs, ys, PAD.left + 6, w - PAD.right - 6) : null;
 
   const onMove = (e: PointerEvent) => {
     const box = (e.currentTarget as SVGElement).getBoundingClientRect();
@@ -102,17 +133,16 @@ export function TrendChart({ points, format = (v) => String(Math.round(v)), heig
           points.map((p, i) =>
             p.weight ? <rect key={p.t} class={`trend-weight${h === i ? " on" : ""}`} x={xs[i] - barW / 2} width={barW} y={PAD.top + innerH - (p.weight / maxWeight) * innerH * 0.3} height={(p.weight / maxWeight) * innerH * 0.3} rx={2} /> : null,
           )}
-        {reference && (
-          <g>
-            <line class="trend-ref" x1={PAD.left} x2={w - PAD.right} y1={y(reference.value)} y2={y(reference.value)} />
-            <text class="trend-ref-label" x={PAD.left + 6} y={y(reference.value) - 6}>
-              {reference.label} {format(reference.value)}
-            </text>
-          </g>
-        )}
+        {reference && <line class="trend-ref" x1={PAD.left} x2={w - PAD.right} y1={y(reference.value)} y2={y(reference.value)} />}
         <path class="trend-area" d={area} fill={`url(#${gradient})`} />
         <path class="trend-line" d={line} stroke={color} />
         {dots && points.map((p, i) => <circle key={p.t} class="trend-dot" cx={xs[i]} cy={ys[i]} r={3} stroke={color} />)}
+        {/* Drawn after the line, with a halo, so it stays readable where the line crosses it. */}
+        {refLabel && reference && (
+          <text class="trend-ref-label" x={refLabel.x} y={refLabel.y} text-anchor={refLabel.anchor}>
+            {reference.label} {format(reference.value)}
+          </text>
+        )}
         <circle class="trend-end" cx={xs[last]} cy={ys[last]} r={4.5} fill={color} />
         {h !== null && (
           <g>

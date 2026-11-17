@@ -195,6 +195,26 @@ export function useProfile({ page, compare = false }: { page: PeriodPage; compar
   return { profile, comparison, games, usernames, loading, error, filters, setFilters, excludeBullet };
 }
 
+/**
+ * The profile over every game, with the page's format and colour kept. For
+ * the charts of the whole history, which the page's period must not cut:
+ * three months of a profile left two lonely month dots in them.
+ */
+export function useAllTimeProfile(games: StoredGame[], usernames: string[] | null, filters: ProfileFilters, excludeBullet: boolean): { profile: PlayerProfile | null; loading: boolean } {
+  const [state, setState] = useState<{ profile: PlayerProfile | null; loading: boolean }>({ profile: null, loading: true });
+  useEffect(() => {
+    if (!games.length || !usernames?.length) return;
+    let alive = true;
+    void buildProfileInWorker({ games, usernames, format: statsFormat(filters.format, excludeBullet), color: filters.color, date: "All Time" })
+      .then((profile) => alive && setState({ profile, loading: false }))
+      .catch(() => alive && setState({ profile: null, loading: false }));
+    return () => {
+      alive = false;
+    };
+  }, [games, usernames, filters.format, filters.color, excludeBullet]);
+  return state;
+}
+
 function Select({
   value,
   options,

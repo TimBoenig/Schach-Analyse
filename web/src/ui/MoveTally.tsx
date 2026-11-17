@@ -9,7 +9,7 @@ import { badgeFor, CLASS_COLOR, classLabel, detailSegments } from "./labels";
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
 /** "0,4" per game, but "1 von 9 Partien" when the kind is rare. */
-function perGameText(count: number, games: number, gamesWith: number): string {
+export function perGameText(count: number, games: number, gamesWith: number): string {
   if (!count) return "noch keiner";
   const pg = count / games;
   return pg >= 0.95 ? `Ø ${de(pg)} pro Partie` : `in ${gamesWith} von ${games} Partien`;

@@ -5,6 +5,10 @@
 
 .app {
   display: flex;
+  /* The old phone layer stacked the shell in a column; there the page sized
+     itself to its widest content (the tab row of an area with four pages),
+     and phones zoomed the whole page out to fit it. */
+  flex-direction: row;
   min-height: 100dvh;
   background: var(--bg);
 }

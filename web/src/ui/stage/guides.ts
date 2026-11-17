@@ -112,10 +112,11 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
     steps: [
       {
         say: "Jeder deiner Züge, gezählt und sortiert.",
-        sub: "Oben die Bilanz in einer Zeile, darunter die Fragen dazu: wann, wo und womit passieren Fehler?",
+        sub: "Oben die Bilanz in einem Satz, darunter die Fragen dazu: wird es besser, in welcher Phase, und wo passieren die Fehler?",
         points: [
-          { title: "Die Bilanz", text: "Wie viele deiner Züge gut, ungenau oder falsch waren. Tippe eine Sorte an, um nur sie zu sehen." },
-          { title: "Was dich Punkte kostet", text: "Fehler nach Partiephase, Zeit auf der Uhr und Figur. Die größte Baustelle steht oben." },
+          { title: "Alle Zugarten", text: "Eine Tabelle von brillant bis Patzer. Der Balken bist du, der Strich sind deine Gegner in denselben Partien." },
+          { title: "Verlauf", text: "Beste Züge und grobe Fehler pro Monat, über deine ganze Geschichte." },
+          { title: "Wo deine Fehler passieren", text: "Nach Zugnummer, Figur und Stellungslage. Farbig wird nur, was klar heraussticht." },
         ],
       },
     ],

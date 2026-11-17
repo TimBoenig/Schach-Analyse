@@ -7,9 +7,8 @@ import {
   type ScoreStat,
 } from "../domain/profile";
 import { MIN_BUCKET_MOVES, MIN_GROUP_GAMES } from "../domain/profile/evidence";
-import { AreaChart, BarList, ColumnChart, SquareHeatmap, StackBar } from "./charts";
+import { AreaChart, BarList, ColumnChart, StackBar } from "./charts";
 import type { BarRow, Column } from "./charts";
-import { trClassification } from "../domain/i18n";
 import { IconSpark } from "./icons";
 import { CountUp, Foot, Hero, HeroStat, WdlBar } from "./kit";
 import { balanceText } from "./labels";
@@ -273,66 +272,6 @@ function errorRows(buckets: MoveBucket[]): BarRow[] {
       note: `${plural(b.errors, "Fehler", "Fehler")} in ${plural(b.moves, "Zug", "Zügen")}`,
       faint: b.moves < MIN_MOVES,
     }));
-}
-
-/** Errors: per game, by move number, piece, square and position; lives on "Züge & Fehler". */
-export function ErrorTiles({ d }: { d: DeepInsights }) {
-  const moveCols: Column[] = d.by_move_number.map((b) => ({
-    label: `Zug ${b.label}`,
-    value: b.per100,
-    valueText: b.per100 !== null ? b.per100.toFixed(1).replace(".", ",") : undefined,
-    sub: plural(b.moves, "Zug", "Züge"),
-    faint: b.moves < MIN_MOVES,
-  }));
-  const pieceRows: BarRow[] = errorRows(d.by_piece);
-  const pieceMax = Math.max(5, ...pieceRows.map((r) => r.value ?? 0)) * 1.1;
-  const situationRows = errorRows(d.by_situation);
-  const errorTypeRows: BarRow[] = d.errors_per_game.map((e) => ({
-    label: trClassification(e.classification),
-    value: e.per_game,
-    valueText: `${e.per_game.toFixed(2).replace(".", ",")} pro Partie`,
-  }));
-  return (
-    <>
-        <Tile title="Fehler pro Partie" sub="Durchschnitt" span={4}>
-          <BarList rows={errorTypeRows} max={Math.max(1, ...errorTypeRows.map((r) => r.value ?? 0)) * 1.15} />
-          {d.punish.chances > 0 && (
-            <p class="small tile-foot">
-              Gegnerfehler bestraft: <strong>{d.punish.rate !== null ? Math.round(d.punish.rate) : 0} %</strong> ({d.punish.punished} von{" "}
-              {d.punish.chances}).{" "}
-              <button class="link-btn" onClick={() => navigate({ view: "training", tab: "uebungen", category: "chance" })}>
-                Chancen nutzen üben
-              </button>
-            </p>
-          )}
-        </Tile>
-
-        <Tile title="Wann du patzt" sub="schwere Fehler je 100 Züge" span={4}>
-          <ColumnChart columns={moveCols} />
-          <Foot>Buchzüge zählen nicht mit. Blasse Säulen beruhen auf wenigen Zügen.</Foot>
-        </Tile>
-
-        <Tile title="Fehler nach Figur" sub="schwere Fehler je 100 Züge" span={4}>
-          <BarList rows={pieceRows} max={pieceMax} />
-        </Tile>
-
-        <Tile title="Fehler-Landkarte" sub={`${d.error_total} schwere Fehler`} span={6}>
-          <SquareHeatmap values={d.error_squares} />
-          {d.hot_squares.length > 0 && (
-            <p class="small muted tile-foot">
-              Am häufigsten: {d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}. Gezählt wird das Zielfeld
-              deines Zuges.
-            </p>
-          )}
-        </Tile>
-
-        <Tile title="Nach Stellungslage" sub="schwere Fehler je 100 Züge" span={6}>
-          <BarList rows={situationRows} max={errorMax(situationRows)} />
-          <Foot>Gewinnchance vor deinem Zug, aus deiner Sicht.</Foot>
-        </Tile>
-
-    </>
-  );
 }
 
 function Tile({ title, sub, span, children }: { title: string; sub?: string; span: 4 | 6 | 8 | 12; children: preact.ComponentChildren }) {
