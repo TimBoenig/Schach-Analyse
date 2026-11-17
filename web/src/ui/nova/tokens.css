@@ -33,6 +33,9 @@
   --cta-edge: #3f4cd6;
   /* Older rules still ask for --gold; it is the accent now. */
   --gold: var(--accent);
+  /* Book moves: chess.com draws them brown; here a cool slate, so no warm
+     metal tone is left anywhere in the app. */
+  --book: #8e9bb3;
   --win: #34d3a1;
   --good: #34d3a1;
   --best: #34d3a1;
@@ -86,6 +89,7 @@
   --text-2: #50586b;
   --text-3: #838a9b;
   --accent: #4350e0;
+  --book: #66748c;
   --accent-2: #323dc0;
   --accent-soft: rgba(67, 80, 224, 0.1);
   --accent-text: #ffffff;

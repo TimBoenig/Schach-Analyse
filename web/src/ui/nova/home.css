@@ -1,0 +1,708 @@
+/* ==========================================================================
+   Nova start page (HomeView, ui/home): the day on top, the rating and its
+   goal beside it, the form across the full width, then the longer view.
+   ========================================================================== */
+
+.home-head .ph-title {
+  display: block;
+}
+.home-greeting {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.home-greeting > span:first-child {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+.home-date {
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.home-head .ph-tools.narrow .segmented {
+  width: 100%;
+}
+.home-head .ph-tools.narrow .segmented button {
+  flex: 1 1 0;
+}
+
+/* ---------- hero: Lucena and today ---------- */
+
+.hm-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+}
+.hm-kicker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hm-title {
+  max-width: 34ch;
+  margin: 2px 0 0;
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.hm-sub {
+  max-width: 70ch;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.hm-today {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  margin-top: auto;
+  padding: 16px 18px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.hm-today .ring strong {
+  font-size: 13px;
+}
+.hm-today-text {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hm-today-text strong {
+  font-size: 16px;
+  font-weight: 650;
+}
+.hm-today-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.hm-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.link-chip {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font-weight: 550;
+  transition: border-color 0.15s var(--ease), color 0.15s var(--ease);
+}
+.link-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+/* ---------- rating and goal ---------- */
+
+.hm-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+}
+.hm-rating-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hm-rating-num {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+.hm-rating-num > strong {
+  font-size: 44px;
+  font-weight: 750;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.hm-rating-top:hover .hm-rating-num > strong {
+  color: var(--accent);
+}
+.hm-journey {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.hm-journey-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hm-journey .journey-goal {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hm-journey .journey-goal strong {
+  min-width: 3ch;
+  text-align: center;
+  font-size: 15px;
+}
+.hm-journey .journey-bar {
+  margin: 28px 8px 0;
+}
+.hm-journey-text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.hm-journey-text strong {
+  color: var(--text);
+}
+.hm-lever {
+  align-self: flex-start;
+}
+
+/* ---------- stat rows (form, curve) ---------- */
+
+/* Each cell spans three rows of a shared grid (label, figure, line below), so
+   a label that wraps onto two lines does not push its figure out of line. */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  row-gap: 0;
+}
+.stat-row.three {
+  --cols: 3;
+}
+.stat-row > .stat {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  align-items: start;
+  row-gap: 6px;
+  padding: 0 18px;
+  border-left: 1px solid var(--border);
+}
+.stat-row > .stat > .stat-label {
+  align-self: end;
+}
+.stat-row > .stat:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+.stat-row .stat-value {
+  font-size: 24px;
+}
+.hm-curve .stat-row {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+/* The last results: soft tiles, the letter in the result colour. */
+.ar-ribbon {
+  gap: 4px;
+}
+.ar-ribbon-tile {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  animation: none;
+}
+.ar-ribbon-tile.win {
+  background: var(--pos-soft);
+  color: var(--win);
+}
+.ar-ribbon-tile.loss {
+  background: var(--neg-soft);
+  color: var(--loss);
+}
+.ar-ribbon-tile.draw {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.ar-ribbon-tile:hover {
+  transform: none;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.hm-form .card-head {
+  align-items: center;
+}
+.hm-form .ar-ribbon {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* ---------- skill changes (charts.tsx ChangeBars) ---------- */
+
+.change-bars {
+  gap: 8px;
+}
+.change-row {
+  grid-template-columns: minmax(128px, 1fr) minmax(0, 1.15fr) 72px;
+  gap: 12px;
+  font-size: 13.5px;
+}
+.change-track {
+  height: 8px;
+  border-radius: 4px;
+}
+.change-fill {
+  border-radius: 4px;
+}
+.change-value {
+  font-weight: 650;
+}
+
+/* ---------- weak spots ---------- */
+
+.hm-focus-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hm-focus-list li {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+.hm-focus-list li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.hm-focus-n {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--neg-soft);
+  color: var(--loss);
+  font-size: 13px;
+  font-weight: 700;
+}
+.hm-focus-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+.hm-focus-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hm-focus-head strong {
+  font-size: 14.5px;
+  font-weight: 650;
+}
+.hm-focus-text {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.hm-focus-body .btn {
+  margin: 4px 0 0 -10px;
+}
+
+/* ---------- the daily position ---------- */
+
+.hm-puzzle .board-wrap,
+.hm-puzzle .pz {
+  max-width: 100%;
+}
+
+/* ---------- last games ---------- */
+
+.recent {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.recent li + li {
+  border-top: 1px solid var(--border);
+}
+.recent-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 8px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.recent-item:hover {
+  background: var(--surface-2);
+}
+.recent-res {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 700;
+}
+.recent-res.win {
+  background: var(--pos-soft);
+  color: var(--win);
+}
+.recent-res.loss {
+  background: var(--neg-soft);
+  color: var(--loss);
+}
+.recent-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.recent-who {
+  overflow: hidden;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-who strong {
+  font-weight: 650;
+}
+.recent-sub {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recent-acc {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.recent-acc strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.recent-blunders {
+  color: var(--text-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* Accuracy figures: teal when strong, plain in the usual range, warm and red below. */
+.acc-high {
+  color: var(--win);
+}
+.acc-mid {
+  color: var(--text);
+}
+.acc-low {
+  color: var(--warn);
+}
+.acc-bad {
+  color: var(--loss);
+}
+
+/* ---------- calendar ---------- */
+
+.cal-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.cal-total {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.cal-total strong {
+  color: var(--text);
+}
+.cal .cal-grid {
+  grid-template-columns: 30px repeat(7, minmax(0, 1fr));
+  gap: 3px;
+}
+.cal .cal-day {
+  aspect-ratio: 1.5;
+  min-height: 22px;
+  border: 0;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+.cal-w16 .cal-day {
+  aspect-ratio: 2.2;
+  min-height: 16px;
+}
+.cal-w16 .cal-num {
+  display: none;
+}
+.cal .cal-day.l1 {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
+}
+.cal .cal-day.l2 {
+  background: color-mix(in srgb, var(--accent) 38%, var(--surface-2));
+  color: var(--text-2);
+}
+.cal .cal-day.l3 {
+  background: color-mix(in srgb, var(--accent) 58%, var(--surface-2));
+  color: var(--text);
+}
+.cal .cal-day.l4 {
+  background: color-mix(in srgb, var(--accent) 80%, var(--surface-2));
+  color: var(--text);
+}
+.cal .cal-day.today {
+  outline: 1.5px solid var(--text-2);
+  outline-offset: 1px;
+}
+.cal .cal-day.on {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.cal .cal-num {
+  top: 2px;
+  left: 4px;
+  font-size: 10.5px;
+}
+.cal-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+}
+.cal-day.good .cal-dot {
+  background: var(--win);
+}
+.cal-day.bad .cal-dot {
+  background: var(--loss);
+}
+.cal-day.even .cal-dot {
+  background: var(--text);
+  opacity: 0.6;
+}
+.cal-key {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.cal-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cal-key i {
+  display: inline-block;
+  width: 12px;
+  height: 9px;
+  border-radius: 2px;
+}
+.cal-key i.l1 {
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface-2));
+}
+.cal-key i.l2 {
+  background: color-mix(in srgb, var(--accent) 38%, var(--surface-2));
+}
+.cal-key i.l3 {
+  background: color-mix(in srgb, var(--accent) 58%, var(--surface-2));
+}
+.cal-key i.l4 {
+  background: color-mix(in srgb, var(--accent) 80%, var(--surface-2));
+}
+.cal-key i.dot {
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+}
+.cal-key i.dot.good {
+  background: var(--win);
+}
+.cal-key i.dot.bad {
+  background: var(--loss);
+}
+.cal-detail {
+  margin: 10px 0 8px;
+}
+
+/* ---------- welcome (no player name yet) ---------- */
+
+.hm-welcome {
+  display: grid;
+  place-items: center;
+  min-height: calc(100vh - 80px);
+  padding: 24px 0;
+}
+.hm-welcome-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 560px;
+  padding: 36px 32px;
+  text-align: center;
+}
+.hm-welcome-card h1 {
+  margin: 6px 0 0;
+  font-size: 30px;
+  letter-spacing: -0.035em;
+}
+.hm-welcome-lead {
+  max-width: 44ch;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.hm-welcome-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+.hm-welcome-steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.hm-welcome-steps li > span {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+.hm-welcome-steps div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hm-welcome-steps div span {
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.hm-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* ---------- narrower screens ---------- */
+
+@media (max-width: 1279px) {
+  .stat-row.many {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 18px;
+  }
+  .stat-row.many > .stat:nth-child(3n + 1) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+@media (max-width: 1023px) {
+  .hm-hero.span-8,
+  .hm-rating.span-4,
+  .hm-puzzle.span-7,
+  .hm-focus.span-5,
+  .hm-curve.span-7,
+  .hm-changes.span-5,
+  .hm-recent.span-7,
+  .hm-activity.span-5 {
+    grid-column: span 12;
+  }
+}
+@media (max-width: 640px) {
+  .home-greeting > span:first-child {
+    font-size: 22px;
+  }
+  .hm-hero,
+  .hm-rating {
+    padding: 18px 16px;
+  }
+  .hm-today {
+    padding: 14px;
+  }
+  .hm-form .ar-ribbon {
+    flex: 1 1 100%;
+  }
+  .hm-today-actions,
+  .hm-today-actions .btn {
+    flex: 1 1 auto;
+  }
+  .stat-row.many,
+  .stat-row.three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 16px;
+  }
+  .stat-row > .stat:nth-child(n) {
+    padding: 0 0 0 14px;
+    border-left: 1px solid var(--border);
+  }
+  .stat-row > .stat:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .stat-row .stat-value {
+    font-size: 21px;
+  }
+  .hm-welcome-card {
+    padding: 28px 18px;
+  }
+}
