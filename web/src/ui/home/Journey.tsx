@@ -19,7 +19,7 @@ function etaText(days: number): string {
 }
 
 /**
- * The journey as one line, like a progress bar: gold from the first rating up
+ * The journey as one line, like a progress bar: the accent colour from the first rating up
  * to today, the goal at the far end with the only symbol on it. Start, best
  * and goal are plain dots, so no marker speaks a different visual language.
  */
@@ -78,45 +78,15 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
   const left = j.goal - j.current;
   const pace = j.per_month;
   return (
-    <div class="ar-block journey">
-      <div class="ar-block-head">
-        <strong>Dein Weg zu {j.goal}</strong>
-        <span class="faint small">Wertung {speed}</span>
-      </div>
-      <JourneyBar start={j.start} current={j.current} peak={j.peak} goal={j.goal} />
-      <div class={`ar-answer${j.reached ? " on" : ""}`} role="status">
-        <p>
-          {j.reached ? (
-            <>
-              <strong>Ziel erreicht!</strong> Du stehst bei {j.current}. Zeit für das nächste.
-            </>
-          ) : (
-            <>
-              Noch <strong class="tnum">{left} Punkte</strong> bis {j.goal}.{" "}
-              {j.eta_days !== null && pace !== null ? (
-                <span class="journey-pace">
-                  In den letzten {PACE_DAYS} Tagen ging es um <span class="pos tnum">+{de1(pace)}</span> pro Monat nach oben. Bei dem Tempo bist du in etwa{" "}
-                  <strong>{etaText(j.eta_days)}</strong> da.
-                </span>
-              ) : pace !== null ? (
-                <>
-                  Deine Wertung {pace <= -3 ? "fällt gerade" : "bewegt sich gerade kaum"} (<span class={pace <= -3 ? "neg tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span> pro Monat).
-                  {lever ? ` Dein größter Hebel: ${lever.title}.` : ""}
-                </>
-              ) : (
-                "Für ein Tempo brauche ich ein paar gewertete Partien aus den letzten Wochen."
-              )}
-            </>
-          )}
-        </p>
+    <div class="hm-journey">
+      <div class="hm-journey-head">
+        <span class="eyebrow">Dein Ziel</span>
         <div class="journey-goal" role="group" aria-label="Ziel ändern">
-          <button class="btn icon small" aria-label={`Ziel ${GOAL_STEP} Punkte niedriger`} disabled={j.goal - GOAL_STEP <= j.current && !j.reached} onClick={() => setGoal(j.goal - GOAL_STEP)}>
+          <button class="btn icon small ghost" aria-label={`Ziel ${GOAL_STEP} Punkte niedriger`} disabled={j.goal - GOAL_STEP <= j.current && !j.reached} onClick={() => setGoal(j.goal - GOAL_STEP)}>
             −
           </button>
-          <span class="tnum">
-            Ziel <strong>{j.goal}</strong>
-          </span>
-          <button class="btn icon small" aria-label={`Ziel ${GOAL_STEP} Punkte höher`} onClick={() => setGoal(j.goal + GOAL_STEP)}>
+          <strong class="tnum">{j.goal}</strong>
+          <button class="btn icon small ghost" aria-label={`Ziel ${GOAL_STEP} Punkte höher`} onClick={() => setGoal(j.goal + GOAL_STEP)}>
             +
           </button>
           {own !== null && own !== nextMilestone(j.current) && (
@@ -124,13 +94,36 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
               <IconReset /> Auto
             </button>
           )}
-          {lever && !j.reached && (
-            <button class="btn small" onClick={lever.go}>
-              <IconPlay /> Daran arbeiten
-            </button>
-          )}
         </div>
       </div>
+      <JourneyBar start={j.start} current={j.current} peak={j.peak} goal={j.goal} />
+      <p class="hm-journey-text" role="status">
+        {j.reached ? (
+          <>
+            <strong>Ziel erreicht!</strong> Du stehst bei {j.current}. Zeit für das nächste.
+          </>
+        ) : (
+          <>
+            Noch <strong class="tnum">{left} Punkte</strong> bis {j.goal}.{" "}
+            {j.eta_days !== null && pace !== null ? (
+              <>
+                Zuletzt <span class="good tnum">+{de1(pace)}</span> pro Monat ({speed}, letzte {PACE_DAYS} Tage). Bei dem Tempo in etwa <strong>{etaText(j.eta_days)}</strong>.
+              </>
+            ) : pace !== null ? (
+              <>
+                Deine Wertung {pace <= -3 ? "fällt gerade" : "bewegt sich gerade kaum"} (<span class={pace <= -3 ? "bad tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span> pro Monat).
+              </>
+            ) : (
+              "Für ein Tempo brauche ich ein paar gewertete Partien aus den letzten Wochen."
+            )}
+          </>
+        )}
+      </p>
+      {lever && !j.reached && (
+        <button class="btn small hm-lever" onClick={lever.go}>
+          <IconPlay /> Größter Hebel: {lever.title}
+        </button>
+      )}
     </div>
   );
 }

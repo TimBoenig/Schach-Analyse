@@ -1,0 +1,683 @@
+/* ==========================================================================
+   Nova shell: sidebar (wide), icon rail (medium), tab bar (phone), the page
+   frame and the page header. Markup lives in Shell.tsx and Layout.tsx.
+   ========================================================================== */
+
+.app {
+  display: flex;
+  /* The old phone layer stacked the shell in a column; there the page sized
+     itself to its widest content (the tab row of an area with four pages),
+     and phones zoomed the whole page out to fit it. */
+  flex-direction: row;
+  min-height: 100dvh;
+  background: var(--bg);
+}
+.app::before {
+  display: none;
+}
+
+/* ---------- sidebar ---------- */
+
+.side {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 2px;
+  width: var(--side-w);
+  height: 100dvh;
+  padding: calc(14px + var(--safe-top)) 12px 12px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.side::-webkit-scrollbar {
+  display: none;
+}
+
+.side-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 14px;
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 15.5px;
+  letter-spacing: -0.025em;
+}
+.side-brand img {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.side-search {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 36px;
+  margin-bottom: 12px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-3);
+  font-size: 13.5px;
+  text-align: left;
+  transition:
+    box-shadow 0.15s,
+    color 0.15s;
+}
+.side-search:hover {
+  color: var(--text-2);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.side-search svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.side-search span {
+  flex: 1;
+}
+.side kbd {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-3);
+  font: 600 10.5px/1.4 var(--font);
+}
+
+.side-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.side-caption {
+  padding: 14px 10px 6px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.side-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  text-align: left;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.side-item svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--text-3);
+  transition: color 0.15s;
+}
+.side-item:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.side-item:hover svg {
+  color: var(--text-2);
+}
+.side-item.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.side-item.active svg {
+  color: var(--accent);
+}
+.side-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side-status {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* Sub-pages of the open area hang on a thin line under it. */
+.side-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 2px 0 6px 18px;
+  padding-left: 11px;
+  border-left: 1px solid var(--border);
+}
+.side-subitem {
+  position: relative;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-3);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.side-subitem:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+.side-subitem.active {
+  color: var(--text);
+  font-weight: 600;
+}
+.side-subitem.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 7px;
+  bottom: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.side-spacer {
+  flex: 1;
+  min-height: 16px;
+}
+
+/* Lucena's entry: opens the guided tour again. */
+.side-lucena {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ai-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ai-a) 26%, transparent);
+  color: var(--text);
+  text-align: left;
+  transition: box-shadow 0.15s;
+}
+.side-lucena:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ai-a) 55%, transparent);
+}
+.side-lucena-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.side-lucena-text small {
+  color: var(--text-2);
+  font-size: 11.5px;
+  font-weight: 450;
+}
+
+/* Background analysis: what runs, how far, and a way to stop it. */
+.side-job {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 10px 11px 11px;
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  font-size: 12.5px;
+}
+.side-job-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 600;
+}
+.side-job-head .side-status {
+  flex-shrink: 0;
+}
+.side-job-head button {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.side-job-head button:hover {
+  color: var(--text);
+}
+.side-job-sub {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.side-job-bar {
+  height: 4px;
+  border-radius: 4px;
+  background: var(--surface-3);
+  overflow: hidden;
+}
+.side-job-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--ai);
+  transition: width 0.6s var(--ease);
+}
+
+.side-account {
+  min-height: 46px;
+}
+.side-account .account-avatar {
+  flex-shrink: 0;
+}
+.side-account .side-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  line-height: 1.25;
+  white-space: normal;
+}
+.side-account .account-chip-mail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.side-account .account-chip-state {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 450;
+}
+
+.side-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 2px;
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.side-meta button,
+.side-meta a {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+}
+.side-meta button:hover,
+.side-meta a:hover {
+  color: var(--text);
+}
+
+/* ---------- icon rail (medium screens) ---------- */
+
+@media (max-width: 1279px) {
+  .side {
+    width: 76px;
+    padding-left: 8px;
+    padding-right: 8px;
+    align-items: stretch;
+  }
+  .side-brand {
+    justify-content: center;
+    padding: 2px 0 12px;
+  }
+  .side-brand span,
+  .side-search span,
+  .side-search kbd,
+  .side-sub,
+  .side-caption,
+  .side-meta,
+  .side-lucena-text,
+  .side-job-sub,
+  .side-job-head strong,
+  .side-job-head button,
+  .side-account .side-label {
+    display: none;
+  }
+  .side-search {
+    justify-content: center;
+    padding: 0;
+    min-height: 40px;
+  }
+  .side-item {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    min-height: 54px;
+    padding: 6px 2px;
+    font-size: 10.5px;
+    font-weight: 550;
+    letter-spacing: 0;
+  }
+  .side-item svg {
+    width: 20px;
+    height: 20px;
+  }
+  .side-label {
+    flex: none;
+    max-width: 100%;
+  }
+  .side-item .side-status {
+    position: absolute;
+    top: 8px;
+    right: 14px;
+  }
+  .side-lucena,
+  .side-job {
+    justify-content: center;
+    align-items: center;
+    padding: 8px 0;
+  }
+  .side-job-bar {
+    width: 36px;
+  }
+  .side-account {
+    min-height: 48px;
+  }
+}
+
+/* ---------- tab bar (phones and small tablets) ---------- */
+
+.dock {
+  display: none;
+}
+@media (max-width: 899px) {
+  .side {
+    display: none;
+  }
+  .dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    padding: 6px 6px calc(6px + var(--safe-bottom));
+    background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+    backdrop-filter: saturate(160%) blur(18px);
+    -webkit-backdrop-filter: saturate(160%) blur(18px);
+    border-top: 1px solid var(--border);
+  }
+  .dock-tab {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-height: 48px;
+    padding: 4px 2px;
+    border: 0;
+    border-radius: 12px;
+    background: none;
+    color: var(--text-3);
+    font-size: 10.5px;
+    font-weight: 600;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .dock-tab svg {
+    width: 22px;
+    height: 22px;
+  }
+  .dock-tab.active {
+    color: var(--text);
+  }
+  .dock-tab.active svg {
+    color: var(--accent);
+  }
+  .dock-tab .side-status {
+    position: absolute;
+    top: 6px;
+    left: calc(50% + 10px);
+  }
+  /* The running analysis sits as a slim strip above the tab bar. */
+  .dock-job {
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--nav-h) + 8px + var(--safe-bottom));
+    z-index: 39;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: var(--shadow-pop);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: left;
+  }
+  .dock-job .side-job-bar {
+    flex: 1;
+    min-width: 40px;
+  }
+  .dock-job small {
+    color: var(--text-3);
+    font-weight: 500;
+  }
+}
+@media (min-width: 900px) {
+  .dock-job {
+    display: none;
+  }
+}
+
+/* ---------- page frame ---------- */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: calc(26px + var(--safe-top)) var(--gutter) 56px;
+}
+@media (min-width: 1024px) {
+  .main {
+    max-width: 1440px;
+    padding: calc(26px + var(--safe-top)) var(--gutter) 56px;
+  }
+}
+@media (max-width: 899px) {
+  .main {
+    padding: calc(16px + var(--safe-top)) var(--gutter) calc(var(--nav-h) + 40px + var(--safe-bottom));
+  }
+}
+.section-nav {
+  --pad: var(--gutter);
+}
+.page-legal {
+  display: none;
+  margin-top: 28px;
+  text-align: center;
+}
+@media (max-width: 1279px) {
+  .page-legal {
+    display: block;
+  }
+}
+
+/* ---------- page header ---------- */
+
+.ph {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.ph-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-height: 40px;
+}
+.ph-titles {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ph-eyebrow {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.ph-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.ph-spacer {
+  flex: 1;
+}
+.ph-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ph-tools.narrow {
+  display: none;
+}
+.ph-mobile {
+  display: none;
+  gap: 2px;
+}
+.ph select,
+.ph .filters select {
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13px;
+}
+
+/* Tabs between the sub-pages of an area. On wide screens the sidebar already
+   lists them, so the row only shows where there is no sidebar text. */
+.area-tabs {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.area-tabs-row {
+  display: flex;
+  gap: 2px;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.area-tabs-row::-webkit-scrollbar {
+  display: none;
+}
+.area-tabs-row button,
+.area-tabs-row button:first-child {
+  position: relative;
+  flex-shrink: 0;
+  padding: 9px 12px 11px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-3);
+  font-size: 14px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+.area-tabs-row button:hover {
+  color: var(--text);
+  background: none;
+}
+.area-tabs-row button.active {
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+}
+.area-tabs-row button.active::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+}
+@media (min-width: 1280px) {
+  .ph > .area-tabs {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .ph-tools.wide {
+    display: none;
+  }
+  .ph-tools.narrow {
+    display: flex;
+  }
+}
+@media (max-width: 899px) {
+  .ph {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .ph-title {
+    font-size: 21px;
+  }
+  .ph-mobile {
+    display: inline-flex;
+  }
+}

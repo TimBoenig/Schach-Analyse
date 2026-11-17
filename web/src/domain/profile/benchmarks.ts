@@ -7,6 +7,8 @@
 // profile compares with the opponents of the same games instead
 // (`OpponentReference`), and the Elo estimates in strength.ts never use them.
 
+import { isBotGame } from "../metrics/bots";
+import { hasRatingPool } from "../metrics/speed";
 import type { GameFeatures } from "./features";
 import type { RatingContext, SkillScore } from "./models";
 import { toElo } from "./fide";
@@ -102,6 +104,23 @@ export function performanceRating(games: { opp: number; score: number }[]): numb
   return Math.round((lo + hi) / 2);
 }
 
+const ratedCache = new WeakMap<GameFeatures, boolean>();
+
+/**
+ * Whether a game's rating belongs to a rating line. Not every number in a PGN
+ * does: Chess.com's coach games and other games without a clock carry a rating
+ * that fits no pool (it showed up as a jump of hundreds of points in the Blitz
+ * line), and a bot's rating is on no human scale.
+ */
+export function countsForRating(f: GameFeatures): boolean {
+  let ok = ratedCache.get(f);
+  if (ok === undefined) {
+    ok = f.user_rating > 0 && hasRatingPool(f.rec.speed) && !isBotGame(f.rec.raw_game, f.rec.user_color);
+    ratedCache.set(f, ok);
+  }
+  return ok;
+}
+
 /** Platform a game's rating belongs to ("chesscom", "lichess", "file"). */
 export function ratingSource(f: GameFeatures): string {
   return String(f.rec.raw_game?.source || "file").toLowerCase();
@@ -119,7 +138,7 @@ export const sourceName = (source: string): string => SOURCE_NAMES[source] ?? so
 export function mainRatingSources(feats: GameFeatures[]): Map<string, string> {
   const stats = new Map<string, Map<string, { n: number; last: number }>>();
   for (const f of feats) {
-    if (!f.user_rating) continue;
+    if (!countsForRating(f)) continue;
     const bySource = stats.get(f.rec.speed) ?? new Map<string, { n: number; last: number }>();
     stats.set(f.rec.speed, bySource);
     const src = ratingSource(f);
@@ -144,7 +163,7 @@ export function currentRating(feats: GameFeatures[]): { rating: number; speed: s
   const main = mainRatingSources(feats);
   const bySpeed = new Map<string, GameFeatures[]>();
   for (const f of feats) {
-    if (!f.user_rating || main.get(f.rec.speed) !== ratingSource(f)) continue;
+    if (!countsForRating(f) || main.get(f.rec.speed) !== ratingSource(f)) continue;
     const list = bySpeed.get(f.rec.speed);
     if (list) list.push(f);
     else bySpeed.set(f.rec.speed, [f]);
@@ -170,7 +189,7 @@ export function provisionalGames(feats: GameFeatures[]): Set<GameFeatures> {
   const out = new Set<GameFeatures>();
   const lines = new Map<string, GameFeatures[]>();
   for (const f of feats) {
-    if (!f.user_rating) continue;
+    if (!countsForRating(f)) continue;
     const key = `${ratingSource(f)}|${f.rec.speed}`;
     const list = lines.get(key);
     if (list) list.push(f);
@@ -214,7 +233,7 @@ export function ratingContext(feats: GameFeatures[], reference: OpponentReferenc
   if (!cur) return null;
   const source = mainRatingSources(feats).get(cur.speed) ?? "file";
   const provisional = provisionalGames(feats);
-  const rated = feats.filter((f) => f.user_rating && f.opp_rating && f.score !== null && !provisional.has(f));
+  const rated = feats.filter((f) => countsForRating(f) && f.opp_rating && f.score !== null && !provisional.has(f));
   let score = 0;
   let expected = 0;
   for (const f of rated) {

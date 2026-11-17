@@ -109,7 +109,7 @@ export class GameRecord {
       speed = "Chess960";
     } else {
       speed = (game.speed_category || "").trim();
-      if (!speed) speed = detectSpeedCategory(game.time_control, game.event);
+      if (!speed) speed = detectSpeedCategory(game.time_control, game.event, game.source);
       if (!speed) speed = "Other";
     }
 

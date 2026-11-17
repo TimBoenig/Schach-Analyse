@@ -43,10 +43,10 @@ export const STAT_SECTIONS: Record<"profile" | "insights" | "moves", StatSection
     { id: "gewohnheiten", title: "Zeit und Gewohnheiten", sub: "Bedenkzeit, Tageszeit, Serien und Tilt", cards: ["Bedenkzeit pro Zug", "Unter Druck", "Tageszeit", "Wochentag", "Nach dem letzten Ergebnis", "Partie in der Serie"] },
   ],
   moves: [
-    { id: "bilanz", title: "Zugbilanz", sub: "jede Bewertung aus deinen analysierten Partien", cards: ["Alle Bewertungen", "Du gegen deine Gegner", "Was die Zahlen zeigen"] },
-    { id: "verlauf", title: "Verlauf", sub: "werden deine Züge besser?", cards: ["Zugqualität im Verlauf"] },
-    { id: "phasen", title: "Partiephasen", sub: "Eröffnung, Mittelspiel und Endspiel im Vergleich", cards: ["Genauigkeit nach Phase", "Nach Partiephase"] },
-    { id: "fehler", title: "Fehler", sub: "wann, wo und womit du patzt", cards: ["Fehler pro Partie", "Wann du patzt", "Fehler nach Figur", "Fehler-Landkarte", "Nach Stellungslage"] },
+    { id: "bilanz", title: "Zugbilanz", sub: "jede Bewertung aus deinen analysierten Partien", cards: ["Alle Zugarten", "Was die Zahlen zeigen", "Wenn dein Gegner patzt"] },
+    { id: "verlauf", title: "Verlauf", sub: "werden deine Züge besser?", cards: ["Bester Zug oder besser", "Grobe Fehler je 100 Züge"] },
+    { id: "phasen", title: "Partiephasen", sub: "Eröffnung, Mittelspiel und Endspiel im Vergleich", cards: ["Genauigkeit nach Phase", "Zugarten nach Phase"] },
+    { id: "fehler", title: "Fehler", sub: "wann, womit und in welcher Lage du patzt", cards: ["Wo deine Fehler passieren", "Fehler-Landkarte", "Was dich Patzer kosten"] },
     { id: "glanz", title: "Glanzzüge und Rekorde", sub: "deine besten Momente", cards: ["Rekorde", "Deine Glanzzüge", "Deine glänzendsten Partien"] },
   ],
 };

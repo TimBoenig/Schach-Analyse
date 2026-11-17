@@ -6,9 +6,10 @@
 import type { RawGame } from "./models";
 
 // Lichess AI ("lichess AI level 8"), engines named in PGN files, Chess.com's
-// computer player. Plain names ending in "bot" ("Abbot") are no evidence, so
-// a bot word needs a separator or the whole name.
-const BOT_NAME = /^(lichess ai|stockfish|komodo|leela|lc0|maia\d*|houdini|fritz|computer|engine)(\b|$)|\bai level \d|(^|[-_ ])bot$|^bot([-_ ]|$)/i;
+// computer player and its coach personas ("Coach-Hikaru"). Plain names ending
+// in "bot" ("Abbot") are no evidence, so a bot word needs a separator or the
+// whole name.
+const BOT_NAME = /^(lichess ai|stockfish|komodo|leela|lc0|maia\d*|houdini|fritz|computer|engine)(\b|$)|\bai level \d|(^|[-_ ])bot$|^bot([-_ ]|$)|^coach[-_ ]/i;
 const BOT_EVENT = /\b(vs\.? computer|gegen (den )?computer|computer game|bot game)\b/i;
 
 function header(pgn: string | undefined, tag: string): string | null {

@@ -76,7 +76,7 @@ interface Game {
 
 const dateDe = (at: number | null) => (at === null ? "" : new Date(at * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }));
 const opponent = (x: Game) => String((x.color === "white" ? x.g.black : x.g.white) ?? "?");
-const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other");
+const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 const elo = (v: unknown) => {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;

@@ -118,7 +118,7 @@ export interface MoodLook {
 export const MOODS: Record<Mood, MoodLook> = {
   happy: { a: [64, 224, 190], b: [70, 150, 255], signals: 5, speed: 2.2, spin: 0.045, glow: 0.85, gaze: [0, 0], eyeH: 1, eyeW: 1, droop: 0 },
   think: { a: [128, 140, 255], b: [190, 120, 255], signals: 8, speed: 3.4, spin: 0.09, glow: 0.8, gaze: [0.45, 0.5], eyeH: 0.62, eyeW: 1, droop: 0 },
-  wow: { a: [255, 205, 96], b: [255, 140, 70], signals: 10, speed: 4.2, spin: 0.12, glow: 1, gaze: [0, 0.1], eyeH: 1.22, eyeW: 1.22, droop: 0 },
+  wow: { a: [150, 232, 255], b: [124, 140, 255], signals: 10, speed: 4.2, spin: 0.12, glow: 1, gaze: [0, 0.1], eyeH: 1.22, eyeW: 1.22, droop: 0 },
   sad: { a: [255, 128, 118], b: [150, 110, 190], signals: 2, speed: 1.1, spin: 0.02, glow: 0.5, gaze: [-0.1, -0.5], eyeH: 0.8, eyeW: 1, droop: 0.32 },
 };
 

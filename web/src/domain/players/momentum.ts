@@ -56,7 +56,7 @@ export interface MomentumMember {
 
 function speedOf(g: RawGame): string {
   if (g.chess960) return "Chess960";
-  return (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other";
+  return (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other";
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);

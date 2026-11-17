@@ -12,6 +12,7 @@ import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
 import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
+import { resetSeen } from "./stage/store";
 import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
@@ -131,11 +132,13 @@ function AppearanceCard() {
         <button
           class="btn small"
           onClick={() => {
+            // Both kinds of explanation: the page guides in full screen and the older inline tips.
+            resetSeen();
             resetTips();
             setTipsBack(true);
           }}
         >
-          {tipsBack ? "Lucenas Tipps sind wieder da ✓" : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
+          {tipsBack ? `${COACH_NAME} erklärt jede Seite wieder beim ersten Besuch ✓` : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
         </button>
       </div>
     </div>
@@ -291,7 +294,7 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
           </Coach>
           <label class="field">
             <span>Namen, mit Komma getrennt</span>
-            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. TimBoenig, tim_b" />
+            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. MaxMuster, max_m" />
           </label>
           <button class="btn primary" onClick={saveNames}>
             {saved ? "Gespeichert ✓" : "Speichern"}

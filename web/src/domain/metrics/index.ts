@@ -32,5 +32,5 @@ export type { DateWindow, FilterableGame } from "./filters";
 export { parsePlayedAt } from "./played";
 export { GameRecord, outcomeFor, parseMoves, parseSummary } from "./models";
 export type { GameMeta, Outcome, RawGame } from "./models";
-export { detectSpeedCategory } from "./speed";
+export { detectSpeedCategory, hasRatingPool, UNTIMED } from "./speed";
 export { classifyTermination } from "./termination";

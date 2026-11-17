@@ -35,7 +35,7 @@ const QUIPS = [
 type Rgb = [number, number, number];
 const WHITE: Rgb = [255, 255, 255];
 const MINT: Rgb = [170, 255, 244];
-const GOLD: Rgb = [255, 209, 102];
+const ICE: Rgb = [159, 216, 255];
 const PINK: Rgb = [255, 107, 168];
 const VIOLET: Rgb = [146, 126, 255];
 const rgb = (c: Rgb) => `rgb(${c[0]},${c[1]},${c[2]})`;
@@ -163,7 +163,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
   const W = window.innerWidth;
   const H = window.innerHeight;
   const TEAL = brilliantColor();
-  const palette = [TEAL, MINT, GOLD, WHITE, PINK, VIOLET];
+  const palette = [TEAL, MINT, ICE, WHITE, PINK, VIOLET];
 
   const root = document.createElement("div");
   root.className = "ultra-fx";
@@ -227,7 +227,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
         age: 0,
         life: rand(1.2, 2.2),
         size: rand(5, 12) * s,
-        color: rgb(pick([WHITE, GOLD, MINT])),
+        color: rgb(pick([WHITE, ICE, MINT])),
         gravity: 40 * s,
         drag: 1.8,
         rot: Math.random() * Math.PI,
@@ -267,7 +267,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
         age: 0,
         life: 4,
         size: rand(22, 46) * s,
-        color: rgb(pick([TEAL, MINT, GOLD, WHITE])),
+        color: rgb(pick([TEAL, MINT, ICE, WHITE])),
         gravity: 120 * s,
         drag: 0,
         rot: rand(-0.5, 0.5),
@@ -277,7 +277,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     }
   };
   const firework = (x: number, y: number) => {
-    const c = pick([TEAL, GOLD, PINK, VIOLET, MINT]);
+    const c = pick([TEAL, ICE, PINK, VIOLET, MINT]);
     waves.push({ at: clock, x, y, color: c, width: 5, dur: 0.7 });
     burst(x, y, count(80), 560, [c, WHITE], 1.3);
     stars(x, y, count(8), 260);
@@ -291,8 +291,8 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
       () => {
         waves.push({ at: 0, x: o.x, y: o.y, color: WHITE, width: 14, dur: 1.0 });
         waves.push({ at: 0.12, x: o.x, y: o.y, color: TEAL, width: 11, dur: 1.2 });
-        waves.push({ at: 0.28, x: o.x, y: o.y, color: GOLD, width: 8, dur: 1.4 });
-        burst(o.x, o.y, count(280), 1250, [TEAL, MINT, WHITE, GOLD], 1.2);
+        waves.push({ at: 0.28, x: o.x, y: o.y, color: ICE, width: 8, dur: 1.4 });
+        burst(o.x, o.y, count(280), 1250, [TEAL, MINT, WHITE, ICE], 1.2);
         stars(o.x, o.y, count(22), 520);
       },
     ],
@@ -308,10 +308,10 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     [
       2.85,
       () => {
-        // Finale: one more wave from the headline and a golden crown of sparks.
-        waves.push({ at: clock, x: W / 2, y: H * 0.44, color: GOLD, width: 12, dur: 1.2 });
+        // Finale: one more wave from the headline and a crown of ice-blue sparks.
+        waves.push({ at: clock, x: W / 2, y: H * 0.44, color: ICE, width: 12, dur: 1.2 });
         waves.push({ at: clock + 0.1, x: W / 2, y: H * 0.44, color: WHITE, width: 6, dur: 1.3 });
-        burst(W / 2, H * 0.44, count(240), 1100, [GOLD, WHITE, TEAL], 1.3);
+        burst(W / 2, H * 0.44, count(240), 1100, [ICE, WHITE, TEAL], 1.3);
         stars(W / 2, H * 0.44, count(26), 620);
         cannon(W * 0.5, H, -Math.PI / 2, count(70));
       },
@@ -326,7 +326,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     const R = reach * 1.15;
     for (const [n, speed, color, strength, fill] of [
       [14, 0.22, TEAL, 0.5, 0.42],
-      [9, -0.16, GOLD, 0.3, 0.22],
+      [9, -0.16, ICE, 0.3, 0.22],
     ] as [number, number, Rgb, number, number][]) {
       ctx.save();
       ctx.translate(o.x, o.y);

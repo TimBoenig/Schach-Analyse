@@ -1,0 +1,588 @@
+/* ==========================================================================
+   Nova game report: beside the board (rp-*) and in Lucena's full screen
+   (rs-*), plus the winning-chance chart (wc-*).
+   ========================================================================== */
+
+.rp {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rp > .card {
+  margin: 0;
+}
+.rp .card-head {
+  margin-bottom: 10px;
+}
+
+/* ---------- grade ---------- */
+
+.rp-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.rp-hero-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.rp-hero-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.rp-hero-text h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
+}
+.rp-grade {
+  --tone: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 92px;
+  height: 92px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--tone) 14%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tone) 38%, transparent);
+  color: var(--tone);
+  animation: rp-pop 0.6s var(--ease) both;
+}
+@keyframes rp-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+}
+.rp-grade strong {
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+.rp-grade-label,
+.rp-grade-word {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+}
+.rp-grade-label {
+  margin-bottom: 3px;
+  color: var(--text-3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rp-grade-word {
+  margin-top: 4px;
+}
+.rp-grade.huge {
+  width: 168px;
+  height: 168px;
+  border-radius: 40px;
+}
+.rp-grade.huge strong {
+  font-size: 64px;
+}
+.rp-grade.huge .rp-grade-label,
+.rp-grade.huge .rp-grade-word {
+  font-size: 13px;
+}
+.rp-grade.tone-good,
+.rp-phase-grade.tone-good {
+  --tone: var(--win);
+}
+.rp-grade.tone-mid,
+.rp-phase-grade.tone-mid {
+  --tone: var(--accent);
+}
+.rp-grade.tone-warn,
+.rp-phase-grade.tone-warn {
+  --tone: var(--warn);
+}
+.rp-grade.tone-bad,
+.rp-phase-grade.tone-bad {
+  --tone: var(--loss);
+}
+.rp-grade.tone-quiet,
+.rp-phase-grade.tone-quiet {
+  --tone: var(--text-3);
+}
+.rp-standing {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rp-standing strong {
+  color: var(--text);
+}
+.rp-duel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.rp-duel-row {
+  display: grid;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+}
+.rp-duel-row > span:first-child {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rp-duel-row.me > span:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+.rp-duel-row b {
+  font-weight: 650;
+  text-align: right;
+}
+.rp-duel small {
+  font-size: 12px;
+  line-height: 1.45;
+}
+.rp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rp-story {
+  flex: 1;
+  justify-content: center;
+}
+.rp-story .coach-avatar {
+  margin: -4px 2px -4px -6px;
+}
+
+/* ---------- course ---------- */
+
+.wc {
+  width: 100%;
+  min-width: 0;
+}
+.wc svg {
+  display: block;
+  overflow: visible;
+}
+.wc-pick {
+  cursor: pointer;
+  touch-action: pan-y;
+}
+.wc-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+.wc-mid {
+  stroke: var(--text-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.wc-axis {
+  fill: var(--text-3);
+  font-size: 10.5px;
+}
+.wc-area.up {
+  fill: color-mix(in srgb, var(--win) 22%, transparent);
+}
+.wc-area.down {
+  fill: color-mix(in srgb, var(--loss) 22%, transparent);
+}
+.wc-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+}
+.wc-cursor {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.wc-moment circle {
+  stroke-width: 2;
+}
+.wc-moment.pick {
+  cursor: pointer;
+}
+.wc-turn {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+  animation: wc-spin 6s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes wc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.wc-turn-label {
+  fill: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+  paint-order: stroke;
+  stroke: var(--surface);
+  stroke-width: 3px;
+}
+.rp-turn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.rp-turn:hover {
+  background: var(--surface-3);
+}
+.rp-turn strong {
+  color: var(--text);
+}
+.rp-turn > span:nth-child(2) {
+  flex: 1;
+}
+.rp-turn svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-3);
+}
+.rp-turn-tag {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+/* ---------- best and worst ---------- */
+
+.rp-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+}
+.rp-pair-cell {
+  --tone: var(--accent);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tone) 10%, var(--surface-2));
+  box-shadow: inset 3px 0 0 var(--tone);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.rp-pair-cell:hover {
+  background: color-mix(in srgb, var(--tone) 16%, var(--surface-2));
+}
+.rp-pair-cell:only-child {
+  grid-column: 1 / -1;
+}
+.rp-pair-cell.good {
+  --tone: var(--win);
+}
+.rp-pair-cell.bad {
+  --tone: var(--loss);
+}
+.rp-pair-cell strong {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.rp-pair-cell small {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- key moments ---------- */
+
+.rp-moment {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+button.rp-moment {
+  cursor: pointer;
+}
+button.rp-moment:hover,
+.rp-moment.on {
+  background: var(--surface-2);
+}
+.rp-moment + .rp-moment {
+  box-shadow: 0 -1px 0 var(--border);
+}
+.rp-moment:hover + .rp-moment,
+.rp-moment.on + .rp-moment {
+  box-shadow: none;
+}
+.rp-m-badge img,
+.rp-m-badge i {
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  border-radius: 50%;
+}
+.rp-moment:not(.own) .rp-m-badge {
+  opacity: 0.55;
+}
+.rp-m-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.rp-m-text strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.rp-moment:not(.own) .rp-m-text strong {
+  color: var(--text-2);
+  font-weight: 550;
+}
+.rp-m-text small {
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.rp-m-swing {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.rp-m-swing svg {
+  width: 11px;
+  height: 11px;
+}
+.rp-m-swing.up {
+  background: var(--pos-soft);
+}
+.rp-m-swing.up b {
+  color: var(--win);
+}
+.rp-m-swing.down {
+  background: var(--neg-soft);
+}
+.rp-m-swing.down b {
+  color: var(--loss);
+}
+
+/* ---------- phases ---------- */
+
+.rp-phases {
+  display: flex;
+  flex-direction: column;
+}
+.rp-phase {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(60px, 0.9fr) 44px 34px;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 0;
+}
+.rp-phase + .rp-phase {
+  border-top: 1px solid var(--border);
+}
+.rp-phase-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.rp-phase-name strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.rp-phase-name small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.rp-phase b {
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: right;
+}
+.rp-phase-grade {
+  --tone: var(--text-3);
+  padding: 2px 0;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+.rp-phase-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.rp-phase.empty {
+  opacity: 0.55;
+}
+
+/* ---------- details and summary ---------- */
+
+.rp-details .class-wrap {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.rp-details h4 {
+  margin: 16px 0 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rp-cols {
+  grid-template-columns: minmax(0, 1fr);
+}
+.rp-cols .fd-list + .fd-list {
+  border-top: 1px solid var(--border);
+}
+.rp-lessons {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.rp-lessons ol,
+.rs-take ol {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.rp-lessons li::marker,
+.rs-take li::marker {
+  color: var(--accent);
+  font-weight: 700;
+}
+.rp-train {
+  margin-top: 12px;
+}
+
+/* ---------- Lucena's full screen ---------- */
+
+.rs-grade {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.rs-grade .stage-stats {
+  flex: 1;
+}
+.rs-chart {
+  padding: 14px 12px 6px;
+}
+.rs-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(100%, 420px);
+}
+.rs-board-key {
+  display: flex;
+  gap: 18px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+.rs-board-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.rs-board-key i {
+  width: 18px;
+  height: 4px;
+  border-radius: 3px;
+}
+.rs-board-key i.best {
+  background: var(--arrow-best);
+}
+.rs-board-key i.wrong {
+  background: var(--blunder);
+}
+.rs-take {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.stage-loading {
+  background: var(--bg);
+}
+
+@media (max-width: 760px) {
+  .rs-grade {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .rp-grade.huge {
+    width: 120px;
+    height: 120px;
+    border-radius: 30px;
+  }
+  .rp-grade.huge strong {
+    font-size: 46px;
+  }
+  .rs-board {
+    width: 100%;
+  }
+}

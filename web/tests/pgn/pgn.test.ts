@@ -7,7 +7,6 @@ import { md5 } from "../../src/domain/md5";
 import {
   CHESS960_UNSUPPORTED,
   VARIANT_UNSUPPORTED,
-  detectSpeedCategory,
   parseClk,
   parsePgnText,
   parsePgnTextDetailed,
@@ -80,7 +79,9 @@ describe("python-chess parity", () => {
         const exp = expectedGames[i];
         expect(g.pgn_content).toBe(exp.pgn_content);
         expect(g.game_id).toBe(exp.game_id);
-        expect(g.metadata).toEqual(exp.metadata);
+        // The rating pool is the web app's own (platform limits, no guessed
+        // "Blitz"); it is covered in tests/metrics/speed.test.ts.
+        expect({ ...g.metadata, speed_category: null }).toEqual({ ...exp.metadata, speed_category: null });
         // best_eval_* are always null at parse time and optional in the web model.
         const expMoves = exp.moves.map(({ best_eval_cp, best_eval_mate, ...rest }) => {
           expect([best_eval_cp, best_eval_mate]).toEqual([null, null]);
@@ -176,22 +177,5 @@ describe("parseClk", () => {
     expect(parseClk("[%clk 0:09:56.1]")).toEqual(["0:09:56.1", 9 * 60 + 56.1]);
     expect(parseClk("[%clk 1:23:45]")).toEqual(["1:23:45", 3600 + 23 * 60 + 45]);
     expect(parseClk("blabla [%clk 0:00:10] extra [%clk 0:00:05]")).toEqual(["0:00:10", 10]);
-  });
-});
-
-describe("detectSpeedCategory", () => {
-  it.each([
-    ["15", null, "UltraBullet"],
-    ["60+0", null, "Bullet"],
-    ["180+2", null, "Blitz"],
-    ["600", null, "Rapid"],
-    ["1800", null, "Classical"],
-    ["40/7200", null, "Classical"],
-    ["1/86400", null, "Daily"],
-    ["-", "Rated Bullet game", "Bullet"],
-    [null, "Casual correspondence game", "Daily"],
-    [null, null, "Blitz"],
-  ])("%j / %j -> %s", (tc, event, expected) => {
-    expect(detectSpeedCategory(tc, event)).toBe(expected);
   });
 });

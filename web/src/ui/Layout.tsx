@@ -200,9 +200,9 @@ export function AreaTabs() {
 }
 
 /**
- * Title row of a page: area name (or a custom title), actions on the right,
- * search and settings on phones (the tab bar has no room for them), then the
- * tabs of the area.
+ * Head of a page: the area as a small line, the page as the title, filters
+ * and actions on the right, then the tabs of the area (where the sidebar does
+ * not already list them).
  */
 export function PageHeader({
   title,
@@ -220,19 +220,22 @@ export function PageHeader({
 }) {
   const { route, openPalette } = useContext(ShellContext);
   const area = areaOf(route);
+  const page = subPageOf(route);
+  // An area with one page is its own title; otherwise the page names itself
+  // and the area stands above it.
+  const named = area.sub.length > 1 && page ? page.label : area.label;
+  const eyebrow = title === undefined && area.sub.length > 1 ? area.label : null;
   return (
-    <header class={`page-head${cls ? ` ${cls}` : ""}`}>
-      <div class="page-title">
-        {title === undefined && (
-          <span class="page-mark" aria-hidden="true">
-            <area.icon />
-          </span>
-        )}
-        {title ?? area.label}
-        <span class="spacer" />
-        {toolbar && <span class="page-toolbar wide">{toolbar}</span>}
+    <header class={`ph${cls ? ` ${cls}` : ""}`}>
+      <div class="ph-row">
+        <div class="ph-titles">
+          {eyebrow && <span class="ph-eyebrow">{eyebrow}</span>}
+          <h1 class="ph-title">{title ?? named}</h1>
+        </div>
+        <span class="ph-spacer" />
+        {toolbar && <div class="ph-tools wide">{toolbar}</div>}
         {actions}
-        <span class="mobile-tools">
+        <span class="ph-mobile">
           <button class="btn icon ghost" onClick={openPalette} aria-label="Suchen">
             <IconSearch />
           </button>
@@ -244,8 +247,7 @@ export function PageHeader({
         </span>
       </div>
       {tabs && <AreaTabs />}
-      {toolbar && <div class="page-toolbar narrow">{toolbar}</div>}
+      {toolbar && <div class="ph-tools narrow">{toolbar}</div>}
     </header>
   );
 }
-

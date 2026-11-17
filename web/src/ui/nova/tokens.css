@@ -1,0 +1,249 @@
+/* ==========================================================================
+   Nova (2026-11): the current look of the whole app.
+
+   One calm, cool palette without any gold:
+     iris   = you, the open page, the next step (what to look at or press)
+     teal   = good: strengths, gains, above expectation
+     coral  = bad: weaknesses, losses, below expectation
+     slate  = neutral facts and everything that belongs to others
+   Lucena's own moments (the fullscreen stage, her bubbles) use the iris to
+   cyan gradient in --ai-a / --ai-b; nothing else does.
+
+   This file redefines every colour and size token of the older layers, so
+   their components follow without a second set of rules. Loaded last.
+   ========================================================================== */
+
+:root {
+  --bg: #0a0c11;
+  --bg-elev: #0d1016;
+  --surface: #12151c;
+  --surface-2: #191d26;
+  --surface-3: #242a36;
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #f1f3f8;
+  --text-2: #a3abbb;
+  --text-3: #6f7788;
+  --accent: #8d9aff;
+  --accent-2: #aeb7ff;
+  --accent-soft: rgba(124, 140, 255, 0.14);
+  --accent-text: #ffffff;
+  --cta: #5a69f6;
+  --cta-hover: #6b79ff;
+  --cta-edge: #3f4cd6;
+  /* Older rules still ask for --gold; it is the accent now. */
+  --gold: var(--accent);
+  /* Book moves: chess.com draws them brown; here a cool slate, so no warm
+     metal tone is left anywhere in the app. */
+  --book: #8e9bb3;
+  --win: #34d3a1;
+  --good: #34d3a1;
+  --best: #34d3a1;
+  --loss: #ff6b6b;
+  --draw: #8f98aa;
+  --pos-soft: rgba(52, 211, 161, 0.13);
+  --neg-soft: rgba(255, 107, 107, 0.13);
+  --warn: #ff9d5c;
+  --warn-soft: rgba(255, 157, 92, 0.14);
+  --ai-a: #6f7fff;
+  --ai-b: #3fd2ea;
+  --ai: linear-gradient(120deg, var(--ai-a), var(--ai-b));
+  --ai-soft: linear-gradient(120deg, rgba(111, 127, 255, 0.16), rgba(63, 210, 234, 0.1));
+  --bubble: #191d26;
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --sheen: transparent;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-xs: 7px;
+  --ring: 0 0 0 1px var(--border);
+  --shadow: 0 0 0 1px var(--border);
+  --shadow-lg: 0 0 0 1px var(--border-strong), 0 28px 70px -24px rgba(0, 0, 0, 0.75);
+  --shadow-pop: 0 0 0 1px var(--border-strong), 0 14px 34px -14px rgba(0, 0, 0, 0.7);
+  --eval-light: #e4e7ee;
+  --eval-dark: #262b36;
+  --sq-last: rgba(111, 127, 255, 0.46);
+  --font-display: var(--font);
+  --gutter: 36px;
+  --side-w: 252px;
+  --nav-h: 60px;
+  /* Friends keep colours of their own; none of them is close to iris, teal or coral. */
+  --p0: #ff8fc0;
+  --p1: #4cc4e6;
+  --p2: #c9a0ff;
+  --p3: #ff9d5c;
+  --p4: #a3d977;
+  --p5: #a8b3c4;
+  --p-ink: #0a0c11;
+}
+
+:root[data-theme="light"] {
+  --bg: #f4f5f9;
+  --bg-elev: #fafbfd;
+  --surface: #ffffff;
+  --surface-2: #eff1f6;
+  --surface-3: #e1e5ee;
+  --border: rgba(14, 18, 32, 0.09);
+  --border-strong: rgba(14, 18, 32, 0.18);
+  --text: #0e1220;
+  --text-2: #50586b;
+  --text-3: #838a9b;
+  --accent: #4350e0;
+  --book: #66748c;
+  --accent-2: #323dc0;
+  --accent-soft: rgba(67, 80, 224, 0.1);
+  --accent-text: #ffffff;
+  --cta: #4b59ee;
+  --cta-hover: #5c69f5;
+  --cta-edge: #3540c2;
+  --win: #0c9a72;
+  --good: #0c9a72;
+  --best: #0c9a72;
+  --loss: #dc4545;
+  --draw: #6c7486;
+  --pos-soft: rgba(12, 154, 114, 0.11);
+  --neg-soft: rgba(220, 69, 69, 0.1);
+  --warn: #c7631a;
+  --warn-soft: rgba(199, 99, 26, 0.12);
+  --ai-a: #4b59ee;
+  --ai-b: #0aa5c2;
+  --ai-soft: linear-gradient(120deg, rgba(75, 89, 238, 0.1), rgba(10, 165, 194, 0.07));
+  --bubble: #eff1f6;
+  --shadow-lg: 0 0 0 1px var(--border), 0 28px 70px -30px rgba(14, 18, 32, 0.28);
+  --shadow-pop: 0 0 0 1px var(--border), 0 14px 34px -16px rgba(14, 18, 32, 0.25);
+  --eval-light: #ffffff;
+  --eval-dark: #363c4a;
+  --sq-last: rgba(75, 89, 238, 0.4);
+  --p0: #d6337f;
+  --p1: #0b7fa3;
+  --p2: #8a4fe0;
+  --p3: #c7631a;
+  --p4: #4f8f1e;
+  --p5: #5d6b80;
+  --p-ink: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    --bg: #f4f5f9;
+    --bg-elev: #fafbfd;
+    --surface: #ffffff;
+    --surface-2: #eff1f6;
+    --surface-3: #e1e5ee;
+    --border: rgba(14, 18, 32, 0.09);
+    --border-strong: rgba(14, 18, 32, 0.18);
+    --text: #0e1220;
+    --text-2: #50586b;
+    --text-3: #838a9b;
+    --accent: #4350e0;
+    --accent-2: #323dc0;
+    --accent-soft: rgba(67, 80, 224, 0.1);
+    --accent-text: #ffffff;
+    --cta: #4b59ee;
+    --cta-hover: #5c69f5;
+    --cta-edge: #3540c2;
+    --win: #0c9a72;
+    --good: #0c9a72;
+    --best: #0c9a72;
+    --loss: #dc4545;
+    --draw: #6c7486;
+    --pos-soft: rgba(12, 154, 114, 0.11);
+    --neg-soft: rgba(220, 69, 69, 0.1);
+    --warn: #c7631a;
+    --warn-soft: rgba(199, 99, 26, 0.12);
+    --ai-a: #4b59ee;
+    --ai-b: #0aa5c2;
+    --ai-soft: linear-gradient(120deg, rgba(75, 89, 238, 0.1), rgba(10, 165, 194, 0.07));
+    --bubble: #eff1f6;
+    --shadow-lg: 0 0 0 1px var(--border), 0 28px 70px -30px rgba(14, 18, 32, 0.28);
+    --shadow-pop: 0 0 0 1px var(--border), 0 14px 34px -16px rgba(14, 18, 32, 0.25);
+    --eval-light: #ffffff;
+    --eval-dark: #363c4a;
+    --sq-last: rgba(75, 89, 238, 0.4);
+    --p0: #d6337f;
+    --p1: #0b7fa3;
+    --p2: #8a4fe0;
+    --p3: #c7631a;
+    --p4: #4f8f1e;
+    --p5: #5d6b80;
+    --p-ink: #ffffff;
+  }
+}
+
+@media (max-width: 1279px) {
+  :root {
+    --gutter: 28px;
+  }
+}
+@media (max-width: 899px) {
+  :root {
+    --gutter: 20px;
+  }
+}
+@media (max-width: 560px) {
+  :root {
+    --gutter: 14px;
+  }
+}
+
+/* ---------- base ---------- */
+
+html {
+  background: var(--bg);
+}
+body {
+  font-size: 14.5px;
+  line-height: 1.5;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+::selection {
+  background: color-mix(in srgb, var(--cta) 40%, transparent);
+}
+h1,
+h2,
+h3,
+h4,
+.page-title,
+.home-hero h1,
+.coach-title {
+  font-family: var(--font);
+  letter-spacing: -0.02em;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+a {
+  color: var(--accent);
+}
+
+/* The player's own marker on tracks, bars and tables. */
+.tone-me {
+  --tone: var(--cta);
+  --tone-ink: #ffffff;
+}
+.lg-tug-a.tone-me,
+.lg-tug-b.tone-me,
+.rv-fc-me.tone-me,
+.rv-phase-bar > span.tone-me {
+  background: var(--cta);
+}
+
+/* Lucena's gradient as text. */
+.ai-text {
+  background: var(--ai);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The last move on the default slate board (and on grey) in iris instead of
+   the classic yellow, which read as gold. The wooden and green boards keep
+   their classic highlight, since that is what they imitate. */
+:root[data-board="schiefer"],
+:root[data-board="grau"] {
+  --sq-last: rgba(124, 140, 255, 0.55);
+}

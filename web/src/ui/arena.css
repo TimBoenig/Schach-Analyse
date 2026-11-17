@@ -449,15 +449,6 @@ button.ar-stat:hover {
   margin-top: 0;
   border-radius: 16px;
 }
-.home-today .week-strip {
-  margin: 0;
-  padding: 12px 14px;
-  border-radius: 16px;
-  background: var(--surface-2);
-}
-.home-today .week-day {
-  background: var(--surface-3);
-}
 .journey .lg-track {
   margin-top: 4px;
 }
@@ -530,10 +521,6 @@ button.ar-stat:hover {
 
 .lg-track-pos.faint .pl-avatar {
   opacity: 0.5;
-}
-.player-card-detail {
-  display: block;
-  margin-top: 4px;
 }
 .player-card .lg-hero-sub {
   max-width: 70ch;
@@ -733,35 +720,6 @@ html.motion .game-list .game-item {
 }
 
 /* ---------- training ---------- */
-
-.plan-arena-run {
-  display: grid;
-  gap: 8px;
-  margin: 2px 0 16px;
-}
-.plan-arena-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-}
-.plan-arena-bar .btn.primary {
-  margin-right: auto;
-}
-.plan-arena-bar .field {
-  margin: 0;
-  min-width: 170px;
-}
-@media (max-width: 720px) {
-  .plan-arena-bar .btn.primary {
-    width: 100%;
-    justify-content: center;
-  }
-  .plan-arena-bar .field {
-    flex: 1;
-    min-width: 0;
-  }
-}
 /* Long labels under the dots: keep the outermost ones inside the card. */
 .track-wide {
   margin: 0 72px;
@@ -830,9 +788,6 @@ button.ar-row:hover {
 /* ---------- onboarding ---------- */
 
 /* The step number sat white on the white call-to-action colour of the dark theme. */
-.welcome-steps li::before {
-  color: var(--accent-text);
-}
 
 /* ---------- brand: wordmark on the welcome card ---------- */
 

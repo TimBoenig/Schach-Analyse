@@ -10,7 +10,7 @@ import { buildExercisePool } from "../training/exercises";
 import { extractFeatures, type GameFeatures, moveLabel, sanForUci } from "./features";
 import type { GameDigest, Insight, OpeningLine, PlayerProfile, SkillScore } from "./models";
 import { avg, fmtDe, pyRound, stdev } from "./num";
-import { expectedScore, mainRatingSources, type OpponentReference, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
+import { countsForRating, expectedScore, mainRatingSources, type OpponentReference, ratingContext, ratingSource, sourceName, withTypical } from "./benchmarks";
 import { toLichessBlitz } from "./fide";
 import { type GamePair, strengthMap } from "./strength";
 import { MIN_ANALYZED, MIN_GROUP_GAMES, MIN_LINE_GAMES, meansDiffer, scoreDeviation, scoresDiffer, Z_MULTI } from "./evidence";
@@ -205,7 +205,7 @@ function overview(stats: Dict, feats: GameFeatures[], analyzed: GameFeatures[]):
   const ratings = new Map<string, [number, number]>();
   const mainSource = mainRatingSources(feats);
   for (const f of feats) {
-    if (f.user_rating && f.played_at && mainSource.get(f.rec.speed) === ratingSource(f)) {
+    if (countsForRating(f) && f.played_at && mainSource.get(f.rec.speed) === ratingSource(f)) {
       const prev = ratings.get(f.rec.speed);
       if (prev === undefined || f.played_at >= prev[0]) {
         ratings.set(f.rec.speed, [f.played_at, f.user_rating]);
@@ -462,6 +462,7 @@ function periodRows(feats: GameFeatures[], key: (ts: number) => string, field: s
     return {
       [field]: k,
       games: fs.length,
+      analyzed: analyzed.length,
       wins: finished.filter((f) => f.rec.is_win).length,
       draws: finished.filter((f) => f.rec.is_draw).length,
       losses: finished.filter((f) => f.rec.is_loss).length,
@@ -484,7 +485,7 @@ function trends(feats: GameFeatures[]): Dict {
     const list = months.get(mk);
     if (list) list.push(f);
     else months.set(mk, [f]);
-    if (f.user_rating) {
+    if (countsForRating(f)) {
       // One line per platform: the main one under the plain speed name.
       const src = ratingSource(f);
       const sk = mainSource.get(f.rec.speed) === src ? trSpeed(f.rec.speed) : `${trSpeed(f.rec.speed)} · ${sourceName(src)}`;
@@ -550,7 +551,7 @@ function breakdowns(feats: GameFeatures[]): Dict {
     ["Schwächere Gegner (−100)", []],
   ]);
   for (const f of feats) {
-    if (!f.user_rating || !f.opp_rating) continue;
+    if (!countsForRating(f) || !f.opp_rating) continue;
     const diff = f.opp_rating - f.user_rating;
     const key =
       diff >= 100
@@ -566,7 +567,7 @@ function breakdowns(feats: GameFeatures[]): Dict {
 
 /** Elo-expected score in percent for games with both ratings, null if none. */
 function expectedPct(fs: GameFeatures[]): number | null {
-  const rated = fs.filter((f) => f.user_rating && f.opp_rating);
+  const rated = fs.filter((f) => countsForRating(f) && f.opp_rating);
   if (!rated.length) return null;
   return pyRound((rated.reduce((s, f) => s + expectedScore(f.user_rating, f.opp_rating), 0) / rated.length) * 100, 1);
 }

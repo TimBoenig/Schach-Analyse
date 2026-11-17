@@ -9,7 +9,7 @@ import { type Explanation, explainMoveDetailed } from "../domain/explain";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
 import { glanzzuege, nextStop, stopsOf, type JumpSide } from "../domain/moveJump";
-import { buildGameReview, openingParts } from "../domain/profile";
+import { buildGameReview, openingParts, ownStanding, sameSpeedAccuracies, type Standing } from "../domain/profile";
 import { bookKey } from "../domain/book";
 import { SERIOUS_ERROR_CLASSES } from "../domain/profile/features";
 import type { Classification, GameAnalysis, MoveData, PvLine, StoredGame } from "../domain/types";
@@ -17,7 +17,6 @@ import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../st
 import { fromStoredGame } from "../storage/rows";
 import { BrilliantFx } from "./BrilliantFx";
 import { Board, type Arrow, type Promotion } from "./Board";
-import { BarList, StackBar } from "./charts";
 import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
 import {
   CLASSIFICATION_ORDER,
@@ -28,16 +27,19 @@ import {
   formatDate,
   formatEval,
   moveVerdict,
-  qualitySegments,
   resultText,
   shortOpening,
+  SPEED_DE,
 } from "./labels";
 import { isTyping } from "./keys";
 import { LineMoves, MoveFacts, VerdictCard } from "./LiveLine";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
-import { Coach, COACH_NAME, moodFor } from "./Coach";
 import { OpeningLine } from "./OpeningLine";
+import { GradeBadge, ReportPanel } from "./report/ReportPanel";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
+import { REPORT_INTRO } from "./stage/ReportStory";
+import { markSeen, openStage, wasSeen } from "./stage/store";
 import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
@@ -628,6 +630,28 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
   const highlights = useMemo(() => (game ? glanzzuege(game.moves) : []), [game]);
 
+  // The first report ever opened is told by Lucena in full screen; later ones from the button.
+  useEffect(() => {
+    if (tab === "report" && review && row && !wasSeen(REPORT_INTRO)) {
+      markSeen(REPORT_INTRO);
+      openStage({ kind: "report", subject: row.id });
+    }
+  }, [tab, review, row?.id]);
+
+  // Where this game stands among the player's other games of its time control, for the report.
+  const [standing, setStanding] = useState<Standing | null>(null);
+  useEffect(() => {
+    setStanding(null);
+    if (!review || !row) return;
+    let alive = true;
+    void listGames().then((rows) => {
+      if (alive) setStanding(ownStanding(review.accuracy, sameSpeedAccuracies(rows, usernames, row.speed_category, row.id)));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [review, row?.id, usernames]);
+
   const exploreFen = explore ? explore.fens[explore.fens.length - 1] : null;
   const live = usePositionLines(exploreFen, engine.live ? 3 : 2);
   // The game position, known before the page renders so the engine hooks can run.
@@ -648,6 +672,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     () => (game ? [game.moves[0]?.fen_before ?? game.metadata.starting_fen ?? new Chess().fen(), ...game.moves.map((m, k) => game.moves[k + 1]?.fen_before ?? fenAfter(m))] : []),
     [game?.game_id, game?.moves.length],
   );
+
+  usePageGuide("analysis", Boolean(row && game));
 
   if (row === undefined) return <div class="skeleton" style={{ height: "60vh" }} />;
   if (!row || !game) {
@@ -840,32 +866,48 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
   return (
     <div>
-      <div class="page-title">
-        <button class="btn icon" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
+      <header class="an-head">
+        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
           <IconBack />
         </button>
-        <span class="game-title">
-          <span class="game-title-names">
-            {game.metadata.white} – {game.metadata.black}
-          </span>
-          <span class="game-title-result tnum">{resultText(game.metadata.result)}</span>
-        </span>
+        <div class="an-head-title">
+          <h1>
+            <span class="an-player">
+              <span class="side-dot white" />
+              {game.metadata.white}
+              {game.metadata.white_elo ? <span class="faint tnum">{game.metadata.white_elo}</span> : null}
+            </span>
+            <span class="an-result tnum">{resultText(game.metadata.result)}</span>
+            <span class="an-player">
+              <span class="side-dot black" />
+              {game.metadata.black}
+              {game.metadata.black_elo ? <span class="faint tnum">{game.metadata.black_elo}</span> : null}
+            </span>
+          </h1>
+          <p class="an-head-sub">
+            {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
         <span class="spacer" />
-        <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
-          <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
-        </button>
-        <button
-          class="btn icon ghost danger"
-          aria-label="Partie löschen"
-          onClick={() => {
-            if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) {
-              void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
-            }
-          }}
-        >
-          <IconTrash />
-        </button>
-      </div>
+        <div class="an-head-actions">
+          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
+            <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
+          </button>
+          <GuideButton id="analysis" />
+          <button
+            class="btn icon ghost danger"
+            aria-label="Partie löschen"
+            title="Partie löschen"
+            onClick={() => {
+              if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) {
+                void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+              }
+            }}
+          >
+            <IconTrash />
+          </button>
+        </div>
+      </header>
       <div class="analysis">
         <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
@@ -994,54 +1036,66 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </>
             ) : move ? (
               <div class="move-explain">
-                <Coach
-                  mood={moodFor(move.classification)}
-                  tone={CLASS_COLOR[move.classification]}
-                  title={
-                    <>
-                      {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" />}
-                      <span style={{ color: CLASS_COLOR[move.classification] }}>{moveVerdict(move)}</span>
-                    </>
-                  }
-                >
-                  {move.classification === "Book" ? (
-                    <BookNote move={move} next={book?.[bookKey(gameFen)]} />
-                  ) : (
-                    // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
-                    (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
-                      <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
-                    )
-                  )}
-                  {reasons.length > 0 && (
-                    <ul class="reasons">
-                      {reasons.map((r) => (
-                        <li key={r}>{r}</li>
-                      ))}
-                    </ul>
-                  )}
-                  {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
-                  {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
-                    <div class="small" style={{ marginTop: "4px" }}>
-                      Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
-                    </div>
-                  )}
-                </Coach>
+                <div class="an-verdict" style={{ "--tone": CLASS_COLOR[move.classification] ?? "var(--text-3)" }}>
+                  <div class="an-verdict-head">
+                    {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" width={26} height={26} />}
+                    <strong>{moveVerdict(move)}</strong>
+                  </div>
+                  <div class="an-verdict-body">
+                    {move.classification === "Book" ? (
+                      <BookNote move={move} next={book?.[bookKey(gameFen)]} />
+                    ) : (
+                      // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
+                      (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
+                        <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
+                      )
+                    )}
+                    {reasons.length > 0 && (
+                      <ul class="reasons">
+                        {reasons.map((r) => (
+                          <li key={r}>{r}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
+                    {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
+                      <div class="small" style={{ marginTop: "4px" }}>
+                        Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             ) : (
               <div>
-                <Coach
-                  mood="happy"
-                  title={review && tab === "moves" ? review.headline : "Lass uns die Partie zusammen durchgehen!"}
-                >
-                  <p class="small">
-                    {shortOpening(game.metadata.opening) || game.metadata.event} · {formatDate(game.metadata.date)}
-                  </p>
-                  <p class="small">
-                    Blättere mit den Pfeilen oder wische über das Brett. Ich sage dir zu jedem Zug, wie gut er war und was
-                    besser gewesen wäre. Ziehe selbst eine Figur, um eine eigene Variante auszuprobieren.
-                  </p>
-                </Coach>
+                <div class="an-intro">
+                  {review ? (
+                    <>
+                      <div class="an-intro-top">
+                        <GradeBadge grade={review.grade} size="small" />
+                        <div class="an-intro-text">
+                          <span class="eyebrow">Lucena · deine Partie</span>
+                          <strong>{review.headline}</strong>
+                        </div>
+                      </div>
+                      <div class="an-intro-actions">
+                        <button class="btn primary small" onClick={() => openStage({ kind: "report", subject: row.id })}>
+                          <IconPlay /> Lucena erklärt die Partie
+                        </button>
+                        <button class="btn small" onClick={() => setTab("report")}>
+                          Bericht lesen
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div class="an-intro-text">
+                      <span class="eyebrow">Lucena · deine Partie</span>
+                      <strong>{status === "completed" ? "Geh die Partie Zug für Zug durch." : "Sobald die Partie analysiert ist, sage ich dir zu jedem Zug, wie gut er war."}</strong>
+                    </div>
+                  )}
+                  <p class="an-intro-hint">Pfeiltasten oder Wischen übers Brett blättern. Zieh selbst eine Figur, um eine eigene Variante auszuprobieren.</p>
+                </div>
                 <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
             )}
@@ -1069,106 +1123,43 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               />
             </>
           ) : (
-            <>
-              <div class="card review-card">
-                <Coach mood={review.grade.startsWith("1") || review.grade.startsWith("2") ? "wow" : review.grade.startsWith("5") || review.grade.startsWith("6") ? "sad" : "happy"} title={review.headline}>
-                  <p class="small">
-                    {COACH_NAME} gibt dir für diese Partie die Note <strong>{review.grade}</strong>.
-                  </p>
-                </Coach>
-                <div class="review-duel">
-                  {(["white", "black"] as const).map((c) => (
-                    <div class={`duel-side${userColor === c ? " me" : ""}`} key={c}>
-                      <span class="small muted">{nameOf(c)}</span>
-                      <span class={`duel-acc ${c}`}>{acc(c) !== undefined ? acc(c)!.toFixed(1).replace(".", ",") : "–"}</span>
-                      <span class="faint small">Genauigkeit</span>
-                    </div>
-                  ))}
-                </div>
-                <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
-                {highlights.length > 0 && (
-                  <>
-                    <h4>Glanzzüge dieser Partie</h4>
-                    <div class="glanz-moves">
-                      {highlights.map((h) => (
-                        <button
-                          key={h.stop}
-                          class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
-                          style={{ "--tone": CLASS_COLOR[h.classification] }}
-                          onClick={() => jumpTo(h.stop)}
-                          title={`${classLabel(h.classification)}: zum Zug springen`}
-                        >
-                          <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
-                          <span class={`side-dot ${h.side}`} />
-                          {h.label}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {review.phases.length > 0 && (
-                  <>
-                    <h4>Genauigkeit nach Phase</h4>
-                    <BarList
-                      rows={review.phases.map((p) => ({
-                        label: p.name,
-                        value: p.accuracy,
-                        valueText: p.accuracy !== null ? `${p.accuracy.toFixed(0)} % · ${p.grade}` : "–",
-                        note: `${p.moves} Züge${p.errors ? ` · ${p.errors} Fehler` : ""}`,
-                      }))}
-                    />
-                  </>
-                )}
-                {userColor && game.summary[userColor] && (
-                  <>
-                    <h4>Deine Zugqualität</h4>
-                    <StackBar segments={qualitySegments(game.summary[userColor] as Record<string, number>)} />
-                  </>
-                )}
-                <h4>Fazit</h4>
-                {review.positives.map((t) => (
-                  <div class="insight pos small" key={t}>
-                    {t}
-                  </div>
-                ))}
-                {review.negatives.map((t) => (
-                  <div class="insight neg small" key={t}>
-                    {t}
-                  </div>
-                ))}
-                <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
-              </div>
-              {review.key_moments.length > 0 && (
-                <div class="card">
-                  <h3>Schlüsselmomente</h3>
-                  {review.key_moments.map((k) => {
-                    const m = game.moves[k.ply_index];
-                    const badge = m ? badgeFor(m.classification) : null;
-                    return (
-                      <button key={k.ply_index} class="moment" onClick={() => jumpTo(k.ply_index + 1)}>
-                        {badge ? <img src={badge} alt="" /> : null}
-                        <span>
-                          <strong>{k.title.includes(k.move_label) ? k.title : `${k.move_label} ${k.title}`}</strong>
-                          <div class="small muted">{k.text}</div>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {review.lessons.length > 0 && (
-                <div class="card">
-                  <h3>Was du mitnehmen kannst</h3>
-                  <ul style={{ margin: 0, paddingLeft: "18px" }}>
-                    {review.lessons.map((l) => (
-                      <li key={l} class="small" style={{ marginBottom: "4px" }}>
-                        {l}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </>
+            <ReportPanel
+              gameId={row.id}
+              review={review}
+              moves={game.moves}
+              isWhite={userColor !== "black"}
+              names={{ me: nameOf(userColor ?? "white"), opp: nameOf(userColor === "black" ? "white" : "black") }}
+              speed={row.speed_category}
+              standing={standing}
+              idx={explore ? explore.base : i}
+              onJump={jumpTo}
+              details={
+                <>
+                  <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
+                  {highlights.length > 0 && (
+                    <>
+                      <h4>Glanzzüge dieser Partie</h4>
+                      <div class="glanz-moves">
+                        {highlights.map((h) => (
+                          <button
+                            key={h.stop}
+                            class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
+                            style={{ "--tone": CLASS_COLOR[h.classification] }}
+                            onClick={() => jumpTo(h.stop)}
+                            title={`${classLabel(h.classification)}: zum Zug springen`}
+                          >
+                            <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
+                            <span class={`side-dot ${h.side}`} />
+                            {h.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
+                </>
+              }
+            />
           )}
         </div>
       </div>

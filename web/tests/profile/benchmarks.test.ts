@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { benchmark, buildPlayerProfile, expectedScore, performanceRating, typicalSkillScores } from "../../src/domain/profile";
+import type { RawGame } from "../../src/domain/metrics/models";
+import { UNTIMED } from "../../src/domain/metrics/speed";
 import { buildMoves, gameRow } from "./fixtures";
 
 describe("rating benchmarks", () => {
@@ -112,5 +114,35 @@ describe("settling ratings", () => {
     expect(rc.provisional_games).toBe(4);
     expect(rc.rated_games).toBe(3);
     expect(rc.expected_score).toBeCloseTo(expectedScore(1508, 1500) + expectedScore(1500, 1500) + expectedScore(1506, 1500), 1);
+  });
+});
+
+describe("rating lines", () => {
+  // Tim's Blitz line jumped by 300 points for single games: Chess.com's coach
+  // games carry a rating of their own and were filed under Blitz.
+  const blitz = (id: string, day: number, elo: number): RawGame => ({
+    ...gameRow(id, buildMoves(), { utc: `2026.10.${String(day).padStart(2, "0")} 18:00:00` }),
+    speed_category: "Blitz",
+    white_elo: String(elo),
+  });
+  const games: RawGame[] = [
+    blitz("b1", 1, 440),
+    blitz("b2", 2, 448),
+    // A coach game still stored as "Blitz" by an older version: the opponent gives it away.
+    { ...blitz("coach-old", 3, 738), black: "Coach-Levy", black_elo: "1600" },
+    // The same kind of game after the repair: no rating pool.
+    { ...blitz("coach-new", 4, 696), speed_category: UNTIMED, black_elo: "1200" },
+    blitz("b3", 5, 452),
+  ];
+
+  it("leaves coach, bot and untimed games out of the rating line and the current rating", () => {
+    const profile = buildPlayerProfile(games, ["Tim"]);
+    const lines = profile.trends.ratings as Record<string, [number, number][]>;
+    expect(Object.keys(lines)).toEqual(["Blitz"]);
+    expect(lines.Blitz.map(([, rating]) => rating)).toEqual([440, 448, 452]);
+    expect(profile.rating?.rating).toBe(452);
+    expect(profile.overview.ratings).toEqual({ Blitz: 452 });
+    // They still count as games.
+    expect(profile.total_games).toBe(5);
   });
 });

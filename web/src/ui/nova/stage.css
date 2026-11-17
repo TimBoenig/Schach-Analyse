@@ -1,0 +1,1123 @@
+/* ==========================================================================
+   Lucena's fullscreen stage (ui/stage/Stage.tsx): first start, the tour,
+   page guides and the game report story all play in this frame.
+   ========================================================================== */
+
+html.stage-open {
+  overflow: hidden;
+}
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  animation: stage-open 0.45s var(--ease);
+}
+@keyframes stage-open {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+
+/* Two slow lights in Lucena's colours and a fine dot grid behind her. */
+.stage-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.stage-blob {
+  position: absolute;
+  width: 78vmax;
+  height: 78vmax;
+  border-radius: 50%;
+}
+.stage-blob.a {
+  left: -30vmax;
+  top: -38vmax;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ai-a) 30%, transparent), transparent);
+  animation: stage-drift-a 22s ease-in-out infinite alternate;
+}
+.stage-blob.b {
+  right: -34vmax;
+  bottom: -44vmax;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ai-b) 22%, transparent), transparent);
+  animation: stage-drift-b 26s ease-in-out infinite alternate;
+}
+@keyframes stage-drift-a {
+  to {
+    transform: translate(9vmax, 6vmax);
+  }
+}
+@keyframes stage-drift-b {
+  to {
+    transform: translate(-8vmax, -7vmax);
+  }
+}
+.stage-grid {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--text) 9%, transparent) 1px, transparent 0);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, #000 10%, transparent 72%);
+  -webkit-mask-image: radial-gradient(ellipse 75% 65% at 50% 42%, #000 10%, transparent 72%);
+}
+
+/* ---------- top line ---------- */
+
+.stage-top {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: calc(16px + var(--safe-top)) 28px 12px;
+}
+.stage-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.stage-brand img {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+.stage-progress {
+  display: flex;
+  flex: 1;
+  gap: 5px;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+.stage-progress li {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 12%, transparent);
+  overflow: hidden;
+}
+.stage-progress li::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: var(--ai);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--ease);
+}
+.stage-progress li[data-state="done"]::after,
+.stage-progress li[data-state="on"]::after {
+  transform: scaleX(1);
+}
+.stage-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  padding: 7px 8px 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 550;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.stage-close:hover {
+  background: color-mix(in srgb, var(--text) 11%, transparent);
+  color: var(--text);
+}
+.stage-close svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---------- body ---------- */
+
+.stage-body {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 28px 64px;
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 12px 48px 20px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.stage-body::-webkit-scrollbar {
+  display: none;
+}
+.stage-split .stage-body {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  align-items: center;
+}
+.stage-center .stage-body {
+  justify-items: center;
+  text-align: center;
+}
+
+.stage-speaker {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  min-width: 0;
+}
+.stage-center .stage-speaker {
+  align-items: center;
+}
+
+.stage-orb {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  flex-shrink: 0;
+  animation: stage-orb-in 0.9s var(--ease);
+}
+.stage-center .stage-orb {
+  width: 208px;
+  height: 208px;
+}
+.stage-orb .coach-avatar {
+  width: 100%;
+  height: 100%;
+}
+.stage-orb-halo {
+  position: absolute;
+  inset: -26%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--ai-a) 26%, transparent), transparent);
+  animation: stage-halo 4.5s ease-in-out infinite;
+}
+@keyframes stage-orb-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+@keyframes stage-halo {
+  50% {
+    transform: scale(1.12);
+    opacity: 0.7;
+  }
+}
+
+.stage-speech {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.stage-center .stage-speech {
+  align-items: center;
+}
+.stage-kicker {
+  width: fit-content;
+  background: var(--ai);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: stage-rise 0.5s var(--ease) both;
+}
+.stage-say {
+  margin: 0;
+  font-size: clamp(27px, 2.7vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+.stage-center .stage-say {
+  max-width: 20ch;
+  font-size: clamp(32px, 3.6vw, 52px);
+}
+.typed-rest {
+  opacity: 0;
+}
+.stage-sub {
+  max-width: 50ch;
+  color: var(--text-2);
+  font-size: 16.5px;
+  line-height: 1.55;
+  text-wrap: pretty;
+  animation: stage-rise 0.6s 0.25s var(--ease) both;
+}
+.stage-center .stage-sub {
+  max-width: 56ch;
+}
+.stage-sub p {
+  margin: 0 0 8px;
+}
+.stage-sub strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stage-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.stage-center .stage-content {
+  width: 100%;
+  max-width: 680px;
+}
+.stage-content > * {
+  animation: stage-rise 0.6s var(--ease) both;
+}
+.stage-content > *:nth-child(1) {
+  animation-delay: 0.18s;
+}
+.stage-content > *:nth-child(2) {
+  animation-delay: 0.26s;
+}
+.stage-content > *:nth-child(3) {
+  animation-delay: 0.34s;
+}
+.stage-content > *:nth-child(4) {
+  animation-delay: 0.42s;
+}
+.stage-content > *:nth-child(5) {
+  animation-delay: 0.5s;
+}
+.stage-content > *:nth-child(n + 6) {
+  animation-delay: 0.58s;
+}
+@keyframes stage-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* ---------- bottom line ---------- */
+
+.stage-foot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 14px 48px calc(22px + var(--safe-bottom));
+}
+.stage-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px 10px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 550;
+}
+.stage-back:hover {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--text);
+}
+.stage-back svg {
+  width: 16px;
+  height: 16px;
+}
+.stage-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.stage-actions .btn {
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 14px;
+  font-size: 15px;
+}
+.stage-actions .btn.primary {
+  background: var(--ai);
+  box-shadow: 0 12px 30px -12px color-mix(in srgb, var(--ai-a) 70%, transparent);
+  color: #ffffff;
+}
+.stage-actions .btn.primary:hover:not(:disabled) {
+  background: var(--ai);
+  filter: brightness(1.08);
+}
+.stage-actions .btn.primary:disabled {
+  opacity: 0.45;
+  box-shadow: none;
+}
+.stage-actions .btn.primary svg {
+  width: 17px;
+  height: 17px;
+}
+.stage-hint {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.stage-hint kbd {
+  padding: 1px 6px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  font: 600 11px/1.5 var(--font);
+}
+
+/* ---------- content pieces ---------- */
+
+.stage-panel {
+  padding: 20px 22px;
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  text-align: left;
+}
+
+/* Big choices: one tap answers Lucena's question. */
+.stage-choices {
+  display: grid;
+  gap: 10px;
+}
+.stage-choices.cols {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.stage-choice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 18px;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text);
+  text-align: left;
+  transition:
+    box-shadow 0.18s,
+    transform 0.18s var(--ease),
+    background 0.18s;
+}
+.stage-choice:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ai-a) 60%, transparent);
+  transform: translateY(-1px);
+}
+.stage-choice[aria-pressed="true"] {
+  background: var(--ai-soft);
+  box-shadow: inset 0 0 0 1.5px var(--ai-a);
+}
+.stage-choice-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 700;
+}
+.stage-choice-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.stage-choice-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.stage-choice-text small {
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 450;
+  letter-spacing: 0;
+}
+.stage-choice > svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-3);
+}
+
+.stage-field {
+  display: flex;
+  gap: 10px;
+}
+.stage-field input {
+  flex: 1;
+  min-width: 0;
+  min-height: 56px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 550;
+}
+.stage-field input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--ai-a);
+}
+.stage-note {
+  color: var(--text-3);
+  font-size: 13px;
+}
+
+.stage-points {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stage-point {
+  display: flex;
+  gap: 14px;
+  padding: 12px 4px;
+  text-align: left;
+}
+.stage-point + .stage-point {
+  border-top: 1px solid var(--border);
+}
+.stage-point-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: var(--ai-soft);
+  color: var(--accent);
+}
+.stage-point-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.stage-point strong {
+  display: block;
+  font-size: 15.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.stage-point p {
+  margin: 2px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* Numbers Lucena read from the user's own games. */
+.stage-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+.stage-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+  text-align: left;
+}
+.stage-stat b {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+/* Only the label: the number's own counting span sits inside <b>. */
+.stage-stat > span {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.stage-stat.good b {
+  color: var(--win);
+}
+.stage-stat.bad b {
+  color: var(--loss);
+}
+
+.stage-meter {
+  height: 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+  overflow: hidden;
+}
+.stage-meter span {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+  background: var(--ai);
+  transition: width 0.7s var(--ease);
+}
+.stage-meter.busy span {
+  width: 38%;
+  animation: stage-busy 1.3s ease-in-out infinite;
+}
+@keyframes stage-busy {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(290%);
+  }
+}
+.stage-wdl {
+  display: flex;
+  gap: 3px;
+  height: 10px;
+}
+.stage-wdl span {
+  min-width: 3px;
+  border-radius: 5px;
+}
+.stage-wdl .w {
+  background: var(--win);
+}
+.stage-wdl .d {
+  background: var(--draw);
+}
+.stage-wdl .l {
+  background: var(--loss);
+}
+.stage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+.stage-row .faint {
+  color: var(--text-3);
+}
+
+/* ---------- small moving pictures of the app's areas ---------- */
+
+.illus {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 22px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    0 40px 80px -50px color-mix(in srgb, var(--ai-a) 60%, transparent);
+  overflow: hidden;
+}
+.illus-bar {
+  height: 9px;
+  border-radius: 9px;
+  background: var(--surface-3);
+}
+.illus-bar.s {
+  width: 34%;
+}
+.illus-bar.m {
+  width: 56%;
+}
+.illus-bar.l {
+  width: 78%;
+}
+.illus-bar.dim {
+  background: var(--surface-2);
+}
+
+/* Games: rows that receive their verdict one after the other. */
+.illus-game {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  animation: illus-in 0.6s var(--ease) both;
+}
+.illus-game:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.illus-game:nth-child(3) {
+  animation-delay: 0.24s;
+}
+.illus-game:nth-child(4) {
+  animation-delay: 0.36s;
+}
+.illus-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--draw);
+}
+.illus-dot.w {
+  background: var(--win);
+}
+.illus-dot.l {
+  background: var(--loss);
+}
+.illus-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+}
+.illus-badges {
+  display: flex;
+  gap: 5px;
+}
+.illus-badges img {
+  width: 24px;
+  height: 24px;
+  animation: illus-pop 0.5s var(--ease) both;
+}
+.illus-game:nth-child(1) .illus-badges img {
+  animation-delay: 0.7s;
+}
+.illus-game:nth-child(2) .illus-badges img {
+  animation-delay: 1s;
+}
+.illus-game:nth-child(3) .illus-badges img {
+  animation-delay: 1.3s;
+}
+.illus-game:nth-child(4) .illus-badges img {
+  animation-delay: 1.6s;
+}
+.illus-badges img + img {
+  animation-delay: inherit;
+}
+@keyframes illus-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+}
+@keyframes illus-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
+
+/* Statistics: a profile shape that draws itself, bars that grow. */
+.illus-stats {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 20px;
+}
+.illus-stats svg {
+  width: 150px;
+  height: 150px;
+  overflow: visible;
+}
+.illus-web {
+  fill: none;
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+.illus-shape {
+  fill: color-mix(in srgb, var(--ai-a) 24%, transparent);
+  stroke: var(--ai-a);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transform-origin: 75px 75px;
+  animation: illus-grow 1s 0.3s var(--ease) both;
+}
+@keyframes illus-grow {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+.illus-skill {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.illus-skill-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.illus-skill-row .illus-bar {
+  flex-shrink: 0;
+  width: 54px;
+}
+.illus-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.illus-track span {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+  background: var(--win);
+  transform-origin: left;
+  animation: illus-fill 0.9s var(--ease) both;
+}
+.illus-track span.bad {
+  background: var(--loss);
+}
+.illus-track span.mid {
+  background: var(--accent);
+}
+.illus-skill-row:nth-child(1) span {
+  animation-delay: 0.5s;
+}
+.illus-skill-row:nth-child(2) span {
+  animation-delay: 0.62s;
+}
+.illus-skill-row:nth-child(3) span {
+  animation-delay: 0.74s;
+}
+.illus-skill-row:nth-child(4) span {
+  animation-delay: 0.86s;
+}
+@keyframes illus-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* Training: a piece of board, the move as an arrow, a tick when it is right. */
+.illus-train {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  align-items: center;
+  gap: 20px;
+}
+.illus-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 176px;
+  height: 176px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.illus-board i {
+  background: var(--sq-light);
+}
+.illus-board i.d {
+  background: var(--sq-dark);
+}
+.illus-board img {
+  position: absolute;
+  width: 25%;
+  height: 25%;
+}
+.illus-board svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.illus-arrow {
+  fill: none;
+  stroke: var(--arrow-best);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  opacity: 0.9;
+  animation: illus-draw 0.8s 0.8s var(--ease) forwards;
+}
+@keyframes illus-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.illus-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.illus-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  animation: illus-in 0.6s var(--ease) both;
+}
+.illus-step:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.illus-step:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.illus-check {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--surface-3);
+}
+.illus-check.on {
+  background: var(--win);
+  box-shadow: none;
+  animation: illus-pop 0.5s 1.5s var(--ease) both;
+}
+.illus-check.on::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  margin-top: -2px;
+  border-left: 2px solid var(--bg);
+  border-bottom: 2px solid var(--bg);
+  transform: rotate(-45deg);
+}
+
+/* Players: a table in which the user climbs one place. */
+.illus-rank {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 196px;
+}
+.illus-rank-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 13px;
+  background: var(--surface-2);
+}
+.illus-rank-row:nth-child(1) {
+  top: 0;
+}
+.illus-rank-row:nth-child(2) {
+  top: 50px;
+  animation: illus-down 0.8s 1.1s var(--ease) forwards;
+}
+.illus-rank-row:nth-child(3) {
+  top: 100px;
+  animation: illus-up 0.8s 1.1s var(--ease) forwards;
+}
+.illus-rank-row:nth-child(4) {
+  top: 150px;
+}
+.illus-rank-row.me {
+  background: color-mix(in srgb, var(--cta) 20%, var(--surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cta) 60%, transparent);
+}
+@keyframes illus-up {
+  to {
+    transform: translateY(-50px);
+  }
+}
+@keyframes illus-down {
+  to {
+    transform: translateY(50px);
+  }
+}
+.illus-avatar {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tone, var(--p5));
+}
+.illus-rank-row .illus-bar {
+  flex: 1;
+  max-width: 40%;
+}
+.illus-rank-row .illus-track {
+  flex: 1;
+}
+.illus-rank-row .illus-track span {
+  background: var(--tone, var(--p5));
+  animation-delay: 0.4s;
+}
+
+/* Engine: an evaluation line with the moments that decided the game. */
+.illus-curve svg {
+  display: block;
+  width: 100%;
+  height: 150px;
+  overflow: visible;
+}
+.illus-curve-zero {
+  stroke: var(--border-strong);
+  stroke-dasharray: 3 5;
+}
+.illus-curve-line {
+  fill: none;
+  stroke: var(--ai-a);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 700;
+  stroke-dashoffset: 700;
+  animation: illus-draw 1.8s 0.3s var(--ease) forwards;
+}
+.illus-curve-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: illus-pop 0.5s var(--ease) both;
+}
+.illus-curve-foot {
+  display: flex;
+  gap: 8px;
+}
+.illus-curve-foot img {
+  width: 26px;
+  height: 26px;
+  animation: illus-pop 0.5s var(--ease) both;
+}
+
+/* ---------- phones ---------- */
+
+@media (max-width: 899px) {
+  .stage-top {
+    gap: 12px;
+    padding: calc(12px + var(--safe-top)) 14px 8px;
+  }
+  .stage-brand span {
+    display: none;
+  }
+  .stage-close span {
+    display: none;
+  }
+  .stage-close {
+    padding: 8px;
+  }
+  .stage-body,
+  .stage-split .stage-body {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 20px;
+    padding: 8px 18px 16px;
+  }
+  .stage-center .stage-body {
+    align-content: center;
+  }
+  .stage-speaker {
+    gap: 14px;
+  }
+  .stage-split .stage-speaker {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .stage-orb {
+    width: 72px;
+    height: 72px;
+  }
+  .stage-center .stage-orb {
+    width: 132px;
+    height: 132px;
+  }
+  .stage-say,
+  .stage-center .stage-say {
+    font-size: 24px;
+  }
+  .stage-center .stage-say {
+    font-size: 30px;
+  }
+  .stage-sub {
+    font-size: 15px;
+  }
+  .stage-foot {
+    padding: 10px 14px calc(14px + var(--safe-bottom));
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+  }
+  .stage-back {
+    padding: 10px;
+    font-size: 0;
+    gap: 0;
+  }
+  .stage-back svg {
+    width: 20px;
+    height: 20px;
+  }
+  .stage-actions {
+    flex: 1;
+    flex-wrap: nowrap;
+  }
+  .stage-actions .btn {
+    padding: 0 16px;
+  }
+  .stage-actions .btn.primary {
+    flex: 1;
+  }
+  .stage-hint {
+    display: none;
+  }
+  .stage-field {
+    flex-direction: column;
+  }
+  .illus {
+    padding: 16px;
+  }
+  .illus-stats {
+    grid-template-columns: 110px 1fr;
+    gap: 14px;
+  }
+  .illus-stats svg {
+    width: 110px;
+    height: 110px;
+  }
+  .illus-train {
+    grid-template-columns: 128px 1fr;
+    gap: 14px;
+  }
+  .illus-board {
+    width: 128px;
+    height: 128px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage,
+  .stage *,
+  .stage *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+}

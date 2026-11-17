@@ -89,6 +89,7 @@ export const SPEED_DE: Record<string, string> = {
   Classical: "Klassisch",
   Daily: "Fernschach",
   Correspondence: "Fernschach",
+  Untimed: "Ohne Zeitangabe",
 };
 
 /** Colour class for an accuracy value, matching the classification colours. */

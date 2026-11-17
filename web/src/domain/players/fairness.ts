@@ -52,7 +52,7 @@ export const ADJUST_SE_SHARE = 0.3;
 
 function speedOf(g: RawGame): string {
   if (g.chess960) return "Chess960";
-  return (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event) || "Other";
+  return (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other";
 }
 
 /** The player's analyzed games with time control, accuracy and blunders (same filters as the profiles). */
