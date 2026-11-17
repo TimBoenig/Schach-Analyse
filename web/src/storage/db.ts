@@ -227,6 +227,40 @@ export async function putGames(games: StoredGame[], { touch = true, silent = fal
   if (!silent) notify();
 }
 
+/**
+ * Stores games that arrived from the cloud. `decide` sees each record as it is
+ * stored right now, inside the same transaction, and returns what to keep
+ * there (null leaves it alone). A sync round decides on a snapshot that can be
+ * minutes old; a game that finished analysing in the meantime must not be
+ * replaced by the older copy from the cloud. Returns the records written.
+ */
+export async function mergeGames(
+  incoming: StoredGame[],
+  decide: (current: StoredGame | undefined, incoming: StoredGame) => StoredGame | null,
+): Promise<StoredGame[]> {
+  if (!incoming.length) return [];
+  const db = await openDb();
+  const tx = db.transaction("games", "readwrite");
+  const store = tx.objectStore("games");
+  const saved: StoredGame[] = [];
+  for (const g of incoming) {
+    const get = store.get(g.id);
+    get.onsuccess = () => {
+      const next = decide(get.result as StoredGame | undefined, g);
+      if (!next) return;
+      store.put(next);
+      saved.push(next);
+    };
+  }
+  await done(tx);
+  if (saved.length) {
+    cacheWrite(saved);
+    broadcast();
+    notify();
+  }
+  return saved;
+}
+
 export function deleteGame(id: string): Promise<void> {
   return deleteGames([id]);
 }
@@ -272,6 +306,30 @@ export async function putSettingRecords(records: SettingRecord[], silent = false
   await done(tx);
   broadcast();
   if (!silent) notify();
+}
+
+/** Stores incoming settings that are newer than what is stored now (decided inside the transaction, like `mergeGames`). */
+export async function mergeSettingRecords(incoming: SettingRecord[]): Promise<number> {
+  if (!incoming.length) return 0;
+  const db = await openDb();
+  const tx = db.transaction("settings", "readwrite");
+  const store = tx.objectStore("settings");
+  let written = 0;
+  for (const r of incoming) {
+    const get = store.get(r.key);
+    get.onsuccess = () => {
+      const current = get.result as SettingRecord | undefined;
+      if (current && current.updated_at >= r.updated_at) return;
+      store.put(r);
+      written += 1;
+    };
+  }
+  await done(tx);
+  if (written) {
+    broadcast();
+    notify();
+  }
+  return written;
 }
 
 export async function listSettingRecords(): Promise<SettingRecord[]> {

@@ -119,6 +119,13 @@ lokal in `.env.local`, auf Vercel als Projekt-Umgebungsvariablen. Die Datenbank 
 `public.sync_records` mit Row Level Security (`auth.uid() = user_id` für select, insert, update und delete).
 Abgeglichen wird last-writer-wins auf `updated_at`; Löschungen werden als Tombstones übertragen.
 
+Eine Abgleichrunde (`src/storage/sync.ts`) liest zuerst nur die Kopfzeilen (Id, Zeitstempel, Analysestatus) dessen, was sich
+online geändert hat, lädt dann nur die Partien, die online neuer oder besser analysiert sind, in Häppchen von 40 (jedes Häppchen
+wird sofort lokal gespeichert), und lädt hoch, was hier neuer ist. Eine Kopie mit weniger Analyse ersetzt nie eine mit mehr, auch
+wenn sie neuer ist. Ein Eintrag, der nicht übertragen werden kann, wird gemerkt (`sync.retry`) und beim nächsten Mal erneut
+versucht, die anderen kommen trotzdem durch. Alle sechs Stunden, bei der Anmeldung und über „Jetzt abgleichen“ vergleicht eine
+volle Runde die Kopfzeilen aller Einträge und holt oder sendet nach, was eine frühere Runde verpasst hat.
+
 In Supabase unter *Authentication → URL Configuration* die **Site URL** auf die veröffentlichte Adresse setzen,
 sonst führen Bestätigungsmails auf `localhost`.
 

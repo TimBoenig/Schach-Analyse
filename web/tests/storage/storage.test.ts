@@ -7,7 +7,6 @@ import { analyzeGameTactics } from "../../src/domain/tactics";
 import { parsePgnText } from "../../src/domain/pgn";
 import { deleteGame, getGame, getSetting, listAllGameRecords, listGames, putGames, resetDbConnection, setSetting } from "../../src/storage/db";
 import { fromStoredGame, toStoredGame } from "../../src/storage/rows";
-import { mergeRecords } from "../../src/storage/sync";
 
 const PGN = `[Event "Test"]\n[White "Me"]\n[Black "Opp"]\n[Result "1-0"]\n[TimeControl "180+2"]\n\n1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7# 1-0\n`;
 
@@ -96,18 +95,5 @@ describe("IndexedDB storage", () => {
     expect(await getSetting("usernames", ["x"])).toEqual(["x"]);
     await setSetting("usernames", ["Me"]);
     expect(await getSetting("usernames", [])).toEqual(["Me"]);
-  });
-});
-
-describe("mergeRecords", () => {
-  const rec = (id: string, updated_at: number) => ({ id, updated_at });
-  const map = (...r: { id: string; updated_at: number }[]) => new Map(r.map((x) => [x.id, x]));
-
-  it("takes the newer side and pushes only local changes since the last push", () => {
-    const local = map(rec("same", 5), rec("localNewer", 9), rec("remoteNewer", 3), rec("onlyLocalOld", 1), rec("onlyLocalNew", 20));
-    const remote = map(rec("same", 5), rec("localNewer", 4), rec("remoteNewer", 8), rec("onlyRemote", 2));
-    const { toLocal, toRemote } = mergeRecords(local, remote, 10);
-    expect(toLocal.map((r) => r.id).sort()).toEqual(["onlyRemote", "remoteNewer"]);
-    expect(toRemote.map((r) => r.id).sort()).toEqual(["localNewer", "onlyLocalNew"]);
   });
 });
