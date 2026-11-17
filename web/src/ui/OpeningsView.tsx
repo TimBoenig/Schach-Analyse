@@ -12,6 +12,7 @@ import {
 } from "../domain/profile";
 import { MIN_LINE_GAMES, scoreDeviation } from "../domain/profile/evidence";
 import { PageHeader } from "./Layout";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { BarList, Legend } from "./charts";
 import type { BarRow } from "./charts";
 import { formatDate } from "./labels";
@@ -271,7 +272,9 @@ export function OpeningsView() {
     explorerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />;
+  const ready = Boolean(profile && profile.total_games > 0);
+  usePageGuide("openings", ready);
+  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} actions={ready ? <GuideButton id="openings" /> : undefined} />;
 
   if (usernames && !usernames.length) {
     return (

@@ -45,7 +45,8 @@ import { StyleAxes } from "./profile/Findings";
 import { IconEye, IconPlay, IconPlus, IconSync, IconTrash } from "./icons";
 import { loadedAgo, SPEED_DE } from "./labels";
 import { navigate, toHash } from "./router";
-import { CoachAvatar, CoachTip } from "./Coach";
+import { CoachAvatar } from "./Coach";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { FORMATS, formatOptionLabel } from "./useProfile";
 import { AnalyzeFriends, Avatar, de, gamesOf, pct0, PlayerFilters, plural, profileFor, RefreshAll, toneOf, useQueue } from "./players/common";
@@ -1132,6 +1133,8 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
 
 export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangliste" }) {
   const { players, games, me } = useData();
+  const guide = tab === "rangliste" ? "ranking" : "players";
+  usePageGuide(guide, Boolean(players) && !playerId);
   if (!players) {
     return (
       <div>
@@ -1145,16 +1148,11 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
   if (playerId) return <PlayerDetail id={playerId} players={players} games={games} me={me} />;
   return (
     <div>
-      <PageHeader />
+      <PageHeader actions={<GuideButton id={guide} />} />
       {!me.length && (
         <div class="notice" style={{ marginBottom: "14px" }}>
           Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
         </div>
-      )}
-      {tab !== "rangliste" && (
-        <CoachTip id="players" title="Deine Gegner und Freunde">
-          Füge Gegner oder Freunde hinzu, dann lade ich ihre Partien und schreibe dir einen Bericht: Was spielen sie, wo sind sie stark und wie packst du sie am besten?
-        </CoachTip>
       )}
       {tab === "rangliste" ? <LeaguePage players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}
     </div>

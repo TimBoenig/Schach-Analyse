@@ -16,6 +16,7 @@ import { navigate } from "./router";
 import { ConditionFinder } from "./stats/Lab";
 import { NeedNames } from "./Coach";
 import { PageHeader } from "./Layout";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { type InsightsSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
@@ -289,12 +290,10 @@ function Tile({ title, sub, span, children }: { title: string; sub?: string; spa
 export function InsightsView() {
   const { profile, usernames, loading, error, filters, setFilters } = useProfile({ page: "insights" });
   const narrow = useNarrow();
+  const ready = Boolean(profile && profile.total_games > 0);
+  usePageGuide("insights", ready);
 
-  const header = (
-    <>
-      <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} />
-    </>
-  );
+  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} actions={ready ? <GuideButton id="insights" /> : undefined} />;
 
   if (usernames && !usernames.length) {
     return (

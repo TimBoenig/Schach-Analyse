@@ -5,7 +5,7 @@ import type { Mood } from "../coach/net";
 import type { IllusKind } from "./Illus";
 import type { Point } from "./script";
 
-export type GuideId = "home" | "games" | "analysis" | "profile" | "insights" | "moves" | "openings" | "training" | "exercises" | "progress" | "players" | "ranking";
+export type GuideId = "home" | "games" | "analysis" | "board" | "profile" | "insights" | "moves" | "openings" | "training" | "exercises" | "progress" | "players" | "ranking";
 
 export interface GuideStep {
   say: string;
@@ -69,6 +69,20 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
         points: [
           { title: "Die Note", text: "Misst deine Züge, nicht das Ergebnis. Eine verlorene Partie kann eine gute Note haben." },
           { title: "Im Vollbild", text: "Mit „Lucena erklärt die Partie“ gehe ich sie Schritt für Schritt mit dir durch: Note, Wendepunkt, dein bester und dein teuerster Zug." },
+        ],
+      },
+    ],
+  },
+  board: {
+    title: "Analysebrett",
+    steps: [
+      {
+        say: "Hier probierst du Stellungen frei aus.",
+        sub: "Zieh die Figuren für beide Seiten. Ich bewerte jeden Zug sofort und zeige dir die besten Fortsetzungen der Engine.",
+        illus: "engine",
+        points: [
+          { title: "Aus einer Partie", text: "„Im Analysebrett“ auf der Partieseite bringt die gezeigte Stellung hierher." },
+          { title: "Zurück auf Anfang", text: "„Startstellung“ oben stellt die Figuren neu auf." },
         ],
       },
     ],

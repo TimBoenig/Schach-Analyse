@@ -11,7 +11,7 @@ import { isTyping } from "./keys";
 import { formatEval } from "./labels";
 import { LineMoves, VerdictCard } from "./LiveLine";
 import { navigate } from "./router";
-import { CoachTip } from "./Coach";
+import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { OpeningLine } from "./OpeningLine";
 import { useBook } from "./useBook";
 import { usePositionLines, useVerdicts } from "./useLive";
@@ -70,6 +70,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   const [line, setLine] = useState<Line>(() => loadLine(initialFen && validFen(initialFen) ? initialFen : undefined));
   const { fens, sans, ucis } = useMemo(() => replay(line), [line]);
   const [cursor, setCursor] = useState(ucis.length);
+  usePageGuide("board", true);
   const [flipped, setFlipped] = useState(() => line.start.split(" ")[1] === "b");
   const [showArrows, setShowArrows] = useState(true);
   const [fenInput, setFenInput] = useState("");
@@ -153,15 +154,14 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
     <div>
       <PageHeader
         actions={
-          <button class="btn small" onClick={() => reset()}>
-            <IconReset /> Startstellung
-          </button>
+          <>
+            <button class="btn small" onClick={() => reset()}>
+              <IconReset /> Startstellung
+            </button>
+            <GuideButton id="board" />
+          </>
         }
       />
-      <CoachTip id="board" title="Probier einfach aus!">
-        Zieh die Figuren für beide Seiten. Ich sage dir nach jedem Zug, wie gut er war, und zeige dir die besten
-        Fortsetzungen der Engine.
-      </CoachTip>
       <div class="analysis">
         <div class="board-area">
           <div class="player-line" style={{ gridRow: 1 }}>

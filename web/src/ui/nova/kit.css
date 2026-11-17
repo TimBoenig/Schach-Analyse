@@ -244,7 +244,11 @@ textarea:focus {
 .coach {
   align-items: flex-start;
 }
-.coach-bubble {
+/* Lucena's remarks sit flat on the page: no tail, no outline, so they read
+   as part of the card rather than as a bubble floating over it. */
+.coach-bubble,
+.card .coach-bubble {
+  border: 0;
   border-radius: 14px;
   background: var(--surface-2);
   box-shadow: none;
@@ -273,4 +277,21 @@ dialog {
 
 .empty {
   border-radius: var(--radius);
+}
+
+/* Settings: cards of very different heights flow in two columns like a
+   newspaper, so a short card never leaves a hole beside a tall one. */
+.settings-cols {
+  display: block;
+  columns: 2;
+  column-gap: 16px;
+}
+.settings-cols > .card {
+  break-inside: avoid;
+  margin: 0 0 16px;
+}
+@media (max-width: 899px) {
+  .settings-cols {
+    columns: 1;
+  }
 }
