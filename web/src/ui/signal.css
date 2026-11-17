@@ -1,109 +1,9 @@
 /* ==========================================================================
    Signal layer (2026-11): colour as a guide, not as decoration.
 
-   The minimal layer made everything black, grey and white. This layer keeps
-   its calm surfaces but gives colour fixed jobs, the same on every page:
-     gold   = you, the open page, the next step (what to look at or press)
-     teal   = good: strengths, gains, above expectation
-     coral  = bad: weaknesses, losses, below expectation
-     slate  = neutral facts and everything that belongs to others
-   It also tightens sizes, uses wide screens and holds the phone trims that
-   go with it. Loaded after mobile.css, before landing.css.
+   Sizes, density and phone trims of the pages. The colours that once lived
+   here moved to nova/tokens.css, which is loaded last and owns every token.
    ========================================================================== */
-
-:root {
-  --bg: #111112;
-  --bg-elev: #161618;
-  --surface: #19191b;
-  --surface-2: #222225;
-  --surface-3: #2e2e33;
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --text: #f6f5f1;
-  --text-2: #a9a9ae;
-  --text-3: #74747b;
-  --accent: #fbbd23;
-  --accent-2: #ffd466;
-  --accent-soft: rgba(251, 189, 35, 0.13);
-  --accent-text: #1c1400;
-  --cta: #fbbd23;
-  --cta-hover: #ffcc4a;
-  --cta-edge: #b8860b;
-  --gold: #fbbd23;
-  --win: #21c08b;
-  --good: #21c08b;
-  --best: #21c08b;
-  --loss: #f2604f;
-  --pos-soft: rgba(33, 192, 139, 0.14);
-  --neg-soft: rgba(242, 96, 79, 0.14);
-  --bubble: #222225;
-  --radius: 16px;
-  --radius-sm: 11px;
-  --eval-light: #d9dce3;
-  --eval-dark: #2a2a2f;
-}
-
-:root[data-theme="light"] {
-  --bg: #f6f5f2;
-  --bg-elev: #fbfaf8;
-  --surface: #ffffff;
-  --surface-2: #f1f0ec;
-  --surface-3: #e4e2dc;
-  --border: rgba(20, 16, 0, 0.09);
-  --border-strong: rgba(20, 16, 0, 0.18);
-  --text: #131210;
-  --text-2: #5a5952;
-  --text-3: #8a887f;
-  --accent: #956300;
-  --accent-2: #7a5100;
-  --accent-soft: rgba(230, 160, 0, 0.16);
-  --accent-text: #ffffff;
-  --cta: #f7b512;
-  --cta-hover: #ffc531;
-  --cta-edge: #c48a00;
-  --gold: #c98f00;
-  --win: #0f8f66;
-  --good: #0f8f66;
-  --best: #0f8f66;
-  --loss: #d23f2e;
-  --pos-soft: rgba(15, 143, 102, 0.12);
-  --neg-soft: rgba(210, 63, 46, 0.11);
-  --bubble: #f1f0ec;
-  --eval-light: #ffffff;
-  --eval-dark: #3a3a40;
-}
-
-@media (prefers-color-scheme: light) {
-  :root[data-theme="system"] {
-    --bg: #f6f5f2;
-    --bg-elev: #fbfaf8;
-    --surface: #ffffff;
-    --surface-2: #f1f0ec;
-    --surface-3: #e4e2dc;
-    --border: rgba(20, 16, 0, 0.09);
-    --border-strong: rgba(20, 16, 0, 0.18);
-    --text: #131210;
-    --text-2: #5a5952;
-    --text-3: #8a887f;
-    --accent: #956300;
-    --accent-2: #7a5100;
-    --accent-soft: rgba(230, 160, 0, 0.16);
-    --accent-text: #ffffff;
-    --cta: #f7b512;
-    --cta-hover: #ffc531;
-    --cta-edge: #c48a00;
-    --gold: #c98f00;
-    --win: #0f8f66;
-    --good: #0f8f66;
-    --best: #0f8f66;
-    --loss: #d23f2e;
-    --pos-soft: rgba(15, 143, 102, 0.12);
-    --neg-soft: rgba(210, 63, 46, 0.11);
-    --bubble: #f1f0ec;
-    --eval-light: #ffffff;
-    --eval-dark: #3a3a40;
-  }
-}
 
 /* ---------- header: one row ---------- */
 
@@ -149,16 +49,6 @@
   }
 }
 
-/* The open tab is the gold one: the same signal as the open area in the rail. */
-.area-tabs-row button,
-.area-tabs-row button:first-child {
-  padding: 7px 14px;
-  font-size: 13.5px;
-}
-.area-tabs-row button.active {
-  background: var(--cta);
-  color: #1c1400;
-}
 
 /* Filters: three slim selects. */
 .page-toolbar .filters select,
@@ -271,7 +161,7 @@
   height: 26px;
 }
 
-/* ---------- the journey: one gold line ---------- */
+/* ---------- the journey: one line in the accent colour ---------- */
 
 .journey-bar {
   gap: 12px;
@@ -311,7 +201,7 @@
   font-size: 12px;
   font-weight: 700;
   background: var(--cta);
-  color: #1c1400;
+  color: #ffffff;
 }
 .journey-bar-peak {
   width: 10px;
@@ -407,35 +297,6 @@
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.025em;
-}
-
-/* ---------- gold is you ---------- */
-
-/* On every track, bar and table the player's own marker is gold; friends keep
-   their own colours, none of them close to gold. */
-:root {
-  --p1: #4cc4e6;
-  --p5: #a8b3c4;
-}
-:root[data-theme="light"] {
-  --p1: #0b7fa3;
-  --p5: #5d6b80;
-}
-@media (prefers-color-scheme: light) {
-  :root[data-theme="system"] {
-    --p1: #0b7fa3;
-    --p5: #5d6b80;
-  }
-}
-.tone-me {
-  --tone: var(--cta);
-  --tone-ink: #1c1400;
-}
-.lg-tug-a.tone-me,
-.lg-tug-b.tone-me,
-.rv-fc-me.tone-me,
-.rv-phase-bar > span.tone-me {
-  background: var(--cta);
 }
 
 /* ---------- phones: smaller, tighter, less to read ---------- */
@@ -566,13 +427,4 @@
   .journey-bar {
     margin: 28px 4px 2px;
   }
-}
-
-/* Gold buttons carry dark text in both themes: white on gold is hard to read. */
-.btn.primary,
-.btn.primary:hover:not(:disabled) {
-  color: #1c1400;
-}
-.welcome-steps li::before {
-  color: #1c1400;
 }

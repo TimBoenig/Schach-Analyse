@@ -19,7 +19,7 @@ function etaText(days: number): string {
 }
 
 /**
- * The journey as one line, like a progress bar: gold from the first rating up
+ * The journey as one line, like a progress bar: the accent colour from the first rating up
  * to today, the goal at the far end with the only symbol on it. Start, best
  * and goal are plain dots, so no marker speaks a different visual language.
  */

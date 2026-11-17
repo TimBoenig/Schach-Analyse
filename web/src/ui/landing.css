@@ -2,7 +2,7 @@
    tokens only, so light and dark mode follow the rest of the app. */
 
 .landing {
-  --ld-gold: #f2c25c;
+  --ld-iris: #8d9aff;
   --ld-teal: #40e0be;
   min-height: 100vh;
   background: var(--bg);
@@ -12,12 +12,12 @@
 }
 :root[data-theme="light"] .landing,
 .light .landing {
-  --ld-gold: #a8730f;
+  --ld-iris: #4350e0;
   --ld-teal: #0f8a70;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) .landing {
-    --ld-gold: #a8730f;
+    --ld-iris: #4350e0;
     --ld-teal: #0f8a70;
   }
 }
@@ -75,7 +75,7 @@
   width: 70%;
   height: 120%;
   background: radial-gradient(closest-side, color-mix(in srgb, var(--ld-teal) 22%, transparent), transparent 70%),
-    radial-gradient(closest-side at 30% 70%, color-mix(in srgb, var(--ld-gold) 16%, transparent), transparent 70%);
+    radial-gradient(closest-side at 30% 70%, color-mix(in srgb, var(--ld-iris) 16%, transparent), transparent 70%);
   filter: blur(20px);
   pointer-events: none;
   z-index: 0;
@@ -91,7 +91,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ld-gold);
+  color: var(--ld-iris);
 }
 .ld-hero h1 {
   margin: 0;
@@ -102,7 +102,7 @@
 }
 .ld-hero h1 em {
   font-style: normal;
-  background: linear-gradient(100deg, var(--ld-teal), var(--ld-gold));
+  background: linear-gradient(100deg, var(--ld-teal), var(--ld-iris));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -154,7 +154,7 @@
 .ld-orbit::after {
   inset: -28px;
   border-style: solid;
-  border-color: color-mix(in srgb, var(--ld-gold) 22%, transparent);
+  border-color: color-mix(in srgb, var(--ld-iris) 22%, transparent);
   animation-duration: 70s;
   animation-direction: reverse;
 }
@@ -370,8 +370,8 @@
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--ld-gold) 16%, transparent);
-  color: var(--ld-gold);
+  background: color-mix(in srgb, var(--ld-iris) 16%, transparent);
+  color: var(--ld-iris);
   flex: none;
 }
 .ld-skill-icon svg {
@@ -564,7 +564,7 @@
   width: 40%;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--ld-teal), var(--ld-gold));
+  background: linear-gradient(90deg, var(--ld-teal), var(--ld-iris));
   animation: ld-slide 1.3s ease-in-out infinite;
 }
 @keyframes ld-slide {
