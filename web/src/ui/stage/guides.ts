@@ -29,9 +29,10 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
         say: "Das ist dein Tag auf einen Blick.",
         sub: "Oben steht, was heute dran ist. Darunter, wie es zuletzt lief.",
         points: [
-          { title: "Dein nächster Schritt", text: "Die Einheit für heute oder neue Partien, die auf dich warten." },
-          { title: "Deine Form", text: "Wertung, Genauigkeit und Ergebnisse der letzten Wochen im Vergleich zu davor." },
-          { title: "Dein Kalender", text: "An welchen Tagen du gespielt und trainiert hast." },
+          { title: "Dein nächster Schritt", text: "Die Einheit für heute und Partien, die noch auf die Analyse warten." },
+          { title: "Dein Ziel", text: "Rechts deine Wertung und der Weg zum nächsten Ziel. Mit + und − stellst du es selbst ein." },
+          { title: "Deine Form", text: "Die letzten Ergebnisse und fünf Kennzahlen, jeweils mit dem Zeitraum davor verglichen. Den Zeitraum wählst du oben." },
+          { title: "Dein Kalender", text: "An welchen Tagen du gespielt hast und wie es lief." },
         ],
       },
     ],
