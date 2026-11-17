@@ -45,3 +45,20 @@ export { compareRates, openingProgress, trainingTrends, TREND_MIN_ATTEMPTS, week
 export type { Direction, OpeningProgress, Trend, WeekPoint } from "./trend";
 export { LIBRARY_DRILLS, OPENING_LIBRARY } from "./library";
 export type { LibraryLine, LibraryOpening } from "./library";
+export {
+  activity,
+  categoryOverview,
+  dueExercises,
+  estimateMinutes,
+  exerciseState,
+  LIBRARY_GROUPS,
+  logTotals,
+  pickSession,
+  poolTotals,
+  SESSION_SIZE,
+  sessionResult,
+  startCategory,
+  STATE_LABEL,
+  weekView,
+} from "./overview";
+export type { Activity, ActivityDay, CategoryOverview, DayState, ExerciseState, LogTotals, PartResult, PoolTotals, SessionResult, WeekDayView, WeekView } from "./overview";

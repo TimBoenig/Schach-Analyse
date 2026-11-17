@@ -138,11 +138,12 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
     steps: [
       {
         say: "Eine Einheit am Tag, gebaut aus deinen Partien.",
-        sub: "Oben startest du die Einheit für heute. Darunter steht, warum genau diese Aufgaben dran sind.",
+        sub: "Oben steht die Einheit für heute mit ihren Teilen. Ein Knopf startet sie. Dann tritt die App zurück und es gibt nur noch das Brett und die Aufgabe.",
         illus: "training",
         points: [
-          { title: "Drei Teile", text: "Aufwärmen, dein Schwerpunkt, dann gemischte Aufgaben." },
-          { title: "Dein Schwerpunkt", text: "Kommt aus dem, was dich in deinen Partien am meisten kostet." },
+          { title: "Drei Teile", text: "Aufwärmen mit fälligen Wiederholungen, dann dein Hauptthema, dann gemischte Aufgaben." },
+          { title: "Deine Woche", text: "Jeder Tag hat ein Thema. Deine größte Schwäche kommt am häufigsten dran." },
+          { title: "Anpassen", text: "Zeit pro Tag und Schwerpunkt stellst du über „Anpassen“ ein." },
         ],
       },
     ],
@@ -152,10 +153,11 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
     steps: [
       {
         say: "Hier übst du gezielt ein Thema.",
-        sub: "Jede Karte ist ein Thema mit Aufgaben aus deinen eigenen Partien.",
+        sub: "Links stehen die Bereiche, rechts öffnet sich der gewählte mit seinen Aufgaben. Ein Knopf startet zehn davon.",
         points: [
-          { title: "Empfohlen steht oben", text: "Die Themen, in denen du zuletzt die meisten Fehler gemacht hast." },
-          { title: "Dein Stand je Thema", text: "Wie viele Aufgaben es gibt und wie viele du schon sicher löst." },
+          { title: "Der Balken zeigt deinen Stand", text: "Grün sitzt sicher, Blau ist im Aufbau, der Rest ist neu." },
+          { title: "Fällig heißt: jetzt wiederholen", text: "Diese Aufgaben kennst du schon. Heute ist der richtige Abstand, um sie zu festigen." },
+          { title: "Eröffnungen wählst du selbst", text: "Deine eigenen Linien mit korrigierten Fehlern oder eine neue aus der Bibliothek." },
         ],
       },
     ],
@@ -167,8 +169,9 @@ export const PAGE_GUIDES: Record<GuideId, PageGuideText> = {
         say: "Wirkt das Training?",
         sub: "Hier siehst du, wie oft du trainierst, was hängen bleibt und ob es in deinen Partien ankommt.",
         points: [
-          { title: "Behalten", text: "Aufgaben, die du nach einer Pause wieder richtig löst." },
-          { title: "Übertragen", text: "Ob du die geübten Fehler in neuen Partien seltener machst." },
+          { title: "Der Kalender", text: "Jedes Kästchen ist ein Tag. Je kräftiger die Farbe, desto mehr Aufgaben." },
+          { title: "Was hängen bleibt", text: "Aufgaben, die du nach einer Pause wieder auf Anhieb löst." },
+          { title: "In deinen Partien", text: "Ob du die geübten Fehler seltener machst. Ein Urteil gibt es erst mit genug Partien davor und danach." },
         ],
       },
     ],

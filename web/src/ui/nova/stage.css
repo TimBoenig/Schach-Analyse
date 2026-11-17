@@ -555,7 +555,8 @@ html.stage-open {
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
-.stage-stat span {
+/* Only the label: the number's own counting span sits inside <b>. */
+.stage-stat > span {
   color: var(--text-2);
   font-size: 12.5px;
 }
