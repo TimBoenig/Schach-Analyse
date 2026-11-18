@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { BRAND, FILE_PREFIX } from "../../brand";
 import { navigate } from "../router";
-import { MoveSounds } from "./audio";
+import { StudioAudio, type AudioMix } from "./audio";
+import { deleteClip, loadClip, saveClip, type ClipKind } from "./audioStore";
+import { MUSIC_LABEL, type MusicId } from "./music";
 import {
   BADGE_FILE,
   BADGE_LABEL,
@@ -101,13 +103,81 @@ export function StudioView() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<StudioStage | null>(null);
-  const soundsRef = useRef<MoveSounds | null>(null);
+  const soundsRef = useRef<StudioAudio | null>(null);
   const [ready, setReady] = useState(false);
   const timeline = useMemo(() => compile(project), [project]);
   const positions = useMemo(() => scenePositions(project), [project]);
   const scene = project.scenes[Math.min(sel, project.scenes.length - 1)];
   const playRef = useRef({ start: 0, from: 0 });
   const cancelRef = useRef(false);
+
+  // ---- music and own voice (kept in IndexedDB, decoded once per project)
+  const [clips, setClips] = useState<{ id: string; music: AudioBuffer | null; voice: AudioBuffer | null }>({ id: "", music: null, voice: null });
+  const [voiceRec, setVoiceRec] = useState<{ recorder: MediaRecorder; stop: () => void } | null>(null);
+  const [audioError, setAudioError] = useState("");
+  const audio = () => (soundsRef.current ??= new StudioAudio());
+  useEffect(() => {
+    let live = true;
+    const id = project.id;
+    void (async () => {
+      const decode = async (kind: ClipKind) => {
+        const blob = await loadClip(id, kind);
+        if (!blob) return null;
+        try {
+          return await audio().decode(await blob.arrayBuffer());
+        } catch {
+          return null;
+        }
+      };
+      const [music, voice] = [await decode("music"), await decode("voice")];
+      if (live) setClips({ id, music, voice });
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
+  const mix = (): AudioMix => {
+    const v = project.video;
+    const own = clips.id === project.id ? clips : { music: null, voice: null };
+    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound };
+  };
+  const storeClip = async (kind: ClipKind, blob: Blob, name = "") => {
+    try {
+      const buf = await audio().decode(await blob.arrayBuffer());
+      await saveClip(project.id, kind, blob);
+      setClips((c) => ({ ...(c.id === project.id ? c : { id: project.id, music: null, voice: null }), [kind]: buf }));
+      setVideo(kind === "voice" ? { voice: true } : { music: "file", musicName: name });
+      setAudioError("");
+    } catch {
+      setAudioError(kind === "voice" ? "Die Aufnahme ließ sich nicht speichern." : "Diese Datei kann der Browser nicht abspielen. Nimm MP3, M4A, WAV oder OGG.");
+    }
+  };
+  const removeVoice = () => {
+    void deleteClip(project.id, "voice");
+    setClips((c) => ({ ...c, voice: null }));
+    setVideo({ voice: false });
+  };
+  const startVoice = async () => {
+    try {
+      const mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+      const recorder = new MediaRecorder(mic);
+      const parts: Blob[] = [];
+      recorder.ondataavailable = (e) => e.data.size && parts.push(e.data);
+      recorder.onstop = () => {
+        mic.getTracks().forEach((t) => t.stop());
+        setVoiceRec(null);
+        if (parts.length) void storeClip("voice", new Blob(parts, { type: recorder.mimeType || "audio/webm" }));
+      };
+      const stop = () => recorder.state !== "inactive" && recorder.stop();
+      setVoiceRec({ recorder, stop });
+      setTime(0);
+      recorder.start();
+      setPlaying(true);
+    } catch {
+      setAudioError("Kein Zugriff aufs Mikrofon. Erlaub es in der Adressleiste und versuch es nochmal.");
+    }
+  };
 
   // ---- saving (debounced; quota errors are shown, not thrown)
   useEffect(() => {
@@ -168,16 +238,17 @@ export function StudioView() {
     if (!playing) return;
     let raf = 0;
     playRef.current = { start: performance.now(), from: time >= timeline.total - 0.05 ? 0 : time };
-    if (project.video.sound) {
-      soundsRef.current ??= new MoveSounds();
-      soundsRef.current.speakers(true);
-      soundsRef.current.schedule(timeline, playRef.current.from);
+    // While the voice is being recorded the speakers stay quiet, so the microphone hears only the voice.
+    if (!voiceRec) {
+      audio().speakers(true);
+      audio().schedule(timeline, playRef.current.from, mix());
     }
     const loop = () => {
       const t = playRef.current.from + (performance.now() - playRef.current.start) / 1000;
       if (t >= timeline.total) {
         setTime(timeline.total);
         setPlaying(false);
+        voiceRec?.stop();
         paint(timeline.total);
         return;
       }
@@ -189,6 +260,7 @@ export function StudioView() {
     return () => {
       cancelAnimationFrame(raf);
       soundsRef.current?.cancel();
+      voiceRec?.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, timeline]);
@@ -319,29 +391,26 @@ export function StudioView() {
     stage.setSize(W, H);
     cancelRef.current = false;
     setExp({ phase: "recording", progress: 0 });
-    let sounds: MoveSounds | null = null;
-    if (project.video.sound) {
-      soundsRef.current ??= new MoveSounds();
-      sounds = soundsRef.current;
-      sounds.speakers(false);
-    }
+    const sounds = audio();
+    const audioMix = mix();
+    sounds.speakers(false);
     try {
       const { blob, type } = await recordVideo({
         canvas: out,
         fps: project.video.fps,
         duration: timeline.total,
         paint: (t) => stage.paint(timeline, project, t),
-        audio: sounds?.stream.stream ?? null,
-        onStart: () => sounds?.schedule(timeline, 0),
+        audio: sounds.stream.stream,
+        onStart: () => sounds.schedule(timeline, 0, audioMix),
         onProgress: (k) => setExp((x) => (x && x.phase === "recording" ? { ...x, progress: k } : x)),
         isCancelled: () => cancelRef.current,
       });
       stage.destroy();
-      sounds?.speakers(true);
+      sounds.speakers(true);
       if (cancelRef.current) return setExp(null);
       setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: type.ext });
     } catch (e) {
-      sounds?.speakers(true);
+      sounds.speakers(true);
       setExp({ phase: "error", progress: 0, error: e instanceof Error ? e.message : String(e) });
     }
   };
@@ -468,6 +537,14 @@ export function StudioView() {
               onMouseLeave={() => setHover(null)}
             />
           )}
+          {voiceRec && (
+            <div class="studio-prompter">
+              <span class="rec">● Aufnahme</span>
+              <p>{timeline.scenes[sel]?.scene.speech || timeline.scenes[sel]?.scene.text || "…"}</p>
+              {timeline.scenes[sel + 1]?.scene.speech && <p class="next">{timeline.scenes[sel + 1].scene.speech}</p>}
+              <button onClick={voiceRec.stop}>Stopp</button>
+            </div>
+          )}
           {tool !== "none" && (
             <div class="studio-tool-hint">
               {tool === "arrow" ? (pending ? `Pfeil von ${pending}: jetzt das Zielfeld anklicken` : "Startfeld des Pfeils anklicken") : "Felder anklicken zum Markieren"}
@@ -572,6 +649,19 @@ export function StudioView() {
             />
           )}
           {tab === "stil" && <StyleEditor style={project.style} onChange={setStyle} />}
+          {tab === "video" && (
+            <SoundPanel
+              video={project.video}
+              hasVoice={!!(clips.id === project.id && clips.voice)}
+              recording={!!voiceRec}
+              error={audioError}
+              onVideo={setVideo}
+              onMusicFile={(f) => void storeClip("music", f, f.name)}
+              onVoiceFile={(f) => void storeClip("voice", f)}
+              onRecord={() => (voiceRec ? voiceRec.stop() : void startVoice())}
+              onRemoveVoice={removeVoice}
+            />
+          )}
           {tab === "video" && <VideoEditor project={project} type={type?.ext ?? null} onVideo={setVideo} onStart={(fen) => update((p) => ({ ...p, startFen: fen }))} />}
         </div>
         {saveError && <p class="studio-warn">Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.</p>}
@@ -1086,13 +1176,73 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
       <Toggle label="Letzten Zug hervorheben" checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
       <Toggle label="Fortschrittsbalken" checked={v.progress} onChange={(progress) => onVideo({ progress })} />
       <Toggle label="Kamerafahrt zum Start" checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
-      <Toggle label="Zug-Geräusche" checked={v.sound} onChange={(sound) => onVideo({ sound })} />
       <Field label="Startstellung (FEN)" hint={!validFen(project.startFen) ? <span class="bad">Ungültig, es gilt die Grundstellung.</span> : "Für Rätsel oder Endspiele; leer = Grundstellung."}>
         <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder="Grundstellung" onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
       </Field>
       <p class="studio-hint">
-        Export als {type ? type.toUpperCase() : "– (Browser kann nicht aufnehmen)"}. Die Aufnahme läuft in Echtzeit, ohne Ton für dich, aber mit Zug-Geräuschen im Video.
+        Export als {type ? type.toUpperCase() : "– (Browser kann nicht aufnehmen)"}. Die Aufnahme läuft in Echtzeit, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.
       </p>
+    </div>
+  );
+}
+
+// ---------- music and voice ----------
+
+function SoundPanel(p: {
+  video: StudioVideo;
+  hasVoice: boolean;
+  recording: boolean;
+  error: string;
+  onVideo: (patch: Partial<StudioVideo>) => void;
+  onMusicFile: (f: File) => void;
+  onVoiceFile: (f: File) => void;
+  onRecord: () => void;
+  onRemoveVoice: () => void;
+}) {
+  const v = p.video;
+  return (
+    <div class="studio-form studio-sound">
+      <h4 class="studio-sub">Musik</h4>
+      <div class="studio-speed wrap">
+        {(Object.keys(MUSIC_LABEL) as MusicId[])
+          .filter((m) => m !== "file" || v.musicName)
+          .map((m) => (
+            <button key={m} class={v.music === m ? "on" : ""} onClick={() => p.onVideo({ music: m })}>
+              {m === "file" ? `♪ ${v.musicName}` : MUSIC_LABEL[m]}
+            </button>
+          ))}
+        <label class="btn ghost small">
+          Eigene Musik …
+          <input type="file" accept="audio/*" hidden onChange={(e) => e.currentTarget.files?.[0] && p.onMusicFile(e.currentTarget.files[0])} />
+        </label>
+      </div>
+      {v.music !== "none" && <Slider label="Lautstärke Musik" value={v.musicVolume} min={0} max={1} step={0.05} unit="" onChange={(musicVolume) => p.onVideo({ musicVolume })} />}
+      <p class="studio-hint">Lo-fi, Spannung und Episch macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).</p>
+
+      <h4 class="studio-sub">Deine Stimme</h4>
+      <div class="studio-voice">
+        <button class={`btn ${p.recording ? "danger" : "primary"}`} onClick={p.onRecord}>
+          {p.recording ? "■ Aufnahme stoppen" : p.hasVoice ? "● Neu einsprechen" : "● Einsprechen"}
+        </button>
+        <label class="btn ghost">
+          Datei …
+          <input type="file" accept="audio/*" hidden onChange={(e) => e.currentTarget.files?.[0] && p.onVoiceFile(e.currentTarget.files[0])} />
+        </label>
+        {p.hasVoice && !p.recording && (
+          <button class="btn ghost" onClick={p.onRemoveVoice}>
+            Löschen
+          </button>
+        )}
+      </div>
+      {p.hasVoice && (
+        <>
+          <Toggle label="Stimme im Video" checked={v.voice} onChange={(voice) => p.onVideo({ voice })} />
+          <Slider label="Lautstärke Stimme" value={v.voiceVolume} min={0} max={1.5} step={0.05} unit="" onChange={(voiceVolume) => p.onVideo({ voiceVolume })} />
+        </>
+      )}
+      <p class="studio-hint">Das Video läuft von vorn, über dem Bild steht dein Sprechtext. Kopfhörer helfen. Die Musik wird leiser, solange deine Stimme läuft.</p>
+      <Toggle label="Effekt-Töne (Matt, Zoom, Konfetti)" checked={v.sound} onChange={(sound) => p.onVideo({ sound })} />
+      {p.error && <p class="studio-warn">{p.error}</p>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 // The video studio's project format: a list of scenes (moves, texts, arrows,
 // camera) plus one look and one set of video options. Pure data and rules, no
 // browser APIs, so templates and validation are tested headless.
+import { MUSIC_LABEL, type MusicId } from "./music";
 import { Chess, type Move } from "chess.js";
 
 import { BRAND_DOMAIN } from "../../brand";
@@ -110,8 +111,16 @@ export interface StudioVideo {
   movePill: boolean;
   lastMove: boolean;
   lucena: boolean;
+  /** Effect sounds (mate hit, swoosh, glitter). Moving pieces make no sound. */
   sound: boolean;
   introFly: boolean;
+  music: MusicId;
+  musicVolume: number;
+  /** Name of the own music file kept in the browser's audio store. */
+  musicName: string;
+  /** Whether an own voice recording for this video is kept in the audio store. */
+  voice: boolean;
+  voiceVolume: number;
 }
 
 export interface StudioProject {
@@ -221,6 +230,11 @@ export const DEFAULT_VIDEO: StudioVideo = {
   lucena: true,
   sound: true,
   introFly: true,
+  music: "lofi",
+  musicVolume: 0.5,
+  musicName: "",
+  voice: false,
+  voiceVolume: 1,
 };
 
 let counter = 0;
@@ -379,6 +393,11 @@ export function normalizeProject(raw: unknown): StudioProject {
     lucena: bool(vi.lucena, true),
     sound: bool(vi.sound, true),
     introFly: bool(vi.introFly, true),
+    music: pick(vi.music, Object.keys(MUSIC_LABEL) as MusicId[], "lofi"),
+    musicVolume: num(vi.musicVolume, 0, 1, 0.5),
+    musicName: typeof vi.musicName === "string" ? vi.musicName.slice(0, 120) : "",
+    voice: bool(vi.voice, false),
+    voiceVolume: num(vi.voiceVolume, 0, 1.5, 1),
   };
   const scenes = (Array.isArray(r.scenes) ? r.scenes : []).slice(0, 80).map((x): Scene => {
     const s = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;

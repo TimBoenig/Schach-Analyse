@@ -1327,3 +1327,56 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.studio-prompter {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  transform: translateX(-50%);
+  width: min(92%, 520px);
+  padding: 14px 18px;
+  border-radius: 18px;
+  background: rgba(5, 6, 10, 0.86);
+  color: #fff;
+  text-align: center;
+  box-shadow: var(--shadow-pop);
+}
+.studio-prompter p {
+  margin: 6px 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.studio-prompter p.next {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.55;
+}
+.studio-prompter .rec {
+  color: var(--loss);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.studio-prompter button {
+  margin-top: 6px;
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 16px;
+  background: var(--loss);
+  color: #fff;
+  cursor: pointer;
+}
+.studio-voice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.studio-speed.wrap {
+  flex-wrap: wrap;
+}
+.btn.danger {
+  background: var(--loss);
+  color: #fff;
+}

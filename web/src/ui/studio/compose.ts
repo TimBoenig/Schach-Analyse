@@ -339,7 +339,7 @@ export function compose(
   const card = frame.card;
   const cardA = card.alpha;
   const titleFont = st.titleFont === "serif" ? SERIF : SANS;
-  const titleWeight = st.titleFont === "serif" ? 400 : 700;
+  const titleWeight = st.titleFont === "serif" ? 400 : 900;
   const titleScale = st.titleFont === "serif" ? 1.2 : 1;
   const textAlphaBase = card.kind === "none" ? 1 : 1 - cardA;
 
@@ -364,13 +364,15 @@ export function compose(
   }
   if (textAlphaBase > 0.01) {
     ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.5)";
-    ctx.shadowBlur = 24 * u;
+    // TikTok-style headline: heavy, big and with a hard dark shadow so it reads over any background.
+    ctx.shadowColor = "rgba(0,0,0,0.85)";
+    ctx.shadowBlur = 10 * u;
+    ctx.shadowOffsetY = 5 * u;
     animatedText(ctx, frame.title.text, {
       cx: W / 2,
       top: L.titleTop,
       max: L.textMax,
-      size: 74 * u * titleScale,
+      size: 84 * u * titleScale,
       font: titleFont,
       weight: titleWeight,
       color: "#ffffff",
@@ -391,11 +393,11 @@ export function compose(
     ctx.save();
     ctx.translate(W / 2, L.pillY);
     ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
-    ctx.font = `700 ${46 * u}px ${SANS}`;
+    ctx.font = `800 ${54 * u}px ${SANS}`;
     const tw = ctx.measureText(frame.pill.text).width;
-    const dot = 26 * u;
+    const dot = 30 * u;
     const pw = tw + 64 * u + dot + 14 * u;
-    const ph = 82 * u;
+    const ph = 94 * u;
     ctx.globalAlpha = a;
     ctx.shadowColor = rgba(st.accent, 0.6);
     ctx.shadowBlur = 40 * u;
@@ -420,12 +422,12 @@ export function compose(
     ctx.textBaseline = "middle";
     ctx.fillText(frame.pill.text, dx + dot / 2 + 14 * u, 2 * u);
     if (v.plainMoves && frame.pill.plain) {
-      ctx.font = `600 ${30 * u}px ${SANS}`;
+      ctx.font = `700 ${34 * u}px ${SANS}`;
       ctx.textAlign = "center";
-      ctx.fillStyle = "rgba(240,242,250,0.92)";
+      ctx.fillStyle = "#ffffff";
       ctx.shadowColor = "rgba(0,0,0,0.7)";
       ctx.shadowBlur = 14 * u;
-      ctx.fillText(`${frame.pill.side === "w" ? "Weiß" : "Schwarz"}: ${frame.pill.plain}`, 0, ph / 2 + 30 * u);
+      ctx.fillText(`${frame.pill.side === "w" ? "Weiß" : "Schwarz"}: ${frame.pill.plain}`, 0, ph / 2 + 34 * u);
     }
     ctx.restore();
   }
@@ -435,10 +437,10 @@ export function compose(
   if (frame.text.text.trim() && textAlphaBase > 0.01) {
     const a = frame.text.alpha * textAlphaBase * clamp01(frame.text.age / 0.3);
     const orbSize = hasLucena ? 132 * u : 0;
-    const size = 42 * u;
+    const size = 47 * u;
     const maxW = L.textMax - orbSize - (hasLucena ? 24 * u : 0);
-    const regular = `500 ${size}px ${SANS}`;
-    const bold = `700 ${size}px ${SANS}`;
+    const regular = `650 ${size}px ${SANS}`;
+    const bold = `850 ${size}px ${SANS}`;
     ctx.font = regular;
     const lines = wrap(ctx, tokens(frame.text.text), maxW - 64 * u, bold).slice(0, 3);
     const lh = size * 1.28;
@@ -461,7 +463,7 @@ export function compose(
     ctx.shadowColor = "rgba(0,0,0,0.45)";
     ctx.shadowBlur = 30 * u;
     roundRect(ctx, bx, by, boxW, boxH, 30 * u);
-    ctx.fillStyle = "rgba(10,12,18,0.72)";
+    ctx.fillStyle = "rgba(6,7,12,0.86)";
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.strokeStyle = "rgba(255,255,255,0.12)";
@@ -474,7 +476,7 @@ export function compose(
       const y = by + 23 * u + lh * li + size * 0.95;
       for (const [k, tk] of line.entries()) {
         x += gap(tk, k, space);
-        ctx.fillStyle = tk.emph ? st.accent : "#eef0f6";
+        ctx.fillStyle = tk.emph ? st.accent : "#ffffff";
         ctx.font = tk.emph ? bold : regular;
         ctx.fillText(tk.word, x, y);
         x += ctx.measureText(tk.word).width;

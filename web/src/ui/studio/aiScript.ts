@@ -120,9 +120,18 @@ export interface PromptOptions {
   /** Seconds. */
   length: number;
   notes: string;
+  /** The side the video is about; "auto" lets the AI decide. */
+  side?: Side | "auto";
 }
 
 const list = (o: Record<string, unknown>) => Object.keys(o).join(", ");
+
+const BLACK_HINTS = /(f(ü|ue)r schwarz|mit schwarz|als schwarz|for black|as black|englund|sizilian|sicilian|caro|franz(ö|oe)sisch|french defen|skandinav|scandinav|pirc|k(ö|oe)nigsindisch|king'?s indian|gr(ü|ue)nfeld|nimzo|holl(ä|ae)ndisch|dutch|aljechin|alekhine|budapest|benoni|wolga|benko|stafford|elephant|elefanten)/i;
+
+/** Which side a script is about when the AI forgot to say: defences and traps for Black are shown from Black. */
+export function guessPerspective(content: string): Side {
+  return BLACK_HINTS.test(content) ? "black" : "white";
+}
 
 export function buildAiPrompt(o: PromptOptions): string {
   const example = {
@@ -148,7 +157,7 @@ export function buildAiPrompt(o: PromptOptions): string {
 
 MEIN VIDEO
 - Thema: ${o.topic.trim() || "(such dir ein spannendes Thema aus)"}
-- Plattform: ${PLATFORM_LABEL[o.platform]} (${o.platform === "youtube" ? "Querformat" : "Hochformat"})
+${o.side === "black" ? '- Perspektive: schwarz (setz "perspektive": "schwarz")\n' : o.side === "white" ? '- Perspektive: weiss (setz "perspektive": "weiss")\n' : ""}- Plattform: ${PLATFORM_LABEL[o.platform]} (${o.platform === "youtube" ? "Querformat" : "Hochformat"})
 - Ziellänge: etwa ${o.length} Sekunden
 ${o.notes.trim() ? `- Das ist mir wichtig:\n${o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n")}\n` : ""}
 SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH
@@ -188,7 +197,7 @@ SCHACH-REGELN (sehr wichtig)
 - Eine besondere Startstellung (Rätsel, Endspiel) gibst du als "startstellung" (FEN) an.
 
 ALLE FELDER
-Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, startstellung, einstellungen { lucena, ton, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug } (jeweils true oder false).
+Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug } (jeweils true oder false).
 Szene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (z. B. "Variante 1"), dauer, kamera, zoom, drehung, fokus, pfeile (z. B. "f3-e5 gefahr"), markierungen (z. B. "e5 gut"), effekte, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.
 Farben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.
 
@@ -306,7 +315,9 @@ export function importAiScript(input: string): AiImport {
     else warnings.push("Die Startstellung (FEN) ist ungültig, ich nehme die Grundstellung.");
   }
 
-  const perspective: Side = ["schwarz", "black", "s", "b"].includes(word(field(root, "perspektive", "perspective", "sicht", "seite"))) ? "black" : "white";
+  const perspWord = word(field(root, "perspektive", "perspective", "sicht", "seite"));
+  const perspective: Side = perspWord ? (["schwarz", "black", "s", "b"].includes(perspWord) ? "black" : "white") : guessPerspective(`${text(field(root, "titel", "title"), 200)} ${JSON.stringify(rawScenes).slice(0, 4000)}`);
+  if (!perspWord && perspective === "black") warnings.push("Keine Perspektive angegeben. Das Video ist für Schwarz, darum zeige ich es aus Sicht von Schwarz.");
 
   // The positions along the line being shown; variations cut it back, the main line is kept aside.
   let line: string[] = [startFen];
@@ -445,7 +456,7 @@ export function importAiScript(input: string): AiImport {
       speed: speed ?? 1,
       tempo: tempo ?? 1,
       lucena: setting(true, "lucena", "kugel"),
-      sound: setting(true, "ton", "sound", "sounds"),
+      sound: setting(true, "effektTon", "ton", "sound", "sounds"),
       movePill: setting(true, "zuganzeige", "movepill"),
       progress: setting(true, "fortschritt", "progress"),
       introFly: setting(true, "kameraflug", "introfly"),

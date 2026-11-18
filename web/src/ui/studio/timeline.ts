@@ -79,8 +79,8 @@ export interface Timeline {
   total: number;
   /** The board is seen from Black's side in every scene. */
   flip: boolean;
-  /** Seconds at which a piece lands, for move sounds. */
-  sounds: { t: number; kind: "move" | "capture" | "check" | "boom" | "whoosh" | "sparkle" }[];
+  /** Seconds of the effect sounds (moves themselves stay silent). */
+  sounds: { t: number; kind: "boom" | "whoosh" | "sparkle" }[];
 }
 
 export interface CameraState {
@@ -96,7 +96,7 @@ export const CAMERAS: Record<CameraPreset, CameraState> = {
   black: { yaw: 180, pitch: 54, zoom: 1, tx: 0, tz: 0 },
   top: { yaw: 0, pitch: 88, zoom: 1.02, tx: 0, tz: 0 },
   corner: { yaw: 38, pitch: 44, zoom: 0.98, tx: 0, tz: 0 },
-  side: { yaw: 90, pitch: 40, zoom: 1, tx: 0, tz: 0 },
+  side: { yaw: 50, pitch: 42, zoom: 1, tx: 0, tz: 0 },
   low: { yaw: -24, pitch: 20, zoom: 0.82, tx: 0, tz: 0.4 },
   close: { yaw: 12, pitch: 52, zoom: 0.8, tx: 0, tz: 0 },
 };
@@ -288,7 +288,6 @@ export function compile(project: StudioProject): Timeline {
       // Slow motion stretches only the scene's last move, the one that matters.
       const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? 2.6 : 1);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
-      sounds.push({ t: t + at + dur, kind: check ? "check" : m.captured ? "capture" : "move" });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
       for (const mv of movers) {
@@ -370,7 +369,19 @@ function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraStat
     tz += fz * 0.4;
     zoom *= 0.88;
   }
-  return { yaw: base.yaw + s.orbit * local, pitch: base.pitch, zoom, tx, tz };
+  return { yaw: holdSide(base.yaw + s.orbit * local, flip, s.camera === "black"), pitch: base.pitch, zoom, tx, tz };
+}
+
+/** Largest turn away from the video's own side. Beyond this viewers lose track of who plays up the board. */
+export const MAX_SIDE_TURN = 45;
+
+/** Keeps the camera on the video's side unless the scene explicitly asks for the opposite view. */
+export function holdSide(yaw: number, flip: boolean, opposite: boolean): number {
+  const home = flip !== opposite ? 180 : 0;
+  let d = yaw - home;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return home + Math.max(-MAX_SIDE_TURN, Math.min(MAX_SIDE_TURN, d));
 }
 
 function lerpCamera(a: CameraState, b: CameraState, k: number): CameraState {
@@ -425,7 +436,7 @@ export function cameraAt(timeline: Timeline, index: number, local: number, intro
   if (index === 0) {
     if (!introFly) return target;
     // Opening shot: the camera sweeps in from high above and to the side.
-    const from: CameraState = { yaw: target.yaw - 75, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
+    const from: CameraState = { yaw: target.yaw - 30, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
     return lerpCamera(from, target, ease(local / 2.2));
   }
   const span = 1.15;

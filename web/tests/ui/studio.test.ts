@@ -21,11 +21,12 @@ import {
 } from "../../src/ui/studio/model";
 import { pieceMesh, triangulate } from "../../src/ui/studio/pieces";
 import { arrowMesh } from "../../src/ui/studio/renderer";
-import { compile, frameAt, plainMove, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
+import { compile, frameAt, holdSide, MAX_SIDE_TURN, plainMove, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
+import { duckedVolume, loopSeconds, synthLoop } from "../../src/ui/studio/music";
 import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
-import { buildAiPrompt, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
+import { buildAiPrompt, guessPerspective, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
 import { buildProject, defaultAnswers, suggestPerspective, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
 const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProject => ({
@@ -94,7 +95,8 @@ describe("studio timeline", () => {
     expect(c.dur).toBeGreaterThan(c.steps[3].t1);
     expect(c.steps.map((s) => s.label)).toEqual(["1. e4", "1… e5", "2. Sf3", "2… Sc6"]);
     for (let i = 1; i < 4; i++) expect(c.steps[i].t0).toBeGreaterThan(c.steps[i - 1].t1);
-    expect(tl.sounds).toHaveLength(4);
+    // Moving pieces make no sound.
+    expect(tl.sounds).toHaveLength(0);
   });
 
   it("marks the checked king and keeps an arrow shown by two scenes on screen", () => {
@@ -428,5 +430,41 @@ describe("studio for viewers", () => {
     expect(frameAt(tl, p, (st.t0 + st.t1) / 2)!.arrows.some((a) => a.from === "e2" && a.to === "e4")).toBe(true);
     // Old projects with annotation symbols keep their badge.
     expect(normalizeProject({ scenes: [{ moves: "e4", badge: "!!" }] }).scenes[0].badge).toBe("brilliant");
+  });
+});
+
+describe("studio perspective and sound", () => {
+  it("never turns a Black video to White's side unless the scene asks for the opposite view", () => {
+    const scenes = [scene({ moves: "1. e4 e5", camera: "side", orbit: 30, duration: 6 }), scene({ moves: "2. Lc4", camera: "corner", orbit: -30, duration: 6 })];
+    const base = make(scenes);
+    const black = { ...base, video: { ...base.video, perspective: "black" as const } };
+    const tl = compile(black);
+    for (let t = 0; t < tl.total; t += 0.25) {
+      const yaw = frameAt(tl, black, t)!.camera.yaw;
+      const off = ((((yaw - 180) % 360) + 540) % 360) - 180;
+      expect(Math.abs(off)).toBeLessThanOrEqual(MAX_SIDE_TURN + 0.01);
+    }
+    expect(holdSide(170, true, true)).toBe(45);
+    expect(holdSide(10, false, false)).toBe(10);
+  });
+
+  it("guesses Black for Black openings when the AI leaves out the perspective", () => {
+    const r = importAiScript(JSON.stringify({ titel: "Die Englund-Gambit Falle", szenen: [{ zug: "1. d4 e5" }] }));
+    expect(r.project!.video.perspective).toBe("black");
+    expect(importAiScript(JSON.stringify({ titel: "Italienisch", szenen: [{ zug: "1. e4 e5" }] })).project!.video.perspective).toBe("white");
+    expect(guessPerspective("Sizilianisch für Anfänger")).toBe("black");
+    expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "", side: "black" })).toContain('"perspektive": "schwarz"');
+  });
+
+  it("makes seamless, clipped music loops and ducks them under the voice", () => {
+    for (const id of ["lofi", "tension", "epic"] as const) {
+      const pcm = synthLoop(id, 8000);
+      expect(pcm.length).toBe(Math.round(loopSeconds(id) * 8000));
+      expect(Math.max(...pcm.map(Math.abs))).toBeLessThanOrEqual(1);
+      expect(pcm.some((x) => Math.abs(x) > 0.05)).toBe(true);
+    }
+    expect(duckedVolume(0.6, true)).toBeLessThan(0.6);
+    expect(duckedVolume(0.6, false)).toBe(0.6);
+    expect(normalizeProject({ video: { music: "bogus", musicVolume: 7 } }).video).toMatchObject({ music: "lofi", musicVolume: 1, voice: false });
   });
 });

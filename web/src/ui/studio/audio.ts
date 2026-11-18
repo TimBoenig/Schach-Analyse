@@ -1,15 +1,27 @@
-// Move sounds made on the fly with Web Audio (no sound files): a wooden "tock"
-// when a piece lands, a sharper one for captures and a bright ping for check.
-// The same sounds go to the speakers in the preview and into the video file.
+// The studio's sound: background music, the creator's own voice and optional
+// effect sounds (mate hit, swoosh, glitter), all made or played with Web Audio.
+// The same mix goes to the speakers in the preview and into the video file.
+// Pieces moving make no sound on purpose.
+import { duckedVolume, synthLoop, type MusicId } from "./music";
 import type { Timeline } from "./timeline";
 
-export class MoveSounds {
+export interface AudioMix {
+  music: MusicId;
+  musicVolume: number;
+  musicFile: AudioBuffer | null;
+  voice: AudioBuffer | null;
+  voiceVolume: number;
+  effects: boolean;
+}
+
+export class StudioAudio {
   readonly ctx: AudioContext;
   /** Feed for the video recorder. */
   readonly stream: MediaStreamAudioDestinationNode;
   private out: GainNode;
   private noise: AudioBuffer;
   private live: AudioScheduledSourceNode[] = [];
+  private loops = new Map<string, AudioBuffer>();
 
   constructor() {
     this.ctx = new AudioContext();
@@ -38,46 +50,40 @@ export class MoveSounds {
     }
   }
 
-  private tock(at: number, kind: "move" | "capture" | "check"): void {
-    const c = this.ctx;
-    const src = c.createBufferSource();
-    src.buffer = this.noise;
-    const band = c.createBiquadFilter();
-    band.type = "bandpass";
-    band.frequency.value = kind === "capture" ? 1400 : 1900;
-    band.Q.value = 1.4;
-    const g = c.createGain();
-    const peak = kind === "capture" ? 0.95 : 0.6;
-    g.gain.setValueAtTime(0, at);
-    g.gain.linearRampToValueAtTime(peak, at + 0.003);
-    g.gain.exponentialRampToValueAtTime(0.001, at + (kind === "capture" ? 0.11 : 0.07));
-    src.connect(band).connect(g).connect(this.out);
-    src.start(at);
-    src.stop(at + 0.13);
-    const body = c.createOscillator();
-    body.frequency.setValueAtTime(kind === "capture" ? 190 : 230, at);
-    body.frequency.exponentialRampToValueAtTime(90, at + 0.09);
-    const bg = c.createGain();
-    bg.gain.setValueAtTime(0, at);
-    bg.gain.linearRampToValueAtTime(kind === "capture" ? 0.55 : 0.35, at + 0.004);
-    bg.gain.exponentialRampToValueAtTime(0.001, at + 0.12);
-    body.connect(bg).connect(this.out);
-    body.start(at);
-    body.stop(at + 0.14);
-    this.live.push(src, body);
-    if (kind === "check") {
-      const ping = c.createOscillator();
-      ping.type = "sine";
-      ping.frequency.value = 1320;
-      const pg = c.createGain();
-      pg.gain.setValueAtTime(0, at + 0.02);
-      pg.gain.linearRampToValueAtTime(0.18, at + 0.03);
-      pg.gain.exponentialRampToValueAtTime(0.001, at + 0.45);
-      ping.connect(pg).connect(this.out);
-      ping.start(at + 0.02);
-      ping.stop(at + 0.5);
-      this.live.push(ping);
+  async decode(data: ArrayBuffer): Promise<AudioBuffer> {
+    return this.ctx.decodeAudioData(data);
+  }
+
+  private loop(id: Exclude<MusicId, "none" | "file">): AudioBuffer {
+    let b = this.loops.get(id);
+    if (!b) {
+      const pcm = synthLoop(id, this.ctx.sampleRate);
+      b = this.ctx.createBuffer(1, pcm.length, this.ctx.sampleRate);
+      b.copyToChannel(pcm, 0);
+      this.loops.set(id, b);
     }
+    return b;
+  }
+
+  /** Plays a buffer from video second `from`, starting at context time `now`. */
+  private play(buf: AudioBuffer, now: number, from: number, volume: number, loop: boolean, total: number): void {
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    const g = this.ctx.createGain();
+    const rest = total - from;
+    g.gain.setValueAtTime(volume, now);
+    // Music fades out over the last second of the video.
+    if (loop && rest > 1) {
+      g.gain.setValueAtTime(volume, now + rest - 1);
+      g.gain.linearRampToValueAtTime(0.0001, now + rest);
+    }
+    src.connect(g).connect(this.out);
+    const offset = loop ? from % buf.duration : from;
+    if (!loop && offset >= buf.duration) return;
+    src.start(now, offset);
+    src.stop(now + Math.max(0.05, rest));
+    this.live.push(src);
   }
 
   /** Effect sounds: a deep hit for mate, a rising swoosh for zoom and flash, a glitter for confetti. */
@@ -134,15 +140,18 @@ export class MoveSounds {
     }
   }
 
-  /** Plans every landing sound from video second `from` on, starting now. */
-  schedule(timeline: Timeline, from: number): void {
+  /** Starts the whole mix from video second `from`, now. */
+  schedule(timeline: Timeline, from: number, mix: AudioMix): void {
     this.cancel();
     void this.ctx.resume();
-    const now = this.ctx.currentTime + 0.02;
+    const now = this.ctx.currentTime + 0.03;
+    const music = mix.music === "file" ? mix.musicFile : mix.music === "none" ? null : this.loop(mix.music);
+    if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), true, timeline.total);
+    if (mix.voice && mix.voiceVolume > 0) this.play(mix.voice, now, from, mix.voiceVolume, false, timeline.total);
+    if (!mix.effects) return;
     for (const s of timeline.sounds) {
       if (s.t < from) continue;
       if (s.kind === "boom" || s.kind === "whoosh" || s.kind === "sparkle") this.effect(now + (s.t - from), s.kind);
-      else this.tock(now + (s.t - from), s.kind);
     }
   }
 
