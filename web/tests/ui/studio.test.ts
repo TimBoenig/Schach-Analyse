@@ -476,3 +476,42 @@ describe("studio framing", () => {
     expect(fitDistance(0.56, 180)).toBeCloseTo(fitDistance(0.56, 0));
   });
 });
+
+describe("studio pieces and design", () => {
+  it("gives every piece its own height and marks the bishop slit and knight eyes as details", () => {
+    const height = (t: "p" | "n" | "b" | "r" | "q" | "k") => {
+      const v = pieceMesh(t).vertices;
+      let top = 0;
+      for (let i = 1; i < v.length; i += STRIDE) top = Math.max(top, v[i]);
+      return top;
+    };
+    const order = (["p", "r", "n", "b", "q", "k"] as const).map(height);
+    for (let i = 1; i < order.length; i++) expect(order[i]).toBeGreaterThan(order[i - 1] + 0.04);
+    const details = (t: "b" | "n" | "p") => {
+      const v = pieceMesh(t).vertices;
+      let n = 0;
+      for (let i = 9; i < v.length; i += STRIDE) if (v[i] > 0.25) n++;
+      return n;
+    };
+    expect(details("b")).toBeGreaterThan(0);
+    expect(details("n")).toBeGreaterThan(0);
+    expect(details("p")).toBe(0);
+  });
+
+  it("lets the AI set the whole design and warns about text that will not fit", () => {
+    const r = importAiScript(
+      JSON.stringify({
+        look: "walnuss",
+        design: { figuren: "holz", untertitelStil: "kontur", schrift: "elegant", akzent: "#ffb84d", textgroesse: 1.2, musik: "episch", figurenRand: false },
+        szenen: [{ zug: "1. e4", titel: "Ein viel zu langer Titel, der niemals in zwei Zeilen passt", untertitel: "x" }],
+      }),
+    );
+    const p = r.project!;
+    expect([p.style.theme, p.style.material, p.style.captionStyle, p.style.titleFont, p.style.accent, p.style.textScale, p.style.pieceRim, p.video.music]).toEqual(["walnuss", "wood", "outline", "serif", "#ffb84d", 1.2, false, "epic"]);
+    expect(r.warnings.some((w) => w.includes("Titel"))).toBe(true);
+    // Round trip keeps the design.
+    const again = importAiScript(toAiScript(p)).project!;
+    expect([again.style.material, again.style.captionStyle, again.video.music]).toEqual(["wood", "outline", "epic"]);
+    expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" })).toContain("SO SIEHT DAS VIDEO AUS");
+  });
+});

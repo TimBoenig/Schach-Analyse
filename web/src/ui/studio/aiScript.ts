@@ -32,9 +32,12 @@ import {
   type StudioMark,
   type StudioProject,
   type ThemeId,
+  type Material,
+  type CaptionStyle,
   type Tone,
 } from "./model";
 import { compile } from "./timeline";
+import type { MusicId } from "./music";
 import { fitLength, movesLabel } from "./wizard";
 
 // ---------- German words the AI may use ----------
@@ -96,6 +99,13 @@ const ENVS: Record<string, Environment> = {
   turniersaal: "hall", saal: "hall", hall: "hall", turnier: "hall",
   bibliothek: "library", library: "library",
 };
+const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "porcelain", glanz: "porcelain", matt: "matte", matte: "matte", chrom: "chrome", chrome: "chrome", metall: "chrome", holz: "wood", wood: "wood", holzfiguren: "wood" };
+const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch" };
+const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
+const MUSICS: Record<string, MusicId> = { keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
+/** Longest texts that still fit the frame at normal text size. */
+export const FIT = { title: 30, subtitle: 95, label: 22, option: 14 };
+
 const PLATFORMS: Record<string, Platform> = {
   tiktok: "tiktok", reels: "reels", instagram: "reels", instagramreels: "reels", shorts: "shorts", youtubeshorts: "shorts", youtube: "youtube", youtubequer: "youtube",
 };
@@ -141,6 +151,7 @@ export function buildAiPrompt(o: PromptOptions): string {
     perspektive: "weiss",
     look: "nova",
     umgebung: "buehne",
+    design: { figuren: "lack", untertitelStil: "kontur", schrift: "modern", musik: "spannung", textgroesse: 1 },
     szenen: [
       { karte: "titel", titel: "Fällst du darauf rein?", untertitel: "Matt in *4 Zügen*", sprechtext: "Auf diese Falle fallen viele Anfänger herein.", kamera: "normal", dauer: 2.5 },
       { zug: "1. e4 e5", titel: "Ganz normal", untertitel: "Beide Bauern gehen ins *Zentrum*.", kamera: "normal", markierungen: ["e4 akzent", "e5 akzent"], dauer: 2.5 },
@@ -186,7 +197,28 @@ Frage mit Countdown ("karte": "frage"): Rätsel-Frage, dann tickt der Countdown 
 Kameras ("kamera"): normal (hinter der eigenen Seite), schraeg, seitlich, oben (von oben, gut für Pläne), tief (tief und dramatisch), nah (nah dran), gegenueber (von der anderen Seite, selten). Dazu zoom (0.5 = nah, 1 = ganzes Brett), drehung (langsame Kamerafahrt in Grad pro Sekunde, z. B. 5 oder -5) und fokus (true = Kamera lehnt sich zum Zielfeld).
 Tempo: "zugtempo" pro Szene (0.4 langsam bis 2.5 schnell), oben "geschwindigkeit" für das ganze Video (0.5 bis 2.5).
 Lucena: eine KI-Kugel neben den Untertiteln mit "stimmung": froehlich, nachdenklich, begeistert, traurig.
-Looks ("look"): ${Object.keys(THEMES).join(", ")}. Umgebungen ("umgebung"): schwebend, buehne, holztisch, neon, turniersaal, bibliothek.
+
+SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Querformat 16:9" : "Hochformat 9:16"}, von oben nach unten)
+- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.
+- "kleineZeile": kleiner farbiger Streifen über dem Titel, höchstens ${FIT.label} Zeichen (z. B. "Variante 2", "Falle", "Teil 1").
+- "titel": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa ${FIT.title} Zeichen. Kurz und knackig, wie eine Schlagzeile.
+- Darunter die Zug-Anzeige (z. B. "● 3. Lb5") und der Zug in Worten ("Weiß: Läufer nach b5"), beides automatisch.
+- In der Mitte das 3D-Brett, es füllt die Breite.
+- "untertitel": unter dem Brett, höchstens 3 Zeilen, etwa ${FIT.subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.
+- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.
+- Karten: "titel" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), "frage" und "umfrage" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens ${FIT.option} Zeichen), "abspann" ist das große Schlussbild mit Logo.
+- Ein Titel oder Untertitel, der zu lang ist, wird abgeschnitten. Lieber zwei Szenen als eine überfüllte.
+
+DESIGN ("design" oben im JSON, alles optional, passend zum Thema wählen)
+- look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).
+- figuren: lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.
+- untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).
+- schrift: modern oder elegant (Serifen, für Geschichte und Klassiker).
+- akzent: eigene Akzentfarbe als Farbcode, z. B. "#ffb84d".
+- textgroesse: 0.8 bis 1.3 (1 = normal). Bei größerer Schrift passen weniger Zeichen.
+- musik: keine, lofi (ruhig, zum Lernen), spannung (treibend, für Fallen), episch (groß, für Meisterpartien).
+- figurenRand: true (heller Rand, Figuren besser zu unterscheiden) oder false.
+Umgebungen ("umgebung"): schwebend, buehne, holztisch, neon, turniersaal, bibliothek.
 
 SCHACH-REGELN (sehr wichtig)
 - Nur legale Züge in der richtigen Reihenfolge. Prüfe jeden Zug, bevor du ihn schreibst.
@@ -197,9 +229,15 @@ SCHACH-REGELN (sehr wichtig)
 - Eine besondere Startstellung (Rätsel, Endspiel) gibst du als "startstellung" (FEN) an.
 
 ALLE FELDER
-Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug } (jeweils true oder false).
+Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, design { figuren, untertitelStil, schrift, akzent, textgroesse, musik, figurenRand }, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug, spiegelung } (jeweils true oder false).
 Szene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (z. B. "Variante 1"), dauer, kamera, zoom, drehung, fokus, pfeile (z. B. "f3-e5 gefahr"), markierungen (z. B. "e5 gut"), effekte, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.
 Farben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.
+
+PRÜF VOR DEM ANTWORTEN
+- Spiel alle Züge im Kopf nach: legal, richtige Reihenfolge, richtige Seite am Zug.
+- Jeder Titel höchstens ${FIT.title} Zeichen, jeder Untertitel höchstens ${FIT.subtitle} Zeichen.
+- Die Summe der Dauern passt zur Ziellänge, und der Sprechtext jeder Szene ist in ihrer Dauer sprechbar.
+- Hook, eine klare Idee pro Szene, Pfeile für jede Drohung, Abspann mit Aufforderung.
 
 BEISPIEL (nur für das Format, schreib dein eigenes Video):
 \`\`\`json
@@ -435,6 +473,23 @@ export function importAiScript(input: string): AiImport {
   const envWord = word(field(root, "umgebung", "environment", "hintergrund"));
   const environment = ENVS[envWord] ?? "podium";
   if (envWord && !ENVS[envWord]) warnings.push(`Umgebung „${String(field(root, "umgebung", "environment"))}“ kenne ich nicht, ich nehme ${ENV_LABEL[environment]}.`);
+  const design = (field(root, "design", "aussehen") ?? {}) as Obj;
+  const dfield = (...names: string[]) => field(design, ...names) ?? field(root, ...names);
+  const pick = <T,>(map: Record<string, T>, label: string, ...names: string[]): T | undefined => {
+    const w = word(dfield(...names));
+    if (!w) return undefined;
+    if (!(w in map)) warnings.push(`${label} „${String(dfield(...names))}“ kenne ich nicht, ich nehme den Standard.`);
+    return map[w];
+  };
+  const material = pick(PIECE_LOOKS, "Figuren", "figuren", "pieces", "material");
+  const captionStyle = pick(CAPTIONS, "Untertitel-Stil", "untertitelstil", "captionstyle", "untertitel");
+  const titleFont = pick(FONTS, "Schrift", "schrift", "font");
+  const music = pick(MUSICS, "Musik", "musik", "music");
+  const accentRaw = text(dfield("akzent", "akzentfarbe", "accent"), 12);
+  const accent = /^#[0-9a-f]{6}$/i.test(accentRaw) ? accentRaw : undefined;
+  if (accentRaw && !accent) warnings.push(`Akzentfarbe „${accentRaw}“ ist kein Farbcode wie #8d9aff.`);
+  const textScale = number(dfield("textgroesse", "textscale", "schriftgroesse"));
+  const rim = bool(dfield("figurenrand", "piecerim", "rand"));
   const settings = (field(root, "einstellungen", "settings", "optionen") ?? {}) as Obj;
   const setting = (fallback: boolean, ...names: string[]) => bool(field(settings, ...names)) ?? fallback;
   const platform = PLATFORMS[word(field(root, "plattform", "platform"))] ?? "tiktok";
@@ -445,7 +500,15 @@ export function importAiScript(input: string): AiImport {
     name: text(field(root, "titel", "title", "name"), 80) || "KI-Video",
     startFen,
     scenes,
-    style: styleFromTheme(theme, { environment, coords: setting(true, "koordinaten", "coords") }),
+    style: {
+      ...styleFromTheme(theme, { environment, coords: setting(true, "koordinaten", "coords"), reflection: setting(true, "spiegelung", "reflection") }),
+      ...(material ? { material } : {}),
+      ...(captionStyle ? { captionStyle } : {}),
+      ...(titleFont ? { titleFont } : {}),
+      ...(accent ? { accent } : {}),
+      ...(textScale !== null ? { textScale } : {}),
+      ...(rim !== null ? { pieceRim: rim } : {}),
+    },
     video: {
       ...DEFAULT_VIDEO,
       format: platform === "youtube" ? "16:9" : "9:16",
@@ -460,8 +523,16 @@ export function importAiScript(input: string): AiImport {
       movePill: setting(true, "zuganzeige", "movepill"),
       progress: setting(true, "fortschritt", "progress"),
       introFly: setting(true, "kameraflug", "introfly"),
+      ...(music ? { music } : {}),
     },
     updatedAt: Date.now(),
+  });
+  // Texts longer than the frame holds get cut on screen, so say which scene to shorten.
+  project.scenes.forEach((sc, i) => {
+    const max = FIT.title / Math.max(0.8, project.style.textScale);
+    if (sc.title.length > max) warnings.push(`Szene ${i + 1}: Titel ist ${sc.title.length} Zeichen lang, ins Bild passen etwa ${Math.round(max)}.`);
+    const plain = sc.text.replace(/[*|]/g, "");
+    if (plain.length > FIT.subtitle * (sc.text.includes("|") ? 2 : 1)) warnings.push(`Szene ${i + 1}: Untertitel ist zu lang (${plain.length} Zeichen). Kürzen oder mit | teilen.`);
   });
   const length = number(field(root, "laenge", "length", "dauer"));
   if (length && length >= 5 && speed === null) project = fitLength(project, length);
@@ -485,6 +556,15 @@ export function toAiScript(project: StudioProject): string {
     zugtempo: project.video.tempo,
     look: project.style.theme,
     umgebung: rev(ENVS, project.style.environment),
+    design: {
+      figuren: rev(PIECE_LOOKS, project.style.material),
+      untertitelStil: rev(CAPTIONS, project.style.captionStyle),
+      schrift: rev(FONTS, project.style.titleFont),
+      akzent: project.style.accent,
+      textgroesse: project.style.textScale,
+      figurenRand: project.style.pieceRim,
+      musik: project.video.music === "file" ? "keine" : rev(MUSICS, project.video.music),
+    },
     ...(project.startFen !== START_FEN ? { startstellung: project.startFen } : {}),
     szenen: project.scenes.map((s) => ({
       ...(s.card !== "none" ? { karte: rev(CARDS, s.card) } : {}),

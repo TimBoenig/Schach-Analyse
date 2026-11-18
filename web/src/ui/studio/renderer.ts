@@ -15,9 +15,10 @@ import { squareXZ, xzSquare, type CameraState, type Frame } from "./timeline";
 const LIT_VERT = `
 attribute vec3 aPos; attribute vec3 aNormal; attribute vec4 aColor;
 uniform mat4 uModel, uViewProj;
-varying vec3 vN, vW; varying vec4 vColor;
+varying vec3 vN, vW, vP; varying vec4 vColor;
 void main() {
   vec4 w = uModel * vec4(aPos, 1.0);
+  vP = aPos;
   vW = w.xyz;
   vN = (uModel * vec4(aNormal, 0.0)).xyz;
   vColor = aColor;
@@ -26,10 +27,25 @@ void main() {
 
 const LIT_FRAG = `
 precision highp float;
-varying vec3 vN, vW; varying vec4 vColor;
-uniform vec3 uEye, uTint, uGlow, uFogColor;
+varying vec3 vN, vW, vP; varying vec4 vColor;
+uniform vec3 uEye, uTint, uGlow, uFogColor, uRim;
 uniform vec2 uFog;
-uniform float uUseTint, uMetal, uGloss, uAlpha, uDim;
+uniform float uUseTint, uMetal, uGloss, uAlpha, uDim, uWood, uSeed;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p) {
+  vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0)), f.x), f.y);
+}
+// Turned-wood grain: growth rings around a slightly tilted axis, wobbled by noise, plus fine pores.
+vec3 woodGrain(vec3 base, vec3 p) {
+  vec3 q = p + vec3(uSeed * 3.1, uSeed * 1.7, uSeed * 2.3);
+  float wob = noise(q.xy * 3.0 + q.zz * 2.0) * 0.6 + noise(q.yz * 9.0) * 0.15;
+  float rings = fract((length(q.xz + vec2(0.35, 0.2)) + q.y * 0.08) * 9.0 + wob);
+  float band = smoothstep(0.0, 0.18, rings) * (1.0 - smoothstep(0.55, 1.0, rings));
+  float pores = noise(vec2(q.y * 90.0, (q.x + q.z) * 6.0));
+  float k = 0.78 + 0.22 * band - 0.06 * smoothstep(0.65, 1.0, pores);
+  return base * k;
+}
 const vec3 KEY = vec3(-0.42, 0.78, 0.46);
 const vec3 FILL = vec3(0.86, 0.32, 0.4);
 const vec3 RIM = vec3(0.1, 0.42, -0.9);
@@ -48,6 +64,13 @@ void main() {
   vec3 v = normalize(uEye - vW);
   if (dot(n, v) < 0.0) n = -n;
   vec3 albedo = mix(vColor.rgb, uTint, uUseTint);
+  // Details marked in the mesh (bishop slit, eyes) use a contrasting shade of the piece's own colour.
+  if (uUseTint > 0.5 && vColor.a > 0.25) {
+    float lum = dot(uTint, vec3(0.3, 0.59, 0.11));
+    albedo = mix(uTint, lum > 0.3 ? uTint * 0.18 : vec3(0.72, 0.7, 0.66), 0.85);
+  }
+  // Pieces are turned, so rings run round them; board squares are cut planks, so the grain runs nearly straight.
+  if (uWood > 0.5) albedo = woodGrain(albedo, uUseTint > 0.5 ? vP : vec3(vW.x * 0.12 + 25.0 + floor(vW.z + 4.0) * 1.7, vW.y, vW.z * 0.9));
   float metal = uMetal;
   float facing = max(dot(n, v), 0.0);
   vec3 f0 = mix(vec3(0.045), albedo, metal);
@@ -59,7 +82,9 @@ void main() {
     + vec3(0.6, 0.7, 1.0) * 0.22 * max(dot(n, normalize(FILL)), 0.0) + vec3(0.14) * (n.y * 0.5 + 0.5);
   vec3 color = albedo * light * (1.0 - metal)
     + room(reflect(-v, n)) * fresnel * mix(0.25, 1.0, uGloss) * mix(0.75, 1.0, metal)
-    + vec3(1.0, 0.98, 0.95) * spec * 0.6 + uGlow;
+    + vec3(1.0, 0.98, 0.95) * spec * 0.6 + uGlow
+    // Rim light: a thin bright edge so dark pieces stand out from dark squares and backgrounds.
+    + uRim * pow(1.0 - facing, 3.0);
   color = color / (1.0 + color * 0.32);
   vec3 outc = pow(color, vec3(1.0 / 2.2)) * uDim;
   // Distance haze, measured from the board's centre so the board itself stays crisp.
@@ -130,8 +155,8 @@ export function cameraMatrix(cam: CameraState, aspect: number): { viewProj: Mat4
   const dist = fitDistance(aspect, cam.yaw) * cam.zoom;
   const target: V3 = [cam.tx, 0, cam.tz];
   const eye: V3 = [target[0] + Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, target[2] + Math.cos(yaw) * Math.cos(pitch) * dist];
-  // In a tall video the board sits a little lower, leaving room for the headline.
-  const shift = aspect < 0.8 ? 0.07 : 0;
+  // In a tall video the board sits in the middle band, between the headline and the subtitles, so neither covers a piece.
+  const shift = aspect < 0.8 ? 0.0 : 0;
   const proj = perspective(FOV_Y, aspect, 0.5, 120, shift);
   return { viewProj: multiply(proj, lookAt(eye, target)), eye };
 }
@@ -159,7 +184,7 @@ export class StudioRenderer {
     this.gl = gl;
     this.lit = this.program(LIT_VERT, LIT_FRAG, ["aPos", "aNormal", "aColor"]);
     this.flat = this.program(FLAT_VERT, FLAT_FRAG, ["aPos", "aUV"]);
-    for (const n of ["uModel", "uViewProj", "uEye", "uTint", "uGlow", "uUseTint", "uMetal", "uGloss", "uAlpha", "uDim", "uFogColor", "uFog"]) this.litU[n] = gl.getUniformLocation(this.lit, n);
+    for (const n of ["uModel", "uViewProj", "uEye", "uTint", "uGlow", "uUseTint", "uMetal", "uGloss", "uAlpha", "uDim", "uFogColor", "uFog", "uRim", "uWood", "uSeed"]) this.litU[n] = gl.getUniformLocation(this.lit, n);
     for (const n of ["uViewProj", "uColor", "uMode", "uParam"]) this.flatU[n] = gl.getUniformLocation(this.flat, n);
     this.dyn = gl.createBuffer()!;
     gl.enable(gl.DEPTH_TEST);
@@ -260,7 +285,7 @@ export class StudioRenderer {
     gl.vertexAttribPointer(2, 4, gl.FLOAT, false, bytes, 24);
   }
 
-  private drawLit(m: GpuMesh, model: Mat4, o: { tint?: [number, number, number]; metal: number; gloss: number; alpha?: number; dim?: number; glow?: [number, number, number] }): void {
+  private drawLit(m: GpuMesh, model: Mat4, o: { tint?: [number, number, number]; metal: number; gloss: number; alpha?: number; dim?: number; glow?: [number, number, number]; wood?: boolean; rim?: [number, number, number]; seed?: number }): void {
     const gl = this.gl;
     const u = this.litU;
     this.bindLit(m);
@@ -272,6 +297,9 @@ export class StudioRenderer {
     gl.uniform1f(u.uAlpha, o.alpha ?? 1);
     gl.uniform1f(u.uDim, o.dim ?? 1);
     gl.uniform3fv(u.uGlow, o.glow ?? [0, 0, 0]);
+    gl.uniform3fv(u.uRim, o.rim ?? [0, 0, 0]);
+    gl.uniform1f(u.uWood, o.wood ? 1 : 0);
+    gl.uniform1f(u.uSeed, o.seed ?? 0);
     gl.drawElements(gl.TRIANGLES, m.count, gl.UNSIGNED_SHORT, 0);
   }
 
@@ -303,7 +331,9 @@ export class StudioRenderer {
     const accent = hexToRgb(style.accent);
     const mat = style.material;
     const metal = mat === "chrome" ? 0.92 : 0;
-    const gloss = mat === "matte" ? 0.3 : 1;
+    const gloss = mat === "matte" ? 0.3 : mat === "wood" ? 0.55 : 1;
+    const wood = mat === "wood";
+    const rimOf = (c: "w" | "b"): [number, number, number] => (!style.pieceRim ? [0, 0, 0] : c === "b" ? [0.32, 0.34, 0.4] : [0.1, 0.1, 0.1]);
     const tintW = hexToLinear(style.whitePiece);
     const tintB = hexToLinear(style.blackPiece);
     gl.enable(gl.BLEND);
@@ -322,7 +352,7 @@ export class StudioRenderer {
     const fogHex = this.env?.fogColor ?? mixHex(style.bgTop, style.bgBottom, 0.6);
     gl.uniform3fv(this.litU.uFogColor, hexToRgb(fogHex));
     gl.uniform2fv(this.litU.uFog, this.env ? this.env.fog : [1e4, 2e4]);
-    const pieceOpts = (p: Frame["pieces"][number]) => ({ tint: p.color === "w" ? tintW : tintB, metal, gloss, alpha: p.alpha });
+    const pieceOpts = (p: Frame["pieces"][number]) => ({ tint: p.color === "w" ? tintW : tintB, metal, gloss, alpha: p.alpha, wood, rim: rimOf(p.color), seed: (p.x * 7.3 + p.z * 3.1) % 5 });
     const yawOf = (p: Frame["pieces"][number]) => (p.color === "b" ? Math.PI : 0);
     const modelOf = (p: Frame["pieces"][number], mirror: boolean) => {
       if (!p.tilt) return mirror ? placement([p.x, -p.y, p.z], yawOf(p), p.scale, -p.scale) : placement([p.x, p.y, p.z], yawOf(p), p.scale);
@@ -337,7 +367,7 @@ export class StudioRenderer {
     gl.stencilFunc(gl.ALWAYS, 1, 0xff);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
     gl.depthMask(false);
-    this.drawLit(this.board!, placement([0, 0, 0], 0, 1), { metal: 0, gloss: 0.85 });
+    this.drawLit(this.board!, placement([0, 0, 0], 0, 1), { metal: 0, gloss: wood ? 0.6 : 0.85, wood });
     gl.depthMask(true);
     gl.stencilFunc(gl.EQUAL, 1, 0xff);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
@@ -363,7 +393,7 @@ export class StudioRenderer {
       }
     }
     gl.disable(gl.STENCIL_TEST);
-    this.drawLit(this.frame!, placement([0, 0, 0], 0, 1), { metal: 0, gloss: 0.7 });
+    this.drawLit(this.frame!, placement([0, 0, 0], 0, 1), { metal: 0, gloss: 0.7, wood });
 
     // Board decorations, painted just above the squares.
     gl.useProgram(this.flat);

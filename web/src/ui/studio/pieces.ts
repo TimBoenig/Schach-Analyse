@@ -154,63 +154,109 @@ export function extrude(outline: [number, number][], thickness: number, material
   return { vertices, indices };
 }
 
+// Marked parts (vertex "metal" 0.5) are drawn in a contrasting shade of the piece colour by the renderer.
+const DETAIL: Material = { color: [1, 1, 1], metal: 0.5 };
+
+/** Radius of a lathe profile at height y (profiles go upwards). */
+function radiusAt(profile: ProfilePoint[], y: number): number {
+  for (let i = 1; i < profile.length; i++) {
+    const [r0, y0] = profile[i - 1];
+    const [r1, y1] = profile[i];
+    if ((y >= y0 && y <= y1) || (y <= y0 && y >= y1)) return y1 === y0 ? Math.max(r0, r1) : r0 + ((r1 - r0) * (y - y0)) / (y1 - y0);
+  }
+  return 0;
+}
+
+/**
+ * A band lying on a lathe surface along a tilted plane (y = y0 + slope * z):
+ * how the bishop's mitre slit reads from every side.
+ */
+export function slitBand(profile: ProfilePoint[], y0: number, slope: number, width: number, material: Material, segments = 48): Mesh {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const a = (i / segments) * Math.PI * 2;
+    const [cx, cz] = [Math.cos(a), Math.sin(a)];
+    for (const side of [-1, 1]) {
+      // Find where the plane meets the surface in this direction (fixed point on the radius).
+      let r = radiusAt(profile, y0);
+      for (let k = 0; k < 8; k++) r = radiusAt(profile, y0 + slope * r * cz + side * width);
+      const y = y0 + slope * r * cz + side * width;
+      const rr = r * 1.012 + 0.002;
+      const nl = Math.hypot(1, 0.2);
+      vertices.push(rr * cx, y, rr * cz, cx / nl, 0.2 / nl, cz / nl, ...material.color, material.metal);
+    }
+    if (i > 0) {
+      const b = (i - 1) * 2;
+      indices.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+    }
+  }
+  return { vertices, indices };
+}
+
+/** Crown points for the queen: small upright cones on a ring. */
+function crownPoints(count: number, ring: number, y: number, r: number, h: number): Mesh[] {
+  const out: Mesh[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = (i / count) * Math.PI * 2;
+    const cone = lathe([[0, 0], [r, 0], [r * 0.55, h * 0.55], [0.012, h], [0, h]], WHITE, 14);
+    out.push(translate(cone, Math.cos(a) * ring, y, Math.sin(a) * ring), translate(sphere(r * 0.55, 10), Math.cos(a) * ring, y + h, Math.sin(a) * ring));
+  }
+  return out;
+}
+
+// Heights rise clearly from pawn to king, and each piece has its own head
+// (ball, battlements, horse, slit mitre, spiked crown, cross) so they can be told apart at a glance.
 function pawn(): Mesh {
   return lathe(
-    [...foot(0.3), [0.2, 0.19], [0.14, 0.27], [0.105, 0.37], [0.165, 0.405], [0.165, 0.43], [0.1, 0.455], ...arc(0, 0.575, 0.135, -62, 90, 12)],
+    [...foot(0.29), [0.2, 0.18], [0.15, 0.25], [0.11, 0.34], [0.09, 0.39], [0.17, 0.41], [0.17, 0.445], [0.095, 0.47], ...arc(0, 0.585, 0.13, -64, 90, 14)],
     WHITE,
   );
 }
 
 function rook(): Mesh {
   const body = lathe(
-    [...foot(0.34), [0.25, 0.2], [0.22, 0.32], [0.215, 0.56], [0.24, 0.6], [0.3, 0.63], [0.3, 0.68], [0.27, 0.7], [0.27, 0.8], [0.19, 0.8], [0.19, 0.74], [0, 0.74]],
+    [...foot(0.34), [0.26, 0.19], [0.23, 0.3], [0.215, 0.55], [0.25, 0.59], [0.31, 0.62], [0.31, 0.66], [0.29, 0.68], [0.29, 0.79], [0.2, 0.79], [0.2, 0.73], [0, 0.73]],
     WHITE,
   );
-  const crenels = [
-    box([0.235, 0.85, 0], [0.07, 0.1, 0.17], WHITE),
-    box([-0.235, 0.85, 0], [0.07, 0.1, 0.17], WHITE),
-    box([0, 0.85, 0.235], [0.17, 0.1, 0.07], WHITE),
-    box([0, 0.85, -0.235], [0.17, 0.1, 0.07], WHITE),
-  ];
+  const crenels: Mesh[] = [];
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    crenels.push(box([Math.cos(a) * 0.245, 0.85, Math.sin(a) * 0.245], [0.13, 0.13, 0.13], WHITE));
+  }
   return merge(body, ...crenels);
 }
 
+const BISHOP: ProfilePoint[] = [
+  ...foot(0.31), [0.21, 0.19], [0.15, 0.3], [0.11, 0.46], [0.095, 0.56], [0.19, 0.59], [0.19, 0.625], [0.11, 0.65],
+  [0.14, 0.7], [0.175, 0.78], [0.18, 0.86], [0.16, 0.94], [0.12, 1.01], [0.07, 1.06], [0.03, 1.08], [0, 1.08],
+];
+
 function bishop(): Mesh {
-  const body = lathe(
-    [
-      ...foot(0.32), [0.22, 0.19], [0.16, 0.3], [0.115, 0.46], [0.1, 0.55], [0.2, 0.58], [0.2, 0.615], [0.12, 0.64],
-      [0.15, 0.7], [0.175, 0.78], [0.165, 0.86], [0.13, 0.93], [0.07, 0.99], [0.035, 1.0], [0, 1.0],
-    ],
-    WHITE,
-  );
-  return merge(body, translate(sphere(0.055), 0, 1.04, 0));
+  const body = lathe(BISHOP, WHITE);
+  return merge(body, slitBand(BISHOP, 0.9, 0.75, 0.014, DETAIL), translate(sphere(0.055), 0, 1.12, 0));
 }
 
 function queen(): Mesh {
   const body = lathe(
     [
-      ...foot(0.36), [0.25, 0.2], [0.18, 0.33], [0.13, 0.55], [0.115, 0.7], [0.22, 0.735], [0.22, 0.775], [0.14, 0.8],
-      [0.17, 0.9], [0.235, 1.0], [0.25, 1.03], [0.215, 1.04], [0.15, 1.06], [0.09, 1.1], [0, 1.115],
+      ...foot(0.36), [0.25, 0.2], [0.18, 0.33], [0.13, 0.55], [0.115, 0.72], [0.22, 0.755], [0.22, 0.795], [0.14, 0.82],
+      [0.17, 0.92], [0.24, 1.03], [0.255, 1.06], [0.2, 1.07], [0.13, 1.09], [0.08, 1.13], [0, 1.15],
     ],
     WHITE,
   );
-  const balls: Mesh[] = [];
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2;
-    balls.push(translate(sphere(0.034, 12), Math.cos(a) * 0.235, 1.055, Math.sin(a) * 0.235));
-  }
-  return merge(body, translate(sphere(0.06), 0, 1.16, 0), ...balls);
+  return merge(body, ...crownPoints(8, 0.215, 1.04, 0.045, 0.11), translate(sphere(0.07), 0, 1.2, 0));
 }
 
 function king(): Mesh {
   const body = lathe(
     [
-      ...foot(0.37), [0.26, 0.2], [0.19, 0.34], [0.14, 0.56], [0.125, 0.73], [0.23, 0.765], [0.23, 0.805], [0.15, 0.83],
-      [0.18, 0.93], [0.225, 1.03], [0.215, 1.07], [0.13, 1.1], [0.09, 1.13], [0, 1.135],
+      ...foot(0.37), [0.26, 0.2], [0.19, 0.34], [0.14, 0.56], [0.125, 0.74], [0.23, 0.775], [0.23, 0.815], [0.15, 0.84],
+      [0.18, 0.95], [0.235, 1.06], [0.22, 1.1], [0.14, 1.13], [0.1, 1.17], [0, 1.18],
     ],
     WHITE,
   );
-  const cross = merge(box([0, 1.26, 0], [0.065, 0.26, 0.065], WHITE), box([0, 1.29, 0], [0.2, 0.065, 0.065], WHITE));
+  const cross = merge(box([0, 1.36, 0], [0.085, 0.36, 0.085], WHITE), box([0, 1.4, 0], [0.27, 0.085, 0.085], WHITE));
   return merge(body, cross);
 }
 
@@ -218,11 +264,27 @@ function knight(): Mesh {
   const base = lathe([...foot(0.34), [0.25, 0.2], [0.22, 0.24], [0, 0.24]], WHITE);
   // Side outline of the horse's head, nose pointing to -z (towards the opponent of White).
   const head: [number, number][] = [
-    [0.24, 0.22], [0.27, 0.42], [0.25, 0.62], [0.2, 0.8], [0.13, 0.92], [0.12, 1.02], [0.07, 0.96],
-    [0.01, 0.97], [-0.08, 0.92], [-0.18, 0.82], [-0.27, 0.71], [-0.31, 0.63], [-0.27, 0.56], [-0.19, 0.57],
-    [-0.11, 0.6], [-0.06, 0.53], [-0.12, 0.42], [-0.17, 0.3], [-0.18, 0.22],
+    [0.25, 0.22], [0.28, 0.42], [0.27, 0.6], [0.23, 0.78], [0.16, 0.92], [0.15, 1.06], [0.09, 0.99],
+    [0.02, 1.0], [-0.08, 0.95], [-0.19, 0.85], [-0.29, 0.73], [-0.34, 0.64], [-0.3, 0.56], [-0.2, 0.56],
+    [-0.11, 0.59], [-0.06, 0.52], [-0.12, 0.42], [-0.18, 0.3], [-0.19, 0.22],
   ];
-  return merge(base, extrude(head, 0.3, WHITE, 0.035));
+  // Mane: a narrower ridge along the back of the neck.
+  const mane: [number, number][] = [
+    [0.27, 0.36], [0.31, 0.5], [0.3, 0.66], [0.25, 0.82], [0.18, 0.95], [0.13, 0.9], [0.2, 0.76], [0.23, 0.6], [0.23, 0.44],
+  ];
+  const eyes = [-1, 1].map((side) => translate(sphere(0.03, 10), side * 0.16, 0.85, -0.06)).map((m) => recolor(m, DETAIL));
+  return merge(base, extrude(head, 0.32, WHITE, 0.04), extrude(mane, 0.12, WHITE, 0.03), ...eyes);
+}
+
+function recolor(mesh: Mesh, material: Material): Mesh {
+  const vertices = mesh.vertices.slice();
+  for (let i = 0; i < vertices.length; i += STRIDE) {
+    vertices[i + 6] = material.color[0];
+    vertices[i + 7] = material.color[1];
+    vertices[i + 8] = material.color[2];
+    vertices[i + 9] = material.metal;
+  }
+  return { vertices, indices: mesh.indices.slice() };
 }
 
 const BUILD: Record<PieceSymbol, () => Mesh> = { p: pawn, r: rook, n: knight, b: bishop, q: queen, k: king };

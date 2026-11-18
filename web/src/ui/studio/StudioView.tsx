@@ -47,6 +47,9 @@ import {
   type StudioVideo,
   type ThemeId,
   type Tone,
+  CAPTION_LABEL,
+  MATERIAL_LABEL,
+  type CaptionStyle,
 } from "./model";
 import { Assistant, MoveRecorder } from "./Assistant";
 import { AiImport } from "./AiImport";
@@ -1051,7 +1054,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           {(Object.keys(THEMES) as ThemeId[]).map((id) => {
             const t = THEMES[id];
             return (
-              <button key={id} class={style.theme === id ? "on" : ""} onClick={() => onChange(styleFromTheme(id, { reflection: style.reflection, coords: style.coords, titleFont: style.titleFont }))}>
+              <button key={id} class={style.theme === id ? "on" : ""} onClick={() => onChange(styleFromTheme(id, { reflection: style.reflection, coords: style.coords, titleFont: style.titleFont, pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment }))}>
                 <span class="studio-swatch" style={{ background: `linear-gradient(135deg, ${t.bgTop}, ${t.bgBottom})` }}>
                   <i style={{ background: t.light }} />
                   <i style={{ background: t.dark }} />
@@ -1087,11 +1090,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
       <Field label="Figuren">
         <Seg<Material>
           value={style.material}
-          options={[
-            ["porcelain", "Lack"],
-            ["matte", "Matt"],
-            ["chrome", "Chrom"],
-          ]}
+          options={(Object.keys(MATERIAL_LABEL) as Material[]).map((m) => [m, MATERIAL_LABEL[m]] as [Material, string])}
           onChange={(material) => onChange({ material })}
         />
       </Field>
@@ -1105,6 +1104,11 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           onChange={(titleFont) => onChange({ titleFont })}
         />
       </Field>
+      <Field label="Untertitel">
+        <Seg<CaptionStyle> value={style.captionStyle} options={(Object.keys(CAPTION_LABEL) as CaptionStyle[]).map((c) => [c, CAPTION_LABEL[c]] as [CaptionStyle, string])} onChange={(captionStyle) => onChange({ captionStyle })} />
+      </Field>
+      <Slider label="Textgröße" value={style.textScale} min={0.8} max={1.3} step={0.05} unit="×" onChange={(textScale) => onChange({ textScale })} />
+      <Toggle label="Heller Rand an den Figuren (besser zu unterscheiden)" checked={style.pieceRim} onChange={(pieceRim) => onChange({ pieceRim })} />
       <Toggle label="Spiegelung im Brett" checked={style.reflection} onChange={(reflection) => onChange({ reflection })} />
       <Toggle label="Koordinaten am Rand" checked={style.coords} onChange={(coords) => onChange({ coords })} />
     </div>

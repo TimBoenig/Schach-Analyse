@@ -69,8 +69,13 @@ export interface Scene {
   tempo: number;
 }
 
-export type ThemeId = "nova" | "marmor" | "holz" | "turnier" | "neon";
-export type Material = "porcelain" | "chrome" | "matte";
+export type ThemeId = "nova" | "marmor" | "holz" | "walnuss" | "turnier" | "neon";
+export type Material = "porcelain" | "chrome" | "matte" | "wood";
+
+/** How the subtitles sit on the video: in a dark box, as bold outlined text, or big and heavy without a box. */
+export type CaptionStyle = "box" | "outline" | "punch";
+export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: "Im Kasten", outline: "Mit Kontur", punch: "Groß und fett" };
+export const MATERIAL_LABEL: Record<Material, string> = { porcelain: "Lack", matte: "Matt", chrome: "Chrom", wood: "Holz" };
 
 export interface StudioStyle {
   theme: ThemeId;
@@ -87,6 +92,11 @@ export interface StudioStyle {
   coords: boolean;
   titleFont: "sans" | "serif";
   environment: Environment;
+  /** Thin light edge on the pieces so black stays readable on dark squares. */
+  pieceRim: boolean;
+  captionStyle: CaptionStyle;
+  /** Size of all texts, 1 = normal. */
+  textScale: number;
 }
 
 export type Format = "9:16" | "1:1" | "16:9";
@@ -133,10 +143,11 @@ export interface StudioProject {
   updatedAt: number;
 }
 
-export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment">> = {
+export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale">> = {
   nova: { label: "Nova", light: "#d3d8e6", dark: "#4b5675", frame: "#121620", whitePiece: "#f3f1ec", blackPiece: "#1b1d24", material: "porcelain", bgTop: "#1a2140", bgBottom: "#05060a", accent: "#8d9aff" },
   marmor: { label: "Marmor", light: "#ece9e3", dark: "#8b909b", frame: "#26292f", whitePiece: "#f7f5f0", blackPiece: "#16171b", material: "porcelain", bgTop: "#2c313b", bgBottom: "#08090b", accent: "#3fd2ea" },
-  holz: { label: "Holz", light: "#e9d0a5", dark: "#a5714a", frame: "#43291a", whitePiece: "#f4eadb", blackPiece: "#2a1a12", material: "matte", bgTop: "#2b1e15", bgBottom: "#0a0705", accent: "#ff9d5c" },
+  holz: { label: "Holz", light: "#e9d0a5", dark: "#a5714a", frame: "#43291a", whitePiece: "#ecd3a4", blackPiece: "#3a2216", material: "wood", bgTop: "#2b1e15", bgBottom: "#0a0705", accent: "#ff9d5c" },
+  walnuss: { label: "Walnuss", light: "#e6cfa3", dark: "#6e4a2f", frame: "#2a1a10", whitePiece: "#f0d9ae", blackPiece: "#24140c", material: "wood", bgTop: "#3a2a1f", bgBottom: "#0b0806", accent: "#ffcf70" },
   turnier: { label: "Turnier", light: "#eeeed2", dark: "#769656", frame: "#27301f", whitePiece: "#f6f4ee", blackPiece: "#1c1d1f", material: "porcelain", bgTop: "#1c2618", bgBottom: "#060805", accent: "#34d3a1" },
   neon: { label: "Neon", light: "#2b3050", dark: "#141729", frame: "#0a0c18", whitePiece: "#eaf6ff", blackPiece: "#40307a", material: "chrome", bgTop: "#22104a", bgBottom: "#04030b", accent: "#3fd2ea" },
 };
@@ -210,7 +221,7 @@ export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 19
 
 export function styleFromTheme(theme: ThemeId, keep?: Partial<StudioStyle>): StudioStyle {
   const { label: _label, ...colours } = THEMES[theme];
-  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", ...keep, ...colours, theme };
+  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", pieceRim: true, captionStyle: "box", textScale: 1, ...keep, ...colours, theme };
 }
 
 export const DEFAULT_VIDEO: StudioVideo = {
@@ -366,7 +377,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     frame: colour(st.frame, base.frame),
     whitePiece: colour(st.whitePiece, base.whitePiece),
     blackPiece: colour(st.blackPiece, base.blackPiece),
-    material: pick(st.material, ["porcelain", "chrome", "matte"] as const, base.material),
+    material: pick(st.material, Object.keys(MATERIAL_LABEL) as Material[], base.material),
     bgTop: colour(st.bgTop, base.bgTop),
     bgBottom: colour(st.bgBottom, base.bgBottom),
     accent: colour(st.accent, base.accent),
@@ -374,6 +385,9 @@ export function normalizeProject(raw: unknown): StudioProject {
     coords: st.coords === true,
     titleFont: pick(st.titleFont, ["sans", "serif"] as const, "sans"),
     environment: pick(st.environment, Object.keys(ENV_LABEL) as Environment[], "void"),
+    pieceRim: st.pieceRim !== false,
+    captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
+    textScale: num(st.textScale, 0.8, 1.3, 1),
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {
