@@ -158,6 +158,10 @@ export interface Frame {
   mate: { king: string; by: string } | null;
   threats: string[];
   badge: { kind: Exclude<Badge, "">; square: string; age: number } | null;
+  /** Lesson layout (wide video, explanation panel on the right). */
+  lesson: boolean;
+  /** Moves played so far in this line, for the lesson's move list (last one is the current). */
+  moveList: string[];
   /** Letter bubbles at the end of the poll arrows. */
   pollMarks: { square: string; letter: string; colour: string; alpha: number }[];
   /** Squares the subtitle names, softly lit so viewers find them. */
@@ -588,7 +592,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
   const titleStays = nextScene && nextScene.scene.title === s.title && nextScene.scene.card === s.card;
   const titleAlpha = titleStays ? 1 : clamp01(tail / 0.3);
   // A subtitle with "|" shows its parts one after another, each for an equal share of the scene.
-  const parts = s.text.split("|").map((x) => x.trim()).filter(Boolean);
+  const lesson = isLesson(project);
+  const parts = textParts(s.text, !lesson);
   let textNow = s.text;
   let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
   let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
@@ -637,8 +642,56 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     fxSquare: c.fxSquare,
     mate: c.mate,
     threats: c.threats,
+    lesson,
+    moveList: lesson ? moveListAt(timeline, index, local) : [],
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,
     hints,
   };
+}
+
+export const isLesson = (p: StudioProject) => p.video.lesson && p.video.format === "16:9";
+
+/** Characters a short-video viewer can read at a glance while still watching the board. */
+export const SHORT_CHUNK = 60;
+
+/**
+ * Splits a subtitle into the parts shown one after another. "|" splits by hand;
+ * in short videos a long text is also split at sentences and then commas, so
+ * there is never more on screen than fits one quick look.
+ */
+export function textParts(text: string, short: boolean): string[] {
+  const manual = text.split("|").map((x) => x.trim()).filter(Boolean);
+  if (!short) return manual.length ? manual : [text];
+  const out: string[] = [];
+  for (const part of manual) {
+    if (part.length <= SHORT_CHUNK) {
+      out.push(part);
+      continue;
+    }
+    const pieces = part.match(/[^.!?:;]+[.!?:;]*\s*/g) ?? [part];
+    const units = pieces.flatMap((p) => (p.length <= SHORT_CHUNK ? [p] : p.match(/[^,]+,?\s*/g) ?? [p]));
+    let cur = "";
+    for (const unit of units) {
+      if (cur && (cur + unit).trim().length > SHORT_CHUNK) {
+        out.push(cur.trim());
+        cur = "";
+      }
+      cur += unit;
+    }
+    if (cur.trim()) out.push(cur.trim());
+  }
+  return out.length ? out : [text];
+}
+
+/** Move labels of the line on the board, up to now. */
+function moveListAt(timeline: Timeline, index: number, local: number): string[] {
+  const list: string[] = [];
+  for (let i = 0; i <= index; i++) {
+    const c = timeline.scenes[i];
+    // A jump to another position (variation, new start) begins a fresh list.
+    if (i > 0 && (c.jumpOut.length || c.jumpIn.size)) list.length = 0;
+    for (const st of c.steps) if (i < index || st.t0 <= local) list.push(st.label);
+  }
+  return list;
 }

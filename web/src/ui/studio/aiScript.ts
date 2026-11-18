@@ -36,7 +36,7 @@ import {
   type CaptionStyle,
   type Tone,
 } from "./model";
-import { compile } from "./timeline";
+import { compile, SHORT_CHUNK } from "./timeline";
 import type { MusicId } from "./music";
 import { fitLength, movesLabel } from "./wizard";
 
@@ -104,7 +104,7 @@ const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kont
 const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
 const MUSICS: Record<string, MusicId> = { keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
 /** Longest texts that still fit the frame at normal text size. */
-export const FIT = { title: 30, subtitle: 95, label: 22, option: 14 };
+export const FIT = { title: 30, subtitle: 95, label: 22, option: 14, lesson: 330 };
 
 const PLATFORMS: Record<string, Platform> = {
   tiktok: "tiktok", reels: "reels", instagram: "reels", instagramreels: "reels", shorts: "shorts", youtubeshorts: "shorts", youtube: "youtube", youtubequer: "youtube",
@@ -143,8 +143,50 @@ export function guessPerspective(content: string): Side {
   return BLACK_HINTS.test(content) ? "black" : "white";
 }
 
+const LONG_RULES = `SO WIRD ES EIN GUTES LERNVIDEO
+1. Ruhig und seriös, kein Entertainment-Tempo. Der Zuschauer will etwas verstehen und mitdenken.
+2. Aufbau: Einstieg (was man lernt und warum es wichtig ist), dann 3 bis 5 Kapitel, dann eine Zusammenfassung mit den 3 wichtigsten Punkten, dann ein kurzer Abspann. "kleineZeile" ist der Kapitelname (z. B. "Kapitel 2: Der Plan für Weiß") und bleibt über mehrere Szenen gleich.
+3. Erkläre das Warum: Pläne, Bauernstruktur, typische Fehler, die Idee hinter jedem wichtigen Zug. Zeig auch, was passiert, wenn man es falsch macht (als Variante).
+4. Pro Szene meist ein Zug, höchstens zwei. Jede Szene dauert 8 bis 20 Sekunden, damit der Zuschauer den Zug sieht und die Erklärung lesen kann.
+5. "untertitel" ist die Erklärung, die rechts neben dem Brett komplett stehen bleibt: 2 bis 4 ganze Sätze, höchstens ${FIT.lesson} Zeichen. *Sternchen* färben Schlüsselwörter und Felder.
+6. "sprechtext" ist ausführlicher als der Untertitel: das, was ich dazu sage, etwa 2,5 Wörter pro Sekunde, passend zur Dauer.
+7. Pfeile für Pläne und Drohungen, Markierungen für wichtige Felder. Effekte sparsam: höchstens spotlight, drohung, matt. Keine Konfetti-Explosion mitten in der Erklärung.
+8. Kamera meist "normal" oder "oben", ruhig, ohne Drehung. Bleib bei EINER Perspektive.
+9. Umfragen nur, wenn sie zum Mitdenken einladen ("Was würdest du hier spielen?"), höchstens zwei im ganzen Video.
+10. Keine erfundenen Zahlen, Statistiken oder Partien. Wenn du eine berühmte Partie zeigst, nur mit den echten Zügen.
+
+`;
+
+const LONG_LAYOUT = `SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)
+- Links das 3D-Brett, groß und ruhig.
+- Rechts eine Lesespalte: oben das Kapitel ("kleineZeile") in Akzentfarbe, darunter der "titel" (höchstens 2 Zeilen, etwa ${FIT.title} Zeichen), darunter der ganze "untertitel" als Erklärung (bis 9 Zeilen, höchstens ${FIT.lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.
+- Karten ("titel", "frage", "umfrage", "abspann") legen sich wie gewohnt über das ganze Bild.
+
+`;
+
+function LONG_EXAMPLE(platform: Platform) {
+  return {
+    titel: "Die Italienische Partie verstehen",
+    plattform: platform,
+    laenge: 240,
+    perspektive: "weiss",
+    look: "walnuss",
+    umgebung: "bibliothek",
+    design: { figuren: "holz", schrift: "elegant", musik: "lofi", untertitelStil: "kasten" },
+    geschwindigkeit: 0.9,
+    szenen: [
+      { karte: "titel", titel: "Italienisch verstehen", untertitel: "Die Ideen hinter den ersten Zügen", sprechtext: "In diesem Video schauen wir uns an, warum die Italienische Partie seit Jahrhunderten gespielt wird und welche Pläne dahinterstecken.", dauer: 8 },
+      { kleineZeile: "Kapitel 1: Das Zentrum", zug: "1. e4", titel: "Der erste Zug", untertitel: "Weiß besetzt mit *e4* das Zentrum und öffnet gleichzeitig Wege für die *Dame* und den *Läufer*. Genau diese beiden Figuren spielen gleich eine große Rolle.", sprechtext: "Der Bauer auf e4 kontrolliert d5 und f5 und gibt der Dame und dem Läufer auf f1 freie Bahn.", markierungen: ["d5 akzent", "f5 akzent"], kamera: "normal", dauer: 14 },
+      { kleineZeile: "Kapitel 1: Das Zentrum", zug: "1... e5 2. Sf3", titel: "Angriff auf e5", untertitel: "Schwarz hält mit *e5* dagegen. Der Springer auf f3 greift den Bauern sofort an und entwickelt sich dabei zur Mitte.", pfeile: ["f3-e5 gefahr"], kamera: "normal", dauer: 14 },
+      { kleineZeile: "Kapitel 2: Der Läufer", zug: "2... Sc6 3. Lc4", titel: "Ziel: f7", untertitel: "Der Läufer zielt auf *f7*, den schwächsten Punkt von Schwarz, weil ihn nur der König deckt.", pfeile: ["c4-f7 gefahr"], effekte: ["spotlight"], kamera: "oben", dauer: 16 },
+      { karte: "abspann", titel: "Danke fürs Zuschauen", untertitel: "Im nächsten Teil: das Giuoco Piano", dauer: 6 },
+    ],
+  };
+}
+
 export function buildAiPrompt(o: PromptOptions): string {
-  const example = {
+  const long = o.platform === "youtube";
+  const example = long ? LONG_EXAMPLE(o.platform) : {
     titel: "Matt in 4 Zügen",
     plattform: o.platform,
     laenge: 25,
@@ -164,24 +206,24 @@ export function buildAiPrompt(o: PromptOptions): string {
       { karte: "abspann", titel: "Folge für mehr Fallen", untertitel: "Teil 2 kommt morgen", effekte: ["konfetti"] },
     ],
   };
-  return `Du schreibst das komplette Drehbuch für ein kurzes Schach-Video, das mein 3D-Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
+  return `Du schreibst das komplette Drehbuch für ${long ? "ein ruhiges, lehrreiches YouTube-Video im Querformat" : "ein kurzes Schach-Video"}, das mein 3D-Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
 
 MEIN VIDEO
 - Thema: ${o.topic.trim() || "(such dir ein spannendes Thema aus)"}
 ${o.side === "black" ? '- Perspektive: schwarz (setz "perspektive": "schwarz")\n' : o.side === "white" ? '- Perspektive: weiss (setz "perspektive": "weiss")\n' : ""}- Plattform: ${PLATFORM_LABEL[o.platform]} (${o.platform === "youtube" ? "Querformat" : "Hochformat"})
-- Ziellänge: etwa ${o.length} Sekunden
+- Ziellänge: etwa ${o.length >= 120 ? `${Math.round(o.length / 60)} Minuten (${o.length} Sekunden)` : `${o.length} Sekunden`}
 ${o.notes.trim() ? `- Das ist mir wichtig:\n${o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n")}\n` : ""}
-SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH
+${long ? LONG_RULES : `SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH
 1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.
 2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten ("Der Springer greift e5 an") und nenne dabei das Feld. Felder, die im Untertitel stehen, leuchten auf dem Brett auf.
-3. Höchstens eine neue Idee pro Szene. Kurze Untertitel (höchstens etwa 90 Zeichen). *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.
+3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens ${SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.
 4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.
 5. Bleib bei EINER Sicht aufs Brett: "perspektive" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze "gegenueber" nur ganz selten.
 6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.
 7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller "dauer"-Werte soll ungefähr die Ziellänge ergeben.
 8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.
 
-WAS DAS STUDIO KANN (setz es gezielt ein, nicht in jeder Szene)
+`}WAS DAS STUDIO KANN (setz es gezielt ein, nicht in jeder Szene)
 Effekte ("effekte", mehrere möglich):
 - matt: Der König kippt um, eine rote Druckwelle läuft übers Brett, die Kamera fährt ran, großer Schriftzug SCHACHMATT, dumpfer Schlag. Nur in der Szene mit dem Mattzug.
 - drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).
@@ -198,7 +240,7 @@ Kameras ("kamera"): normal (hinter der eigenen Seite), schraeg, seitlich, oben (
 Tempo: "zugtempo" pro Szene (0.4 langsam bis 2.5 schnell), oben "geschwindigkeit" für das ganze Video (0.5 bis 2.5).
 Lucena: eine KI-Kugel neben den Untertiteln mit "stimmung": froehlich, nachdenklich, begeistert, traurig.
 
-SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Querformat 16:9" : "Hochformat 9:16"}, von oben nach unten)
+${long ? LONG_LAYOUT : `SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Querformat 16:9" : "Hochformat 9:16"}, von oben nach unten)
 - Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.
 - "kleineZeile": kleiner farbiger Streifen über dem Titel, höchstens ${FIT.label} Zeichen (z. B. "Variante 2", "Falle", "Teil 1").
 - "titel": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa ${FIT.title} Zeichen. Kurz und knackig, wie eine Schlagzeile.
@@ -209,7 +251,7 @@ SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Querformat 16:9" : "Hochfo
 - Karten: "titel" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), "frage" und "umfrage" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens ${FIT.option} Zeichen), "abspann" ist das große Schlussbild mit Logo.
 - Ein Titel oder Untertitel, der zu lang ist, wird abgeschnitten. Lieber zwei Szenen als eine überfüllte.
 
-DESIGN ("design" oben im JSON, alles optional, passend zum Thema wählen)
+`}DESIGN ("design" oben im JSON, alles optional, passend zum Thema wählen)
 - look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).
 - figuren: lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.
 - untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).
@@ -235,7 +277,7 @@ Farben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: 
 
 PRÜF VOR DEM ANTWORTEN
 - Spiel alle Züge im Kopf nach: legal, richtige Reihenfolge, richtige Seite am Zug.
-- Jeder Titel höchstens ${FIT.title} Zeichen, jeder Untertitel höchstens ${FIT.subtitle} Zeichen.
+- Jeder Titel höchstens ${FIT.title} Zeichen, jeder Untertitel höchstens ${long ? FIT.lesson : SHORT_CHUNK} Zeichen.
 - Die Summe der Dauern passt zur Ziellänge, und der Sprechtext jeder Szene ist in ihrer Dauer sprechbar.
 - Hook, eine klare Idee pro Szene, Pfeile für jede Drohung, Abspann mit Aufforderung.
 
@@ -517,13 +559,15 @@ export function importAiScript(input: string): AiImport {
       squareHints: setting(true, "felderleuchten", "squarehints"),
       platform,
       speed: speed ?? 1,
-      tempo: tempo ?? 1,
+      // Lessons move the pieces more calmly so the viewer can follow every move.
+      tempo: tempo ?? (platform === "youtube" ? 0.8 : 1),
       lucena: setting(true, "lucena", "kugel"),
       sound: setting(true, "effektTon", "ton", "sound", "sounds"),
       movePill: setting(true, "zuganzeige", "movepill"),
       progress: setting(true, "fortschritt", "progress"),
       introFly: setting(true, "kameraflug", "introfly"),
       ...(music ? { music } : {}),
+      lesson: platform === "youtube" && setting(true, "lernlayout", "lesson"),
     },
     updatedAt: Date.now(),
   });
@@ -532,7 +576,7 @@ export function importAiScript(input: string): AiImport {
     const max = FIT.title / Math.max(0.8, project.style.textScale);
     if (sc.title.length > max) warnings.push(`Szene ${i + 1}: Titel ist ${sc.title.length} Zeichen lang, ins Bild passen etwa ${Math.round(max)}.`);
     const plain = sc.text.replace(/[*|]/g, "");
-    if (plain.length > FIT.subtitle * (sc.text.includes("|") ? 2 : 1)) warnings.push(`Szene ${i + 1}: Untertitel ist zu lang (${plain.length} Zeichen). Kürzen oder mit | teilen.`);
+    if (project.video.lesson && plain.length > FIT.lesson) warnings.push(`Szene ${i + 1}: Erklärung ist zu lang (${plain.length} Zeichen), rechts passen etwa ${FIT.lesson}.`);
   });
   const length = number(field(root, "laenge", "length", "dauer"));
   if (length && length >= 5 && speed === null) project = fitLength(project, length);

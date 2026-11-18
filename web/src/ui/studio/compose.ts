@@ -344,7 +344,7 @@ export function compose(
   const textAlphaBase = card.kind === "none" ? 1 : 1 - cardA;
 
   // ---- kicker ("Variante 2") and headline
-  if (frame.label && textAlphaBase > 0.01) {
+  if (!frame.lesson && frame.label && textAlphaBase > 0.01) {
     const k = easeOut(frame.title.age / 0.4);
     ctx.save();
     ctx.globalAlpha = frame.title.alpha * textAlphaBase * k;
@@ -362,7 +362,7 @@ export function compose(
     ctx.fillText(text, W / 2, y + h / 2 + 1 * u);
     ctx.restore();
   }
-  if (textAlphaBase > 0.01) {
+  if (!frame.lesson && textAlphaBase > 0.01) {
     ctx.save();
     // TikTok-style headline: heavy, big and with a hard dark shadow so it reads over any background.
     ctx.shadowColor = "rgba(0,0,0,0.85)";
@@ -387,7 +387,7 @@ export function compose(
   }
 
   // ---- move pill
-  if (v.movePill && frame.pill && textAlphaBase > 0.01 && !(mateAge !== undefined && mateAge > 0.25)) {
+  if (!frame.lesson && v.movePill && frame.pill && textAlphaBase > 0.01 && !(mateAge !== undefined && mateAge > 0.25)) {
     const k = backOut(frame.pill.age / 0.45);
     const a = clamp01(frame.pill.age / 0.2) * textAlphaBase;
     ctx.save();
@@ -434,7 +434,9 @@ export function compose(
 
   // ---- subtitle box, with Lucena speaking it
   const hasLucena = v.lucena && assets.orb;
-  if (frame.text.text.trim() && textAlphaBase > 0.01) {
+  if (frame.lesson) {
+    if (textAlphaBase > 0.01) lessonPanel(ctx, frame, project, assets, W, H, u, textAlphaBase);
+  } else if (frame.text.text.trim() && textAlphaBase > 0.01) {
     const a = frame.text.alpha * textAlphaBase * clamp01(frame.text.age / 0.3);
     const orbSize = hasLucena ? 132 * u : 0;
     const cap = st.captionStyle;
@@ -554,7 +556,7 @@ export function compose(
   }
 
   // ---- branding and progress (always on top)
-  if (v.brand && !(card.kind === "outro" && cardA > 0.5)) brandPill(ctx, L.portrait ? W / 2 : 170 * u, L.brandY, u, assets.logo, L.portrait ? 1 : 0.8);
+  if (v.brand && !(card.kind === "outro" && cardA > 0.5)) brandPill(ctx, L.portrait ? W / 2 : frame.lesson ? W - 200 * u : 170 * u, L.brandY, u, assets.logo, L.portrait ? 1 : 0.8);
   if (v.progress) {
     const y = L.portrait ? 112 * u : 22 * u;
     const x = 90 * u;
@@ -849,4 +851,115 @@ function drawConfetti(ctx: CanvasRenderingContext2D, ox: number, oy: number, age
     ctx.restore();
   }
   ctx.restore();
+}
+
+/**
+ * The lesson layout for long YouTube videos: board on the left, a calm reading
+ * column on the right with chapter, headline, the full explanation and the moves so far.
+ */
+function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, assets: Assets, W: number, H: number, u: number, base: number): void {
+  const st = project.style;
+  const ts = st.textScale;
+  const x0 = W * 0.6;
+  const maxW = W - x0 - 90 * u;
+  const titleFont = st.titleFont === "serif" ? SERIF : SANS;
+  ctx.save();
+  // Soft column behind the text so it reads over any background.
+  const g = ctx.createLinearGradient(x0 - 80 * u, 0, W, 0);
+  g.addColorStop(0, "rgba(5,6,10,0)");
+  g.addColorStop(0.25, "rgba(5,6,10,0.55)");
+  g.addColorStop(1, "rgba(5,6,10,0.7)");
+  ctx.globalAlpha = base;
+  ctx.fillStyle = g;
+  ctx.fillRect(x0 - 80 * u, 0, W - x0 + 80 * u, H);
+  let y = 150 * u;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  // Chapter
+  if (frame.label) {
+    ctx.globalAlpha = base * frame.title.alpha;
+    ctx.font = `700 ${24 * u * ts}px ${SANS}`;
+    ctx.fillStyle = st.accent;
+    ctx.fillText(frame.label.toUpperCase(), x0, y);
+    y += 22 * u;
+  }
+  // Headline
+  ctx.globalAlpha = base * frame.title.alpha * clamp01(frame.title.age / 0.5);
+  ctx.font = `${st.titleFont === "serif" ? 400 : 800} ${54 * u * ts * (st.titleFont === "serif" ? 1.15 : 1)}px ${titleFont}`;
+  ctx.fillStyle = "#ffffff";
+  for (const line of wrapPlain(ctx, frame.title.text, maxW).slice(0, 2)) {
+    y += 62 * u * ts;
+    ctx.fillText(line, x0, y);
+  }
+  y += 26 * u;
+  ctx.globalAlpha = base * 0.4;
+  ctx.fillStyle = st.accent;
+  ctx.fillRect(x0, y, 64 * u, 4 * u);
+  y += 34 * u;
+  // Explanation: the whole text at once, at reading size, *words* in the accent colour.
+  const size = 33 * u * ts;
+  const regular = `450 ${size}px ${SANS}`;
+  const bold = `700 ${size}px ${SANS}`;
+  ctx.font = regular;
+  const lines = wrap(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, bold).slice(0, 9);
+  const space = ctx.measureText(" ").width;
+  ctx.globalAlpha = base * frame.text.alpha * clamp01(frame.text.age / 0.5);
+  lines.forEach((line) => {
+    y += size * 1.45;
+    let x = x0;
+    for (const [k, tk] of line.entries()) {
+      x += gap(tk, k, space);
+      ctx.font = tk.emph ? bold : regular;
+      ctx.fillStyle = tk.emph ? st.accent : "rgba(238,240,246,0.94)";
+      ctx.fillText(tk.word, x, y);
+      x += ctx.measureText(tk.word).width;
+    }
+  });
+  // Move list at the bottom: the last moves in pairs, the current one highlighted.
+  const moves = frame.moveList.slice(-10);
+  if (moves.length) {
+    ctx.globalAlpha = base;
+    const top = H - 250 * u;
+    ctx.font = `600 ${20 * u}px ${SANS}`;
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText("ZÜGE", x0, top);
+    ctx.font = `600 ${28 * u}px ${SANS}`;
+    let x = x0;
+    let row = top + 46 * u;
+    moves.forEach((m, i) => {
+      const now = i === moves.length - 1;
+      const w = ctx.measureText(m).width + 26 * u;
+      if (x + w > x0 + maxW) {
+        x = x0;
+        row += 44 * u;
+      }
+      if (now) {
+        roundRect(ctx, x - 10 * u, row - 30 * u, w, 42 * u, 10 * u);
+        ctx.fillStyle = rgba(st.accent, 0.25);
+        ctx.fill();
+      }
+      ctx.fillStyle = now ? "#ffffff" : "rgba(238,240,246,0.7)";
+      ctx.fillText(m, x, row);
+      x += w + 8 * u;
+    });
+  }
+  if (project.video.lucena && assets.orb) {
+    ctx.globalAlpha = base;
+    ctx.drawImage(assets.orb, W - 150 * u, H - 150 * u, 110 * u, 110 * u);
+  }
+  ctx.restore();
+}
+
+function wrapPlain(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const w of text.replace(/\*/g, "").split(/\s+/)) {
+    const next = cur ? `${cur} ${w}` : w;
+    if (cur && ctx.measureText(next).width > maxW) {
+      out.push(cur);
+      cur = w;
+    } else cur = next;
+  }
+  if (cur) out.push(cur);
+  return out;
 }

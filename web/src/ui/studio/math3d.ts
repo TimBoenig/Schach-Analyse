@@ -19,12 +19,12 @@ export function multiply(a: Mat4, b: Mat4): Mat4 {
  * (a lens shift) without changing the perspective, so the board can sit a
  * little lower in a tall video and leave room for a headline.
  */
-export function perspective(fovY: number, aspect: number, near: number, far: number, shiftY = 0): Mat4 {
+export function perspective(fovY: number, aspect: number, near: number, far: number, shiftY = 0, shiftX = 0): Mat4 {
   const f = 1 / Math.tan(fovY / 2);
   const m = new Float32Array(16);
   m[0] = f / aspect;
   m[5] = f;
-  m[8] = 0;
+  m[8] = shiftX;
   m[9] = shiftY;
   m[10] = (far + near) / (near - far);
   m[11] = -1;

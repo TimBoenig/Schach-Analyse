@@ -6,6 +6,8 @@ import { buildAiPrompt, importAiScript, toAiScript } from "./aiScript";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
 
 const LENGTHS = [15, 30, 45, 60, 90];
+// Long YouTube lessons: about four minutes is the sweet spot Tim asked for.
+const LONG_LENGTHS = [120, 180, 240, 300, 420];
 
 async function copy(text: string): Promise<boolean> {
   try {
@@ -20,7 +22,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [step, setStep] = useState<"prompt" | "answer">("prompt");
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<Platform>(current.video.platform);
-  const [length, setLength] = useState(45);
+  const [length, setLength] = useState(current.video.platform === "youtube" ? 240 : 45);
   const [notes, setNotes] = useState("");
   const [side, setSide] = useState<Side | "auto">("auto");
   const [copied, setCopied] = useState<"" | "prompt" | "script" | "failed">("");
@@ -59,7 +61,11 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
             <div class="ai-row">
               <label class="ai-field">
                 <span>Plattform</span>
-                <select class="studio-select" value={platform} onChange={(e) => setPlatform(e.currentTarget.value as Platform)}>
+                <select class="studio-select" value={platform} onChange={(e) => {
+                    const p = e.currentTarget.value as Platform;
+                    setPlatform(p);
+                    setLength(p === "youtube" ? 240 : 45);
+                  }}>
                   {(Object.keys(PLATFORM_LABEL) as Platform[]).map((p) => (
                     <option key={p} value={p}>
                       {PLATFORM_LABEL[p]}
@@ -70,9 +76,9 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
               <div class="ai-field">
                 <span>Länge</span>
                 <div class="studio-speed">
-                  {LENGTHS.map((l) => (
+                  {(platform === "youtube" ? LONG_LENGTHS : LENGTHS).map((l) => (
                     <button key={l} class={length === l ? "on" : ""} onClick={() => setLength(l)}>
-                      {l} s
+                      {l >= 120 ? `${l / 60} min` : `${l} s`}
                     </button>
                   ))}
                 </div>

@@ -131,6 +131,8 @@ export interface StudioVideo {
   /** Whether an own voice recording for this video is kept in the audio store. */
   voice: boolean;
   voiceVolume: number;
+  /** Long, calm lesson for YouTube: board on the left, explanation and move list on the right. Only in 16:9. */
+  lesson: boolean;
 }
 
 export interface StudioProject {
@@ -246,6 +248,7 @@ export const DEFAULT_VIDEO: StudioVideo = {
   musicName: "",
   voice: false,
   voiceVolume: 1,
+  lesson: false,
 };
 
 let counter = 0;
@@ -412,6 +415,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     musicName: typeof vi.musicName === "string" ? vi.musicName.slice(0, 120) : "",
     voice: bool(vi.voice, false),
     voiceVolume: num(vi.voiceVolume, 0, 1.5, 1),
+    lesson: bool(vi.lesson, false),
   };
   const scenes = (Array.isArray(r.scenes) ? r.scenes : []).slice(0, 80).map((x): Scene => {
     const s = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
