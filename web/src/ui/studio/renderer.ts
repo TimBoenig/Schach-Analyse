@@ -149,15 +149,16 @@ export function fitDistance(aspect: number, yaw = 0): number {
   return radius / Math.tan(Math.min(fovX, FOV_Y) / 2);
 }
 
-export function cameraMatrix(cam: CameraState, aspect: number): { viewProj: Mat4; eye: V3 } {
+/** `lesson`: the board sits in the left part of a wide video, the right part holds the explanation. */
+export function cameraMatrix(cam: CameraState, aspect: number, lesson = false): { viewProj: Mat4; eye: V3 } {
   const pitch = (Math.min(89, Math.max(5, cam.pitch)) * Math.PI) / 180;
   const yaw = (cam.yaw * Math.PI) / 180;
-  const dist = fitDistance(aspect, cam.yaw) * cam.zoom;
+  const dist = fitDistance(aspect, cam.yaw) * cam.zoom * (lesson ? 1.06 : 1);
   const target: V3 = [cam.tx, 0, cam.tz];
   const eye: V3 = [target[0] + Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, target[2] + Math.cos(yaw) * Math.cos(pitch) * dist];
   // In a tall video the board sits in the middle band, between the headline and the subtitles, so neither covers a piece.
   const shift = aspect < 0.8 ? 0.0 : 0;
-  const proj = perspective(FOV_Y, aspect, 0.5, 120, shift);
+  const proj = perspective(FOV_Y, aspect, 0.5, 120, shift, lesson ? 0.46 : 0);
   return { viewProj: multiply(proj, lookAt(eye, target)), eye };
 }
 
@@ -326,7 +327,7 @@ export class StudioRenderer {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.ensureBoard(style);
     this.ensureEnv(style);
-    const { viewProj, eye } = cameraMatrix(frame.camera, w / h);
+    const { viewProj, eye } = cameraMatrix(frame.camera, w / h, frame.lesson);
     this.viewProj = viewProj;
     const accent = hexToRgb(style.accent);
     const mat = style.material;

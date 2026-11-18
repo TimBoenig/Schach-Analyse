@@ -515,3 +515,33 @@ describe("studio pieces and design", () => {
     expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" })).toContain("SO SIEHT DAS VIDEO AUS");
   });
 });
+
+describe("studio long lessons and short captions", () => {
+  it("cuts long short-video subtitles into glanceable parts but keeps lesson text whole", async () => {
+    const { textParts, SHORT_CHUNK } = await import("../../src/ui/studio/timeline");
+    const long = "Der Springer greift e5 an, und gleichzeitig deckt er d4. Schwarz muss jetzt reagieren, sonst fällt der Bauer.";
+    const parts = textParts(long, true);
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) expect(p.length).toBeLessThanOrEqual(SHORT_CHUNK);
+    expect(parts.join(" ")).toBe(long);
+    expect(textParts(long, false)).toEqual([long]);
+    expect(textParts("A | B", false)).toEqual(["A", "B"]);
+  });
+
+  it("builds YouTube scripts as calm lessons with the board left and a move list", () => {
+    const prompt = buildAiPrompt({ topic: "Italienisch", platform: "youtube", length: 240, notes: "" });
+    expect(prompt).toContain("LERNVIDEO");
+    expect(prompt).toContain("4 Minuten");
+    const json = prompt.slice(prompt.indexOf("```json") + 7, prompt.lastIndexOf("```"));
+    const r = importAiScript(json);
+    expect(r.errors).toEqual([]);
+    const p = r.project!;
+    expect([p.video.format, p.video.lesson, p.video.tempo]).toEqual(["16:9", true, 0.8]);
+    const tl = compile(p);
+    const f = frameAt(tl, p, tl.scenes[2].start + tl.scenes[2].dur - 0.5)!;
+    expect(f.lesson).toBe(true);
+    expect(f.moveList).toEqual(["1. e4", "1… e5", "2. Sf3"]);
+    // The short prompt asks for glanceable subtitles.
+    expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" })).toContain("höchstens 60 Zeichen");
+  });
+});

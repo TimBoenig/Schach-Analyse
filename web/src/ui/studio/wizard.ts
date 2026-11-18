@@ -505,7 +505,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
     startFen,
     scenes,
     style,
-    video: { ...DEFAULT_VIDEO, perspective: a.perspective === "auto" ? suggestPerspective(tree) : a.perspective, platform: a.platform, format: a.platform === "youtube" ? "16:9" : "9:16", tempo: vibe.tempo },
+    video: { ...DEFAULT_VIDEO, perspective: a.perspective === "auto" ? suggestPerspective(tree) : a.perspective, platform: a.platform, format: a.platform === "youtube" ? "16:9" : "9:16", lesson: a.platform === "youtube", tempo: vibe.tempo },
     updatedAt: Date.now(),
   };
   const withScript = a.script.trim() ? distributeScript(project, a.script) : project;

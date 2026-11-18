@@ -1179,6 +1179,7 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
       <Toggle label="Felder aus dem Untertitel leuchten auf" checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
       <Toggle label="Letzten Zug hervorheben" checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
       <Toggle label="Fortschrittsbalken" checked={v.progress} onChange={(progress) => onVideo({ progress })} />
+      {v.format === "16:9" && <Toggle label="Lernvideo: Brett links, Erklärung und Züge rechts" checked={v.lesson} onChange={(lesson) => onVideo({ lesson })} />}
       <Toggle label="Kamerafahrt zum Start" checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
       <Field label="Startstellung (FEN)" hint={!validFen(project.startFen) ? <span class="bad">Ungültig, es gilt die Grundstellung.</span> : "Für Rätsel oder Endspiele; leer = Grundstellung."}>
         <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder="Grundstellung" onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
