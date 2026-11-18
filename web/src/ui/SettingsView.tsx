@@ -1,4 +1,4 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
 import { BRAND, BRAND_DOMAIN } from "../brand";
@@ -13,10 +13,58 @@ import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
 import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { resetSeen } from "./stage/store";
+import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
 import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
 import { BRILLIANT_STYLE_LABELS, fxPrefs, loadFxPrefs, prefersReducedMotion, setFxPrefs, type BrilliantStyle, type FxPrefs } from "./fxPrefs";
+
+/**
+ * "About" card. Holds the hidden way into the video studio: tapping the
+ * heading seven times in a row unlocks it on this device. Not a security
+ * measure (the studio shows no private data), just out of normal users' way.
+ */
+function AboutCard() {
+  const [unlocked, setUnlocked] = useState(studioUnlocked);
+  const taps = useRef<number[]>([]);
+  const tap = () => {
+    const now = Date.now();
+    taps.current = [...taps.current.filter((t) => now - t < 3000), now];
+    if (!unlocked && taps.current.length >= UNLOCK_TAPS) {
+      taps.current = [];
+      setStudioUnlocked(true);
+      setUnlocked(true);
+    }
+  };
+  return (
+    <div class="card settings-card">
+      <div class="about-tap" onClick={tap}>
+        <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
+      </div>
+      <p class="small muted" style={{ margin: 0 }}>
+        {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert
+        auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings
+        (CC0).
+      </p>
+      {unlocked && (
+        <div class="about-studio">
+          <button class="btn primary" onClick={() => navigate({ view: "studio" })}>
+            Videostudio öffnen
+          </button>
+          <button
+            class="btn ghost"
+            onClick={() => {
+              setStudioUnlocked(false);
+              setUnlocked(false);
+            }}
+          >
+            Wieder verstecken
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /** How a brilliant move is celebrated: the quiet burst on the board or the full-screen show. */
 function BrilliantSetting() {
@@ -302,14 +350,7 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
         </div>
         <AppearanceCard />
         <AccountCard />
-        <div class="card settings-card">
-          <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
-          <p class="small muted" style={{ margin: 0 }}>
-            {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert
-            auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings
-            (CC0).
-          </p>
-        </div>
+        <AboutCard />
       </div>
     </div>
   );

@@ -310,3 +310,15 @@ dialog {
     text-align: center;
   }
 }
+
+/* Settings > About: the hidden video studio, once unlocked on this device. */
+.about-tap {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.about-studio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}

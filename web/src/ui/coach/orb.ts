@@ -79,6 +79,8 @@ function listen(): void {
 
 export class Orb {
   visible = true;
+  /** Off-screen use (video studio): the eyes do not follow the mouse. */
+  ignorePointer = false;
   private ctx: CanvasRenderingContext2D;
   private net: Net;
   private look: MoodLook;
@@ -220,7 +222,7 @@ export class Orb {
     // Eyes: towards the pointer while it moves, otherwise where the mood looks, with a little wander.
     let gx = this.look.gaze[0] + Math.sin(t * 0.7) * 0.12;
     let gy = this.look.gaze[1] + Math.sin(t * 0.43 + 1) * 0.08;
-    if (now - pointer.at < 2500 && this.mood !== "sad") {
+    if (!this.ignorePointer && now - pointer.at < 2500 && this.mood !== "sad") {
       if (now - this.centre.at > 400) {
         const r = this.canvas.getBoundingClientRect();
         this.centre = { x: r.left + r.width / 2, y: r.top + r.height / 2, at: now };

@@ -20,6 +20,7 @@ export type Route =
   | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings"; tab?: SettingsTab }
   | { view: "account" }
+  | { view: "studio" }
   | { view: "legal"; tab?: LegalTab };
 
 export type LegalTab = "impressum" | "datenschutz" | "lizenzen";
@@ -58,6 +59,8 @@ export function parseHash(hash: string): Route {
     }
     case "konto":
       return { view: "account" };
+    case "studio":
+      return { view: "studio" };
     case "hello":
     case "hallo":
       return { view: "landing" };
@@ -94,6 +97,8 @@ export function toHash(r: Route): string {
       return r.tab ? `#/einstellungen/${r.tab}` : "#/einstellungen";
     case "account":
       return "#/konto";
+    case "studio":
+      return "#/studio";
     case "landing":
       return "#/hello";
     case "legal":
