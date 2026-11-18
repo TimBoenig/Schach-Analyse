@@ -122,6 +122,7 @@ export interface Frame {
   camera: CameraState;
   title: { text: string; age: number; alpha: number };
   text: { text: string; age: number; alpha: number };
+  label: string;
   pill: { text: string; age: number; alpha: number } | null;
   card: { kind: Card; age: number; alpha: number };
   countdown: number | null;
@@ -167,7 +168,8 @@ export function compile(project: StudioProject): Timeline {
   let nextId = 1;
   const next = () => nextId++;
   const positions = scenePositions(project);
-  const tempo = Math.max(0.3, project.video.tempo);
+  const speed = Math.max(0.3, project.video.speed || 1);
+  const tempo = Math.max(0.3, project.video.tempo * speed);
   const scenes: CompiledScene[] = [];
   const sounds: Timeline["sounds"] = [];
   let board: PieceState[] = piecesOf(positions[0]?.before ?? project.startFen, next);
@@ -246,8 +248,8 @@ export function compile(project: StudioProject): Timeline {
       at += dur + GAP / tempo;
     });
     const annotate = steps.length ? steps[steps.length - 1].t1 + 0.15 : lead;
-    const minimum = annotate + (s.arrows.length || s.marks.length ? 1.4 : 0.9) + (s.card === "question" ? s.countdown : 0);
-    const dur = Math.max(s.duration, minimum);
+    const minimum = annotate + (s.arrows.length || s.marks.length ? 1.4 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0);
+    const dur = Math.max(s.duration / speed, minimum);
     const lastStep = steps[steps.length - 1];
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
     scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, error: pos.parsed.error });
@@ -412,15 +414,25 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
   for (let i = index - 1; i >= 0 && timeline.scenes[i].scene.title === s.title && timeline.scenes[i].scene.card === s.card; i--) titleStart = timeline.scenes[i].start;
   const titleStays = nextScene && nextScene.scene.title === s.title && nextScene.scene.card === s.card;
   const titleAlpha = titleStays ? 1 : clamp01(tail / 0.3);
-  const textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
-  const textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
+  // A subtitle with "|" shows its parts one after another, each for an equal share of the scene.
+  const parts = s.text.split("|").map((x) => x.trim()).filter(Boolean);
+  let textNow = s.text;
+  let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
+  let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
+  if (parts.length > 1) {
+    const share = c.dur / parts.length;
+    const k = Math.min(parts.length - 1, Math.floor(local / share));
+    textNow = parts[k];
+    textStart = c.start + k * share;
+    if (k < parts.length - 1) textAlpha = clamp01((share * (k + 1) - local) / 0.2);
+  }
 
   const current = moving ?? lastDone;
   const pill = current ? { text: current.label, age: local - current.t0, alpha: 1 } : null;
 
   const cardIn = prev?.scene.card === s.card && s.card !== "none" ? 1 : clamp01(local / CARD_FADE);
   const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / CARD_FADE);
-  const countdown = s.card === "question" && s.countdown > 0 ? Math.max(0, s.countdown - Math.max(0, local - 0.6)) : null;
+  const countdown = (s.card === "question" || s.card === "poll") && s.countdown > 0 ? Math.max(0, s.countdown - Math.max(0, local - 0.6)) : null;
 
   return {
     index,
@@ -434,7 +446,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     landing,
     camera: cameraAt(timeline, index, local, project.video.introFly),
     title: { text: s.title, age: time - titleStart, alpha: titleAlpha },
-    text: { text: s.text, age: time - textStart, alpha: textAlpha },
+    text: { text: textNow, age: time - textStart, alpha: textAlpha },
+    label: s.label,
     pill,
     card: { kind: s.card, age: local, alpha: s.card === "none" ? 0 : Math.min(cardIn, cardOut) },
     countdown,
