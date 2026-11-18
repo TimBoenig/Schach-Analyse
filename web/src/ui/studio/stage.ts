@@ -2,6 +2,7 @@
 // Used by the editor preview and, at full size, by the video export.
 import { Orb } from "../coach/orb";
 import { compose, type Assets, type ComposeOptions } from "./compose";
+import { BADGE_FILE } from "./model";
 import type { StudioProject } from "./model";
 import { StudioRenderer } from "./renderer";
 import { frameAt, type Frame, type Timeline } from "./timeline";
@@ -10,7 +11,7 @@ export class StudioStage {
   readonly out: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   readonly renderer: StudioRenderer;
-  private assets: Assets = { logo: null, orb: null };
+  private assets: Assets = { logo: null, orb: null, badges: {} };
   private orb: Orb | null = null;
   private orbCanvas: HTMLCanvasElement | null = null;
 
@@ -26,6 +27,15 @@ export class StudioStage {
     logo.src = "/icons/logo.svg";
     await Promise.all([
       logo.decode().then(() => (this.assets.logo = logo)).catch(() => undefined),
+      // The same move badges as the analysis page.
+      ...Object.entries(BADGE_FILE).map(([kind, file]) => {
+        const img = new Image();
+        img.src = `${import.meta.env.BASE_URL}badges/${file}`;
+        return img
+          .decode()
+          .then(() => (this.assets.badges[kind] = img))
+          .catch(() => undefined);
+      }),
       document.fonts?.load('700 40px "Geist"').catch(() => undefined),
       document.fonts?.load('500 40px "Geist"').catch(() => undefined),
       document.fonts?.load('400 40px "Instrument Serif"').catch(() => undefined),

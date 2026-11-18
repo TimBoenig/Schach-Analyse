@@ -381,6 +381,12 @@ export class StudioRenderer {
       const [x, z] = squareXZ(m.square);
       this.drawFlat(quad(x, z, 0.98, 0.005), hexToRgb(toneColor(m.tone, style)), 0.85 * m.alpha, 2);
     }
+    // Squares the subtitle names: a soft glow so viewers find them.
+    for (const h of frame.hints) {
+      const [x, z] = squareXZ(h.square);
+      this.drawFlat(quad(x, z, 1.9, 0.0045), accent, 0.55 * h.alpha, 1);
+      this.drawFlat(quad(x, z, 0.98, 0.005), accent, 0.5 * h.alpha, 2);
+    }
     // Threat effect: rings pulse outwards from every threatened square.
     const threatAge = frame.fx.find((f) => f.kind === "threat")?.age;
     if (threatAge !== undefined) {
@@ -413,7 +419,7 @@ export class StudioRenderer {
     }
     frame.arrows.forEach((a, i) => {
       if (a.progress <= 0 || a.alpha <= 0) return;
-      const c = hexToRgb(toneColor(a.tone, style));
+      const c = hexToRgb(a.colour ?? toneColor(a.tone, style));
       const y = 0.008 + i * 0.0015;
       this.drawFlat(arrowMesh(a.from, a.to, a.progress, 2.3, y), c, 0.16 * a.alpha, 0);
       this.drawFlat(arrowMesh(a.from, a.to, a.progress, 1, y + 0.0005), c, 0.92 * a.alpha, 0);

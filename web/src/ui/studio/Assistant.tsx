@@ -24,6 +24,7 @@ import {
   type GameTree,
   type Vibe,
   type VideoKind,
+  suggestPerspective,
 } from "./wizard";
 
 // ---------- move recorder ----------
@@ -326,6 +327,16 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
               {answers.poll && tree.keyPly < 0 && answers.kind !== "puzzle" && <p class="studio-hint">Markier dafür im Schritt „Züge“ einen Schlüsselzug.</p>}
               <h4 class="wz-q">Wie soll es enden?</h4>
               <Chips<Ending> value={answers.ending} options={(Object.keys(ENDING_LABEL) as Ending[]).map((e) => [e, ENDING_LABEL[e]])} onChange={(ending) => set({ ending })} />
+              <h4 class="wz-q">Aus wessen Sicht schaut man aufs Brett?</h4>
+              <Chips<Answers["perspective"]>
+                value={answers.perspective}
+                options={[
+                  ["auto", "Automatisch", tree.keyPly >= 0 ? `wer den Schlüsselzug spielt: ${suggestPerspective(tree) === "white" ? "Weiß" : "Schwarz"}` : "Weiß"],
+                  ["white", "Weiß", "Weiß unten"],
+                  ["black", "Schwarz", "Schwarz unten, z. B. für Sizilianisch"],
+                ]}
+                onChange={(perspective) => set({ perspective })}
+              />
               <h4 class="wz-q">Wo steht das Brett?</h4>
               <Chips<Environment> value={answers.environment} options={(Object.keys(ENV_LABEL) as Environment[]).map((e) => [e, ENV_LABEL[e]])} onChange={(environment) => set({ environment })} />
             </div>

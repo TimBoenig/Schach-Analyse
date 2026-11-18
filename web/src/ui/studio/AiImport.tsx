@@ -3,7 +3,7 @@
 import { useMemo, useState } from "preact/hooks";
 
 import { buildAiPrompt, importAiScript, toAiScript } from "./aiScript";
-import { PLATFORM_LABEL, type Platform, type StudioProject } from "./model";
+import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
 
 const LENGTHS = [15, 30, 45, 60, 90];
 
@@ -22,9 +22,10 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [platform, setPlatform] = useState<Platform>(current.video.platform);
   const [length, setLength] = useState(45);
   const [notes, setNotes] = useState("");
+  const [side, setSide] = useState<Side | "auto">("auto");
   const [copied, setCopied] = useState<"" | "prompt" | "script" | "failed">("");
   const [answer, setAnswer] = useState("");
-  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes }), [topic, platform, length, notes]);
+  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side }), [topic, platform, length, notes, side]);
   const result = useMemo(() => (answer.trim() ? importAiScript(answer) : null), [answer]);
 
   const doCopy = async (text: string, what: "prompt" | "script") => setCopied((await copy(text)) ? what : "failed");
@@ -75,6 +76,16 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+            <div class="ai-field">
+              <span>Aus wessen Sicht?</span>
+              <div class="studio-speed">
+                {(["auto", "white", "black"] as const).map((k) => (
+                  <button key={k} class={side === k ? "on" : ""} onClick={() => setSide(k)}>
+                    {k === "auto" ? "KI entscheidet" : k === "white" ? "Weiß" : "Schwarz"}
+                  </button>
+                ))}
               </div>
             </div>
             <label class="ai-field">

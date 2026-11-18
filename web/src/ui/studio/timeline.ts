@@ -6,6 +6,8 @@ import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
   germanSan,
+  parseMoves,
+  POLL_COLOURS,
   scenePositions,
   type Badge,
   type CameraPreset,
@@ -42,6 +44,9 @@ export interface Step {
   to: string;
   check?: string;
   capture: boolean;
+  /** The move in plain words, for viewers who don't read notation: "Springer nach f3". */
+  plain: string;
+  color: "w" | "b";
 }
 
 export interface CompiledScene {
@@ -64,14 +69,18 @@ export interface CompiledScene {
   mate: { king: string; by: string } | null;
   /** Squares the threat effect pulses on. */
   threats: string[];
+  /** Poll answers drawn as coloured arrows on the board. */
+  poll: { from: string; to: string; colour: string; letter: string }[];
   error?: string;
 }
 
 export interface Timeline {
   scenes: CompiledScene[];
   total: number;
-  /** Seconds at which a piece lands, for move sounds. */
-  sounds: { t: number; kind: "move" | "capture" | "check" | "boom" | "whoosh" | "sparkle" }[];
+  /** The board is seen from Black's side in every scene. */
+  flip: boolean;
+  /** Seconds of the effect sounds (moves themselves stay silent). */
+  sounds: { t: number; kind: "boom" | "whoosh" | "sparkle" }[];
 }
 
 export interface CameraState {
@@ -87,7 +96,7 @@ export const CAMERAS: Record<CameraPreset, CameraState> = {
   black: { yaw: 180, pitch: 54, zoom: 1, tx: 0, tz: 0 },
   top: { yaw: 0, pitch: 88, zoom: 1.02, tx: 0, tz: 0 },
   corner: { yaw: 38, pitch: 44, zoom: 0.98, tx: 0, tz: 0 },
-  side: { yaw: 90, pitch: 40, zoom: 1, tx: 0, tz: 0 },
+  side: { yaw: 50, pitch: 42, zoom: 1, tx: 0, tz: 0 },
   low: { yaw: -24, pitch: 20, zoom: 0.82, tx: 0, tz: 0.4 },
   close: { yaw: 12, pitch: 52, zoom: 0.8, tx: 0, tz: 0 },
 };
@@ -112,6 +121,8 @@ export interface FrameArrow {
   tone: Tone;
   progress: number;
   alpha: number;
+  /** Own colour instead of a tone (poll answers). */
+  colour?: string;
 }
 
 export interface FrameMark {
@@ -136,7 +147,7 @@ export interface Frame {
   title: { text: string; age: number; alpha: number };
   text: { text: string; age: number; alpha: number };
   label: string;
-  pill: { text: string; age: number; alpha: number } | null;
+  pill: { text: string; plain: string; side: "w" | "b"; age: number; alpha: number } | null;
   card: { kind: Card; age: number; alpha: number };
   countdown: number | null;
   mood: Mood;
@@ -146,7 +157,11 @@ export interface Frame {
   fxSquare: string | null;
   mate: { king: string; by: string } | null;
   threats: string[];
-  badge: { text: Exclude<Badge, "">; square: string; age: number } | null;
+  badge: { kind: Exclude<Badge, "">; square: string; age: number } | null;
+  /** Letter bubbles at the end of the poll arrows. */
+  pollMarks: { square: string; letter: string; colour: string; alpha: number }[];
+  /** Squares the subtitle names, softly lit so viewers find them. */
+  hints: { square: string; alpha: number }[];
 }
 
 /** Board coordinates: file a..h along x (-3.5..3.5), rank 1..8 along z (3.5..-3.5). */
@@ -171,6 +186,20 @@ function piecesOf(fen: string, next: () => number): PieceState[] {
   const chess = new Chess(fen);
   for (const row of chess.board()) for (const p of row) if (p) out.push({ id: next(), type: p.type, color: p.color, square: p.square });
   return out;
+}
+
+const PIECE_WORD: Record<PieceSymbol, string> = { p: "Bauer", n: "Springer", b: "Läufer", r: "Turm", q: "Dame", k: "König" };
+
+/** "Springer nach f3", "Bauer schlägt auf d5", "Kurze Rochade": the move for people who don't read notation. */
+export function plainMove(m: Move): string {
+  if (m.flags.includes("k")) return "Kurze Rochade";
+  if (m.flags.includes("q")) return "Lange Rochade";
+  const who = PIECE_WORD[m.piece];
+  let s = m.captured ? `${who} schlägt auf ${m.to}` : `${who} nach ${m.to}`;
+  if (m.promotion) s += ` und wird ${m.promotion === "q" ? "Dame" : PIECE_WORD[m.promotion]}`;
+  if (m.san.includes("#")) s += ", Matt";
+  else if (m.san.includes("+")) s += ", Schach";
+  return s;
 }
 
 /** "3. Lb5" or "3… a6": the move pill always says which move it is. */
@@ -258,8 +287,7 @@ export function compile(project: StudioProject): Timeline {
       // Knights jump in a higher arc and need a moment longer.
       // Slow motion stretches only the scene's last move, the one that matters.
       const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? 2.6 : 1);
-      steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured) });
-      sounds.push({ t: t + at + dur, kind: check ? "check" : m.captured ? "capture" : "move" });
+      steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
       for (const mv of movers) {
@@ -304,11 +332,21 @@ export function compile(project: StudioProject): Timeline {
     if (mate) sounds.push({ t: t + fxAt + 0.85, kind: "boom" });
     if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: t + Math.max(0, fxAt - 0.15), kind: "whoosh" });
     if (s.effects.includes("confetti")) sounds.push({ t: t + fxAt, kind: "sparkle" });
-    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, error: pos.parsed.error });
+    // Each poll answer that is a legal move here gets its own coloured arrow.
+    const poll: CompiledScene["poll"] = [];
+    if (s.card === "poll") {
+      s.options.forEach((o, k) => {
+        const m = o.match(/^\s*([A-Za-z])\s*[).:]\s*(.+)$/);
+        const parsed = parseMoves(pos.after, m ? m[2] : o);
+        const mv = parsed.moves[0];
+        if (mv) poll.push({ from: mv.from, to: mv.to, colour: POLL_COLOURS[k % POLL_COLOURS.length], letter: m ? m[1].toUpperCase() : String.fromCharCode(65 + k) });
+      });
+    }
+    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
     t += dur;
     prevFen = pos.after;
   });
-  return { scenes, total: t, sounds };
+  return { scenes, total: t, sounds, flip: project.video.perspective === "black" };
 }
 
 export function sceneAt(timeline: Timeline, t: number): number {
@@ -317,9 +355,11 @@ export function sceneAt(timeline: Timeline, t: number): number {
   return 0;
 }
 
-function sceneCamera(c: CompiledScene, local: number): CameraState {
+function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraState {
   const s = c.scene;
-  const base = CAMERAS[s.camera];
+  const preset = CAMERAS[s.camera];
+  // Presets are relative to the video's side: "Normal" from Black's side looks from rank 8.
+  const base = flip ? { ...preset, yaw: preset.yaw + 180 } : preset;
   let tx = base.tx;
   let tz = base.tz;
   let zoom = base.zoom * s.zoom;
@@ -329,7 +369,19 @@ function sceneCamera(c: CompiledScene, local: number): CameraState {
     tz += fz * 0.4;
     zoom *= 0.88;
   }
-  return { yaw: base.yaw + s.orbit * local, pitch: base.pitch, zoom, tx, tz };
+  return { yaw: holdSide(base.yaw + s.orbit * local, flip, s.camera === "black"), pitch: base.pitch, zoom, tx, tz };
+}
+
+/** Largest turn away from the video's own side. Beyond this viewers lose track of who plays up the board. */
+export const MAX_SIDE_TURN = 45;
+
+/** Keeps the camera on the video's side unless the scene explicitly asks for the opposite view. */
+export function holdSide(yaw: number, flip: boolean, opposite: boolean): number {
+  const home = flip !== opposite ? 180 : 0;
+  let d = yaw - home;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return home + Math.max(-MAX_SIDE_TURN, Math.min(MAX_SIDE_TURN, d));
 }
 
 function lerpCamera(a: CameraState, b: CameraState, k: number): CameraState {
@@ -380,11 +432,11 @@ function effectCamera(c: CompiledScene, local: number, cam: CameraState): Camera
 
 export function cameraAt(timeline: Timeline, index: number, local: number, introFly: boolean): CameraState {
   const c = timeline.scenes[index];
-  const target = effectCamera(c, local, sceneCamera(c, local));
+  const target = effectCamera(c, local, sceneCamera(c, local, timeline.flip));
   if (index === 0) {
     if (!introFly) return target;
     // Opening shot: the camera sweeps in from high above and to the side.
-    const from: CameraState = { yaw: target.yaw - 75, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
+    const from: CameraState = { yaw: target.yaw - 30, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
     return lerpCamera(from, target, ease(local / 2.2));
   }
   const span = 1.15;
@@ -504,6 +556,21 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     const outA = nextArrows.has(arrowKey(a)) ? 1 : clamp01(tail / 0.3);
     return { ...a, progress, alpha: (carried ? 1 : clamp01((local - start) / 0.2)) * outA };
   });
+  // The piece in flight draws a faint path, so it is clear which piece goes where.
+  if (moving) {
+    const k = clamp01((local - moving.t0) / (moving.t1 - moving.t0));
+    arrows.push({ from: moving.from, to: moving.to, tone: "accent", progress: ease(Math.min(1, k * 1.6)), alpha: 0.55 });
+  } else if (lastDone && local - lastDone.t1 < 0.4) {
+    arrows.push({ from: lastDone.from, to: lastDone.to, tone: "accent", progress: 1, alpha: 0.55 * (1 - (local - lastDone.t1) / 0.4) });
+  }
+  // Poll answers appear together with their buttons.
+  const pollMarks: Frame["pollMarks"] = [];
+  c.poll.forEach((p, k) => {
+    const start = 0.35 + k * 0.12;
+    const alpha = clamp01((local - start) / 0.3) * clamp01(tail / 0.3);
+    arrows.push({ from: p.from, to: p.to, tone: "accent", colour: p.colour, progress: ease(clamp01((local - start) / 0.45)), alpha });
+    pollMarks.push({ square: p.to, letter: p.letter, colour: p.colour, alpha });
+  });
   const prevMarks = new Set((prev?.scene.marks ?? []).map(markKey));
   const nextMarks = new Set((nextScene?.scene.marks ?? []).map(markKey));
   const marks: FrameMark[] = s.marks.map((m, i) => {
@@ -534,7 +601,14 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
   }
 
   const current = moving ?? lastDone;
-  const pill = current ? { text: current.label, age: local - current.t0, alpha: 1 } : null;
+  const pill = current ? { text: current.label, plain: current.plain, side: current.color, age: local - current.t0, alpha: 1 } : null;
+  // Squares named in the subtitle part on screen ("greift *e5* an") glow softly.
+  const hints: Frame["hints"] = [];
+  if (project.video.squareHints && s.card === "none") {
+    const named = new Set((textNow.match(/\b[a-h][1-8]\b/g) ?? []).filter((sq) => !s.marks.some((m) => m.square === sq)));
+    const k = clamp01((time - textStart - 0.2) / 0.35) * textAlpha;
+    for (const square of [...named].slice(0, 4)) hints.push({ square, alpha: k });
+  }
 
   const cardIn = prev?.scene.card === s.card && s.card !== "none" ? 1 : clamp01(local / CARD_FADE);
   const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / CARD_FADE);
@@ -563,6 +637,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     fxSquare: c.fxSquare,
     mate: c.mate,
     threats: c.threats,
-    badge: s.badge && c.fxSquare && local >= c.fxAt ? { text: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
+    badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
+    pollMarks,
+    hints,
   };
 }
