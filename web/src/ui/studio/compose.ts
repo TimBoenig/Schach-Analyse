@@ -151,7 +151,7 @@ interface Layout {
 function layout(W: number, H: number): Layout {
   const u = Math.min(W, H) / 1080;
   const ratio = H / W;
-  if (ratio > 1.4) return { u, portrait: true, brandY: 170 * u, titleTop: 262 * u, pillY: 500 * u, subCenter: H - 520 * u, textMax: 860 * u };
+  if (ratio > 1.4) return { u, portrait: true, brandY: 170 * u, titleTop: 262 * u, pillY: 500 * u, subCenter: H - 470 * u, textMax: 860 * u };
   if (ratio > 0.9) return { u, portrait: false, brandY: 70 * u, titleTop: 120 * u, pillY: 270 * u, subCenter: H - 140 * u, textMax: 900 * u };
   return { u, portrait: false, brandY: 66 * u, titleTop: 104 * u, pillY: 236 * u, subCenter: H - 120 * u, textMax: 1300 * u };
 }
@@ -372,7 +372,7 @@ export function compose(
       cx: W / 2,
       top: L.titleTop,
       max: L.textMax,
-      size: 84 * u * titleScale,
+      size: 84 * u * titleScale * st.textScale,
       font: titleFont,
       weight: titleWeight,
       color: "#ffffff",
@@ -437,12 +437,13 @@ export function compose(
   if (frame.text.text.trim() && textAlphaBase > 0.01) {
     const a = frame.text.alpha * textAlphaBase * clamp01(frame.text.age / 0.3);
     const orbSize = hasLucena ? 132 * u : 0;
-    const size = 47 * u;
+    const cap = st.captionStyle;
+    const size = 47 * u * st.textScale * (cap === "punch" ? 1.25 : 1);
     const maxW = L.textMax - orbSize - (hasLucena ? 24 * u : 0);
-    const regular = `650 ${size}px ${SANS}`;
-    const bold = `850 ${size}px ${SANS}`;
+    const regular = cap === "box" ? `650 ${size}px ${SANS}` : `800 ${size}px ${SANS}`;
+    const bold = `900 ${size}px ${SANS}`;
     ctx.font = regular;
-    const lines = wrap(ctx, tokens(frame.text.text), maxW - 64 * u, bold).slice(0, 3);
+    const lines = wrap(ctx, tokens(frame.text.text), maxW - 64 * u, bold).slice(0, cap === "punch" ? 2 : 3);
     const lh = size * 1.28;
     const space = ctx.measureText(" ").width;
     const widthOf = (tk: Token) => {
@@ -460,15 +461,18 @@ export function compose(
     const by = L.subCenter - boxH / 2 + (1 - easeOut(frame.text.age / 0.4)) * 30 * u;
     ctx.save();
     ctx.globalAlpha = a;
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 30 * u;
-    roundRect(ctx, bx, by, boxW, boxH, 30 * u);
-    ctx.fillStyle = "rgba(6,7,12,0.86)";
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.lineWidth = 1.5 * u;
-    ctx.stroke();
+    if (cap === "box") {
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 30 * u;
+      roundRect(ctx, bx, by, boxW, boxH, 30 * u);
+      ctx.fillStyle = "rgba(6,7,12,0.86)";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "rgba(255,255,255,0.12)";
+      ctx.lineWidth = 1.5 * u;
+      ctx.stroke();
+    }
+    ctx.lineJoin = "round";
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
     lines.forEach((line, li) => {
@@ -478,6 +482,12 @@ export function compose(
         x += gap(tk, k, space);
         ctx.fillStyle = tk.emph ? st.accent : "#ffffff";
         ctx.font = tk.emph ? bold : regular;
+        if (cap !== "box") {
+          // Without a box the text carries a thick dark outline, like TikTok's own captions.
+          ctx.strokeStyle = "rgba(0,0,0,0.92)";
+          ctx.lineWidth = size * (cap === "punch" ? 0.2 : 0.16);
+          ctx.strokeText(tk.word, x, y);
+        }
         ctx.fillText(tk.word, x, y);
         x += ctx.measureText(tk.word).width;
       }
