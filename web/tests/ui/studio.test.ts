@@ -545,3 +545,32 @@ describe("studio long lessons and short captions", () => {
     expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" })).toContain("höchstens 60 Zeichen");
   });
 });
+
+describe("studio mp4 writer", () => {
+  it("lays out ftyp, mdat and moov with chunk offsets pointing at each sample", async () => {
+    const { muxMp4 } = await import("../../src/ui/studio/mp4");
+    const v = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5]), new Uint8Array([6])];
+    const a = [new Uint8Array([7, 7]), new Uint8Array([8])];
+    const file = muxMp4([
+      { kind: "video", timescale: 30000, config: new Uint8Array([1, 100, 0, 40]), width: 1080, height: 1920, samples: v.map((data, i) => ({ data, duration: 1000, key: i === 0 })) },
+      { kind: "audio", codec: "aac", timescale: 48000, config: new Uint8Array([0x11, 0x90]), channels: 2, sampleRate: 48000, samples: a.map((data) => ({ data, duration: 1024, key: true })) },
+    ]);
+    const dv = new DataView(file.buffer);
+    const top: string[] = [];
+    let o = 0;
+    while (o < file.length) {
+      top.push(String.fromCharCode(...file.subarray(o + 4, o + 8)));
+      o += dv.getUint32(o);
+    }
+    expect(top).toEqual(["ftyp", "mdat", "moov"]);
+    expect(o).toBe(file.length);
+    // Every stco offset points at the matching sample's first byte.
+    const firsts: number[] = [];
+    for (let i = 0; i + 4 < file.length; i++) {
+      if (String.fromCharCode(...file.subarray(i, i + 4)) !== "stco") continue;
+      const n = dv.getUint32(i + 8);
+      for (let k = 0; k < n; k++) firsts.push(file[dv.getUint32(i + 12 + k * 4)]);
+    }
+    expect(firsts).toEqual([1, 4, 6, 7, 8]);
+  });
+});

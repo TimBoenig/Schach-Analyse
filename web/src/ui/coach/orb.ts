@@ -188,7 +188,7 @@ export class Orb {
     // Tiny avatars do not need more than 30 pictures a second.
     if (this.small && elapsed < 30) return;
     this.last = now;
-    const dt = Math.min(0.05, elapsed / 1000);
+    const dt = Math.max(0, Math.min(0.05, elapsed / 1000));
     this.time += dt;
     const t = this.time;
 
@@ -250,7 +250,7 @@ export class Orb {
     const g = look.glow;
     const circle = (x: number, y: number, r: number) => {
       ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.arc(x, y, Math.max(0, r), 0, Math.PI * 2);
     };
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -409,7 +409,7 @@ export class Orb {
       ctx.drawImage(glowSprite(look.a), x - size * 4, y - size * 4, size * 8, size * 8);
       ctx.fillStyle = rgba(mixRgb(look.a, WHITE, 0.7), front ? 1 : 0.6);
       ctx.beginPath();
-      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.arc(x, y, Math.max(0, size), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -438,11 +438,11 @@ export class Orb {
         // Laughing eyes: two arches.
         ctx.lineWidth = ew * 0.72;
         ctx.lineCap = "round";
-        ctx.arc(0, ew * 0.75, ew * 1.05, Math.PI * 1.13, Math.PI * 1.87);
+        ctx.arc(0, ew * 0.75, Math.max(0, ew * 1.05), Math.PI * 1.13, Math.PI * 1.87);
         ctx.stroke();
       } else {
         // Capsule from two arcs (roundRect is missing in older Safari).
-        const r = Math.min(ew, eh) / 2;
+        const r = Math.max(0, Math.min(ew, eh) / 2);
         const straight = eh / 2 - r;
         ctx.arc(0, -straight, r, Math.PI, 0);
         ctx.arc(0, straight, r, 0, Math.PI);

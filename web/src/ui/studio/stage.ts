@@ -70,7 +70,8 @@ export class StudioStage {
     this.ensureOrb(project.video.lucena);
     if (this.orb) {
       this.orb.setMood(frame.mood);
-      this.orb.tick(performance.now());
+      // Video time, not wall time: the fast export paints frames quicker than real time.
+      this.orb.tick(t * 1000);
     }
     this.renderer.render(frame, project.style);
     compose(this.ctx, frame, project, this.renderer.canvas, this.renderer.viewProj, this.assets, opts);

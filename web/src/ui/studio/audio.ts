@@ -15,21 +15,22 @@ export interface AudioMix {
 }
 
 export class StudioAudio {
-  readonly ctx: AudioContext;
+  readonly ctx: BaseAudioContext;
   /** Feed for the video recorder. */
-  readonly stream: MediaStreamAudioDestinationNode;
+  readonly stream: MediaStreamAudioDestinationNode | null;
   private out: GainNode;
   private noise: AudioBuffer;
   private live: AudioScheduledSourceNode[] = [];
   private loops = new Map<string, AudioBuffer>();
 
-  constructor() {
-    this.ctx = new AudioContext();
+  /** Pass an OfflineAudioContext to render the whole mix faster than real time (fast export). */
+  constructor(ctx?: BaseAudioContext) {
+    this.ctx = ctx ?? new AudioContext();
     this.out = this.ctx.createGain();
     this.out.gain.value = 0.9;
-    this.stream = this.ctx.createMediaStreamDestination();
+    this.stream = this.ctx instanceof AudioContext ? this.ctx.createMediaStreamDestination() : null;
     this.out.connect(this.ctx.destination);
-    this.out.connect(this.stream);
+    if (this.stream) this.out.connect(this.stream);
     const len = Math.floor(this.ctx.sampleRate * 0.12);
     this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const data = this.noise.getChannelData(0);
@@ -143,7 +144,7 @@ export class StudioAudio {
   /** Starts the whole mix from video second `from`, now. */
   schedule(timeline: Timeline, from: number, mix: AudioMix): void {
     this.cancel();
-    void this.ctx.resume();
+    if (this.ctx instanceof AudioContext) void this.ctx.resume();
     const now = this.ctx.currentTime + 0.03;
     const music = mix.music === "file" ? mix.musicFile : mix.music === "none" ? null : this.loop(mix.music);
     if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), true, timeline.total);
@@ -168,6 +169,6 @@ export class StudioAudio {
 
   close(): void {
     this.cancel();
-    void this.ctx.close();
+    if (this.ctx instanceof AudioContext) void this.ctx.close();
   }
 }
