@@ -2,13 +2,15 @@
 // second t": where every piece stands (mid-flight included), the camera,
 // arrows, marks, texts and cards. Pure, so preview and export show exactly the
 // same frame for the same t, and it is tested without a browser.
-import { Chess, type Move, type PieceSymbol } from "chess.js";
+import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
   germanSan,
   scenePositions,
+  type Badge,
   type CameraPreset,
   type Card,
+  type Effect,
   type Mood,
   type Scene,
   type StudioMark,
@@ -54,6 +56,14 @@ export interface CompiledScene {
   /** When arrows and marks start to appear (after the moves). */
   annotate: number;
   focus: string | null;
+  /** When the scene's effects start: the moment the last move lands (or right away without moves). */
+  fxAt: number;
+  /** Square the effects point at: where the last move landed, else the first arrow or mark. */
+  fxSquare: string | null;
+  /** The mated (or checked) king for the mate effect, and the piece that gives mate. */
+  mate: { king: string; by: string } | null;
+  /** Squares the threat effect pulses on. */
+  threats: string[];
   error?: string;
 }
 
@@ -61,7 +71,7 @@ export interface Timeline {
   scenes: CompiledScene[];
   total: number;
   /** Seconds at which a piece lands, for move sounds. */
-  sounds: { t: number; kind: "move" | "capture" | "check" }[];
+  sounds: { t: number; kind: "move" | "capture" | "check" | "boom" | "whoosh" | "sparkle" }[];
 }
 
 export interface CameraState {
@@ -91,6 +101,9 @@ export interface FramePiece {
   z: number;
   scale: number;
   alpha: number;
+  /** Toppling (radians) towards `tiltYaw`, for the mated king. */
+  tilt?: number;
+  tiltYaw?: number;
 }
 
 export interface FrameArrow {
@@ -128,6 +141,12 @@ export interface Frame {
   countdown: number | null;
   mood: Mood;
   progress: number;
+  /** Active effects with the seconds since they started. */
+  fx: { kind: Effect; age: number }[];
+  fxSquare: string | null;
+  mate: { king: string; by: string } | null;
+  threats: string[];
+  badge: { text: Exclude<Badge, "">; square: string; age: number } | null;
 }
 
 /** Board coordinates: file a..h along x (-3.5..3.5), rank 1..8 along z (3.5..-3.5). */
@@ -203,12 +222,14 @@ export function compile(project: StudioProject): Timeline {
       board = kept;
     }
     const before = board.map((p) => ({ ...p }));
-    const moveDur = MOVE / tempo;
+    const sceneTempo = Math.max(0.3, s.tempo || 1);
+    const moveDur = MOVE / tempo / sceneTempo;
+    const slowmo = s.effects.includes("slowmo");
     const lead = index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
     const steps: Step[] = [];
     let at = lead;
     const chess = new Chess(pos.before);
-    pos.parsed.moves.forEach((m) => {
+    pos.parsed.moves.forEach((m, mi) => {
       const fenBefore = chess.fen();
       chess.move(m.san);
       const movers: Mover[] = [];
@@ -235,7 +256,8 @@ export function compile(project: StudioProject): Timeline {
         for (const row of chess.board()) for (const p of row) if (p && p.type === "k" && p.color === kingColor) check = p.square;
       }
       // Knights jump in a higher arc and need a moment longer.
-      const dur = moveDur * (m.piece === "n" ? 1.12 : 1);
+      // Slow motion stretches only the scene's last move, the one that matters.
+      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? 2.6 : 1);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured) });
       sounds.push({ t: t + at + dur, kind: check ? "check" : m.captured ? "capture" : "move" });
       // Board after the move.
@@ -248,11 +270,41 @@ export function compile(project: StudioProject): Timeline {
       at += dur + GAP / tempo;
     });
     const annotate = steps.length ? steps[steps.length - 1].t1 + 0.15 : lead;
-    const minimum = annotate + (s.arrows.length || s.marks.length ? 1.4 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0);
-    const dur = Math.max(s.duration / speed, minimum);
     const lastStep = steps[steps.length - 1];
+    const fxAt = lastStep ? lastStep.t1 : lead;
+    // Effects need their moment on screen; the speaker's text needs time to be said.
+    const fxTime = s.effects.includes("mate") ? 2.2 : s.effects.includes("confetti") ? 1.4 : s.effects.length ? 0.8 : 0;
+    const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
+    const minimum = Math.max(
+      annotate + (s.arrows.length || s.marks.length ? 1.4 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
+      fxAt + fxTime,
+      spoken,
+    );
+    const dur = Math.max(s.duration / speed, minimum);
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
-    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, error: pos.parsed.error });
+    let mate: CompiledScene["mate"] = null;
+    if (s.effects.includes("mate")) {
+      // The king of the side to move after the scene falls; without a real mate, still the king in check or to move.
+      let king = "";
+      for (const row of chess.board()) for (const p of row) if (p && p.type === "k" && p.color === chess.turn()) king = p.square;
+      if (king) mate = { king, by: lastStep?.to ?? s.arrows[0]?.from ?? king };
+    }
+    let threats: string[] = [];
+    if (s.effects.includes("threat")) {
+      threats = [...s.arrows.filter((a) => a.tone === "bad").map((a) => a.to), ...s.marks.filter((m) => m.tone === "bad").map((m) => m.square)];
+      if (!threats.length && lastStep) {
+        // Without red arrows: every enemy piece the moved piece now attacks.
+        const mover = chess.get(lastStep.to as Square);
+        if (mover) {
+          for (const row of chess.board()) for (const p of row) if (p && p.color !== mover.color && chess.attackers(p.square, mover.color).includes(lastStep.to as Square)) threats.push(p.square);
+        }
+      }
+      threats = [...new Set(threats)].slice(0, 6);
+    }
+    if (mate) sounds.push({ t: t + fxAt + 0.85, kind: "boom" });
+    if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: t + Math.max(0, fxAt - 0.15), kind: "whoosh" });
+    if (s.effects.includes("confetti")) sounds.push({ t: t + fxAt, kind: "sparkle" });
+    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, error: pos.parsed.error });
     t += dur;
     prevFen = pos.after;
   });
@@ -290,9 +342,45 @@ function lerpCamera(a: CameraState, b: CameraState, k: number): CameraState {
   };
 }
 
+/** Zoom and shake effects on top of the scene's camera. */
+function effectCamera(c: CompiledScene, local: number, cam: CameraState): CameraState {
+  const fx = c.scene.effects;
+  const age = local - c.fxAt;
+  let out = cam;
+  if (fx.includes("zoom") && c.fxSquare && age > -0.15) {
+    const k = ease(clamp01((age + 0.15) / 0.4));
+    const [x, z] = squareXZ(c.fxSquare);
+    out = { ...out, zoom: out.zoom * (1 - 0.3 * k), tx: out.tx + (x * 0.6 - out.tx) * k, tz: out.tz + (z * 0.6 - out.tz) * k };
+  }
+  if (c.mate && age > 0) {
+    // The camera moves in on the falling king.
+    const k = ease(clamp01(age / 0.9));
+    const [x, z] = squareXZ(c.mate.king);
+    out = { ...out, zoom: out.zoom * (1 - 0.28 * k), tx: out.tx + (x * 0.7 - out.tx) * k, tz: out.tz + (z * 0.7 - out.tz) * k };
+  }
+  const shakes = fx.includes("shake") || fx.includes("mate");
+  if (shakes) {
+    // A short decaying tremor on every landing of the scene, strongest on the last.
+    let amp = 0;
+    let phase = 0;
+    for (const st of c.steps) {
+      const a = local - st.t1;
+      if (a < 0 || a > 0.7) continue;
+      amp = Math.max(amp, (st === c.steps[c.steps.length - 1] ? 1 : 0.5) * (1 - a / 0.7) ** 2);
+      phase = a;
+    }
+    if (!c.steps.length && age >= 0 && age < 0.7) {
+      amp = (1 - age / 0.7) ** 2;
+      phase = age;
+    }
+    if (amp > 0) out = { ...out, yaw: out.yaw + Math.sin(phase * 70) * 1.6 * amp, pitch: out.pitch + Math.sin(phase * 53 + 1) * 1.1 * amp, tx: out.tx + Math.sin(phase * 61 + 2) * 0.08 * amp };
+  }
+  return out;
+}
+
 export function cameraAt(timeline: Timeline, index: number, local: number, introFly: boolean): CameraState {
   const c = timeline.scenes[index];
-  const target = sceneCamera(c, local);
+  const target = effectCamera(c, local, sceneCamera(c, local));
   if (index === 0) {
     if (!introFly) return target;
     // Opening shot: the camera sweeps in from high above and to the side.
@@ -375,6 +463,24 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     }
   }
 
+  // ---- the mated king topples, away from the piece that gives mate
+  if (c.mate && local > c.fxAt + 0.35) {
+    const k = clamp01((local - c.fxAt - 0.35) / 0.75);
+    // Falls fast, bounces once on the board.
+    const fall = k < 0.75 ? ease(k / 0.75) : 1 - Math.sin(((k - 0.75) / 0.25) * Math.PI) * 0.08;
+    const king = pieces.find((p) => p.type === "k" && xzSquare(p.x, p.z) === c.mate!.king);
+    if (king) {
+      const [kx, kz] = squareXZ(c.mate.king);
+      const [ax, az] = squareXZ(c.mate.by);
+      const dx = kx - ax || 0.001;
+      const dz = kz - az;
+      king.tilt = 1.42 * fall;
+      // Lifted a little so the tipped base does not sink into the board.
+      king.y += 0.17 * Math.sin(king.tilt);
+      king.tiltYaw = Math.atan2(dx, dz);
+    }
+  }
+
   // ---- last move and landing ring
   const done = c.steps.filter((st) => local >= st.t1);
   const moving = c.steps.find((st) => local >= st.t0 && local < st.t1);
@@ -453,5 +559,10 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     countdown,
     mood: s.mood,
     progress: timeline.total ? time / timeline.total : 0,
+    fx: local >= c.fxAt ? s.effects.map((kind) => ({ kind, age: local - c.fxAt })) : [],
+    fxSquare: c.fxSquare,
+    mate: c.mate,
+    threats: c.threats,
+    badge: s.badge && c.fxSquare && local >= c.fxAt ? { text: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
   };
 }

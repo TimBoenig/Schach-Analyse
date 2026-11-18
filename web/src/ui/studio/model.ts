@@ -15,6 +15,10 @@ export type Card = "none" | "intro" | "question" | "poll" | "outro";
 /** Where the board stands: code-built 3D surroundings. */
 export type Environment = "void" | "podium" | "table" | "neon" | "hall" | "library";
 export type Platform = "tiktok" | "reels" | "shorts" | "youtube";
+/** Show effects that start when the scene's moves have landed. */
+export type Effect = "mate" | "threat" | "spotlight" | "shake" | "zoom" | "flash" | "confetti" | "slowmo";
+/** Move rating shown as a round badge on the square the last move landed on. */
+export type Badge = "" | "!!" | "!" | "!?" | "?!" | "?" | "??";
 
 export interface StudioArrow {
   from: string;
@@ -54,6 +58,12 @@ export interface Scene {
   /** Seconds of a visible countdown (question and poll cards). */
   countdown: number;
   mood: Mood;
+  effects: Effect[];
+  badge: Badge;
+  /** What the speaker says over this scene (voice-over); not shown in the video. */
+  speech: string;
+  /** Speed of this scene's piece moves, 1 = normal. */
+  tempo: number;
 }
 
 export type ThemeId = "nova" | "marmor" | "holz" | "turnier" | "neon";
@@ -138,6 +148,18 @@ export const CAMERA_LABEL: Record<CameraPreset, string> = {
 export const CARD_LABEL: Record<Card, string> = { none: "Keine", intro: "Titelkarte", question: "Frage + Countdown", poll: "Umfrage", outro: "Abspann" };
 export const ENV_LABEL: Record<Environment, string> = { void: "Schwebend", podium: "Bühne", table: "Holztisch", neon: "Neon-Arena", hall: "Turniersaal", library: "Bibliothek" };
 export const PLATFORM_LABEL: Record<Platform, string> = { tiktok: "TikTok", reels: "Instagram Reels", shorts: "YouTube Shorts", youtube: "YouTube (quer)" };
+export const EFFECT_LABEL: Record<Effect, { label: string; hint: string }> = {
+  mate: { label: "Schachmatt", hint: "König kippt um, Druckwelle und großer Schriftzug" },
+  threat: { label: "Drohung", hint: "Bedrohte Felder pulsieren rot" },
+  spotlight: { label: "Spotlight", hint: "Alles außer dem wichtigen Feld wird dunkel" },
+  shake: { label: "Wackeln", hint: "Kamera bebt beim Aufsetzen der Figur" },
+  zoom: { label: "Zoom", hint: "Kamera zoomt schnell auf das Feld" },
+  flash: { label: "Blitz", hint: "Kurzer heller Blitz beim Zug" },
+  confetti: { label: "Konfetti", hint: "Konfetti für starke Züge und Siege" },
+  slowmo: { label: "Zeitlupe", hint: "Der letzte Zug der Szene läuft langsam" },
+};
+export const BADGE_LABEL: Record<Badge, string> = { "": "Keine", "!!": "!! Brillant", "!": "! Stark", "!?": "!? Interessant", "?!": "?! Ungenau", "?": "? Fehler", "??": "?? Patzer" };
+export const BADGE_COLOUR: Record<Exclude<Badge, "">, string> = { "!!": "#26c9c3", "!": "#5b8cff", "!?": "#b07cff", "?!": "#ffb84d", "?": "#ff8a3d", "??": "#ff4d5e" };
 export const MOOD_LABEL: Record<Mood, string> = { happy: "Fröhlich", think: "Nachdenklich", wow: "Begeistert", sad: "Traurig" };
 export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
 
@@ -187,6 +209,10 @@ export function scene(over: Partial<Scene> = {}): Scene {
     options: [],
     countdown: 0,
     mood: "happy",
+    effects: [],
+    badge: "",
+    speech: "",
+    tempo: 1,
     ...over,
   };
 }
@@ -342,6 +368,10 @@ export function normalizeProject(raw: unknown): StudioProject {
       options: (Array.isArray(s.options) ? s.options : []).filter((o): o is string => typeof o === "string").slice(0, 3).map((o) => o.slice(0, 40)),
       countdown: num(s.countdown, 0, 10, 0),
       mood: pick(s.mood, ["happy", "think", "wow", "sad"] as const, "happy"),
+      effects: [...new Set((Array.isArray(s.effects) ? s.effects : []).filter((e): e is Effect => typeof e === "string" && e in EFFECT_LABEL))],
+      badge: pick(s.badge, Object.keys(BADGE_LABEL) as Badge[], ""),
+      speech: str(s.speech, "", 1200),
+      tempo: num(s.tempo, 0.3, 3, 1),
     });
   });
   return {
@@ -379,7 +409,7 @@ export function spanishTemplate(): StudioProject {
     scene({ moves: "1. e4 e5", title: "Kampf ums Zentrum", text: "Beide Bauern besetzen sofort das *Zentrum*.", duration: 4, camera: "white", marks: [{ square: "d4", tone: "accent" }, { square: "d5", tone: "accent" }, { square: "e4", tone: "accent" }, { square: "e5", tone: "accent" }], mood: "think" }),
     scene({ moves: "2. Sf3", title: "Druck auf e5", text: "Der Springer greift sofort den *Bauern auf e5* an.", duration: 3.8, camera: "corner", focus: true, arrows: [{ from: "f3", to: "e5", tone: "bad" }] }),
     scene({ moves: "2... Sc6", title: "Druck auf e5", text: "Schwarz *deckt* e5 mit dem Springer.", duration: 3.6, camera: "corner", arrows: [{ from: "c6", to: "e5", tone: "good" }] }),
-    scene({ moves: "3. Lb5", title: "Das ist der Spanier!", text: "Der Läufer greift den *Verteidiger* von e5 an.", duration: 4.4, camera: "close", focus: true, arrows: [{ from: "b5", to: "c6", tone: "bad" }, { from: "c6", to: "e5", tone: "idea" }], marks: [{ square: "c6", tone: "bad" }], mood: "wow" }),
+    scene({ moves: "3. Lb5", title: "Das ist der Spanier!", text: "Der Läufer greift den *Verteidiger* von e5 an.", duration: 4.4, camera: "close", focus: true, arrows: [{ from: "b5", to: "c6", tone: "bad" }, { from: "c6", to: "e5", tone: "idea" }], marks: [{ square: "c6", tone: "bad" }], mood: "wow", effects: ["zoom"] }),
     scene({ title: "Die Idee dahinter", text: "Fällt der Springer auf c6, wackelt e5. Weiß macht *langfristig Druck*.", duration: 4.6, camera: "top", arrows: [{ from: "b5", to: "c6", tone: "bad" }, { from: "f3", to: "e5", tone: "bad" }], marks: [{ square: "e5", tone: "bad" }], mood: "think" }),
     scene({ moves: "3... a6", title: "Morphy-Verteidigung", text: "Schwarz stellt den Läufer *sofort zur Rede*.", duration: 3.8, camera: "black", focus: true, arrows: [{ from: "a6", to: "b5", tone: "bad" }] }),
     scene({ moves: "4. La4 Sf6", title: "Weiter im Plan", text: "Der Läufer bleibt auf der Diagonale, Schwarz greift *e4* an.", duration: 4.4, camera: "corner", arrows: [{ from: "a4", to: "c6", tone: "accent" }, { from: "f6", to: "e4", tone: "bad" }] }),
@@ -393,9 +423,9 @@ export function scholarTemplate(): StudioProject {
   return project("Matt in 4 Zügen – und wie du es verhinderst", [
     scene({ card: "intro", title: "Matt in 4 Zügen", text: "Die Falle, auf die fast jeder reinfällt", duration: 3.4, camera: "white", orbit: 5, mood: "wow" }),
     scene({ moves: "1. e4 e5 2. Lc4", title: "Ganz harmlos?", text: "Der Läufer zielt schon auf *f7*, den schwächsten Punkt.", duration: 4.2, camera: "corner", arrows: [{ from: "c4", to: "f7", tone: "bad" }], marks: [{ square: "f7", tone: "bad" }], mood: "think" }),
-    scene({ moves: "2... Sc6 3. Dh5", title: "Die Dame kommt", text: "Zwei Angreifer auf *f7*, nur der König deckt.", duration: 4.2, camera: "close", focus: true, arrows: [{ from: "h5", to: "f7", tone: "bad" }, { from: "c4", to: "f7", tone: "bad" }] }),
-    scene({ moves: "3... Sf6??", title: "Der Fehler", text: "Schwarz greift die Dame an und *übersieht* das Matt.", duration: 3.6, camera: "black", arrows: [{ from: "f6", to: "h5", tone: "idea" }], mood: "sad" }),
-    scene({ moves: "4. Dxf7#", title: "Schachmatt!", text: "Gedeckt vom Läufer kann der König die Dame *nicht schlagen*.", duration: 4.2, camera: "low", orbit: 8, focus: true, mood: "wow" }),
+    scene({ moves: "2... Sc6 3. Dh5", title: "Die Dame kommt", text: "Zwei Angreifer auf *f7*, nur der König deckt.", duration: 4.2, camera: "close", focus: true, effects: ["threat"], arrows: [{ from: "h5", to: "f7", tone: "bad" }, { from: "c4", to: "f7", tone: "bad" }] }),
+    scene({ moves: "3... Sf6??", title: "Der Fehler", text: "Schwarz greift die Dame an und *übersieht* das Matt.", duration: 3.6, camera: "black", arrows: [{ from: "f6", to: "h5", tone: "idea" }], mood: "sad", badge: "??" }),
+    scene({ moves: "4. Dxf7#", title: "Schachmatt!", text: "Gedeckt vom Läufer kann der König die Dame *nicht schlagen*.", duration: 4.2, camera: "low", orbit: 8, focus: true, mood: "wow", effects: ["mate", "shake"] }),
     scene({ fen: afterQh5, moves: "3... g6", title: "So verteidigst du", text: "*g6* vertreibt die Dame, bevor sie zuschlagen kann.", duration: 4.4, camera: "corner", arrows: [{ from: "g6", to: "h5", tone: "good" }], mood: "happy" }),
     scene({ fen: afterQh5, moves: "3... De7", title: "Oder ganz solide", text: "*De7* deckt f7 und e5 auf einmal.", duration: 4, camera: "black", arrows: [{ from: "e7", to: "f7", tone: "good" }, { from: "e7", to: "e5", tone: "good" }], mood: "think" }),
     outro({ title: "Fällst du auf Fallen rein?" }),
@@ -408,7 +438,7 @@ export function puzzleTemplate(): StudioProject {
     "Findest du den Zug?",
     [
       scene({ card: "question", title: "Weiß zieht und gewinnt", text: "Findest du den Zug?", duration: 5, countdown: 3, camera: "white", orbit: 3, mood: "think" }),
-      scene({ moves: "Td8#", title: "Grundreihenmatt!", text: "Der König ist von den *eigenen Bauern* eingesperrt.", duration: 4.4, camera: "low", focus: true, arrows: [{ from: "d1", to: "d8", tone: "good" }], marks: [{ square: "f7", tone: "bad" }, { square: "g7", tone: "bad" }, { square: "h7", tone: "bad" }], mood: "wow" }),
+      scene({ moves: "Td8#", title: "Grundreihenmatt!", text: "Der König ist von den *eigenen Bauern* eingesperrt.", duration: 4.4, camera: "low", focus: true, arrows: [{ from: "d1", to: "d8", tone: "good" }], marks: [{ square: "f7", tone: "bad" }, { square: "g7", tone: "bad" }, { square: "h7", tone: "bad" }], mood: "wow", effects: ["mate"] }),
       outro({ title: "Mehr Aufgaben aus deinen Partien" }),
     ],
     fen,

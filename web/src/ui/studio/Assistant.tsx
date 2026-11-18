@@ -213,7 +213,7 @@ const KIND_HINT: Record<VideoKind, string> = {
   game: "Der beste Moment einer Partie",
 };
 
-export function Assistant({ onCreate, onClose, onTemplates }: { onCreate: (p: StudioProject) => void; onClose: () => void; onTemplates: () => void }) {
+export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: (p: StudioProject) => void; onClose: () => void; onTemplates: () => void; onAi: () => void }) {
   const [stepIndex, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(defaultAnswers());
   const [tree, setTree] = useState<GameTree>(() => treeFromPgn("1. e4 e5 2. Sf3 Sc6 3. Lb5").tree);
@@ -260,7 +260,7 @@ export function Assistant({ onCreate, onClose, onTemplates }: { onCreate: (p: St
               <h4 class="wz-q">Worum geht es? (Name der Eröffnung, Falle, Partie)</h4>
               <input class="wz-input" value={answers.name} onInput={(e) => set({ name: e.currentTarget.value, hook: "" })} placeholder="z. B. Spanische Eröffnung" />
               <p class="studio-hint">
-                Lieber ohne Assistent? <button class="studio-link" onClick={onTemplates}>Fertige Vorlage öffnen</button>
+                Lieber ohne Assistent? <button class="studio-link" onClick={onAi}>Von einer KI schreiben lassen</button> oder <button class="studio-link" onClick={onTemplates}>Fertige Vorlage öffnen</button>
               </p>
             </div>
           )}

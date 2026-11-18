@@ -80,12 +80,70 @@ export class MoveSounds {
     }
   }
 
+  /** Effect sounds: a deep hit for mate, a rising swoosh for zoom and flash, a glitter for confetti. */
+  private effect(at: number, kind: "boom" | "whoosh" | "sparkle"): void {
+    const c = this.ctx;
+    if (kind === "boom") {
+      const o = c.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(110, at);
+      o.frequency.exponentialRampToValueAtTime(38, at + 0.6);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(0.9, at + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, at + 0.9);
+      o.connect(g).connect(this.out);
+      o.start(at);
+      o.stop(at + 0.95);
+      this.live.push(o);
+    }
+    if (kind === "boom" || kind === "whoosh") {
+      const src = c.createBufferSource();
+      src.buffer = this.noise;
+      src.loop = true;
+      const f = c.createBiquadFilter();
+      f.type = kind === "boom" ? "lowpass" : "bandpass";
+      f.Q.value = 0.8;
+      f.frequency.setValueAtTime(kind === "boom" ? 900 : 400, at);
+      f.frequency.exponentialRampToValueAtTime(kind === "boom" ? 120 : 3200, at + (kind === "boom" ? 0.5 : 0.35));
+      const g = c.createGain();
+      const len = kind === "boom" ? 0.7 : 0.4;
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(kind === "boom" ? 0.6 : 0.25, at + (kind === "boom" ? 0.01 : 0.25));
+      g.gain.exponentialRampToValueAtTime(0.001, at + len);
+      src.connect(f).connect(g).connect(this.out);
+      src.start(at);
+      src.stop(at + len + 0.05);
+      this.live.push(src);
+    }
+    if (kind === "sparkle") {
+      for (let i = 0; i < 6; i++) {
+        const t = at + i * 0.06;
+        const o = c.createOscillator();
+        o.type = "triangle";
+        o.frequency.value = 1600 + ((i * 7) % 5) * 380;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.09, t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        o.connect(g).connect(this.out);
+        o.start(t);
+        o.stop(t + 0.3);
+        this.live.push(o);
+      }
+    }
+  }
+
   /** Plans every landing sound from video second `from` on, starting now. */
   schedule(timeline: Timeline, from: number): void {
     this.cancel();
     void this.ctx.resume();
     const now = this.ctx.currentTime + 0.02;
-    for (const s of timeline.sounds) if (s.t >= from) this.tock(now + (s.t - from), s.kind);
+    for (const s of timeline.sounds) {
+      if (s.t < from) continue;
+      if (s.kind === "boom" || s.kind === "whoosh" || s.kind === "sparkle") this.effect(now + (s.t - from), s.kind);
+      else this.tock(now + (s.t - from), s.kind);
+    }
   }
 
   cancel(): void {

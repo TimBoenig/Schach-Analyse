@@ -1143,3 +1143,187 @@
     font-size: 12px;
   }
 }
+
+/* ---------- effects, badges ---------- */
+.studio-fx {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.studio-fx button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+}
+.studio-fx button.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.studio-fx-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--surface-3);
+  position: relative;
+}
+.fx-mate { background: radial-gradient(circle, #ff4d5e 0 28%, rgba(255, 77, 94, 0.25) 30% 60%, transparent 62%); }
+.fx-threat { background: radial-gradient(circle, transparent 0 30%, #ff6b6b 32% 40%, transparent 42% 60%, rgba(255, 107, 107, 0.5) 62% 70%, transparent 72%); }
+.fx-spotlight { background: radial-gradient(circle, #fff 0 22%, #0b0d13 60%); }
+.fx-shake { background: repeating-linear-gradient(100deg, var(--accent) 0 3px, transparent 3px 7px); }
+.fx-zoom { background: radial-gradient(circle, var(--accent) 0 18%, transparent 20% 34%, var(--accent) 36% 40%, transparent 42%); }
+.fx-flash { background: radial-gradient(circle, #fff 0 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%); }
+.fx-confetti { background: radial-gradient(circle at 25% 30%, #34d3a1 0 3px, transparent 4px), radial-gradient(circle at 70% 25%, #ffb84d 0 3px, transparent 4px), radial-gradient(circle at 45% 70%, #ff6b6b 0 3px, transparent 4px), radial-gradient(circle at 80% 75%, #8d9aff 0 3px, transparent 4px), var(--surface-3); }
+.fx-slowmo { background: conic-gradient(var(--accent) 0 25%, var(--surface-3) 25%); }
+.studio-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.studio-badges button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--bc, var(--surface-3));
+  color: #fff !important;
+  font-weight: 800 !important;
+  font-size: 13px !important;
+  cursor: pointer;
+}
+.studio-badges button.on {
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.studio-ai-btn {
+  color: var(--accent) !important;
+}
+
+/* ---------- AI dialog ---------- */
+.studio-modal-card.ai {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+}
+.ai-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ai-steps {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.ai-steps button {
+  border: 0;
+  background: none;
+  padding: 6px 12px;
+  border-radius: 9px;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: var(--text-2) !important;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-steps button b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font-size: 11px;
+}
+.ai-steps button.on {
+  background: var(--surface);
+  color: var(--text) !important;
+}
+.ai-steps button.on b {
+  background: var(--cta);
+  color: #fff;
+}
+.ai-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ai-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.ai-field input,
+.ai-field textarea {
+  font: inherit;
+  font-weight: 400;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+.ai-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.ai-prompt {
+  white-space: pre-wrap;
+  font-size: 11.5px;
+  line-height: 1.5;
+  max-height: 260px;
+  overflow: auto;
+  background: var(--surface-2);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 8px 0 0;
+}
+.ai-answer {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+}
+.ai-check {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ai-stats {
+  font-size: 14px;
+}
+.ai-msg {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border-left: 3px solid var(--text-3);
+}
+.ai-msg.bad { border-left-color: #ff6b6b; }
+.ai-msg.warn { border-left-color: #ffb84d; }
+.ai-msg.good { border-left-color: #34d3a1; }
+.studio-modal-actions {
+  flex-wrap: wrap;
+}
+@media (max-width: 640px) {
+  .studio-fx {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
