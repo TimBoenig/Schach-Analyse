@@ -8,8 +8,11 @@ import { BRAND, FILE_PREFIX } from "../../brand";
 import { navigate } from "../router";
 import { MoveSounds } from "./audio";
 import {
+  BADGE_COLOUR,
+  BADGE_LABEL,
   CAMERA_LABEL,
   CARD_LABEL,
+  EFFECT_LABEL,
   ENV_LABEL,
   FORMAT_SIZE,
   PLATFORM_LABEL,
@@ -26,8 +29,10 @@ import {
   TONE_LABEL,
   toneColor,
   validFen,
+  type Badge,
   type CameraPreset,
   type Card,
+  type Effect,
   type Environment,
   type Format,
   type Platform,
@@ -41,6 +46,8 @@ import {
   type Tone,
 } from "./model";
 import { Assistant, MoveRecorder } from "./Assistant";
+import { AiImport } from "./AiImport";
+import { speechSheet } from "./aiScript";
 import { download, recordVideo, videoType } from "./record";
 import { autoScene, distributeScript, fitLength, movesLabel, variationScene, type Cursor, type GameTree } from "./wizard";
 import { Chess } from "chess.js";
@@ -85,7 +92,7 @@ export function StudioView() {
   const [pending, setPending] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
   const [safe, setSafe] = useState(true);
-  const [dialog, setDialog] = useState<"new" | "templates" | "script" | "board" | null>(null);
+  const [dialog, setDialog] = useState<"new" | "templates" | "script" | "board" | "ai" | null>(null);
   const [exp, setExp] = useState<ExportState | null>(null);
   const [saveError, setSaveError] = useState(false);
   const [glError, setGlError] = useState<string | null>(null);
@@ -367,6 +374,9 @@ export function StudioView() {
         </select>
         <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label="Name des Videos" />
         <div class="studio-top-actions">
+          <button class="btn ghost studio-ai-btn" onClick={() => setDialog("ai")} title="Prompt für ChatGPT, Claude oder Gemini holen und das fertige Skript übernehmen">
+            ✦ Mit KI
+          </button>
           <button class="btn ghost" onClick={() => setDialog("script")} title="Skript einfügen und auf die Szenen verteilen">
             Skript
           </button>
@@ -380,6 +390,7 @@ export function StudioView() {
             <div class="studio-menu">
               <button onClick={() => openProject({ ...structuredClone(project), id: newId("p"), name: `${project.name} (Kopie)`, updatedAt: Date.now() })}>Duplizieren</button>
               <button onClick={exportJson}>Als Datei sichern</button>
+              <button onClick={() => download(new Blob([speechSheet(project)], { type: "text/plain" }), `${FILE_PREFIX}-sprechtext-${slug(project.name)}.txt`)}>Sprechtext mit Zeiten</button>
               <label>
                 Datei öffnen…
                 <input type="file" accept="application/json,.json" hidden onChange={(e) => e.currentTarget.files?.[0] && void importJson(e.currentTarget.files[0])} />
@@ -564,7 +575,20 @@ export function StudioView() {
         {saveError && <p class="studio-warn">Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.</p>}
       </aside>
 
-      {dialog === "new" && <Assistant onClose={() => setDialog(null)} onCreate={openProject} onTemplates={() => setDialog("templates")} />}
+      {dialog === "new" && <Assistant onClose={() => setDialog(null)} onCreate={openProject} onTemplates={() => setDialog("templates")} onAi={() => setDialog("ai")} />}
+      {dialog === "ai" && (
+        <AiImport
+          current={project}
+          onClose={() => setDialog(null)}
+          onCreate={openProject}
+          onReplace={(p) => {
+            update((old) => ({ ...p, id: old.id, updatedAt: Date.now() }));
+            setSel(0);
+            setTime(0);
+            setDialog(null);
+          }}
+        />
+      )}
       {dialog === "templates" && <NewDialog onClose={() => setDialog(null)} onCreate={openProject} />}
       {dialog === "script" && (
         <ScriptDialog
@@ -812,7 +836,34 @@ function SceneEditor({
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
       <Slider label="Dauer" value={scene.duration} min={1} max={15} step={0.1} unit=" s" onChange={(duration) => onChange({ duration })} />
-      {effective > scene.duration + 0.05 && <p class="studio-hint">Die Züge brauchen {effective.toFixed(1)} s, so lange läuft die Szene.</p>}
+      {effective > scene.duration + 0.05 && <p class="studio-hint">Die Szene braucht {effective.toFixed(1)} s (Züge, Effekte oder Sprechtext), so lange läuft sie.</p>}
+      <Field label="Sprechtext" hint="Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.">
+        <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder="Optional" />
+      </Field>
+
+      <h4 class="studio-sub">Effekte</h4>
+      <div class="studio-fx">
+        {(Object.keys(EFFECT_LABEL) as Effect[]).map((fx) => {
+          const on = scene.effects.includes(fx);
+          return (
+            <button key={fx} class={on ? "on" : ""} title={EFFECT_LABEL[fx].hint} onClick={() => onChange({ effects: on ? scene.effects.filter((x) => x !== fx) : [...scene.effects, fx] })}>
+              <span class={`studio-fx-icon fx-${fx}`} aria-hidden="true" />
+              {EFFECT_LABEL[fx].label}
+            </button>
+          );
+        })}
+      </div>
+      {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
+      <Field label="Bewertung des Zugs" hint="Rundes Zeichen über dem Feld, auf dem der letzte Zug landet.">
+        <div class="studio-badges">
+          {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
+            <button key={b || "none"} class={scene.badge === b ? "on" : ""} style={b ? { "--bc": BADGE_COLOUR[b] } : undefined} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]}>
+              {b || "–"}
+            </button>
+          ))}
+        </div>
+      </Field>
+      <Slider label="Zugtempo dieser Szene" value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
 
       <h4 class="studio-sub">Kamera</h4>
       <div class="studio-cams">

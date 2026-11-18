@@ -409,6 +409,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           orbit: vibe.orbit,
           duration: fast ? 3.4 : 4.4,
           mood: "wow",
+          effects: played.isCheckmate() ? ["mate"] : ["zoom", "confetti"],
+          badge: played.isCheckmate() ? "" : "!!",
         }),
       );
     } else {
@@ -440,6 +442,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           orbit: isKey ? vibe.orbit : 0,
           duration: (fast ? 2.2 : 3) + g.moves.length * (fast ? 0.9 : 1.2),
           mood: isKey ? "wow" : "think",
+          effects: played.isCheckmate() ? ["mate"] : isKey ? ["zoom"] : arrows.some((x) => x.tone === "bad") && fast ? ["threat"] : [],
+          badge: isKey && !played.isCheckmate() ? "!" : "",
         }),
       );
       backToMain = false;

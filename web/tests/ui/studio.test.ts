@@ -23,6 +23,7 @@ import { arrowMesh } from "../../src/ui/studio/renderer";
 import { compile, frameAt, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
+import { buildAiPrompt, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
 import { buildProject, defaultAnswers, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
 const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProject => ({
@@ -275,5 +276,104 @@ describe("studio assistant", () => {
     expect(p.video.speed).toBe(1);
     expect(p.video.platform).toBe("tiktok");
     expect(p.scenes[0].options).toEqual([]);
+  });
+});
+
+describe("studio AI scripts", () => {
+  const promptJson = () => buildAiPrompt({ topic: "Spanisch", platform: "reels", length: 30, notes: "Mit Variante\nLocker" });
+
+  it("ships a prompt whose own example imports without a single problem", () => {
+    const prompt = promptJson();
+    expect(prompt).toContain("Spanisch");
+    expect(prompt).toContain("  Mit Variante");
+    const r = importAiScript(prompt);
+    expect(r.errors).toEqual([]);
+    expect(r.warnings).toEqual([]);
+    const p = r.project!;
+    expect(() => scenePositions(p)).not.toThrow();
+    const variation = p.scenes.find((s) => s.moves === "3… g6")!;
+    // "zurueck: 2" from after 4. Dxf7# lands after 3. Dh5.
+    expect(variation.fen).toBe(parseMoves(START_FEN, "e4 e5 Lc4 Sc6 Dh5").fen);
+    const mate = p.scenes.find((s) => s.moves === "4. Dxf7#")!;
+    expect(mate.effects).toEqual(["mate", "shake"]);
+    expect(mate.badge).toBe("!!");
+    expect(mate.tempo).toBe(0.7);
+    expect(p.scenes.find((s) => s.title === "Ziel: f7")!.arrows).toEqual([{ from: "c4", to: "f7", tone: "bad" }]);
+    expect(p.scenes.find((s) => s.card === "poll")!.options).toHaveLength(3);
+    expect(p.style.environment).toBe("podium");
+  });
+
+  it("reads sloppy answers: text around the JSON, trailing commas, any key spelling and arrow format", () => {
+    const answer = `Klar, hier ist dein Skript:
+\`\`\`json
+{ "Titel": "Test", "Umgebung": "Turniersaal", "Geschwindigkeit": "1,5",
+  "Szenen": [
+    { "Zug": "1. e4", "Kamera": "Schräg", "Pfeile": [["e4", "d5", "rot"], {"von": "e4", "nach": "f5", "farbe": "Idee"}], "Markierungen": ["d5 grün"], "Kleine Zeile": "Teil 1", },
+    { "zug": "1... e5", "kamera": "Drohne", "effekte": ["Zeitlupe", "Explosion"] },
+  ],
+}
+\`\`\`
+Viel Spaß!`;
+    const r = importAiScript(answer);
+    expect(r.errors).toEqual([]);
+    const p = r.project!;
+    expect(p.video.speed).toBe(1.5);
+    expect(p.style.environment).toBe("hall");
+    expect(p.scenes[0]).toMatchObject({ camera: "corner", label: "Teil 1", arrows: [{ from: "e4", to: "d5", tone: "bad" }, { from: "e4", to: "f5", tone: "idea" }], marks: [{ square: "d5", tone: "good" }] });
+    expect(p.scenes[1].effects).toEqual(["slowmo"]);
+    expect(r.warnings.some((w) => w.includes("Drohne"))).toBe(true);
+    expect(r.warnings.some((w) => w.includes("Explosion"))).toBe(true);
+  });
+
+  it("names the scene of an illegal move, keeps the legal ones and returns to the main line", () => {
+    const r = importAiScript(
+      JSON.stringify({
+        szenen: [{ zug: "1. e4 e5 2. Sf3" }, { variante: { zurueck: 1 }, zug: "2. Lc4" }, { hauptvariante: true, zug: "2... Sc6 3. Lb7" }],
+      }),
+    );
+    expect(r.errors).toEqual(["Szene 3: „Bb7“ ist in dieser Stellung nicht möglich, nur 2… Sc6 wird gezeigt."]);
+    const p = r.project!;
+    expect(p.scenes[1]).toMatchObject({ label: "Variante 1", fen: parseMoves(START_FEN, "e4 e5").fen });
+    expect(p.scenes[2]).toMatchObject({ label: "Zurück zur Hauptvariante", fen: parseMoves(START_FEN, "e4 e5 Sf3").fen, moves: "2… Sc6" });
+    expect(r.stats).toMatchObject({ scenes: 3, moves: 5, variations: 1 });
+    expect(importAiScript("Das kann ich leider nicht.").project).toBeNull();
+  });
+
+  it("adds the mate animation to a mating move and gives the current video back in the same format", () => {
+    const r = importAiScript(JSON.stringify({ laenge: 20, szenen: [{ karte: "titel", titel: "Hook" }, { zug: "1. f3 e5 2. g4 Dh4#", sprechtext: "Das ist das schnellste Matt, das es im Schach gibt, und es passiert wirklich." }] }));
+    const p = r.project!;
+    expect(p.scenes[1].effects).toEqual(["mate"]);
+    expect(p.scenes[1].mood).toBe("wow");
+    const again = importAiScript(toAiScript(p)).project!;
+    expect(again.scenes.map((s) => [s.moves, s.effects, s.speech, s.camera])).toEqual(p.scenes.map((s) => [s.moves, s.effects, s.speech, s.camera]));
+    expect(speechSheet(p)).toMatch(/^0:00–0:0\d {2}Szene 1 \(Hook\)/);
+  });
+});
+
+describe("studio effects", () => {
+  const mate = () => make([scene({ moves: "1. f3 e5 2. g4 Dh4#", effects: ["mate", "threat"], badge: "!!", duration: 2 })]);
+
+  it("tips the mated king over away from the queen, lifts the badge and adds the boom", () => {
+    const p = mate();
+    const tl = compile(p);
+    const c = tl.scenes[0];
+    expect(c.mate).toEqual({ king: "e1", by: "h4" });
+    expect(c.dur).toBeGreaterThanOrEqual(c.fxAt + 2.2);
+    const late = frameAt(tl, p, c.fxAt + 1.5)!;
+    const king = late.pieces.find((x) => x.type === "k" && x.color === "w")!;
+    expect(king.tilt).toBeGreaterThan(1.2);
+    // Queen on h4, king on e1: it falls towards smaller files (negative x) and towards rank 1 (positive z).
+    expect(Math.sin(king.tiltYaw!)).toBeLessThan(0);
+    expect(late.badge).toMatchObject({ text: "!!", square: "h4" });
+    expect(frameAt(tl, p, c.fxAt - 0.1)!.fx).toEqual([]);
+    expect(tl.sounds.some((s) => s.kind === "boom")).toBe(true);
+  });
+
+  it("finds the threatened pieces itself and slow motion stretches only the last move", () => {
+    const p = make([scene({ moves: "1. e4 e5 2. Dh5", effects: ["threat"] })]);
+    expect(compile(p).scenes[0].threats.sort()).toEqual(["e5", "f7", "h7"]);
+    const slow = make([scene({ moves: "1. e4 e5", effects: ["slowmo"] })]);
+    const [a, b] = compile(slow).scenes[0].steps;
+    expect(b.t1 - b.t0).toBeGreaterThan(2 * (a.t1 - a.t0));
   });
 });

@@ -6,7 +6,7 @@
 import type { PieceSymbol } from "chess.js";
 
 import { box, merge, STRIDE, type Material, type Mesh } from "../three/mesh";
-import { lookAt, multiply, perspective, placement, screenToBoard, type Mat4, type V3 } from "./math3d";
+import { lookAt, multiply, perspective, placement, screenToBoard, tiltedPlacement, type Mat4, type V3 } from "./math3d";
 import { toneColor, type StudioStyle } from "./model";
 import { environment, type EnvLine } from "./environments";
 import { pieceMesh } from "./pieces";
@@ -321,6 +321,12 @@ export class StudioRenderer {
     gl.uniform2fv(this.litU.uFog, this.env ? this.env.fog : [1e4, 2e4]);
     const pieceOpts = (p: Frame["pieces"][number]) => ({ tint: p.color === "w" ? tintW : tintB, metal, gloss, alpha: p.alpha });
     const yawOf = (p: Frame["pieces"][number]) => (p.color === "b" ? Math.PI : 0);
+    const modelOf = (p: Frame["pieces"][number], mirror: boolean) => {
+      if (!p.tilt) return mirror ? placement([p.x, -p.y, p.z], yawOf(p), p.scale, -p.scale) : placement([p.x, p.y, p.z], yawOf(p), p.scale);
+      const m = tiltedPlacement([p.x, p.y, p.z], yawOf(p), p.scale, p.tilt, p.tiltYaw ?? 0);
+      if (mirror) for (const i of [1, 5, 9, 13]) m[i] = -m[i];
+      return m;
+    };
     // The squares go down first without depth and mark the stencil: the
     // mirror image is then painted only inside the board, on top of them.
     gl.enable(gl.STENCIL_TEST);
@@ -335,7 +341,7 @@ export class StudioRenderer {
     if (style.reflection) {
       for (const p of frame.pieces) {
         if (p.alpha <= 0.01) continue;
-        this.drawLit(this.piece(p.type), placement([p.x, -p.y, p.z], yawOf(p), p.scale, -p.scale), { ...pieceOpts(p), alpha: 0.3 * p.alpha * Math.max(0, 1 - p.y * 0.8) });
+        this.drawLit(this.piece(p.type), modelOf(p, true), { ...pieceOpts(p), alpha: 0.3 * p.alpha * Math.max(0, 1 - p.y * 0.8) });
       }
     }
     // The surroundings go everywhere except inside the board, where the mirror image is.
@@ -375,6 +381,32 @@ export class StudioRenderer {
       const [x, z] = squareXZ(m.square);
       this.drawFlat(quad(x, z, 0.98, 0.005), hexToRgb(toneColor(m.tone, style)), 0.85 * m.alpha, 2);
     }
+    // Threat effect: rings pulse outwards from every threatened square.
+    const threatAge = frame.fx.find((f) => f.kind === "threat")?.age;
+    if (threatAge !== undefined) {
+      const red = hexToRgb(toneColor("bad", style));
+      const fadeIn = Math.min(1, threatAge / 0.3);
+      for (const sq of frame.threats) {
+        const [x, z] = squareXZ(sq);
+        for (const off of [0, 0.5]) {
+          const k = (threatAge * 1.1 + off) % 1;
+          this.drawFlat(quad(x, z, 1.9, 0.0065), red, 0.85 * (1 - k) * fadeIn, 3, 0.25 + k * 0.7);
+        }
+        this.drawFlat(quad(x, z, 0.98, 0.0055), red, (0.45 + 0.35 * Math.sin(threatAge * 7)) * fadeIn, 2);
+      }
+    }
+    // Mate effect: the king's square burns red and a shock wave runs over the board.
+    const mateAge = frame.fx.find((f) => f.kind === "mate")?.age;
+    if (mateAge !== undefined && frame.mate) {
+      const red = hexToRgb(toneColor("bad", style));
+      const [x, z] = squareXZ(frame.mate.king);
+      this.drawFlat(quad(x, z, 0.98, 0.0055), red, Math.min(1, mateAge / 0.2), 0);
+      this.drawFlat(quad(x, z, 3.2, 0.005), red, 0.6 * Math.min(1, mateAge / 0.3), 1);
+      for (const delay of [0.3, 0.55]) {
+        const k = (mateAge - delay) / 1.1;
+        if (k > 0 && k < 1) this.drawFlat(quad(x, z, 4 + k * 14, 0.007), red, 0.9 * (1 - k), 3, 0.3 + k * 0.62);
+      }
+    }
     if (frame.landing) {
       const [x, z] = squareXZ(frame.landing.square);
       this.drawFlat(quad(x, z, 1.5, 0.006), accent, 0.9 * (1 - frame.landing.k), 3, 0.35 + frame.landing.k * 0.6);
@@ -392,7 +424,7 @@ export class StudioRenderer {
     const ordered = [...frame.pieces].sort((a, b) => b.alpha - a.alpha);
     for (const p of ordered) {
       if (p.alpha <= 0.01) continue;
-      this.drawLit(this.piece(p.type), placement([p.x, p.y, p.z], yawOf(p), p.scale), pieceOpts(p));
+      this.drawLit(this.piece(p.type), modelOf(p, false), pieceOpts(p));
     }
     gl.disable(gl.BLEND);
   }

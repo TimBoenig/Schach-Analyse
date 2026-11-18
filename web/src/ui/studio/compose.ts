@@ -3,7 +3,7 @@
 // Sizes are in "units" of a 1080-pixel-wide video, so every format scales.
 import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { toScreen, type Mat4 } from "./math3d";
-import { PLATFORM_LABEL, type Platform, type StudioProject } from "./model";
+import { BADGE_COLOUR, PLATFORM_LABEL, type Badge, type Platform, type StudioProject } from "./model";
 
 /** Areas the apps cover with their own buttons and captions, in units of a 1080 x 1920 video. */
 const SAFE: Record<Platform, { top: number; bottom: number; right: number }> = {
@@ -265,7 +265,47 @@ export function compose(
     }
   }
 
+  const fxAge = (kind: Frame["fx"][number]["kind"]) => frame.fx.find((f) => f.kind === kind)?.age;
+  const mateAge = fxAge("mate");
+  const squareOnScreen = (sq: string, y = 0) => {
+    const [x, z] = [sq.charCodeAt(0) - 97 - 3.5, 3.5 - (Number(sq[1]) - 1)];
+    const p = toScreen(viewProj, [x, y, z]);
+    return p ? { x: p.x * W, y: p.y * H } : null;
+  };
+
+  // ---- spotlight: everything but the square that matters goes dark
+  const spot = fxAge("spotlight");
+  if (spot !== undefined && frame.fxSquare) {
+    const p = squareOnScreen(frame.fxSquare, 0.4);
+    if (p) {
+      const k = easeOut(spot / 0.5);
+      const r = Math.min(W, H) * 0.16;
+      const g = ctx.createRadialGradient(p.x, p.y, r * 0.6, p.x, p.y, r * 2.6);
+      g.addColorStop(0, "rgba(0,0,0,0)");
+      g.addColorStop(1, `rgba(0,0,0,${0.72 * k})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
   vignette(ctx, W, H);
+
+  // ---- threat and mate: the edges of the picture glow red
+  const threat = fxAge("threat");
+  const danger = mateAge !== undefined ? Math.min(1, mateAge / 0.3) * 0.9 : threat !== undefined ? Math.min(1, threat / 0.4) * (0.45 + 0.25 * Math.sin(threat * 6)) : 0;
+  if (danger > 0) {
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75);
+    g.addColorStop(0, "rgba(255,60,60,0)");
+    g.addColorStop(1, `rgba(255,60,60,${0.38 * danger})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ---- move badge (!!, ??) floating over the square the move landed on
+  if (frame.badge) {
+    const p = squareOnScreen(frame.badge.square, 1.25);
+    if (p) drawBadge(ctx, p.x, p.y, frame.badge.text, frame.badge.age, u);
+  }
 
   const card = frame.card;
   const cardA = card.alpha;
@@ -316,7 +356,7 @@ export function compose(
   }
 
   // ---- move pill
-  if (v.movePill && frame.pill && textAlphaBase > 0.01) {
+  if (v.movePill && frame.pill && textAlphaBase > 0.01 && !(mateAge !== undefined && mateAge > 0.25)) {
     const k = backOut(frame.pill.age / 0.45);
     const a = clamp01(frame.pill.age / 0.2) * textAlphaBase;
     ctx.save();
@@ -414,8 +454,45 @@ export function compose(
     ctx.globalAlpha = 1;
   }
 
+  // ---- mate stamp
+  if (mateAge !== undefined && mateAge > 0.25) {
+    const a = mateAge - 0.25;
+    const k = backOut(a / 0.5);
+    ctx.save();
+    // Where the move pill was: the board and the falling king stay visible.
+    ctx.translate(W / 2, L.pillY + 10 * u);
+    ctx.rotate(-0.06);
+    ctx.scale(2.2 - 1.2 * k, 2.2 - 1.2 * k);
+    ctx.globalAlpha = clamp01(a / 0.2) * textAlphaBase;
+    ctx.font = `900 ${112 * u}px ${SANS}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(255,60,60,0.9)";
+    ctx.shadowBlur = 60 * u;
+    ctx.lineWidth = 10 * u;
+    ctx.strokeStyle = "rgba(120,0,10,0.85)";
+    ctx.strokeText("SCHACHMATT", 0, 0);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("SCHACHMATT", 0, 0);
+    ctx.restore();
+  }
+
   // ---- cards
   if (card.kind !== "none" && cardA > 0.01) drawCard(ctx, frame, project, assets, L, W, H);
+
+  // ---- confetti burst from the square of the move
+  const conf = fxAge("confetti");
+  if (conf !== undefined && conf < 3.2) {
+    const origin = (frame.fxSquare && squareOnScreen(frame.fxSquare, 0.6)) || { x: W / 2, y: H * 0.5 };
+    drawConfetti(ctx, origin.x, origin.y, conf, u, [st.accent, "#34d3a1", "#ffb84d", "#ff6b6b", "#ffffff", "#8d9aff"]);
+  }
+
+  // ---- flash on the moment of the move
+  const flash = fxAge("flash");
+  if (flash !== undefined && flash < 0.45) {
+    ctx.fillStyle = `rgba(255,255,255,${0.75 * (1 - flash / 0.45) ** 2})`;
+    ctx.fillRect(0, 0, W, H);
+  }
 
   // ---- branding and progress (always on top)
   if (v.brand && !(card.kind === "outro" && cardA > 0.5)) brandPill(ctx, L.portrait ? W / 2 : 170 * u, L.brandY, u, assets.logo, L.portrait ? 1 : 0.8);
@@ -651,4 +728,60 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
     ctx.fillText(label, cx, by + bh / 2 + 2 * u);
     ctx.restore();
   }
+}
+
+function drawBadge(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, age: number, u: number): void {
+  const k = backOut(age / 0.45);
+  if (k <= 0) return;
+  const r = 46 * u;
+  ctx.save();
+  ctx.translate(x, y - (1 - clamp01(age / 0.45)) * 30 * u);
+  ctx.scale(k, k);
+  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  ctx.shadowBlur = 24 * u;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fillStyle = BADGE_COLOUR[text as Exclude<Badge, "">] ?? "#5b8cff";
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 5 * u;
+  ctx.strokeStyle = "#ffffff";
+  ctx.stroke();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `900 ${(text.length > 1 ? 40 : 50) * u}px ${SANS}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 0, 3 * u);
+  ctx.restore();
+}
+
+/** Deterministic confetti: the same age always draws the same picture, so preview and export match. */
+function drawConfetti(ctx: CanvasRenderingContext2D, ox: number, oy: number, age: number, u: number, colours: string[]): void {
+  let seed = 7;
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  ctx.save();
+  for (let i = 0; i < 110; i++) {
+    const angle = -Math.PI / 2 + (rnd() - 0.5) * Math.PI * 1.5;
+    const speed = (900 + rnd() * 1300) * u;
+    const spin = (rnd() - 0.5) * 18;
+    const w = (10 + rnd() * 12) * u;
+    const h = w * (0.4 + rnd() * 0.4);
+    const colour = colours[Math.floor(rnd() * colours.length)];
+    const drag = Math.exp(-age * 1.6);
+    const travel = (1 - drag) / 1.6;
+    const x = ox + Math.cos(angle) * speed * travel + Math.sin(age * 3 + i) * 20 * u * age;
+    const y = oy + Math.sin(angle) * speed * travel + 0.5 * 1400 * u * age * age * 0.55;
+    const a = clamp01((3.2 - age) / 0.8);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.fillStyle = colour;
+    ctx.translate(x, y);
+    ctx.rotate(spin * age);
+    ctx.fillRect(-w / 2, -h / 2, w, h * Math.abs(Math.cos(age * 6 + i)));
+    ctx.restore();
+  }
+  ctx.restore();
 }

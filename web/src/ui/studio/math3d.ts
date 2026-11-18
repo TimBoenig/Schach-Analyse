@@ -132,3 +132,30 @@ export function norm(a: V3): V3 {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
 }
+
+/** Like `placement`, then tipped over by `tilt` radians towards the board direction `tiltYaw` (0 = +z), pivoting on its base. */
+export function tiltedPlacement(pos: V3, yaw: number, scale: number, tilt: number, tiltYaw: number, scaleY = scale): Mat4 {
+  const ry = (a: number): Mat4 => {
+    const m = new Float32Array(16);
+    m[0] = Math.cos(a);
+    m[2] = -Math.sin(a);
+    m[5] = 1;
+    m[8] = Math.sin(a);
+    m[10] = Math.cos(a);
+    m[15] = 1;
+    return m;
+  };
+  const rx = new Float32Array(16);
+  rx[0] = 1;
+  rx[5] = Math.cos(tilt);
+  rx[6] = Math.sin(tilt);
+  rx[9] = -Math.sin(tilt);
+  rx[10] = Math.cos(tilt);
+  rx[15] = 1;
+  const tip = multiply(ry(tiltYaw), multiply(rx, ry(-tiltYaw)));
+  const m = multiply(tip, placement([0, 0, 0], yaw, scale, scaleY));
+  m[12] = pos[0];
+  m[13] = pos[1];
+  m[14] = pos[2];
+  return m;
+}
