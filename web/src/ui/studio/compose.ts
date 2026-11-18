@@ -3,7 +3,7 @@
 // Sizes are in "units" of a 1080-pixel-wide video, so every format scales.
 import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { toScreen, type Mat4 } from "./math3d";
-import { BADGE_COLOUR, PLATFORM_LABEL, type Badge, type Platform, type StudioProject } from "./model";
+import { PLATFORM_LABEL, POLL_COLOURS, type Platform, type StudioProject } from "./model";
 
 /** Areas the apps cover with their own buttons and captions, in units of a 1080 x 1920 video. */
 const SAFE: Record<Platform, { top: number; bottom: number; right: number }> = {
@@ -18,6 +18,8 @@ export interface Assets {
   logo: HTMLImageElement | null;
   /** Lucena, painted by her own canvas renderer. */
   orb: HTMLCanvasElement | null;
+  /** Move badges by kind ("brilliant" …), loaded from public/badges. */
+  badges: Record<string, HTMLImageElement>;
 }
 
 export interface ComposeOptions {
@@ -304,7 +306,34 @@ export function compose(
   // ---- move badge (!!, ??) floating over the square the move landed on
   if (frame.badge) {
     const p = squareOnScreen(frame.badge.square, 1.25);
-    if (p) drawBadge(ctx, p.x, p.y, frame.badge.text, frame.badge.age, u);
+    const img = assets.badges[frame.badge.kind];
+    if (p && img) drawBadge(ctx, p.x, p.y, img, frame.badge.age, u);
+  }
+
+  // ---- poll answers: a letter bubble at the end of each coloured arrow
+  for (const pm of frame.pollMarks) {
+    if (pm.alpha <= 0.01) continue;
+    const p = squareOnScreen(pm.square, 0.9);
+    if (!p) continue;
+    const r = 34 * u;
+    ctx.save();
+    ctx.globalAlpha = pm.alpha;
+    ctx.shadowColor = "rgba(0,0,0,0.5)";
+    ctx.shadowBlur = 16 * u;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = pm.colour;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 4 * u;
+    ctx.strokeStyle = "#ffffff";
+    ctx.stroke();
+    ctx.fillStyle = "#0a0c11";
+    ctx.font = `800 ${36 * u}px ${SANS}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(pm.letter, p.x, p.y + 2 * u);
+    ctx.restore();
   }
 
   const card = frame.card;
@@ -364,7 +393,8 @@ export function compose(
     ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
     ctx.font = `700 ${46 * u}px ${SANS}`;
     const tw = ctx.measureText(frame.pill.text).width;
-    const pw = tw + 64 * u;
+    const dot = 26 * u;
+    const pw = tw + 64 * u + dot + 14 * u;
     const ph = 82 * u;
     ctx.globalAlpha = a;
     ctx.shadowColor = rgba(st.accent, 0.6);
@@ -376,10 +406,27 @@ export function compose(
     ctx.strokeStyle = rgba(st.accent, 0.9);
     ctx.lineWidth = 2.5 * u;
     ctx.stroke();
+    // A white or black dot says whose move it is.
+    const dx = -pw / 2 + 32 * u + dot / 2;
+    ctx.beginPath();
+    ctx.arc(dx, 0, dot / 2, 0, Math.PI * 2);
+    ctx.fillStyle = frame.pill.side === "w" ? "#f6f4ee" : "#15161b";
+    ctx.fill();
+    ctx.lineWidth = 2.5 * u;
+    ctx.strokeStyle = frame.pill.side === "w" ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.7)";
+    ctx.stroke();
     ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "center";
+    ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(frame.pill.text, 0, 2 * u);
+    ctx.fillText(frame.pill.text, dx + dot / 2 + 14 * u, 2 * u);
+    if (v.plainMoves && frame.pill.plain) {
+      ctx.font = `600 ${30 * u}px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.fillStyle = "rgba(240,242,250,0.92)";
+      ctx.shadowColor = "rgba(0,0,0,0.7)";
+      ctx.shadowBlur = 14 * u;
+      ctx.fillText(`${frame.pill.side === "w" ? "Weiß" : "Schwarz"}: ${frame.pill.plain}`, 0, ph / 2 + 30 * u);
+    }
     ctx.restore();
   }
 
@@ -543,7 +590,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
   const titleWeight = st.titleFont === "serif" ? 400 : 800;
   const serifScale = st.titleFont === "serif" ? 1.18 : 1;
   ctx.save();
-  const dim = frame.card.kind === "outro" ? 0.78 : frame.card.kind === "intro" ? 0.5 : 0.35;
+  const dim = frame.card.kind === "outro" ? 0.78 : frame.card.kind === "intro" ? 0.5 : frame.card.kind === "poll" ? 0.18 : 0.35;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, `rgba(4,5,9,${dim * a})`);
   g.addColorStop(0.5, `rgba(4,5,9,${dim * 0.75 * a})`);
@@ -577,48 +624,60 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
     ctx.shadowBlur = 30 * u;
     const h = animatedText(ctx, frame.title.text, { cx, top, max: L.textMax, size: 78 * u * serifScale, font: titleFont, weight: titleWeight, color: "#ffffff", accent: st.accent, age, alpha: a, u, maxLines: 2 });
     ctx.restore();
+    // Answers sit in one row under the board, so the coloured arrows on the board stay visible.
     const opts = frame.scene.options;
-    const bw = Math.min(L.textMax, 760 * u);
-    const bh = 104 * u;
-    const gap = 22 * u;
-    const startY = L.portrait ? H * 0.6 : top + h + 60 * u;
+    const gap = 18 * u;
+    const n = Math.max(1, opts.length);
+    const bw = Math.min((L.textMax - gap * (n - 1)) / n, 330 * u);
+    const bh = 96 * u;
+    const rowY = L.portrait ? L.subCenter - bh / 2 : H - bh - 60 * u;
+    const rowX = cx - (bw * n + gap * (n - 1)) / 2;
     opts.forEach((o, i) => {
       const k = backOut((age - 0.35 - i * 0.12) / 0.5);
       if (k <= 0) return;
-      const y = startY + i * (bh + gap);
+      const colour = POLL_COLOURS[i % POLL_COLOURS.length];
       ctx.save();
       ctx.globalAlpha = a * Math.min(1, k);
-      ctx.translate(cx, y + bh / 2);
+      ctx.translate(rowX + i * (bw + gap) + bw / 2, rowY + bh / 2);
       ctx.scale(0.85 + 0.15 * k, 0.85 + 0.15 * k);
-      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 26 * u);
-      ctx.fillStyle = "rgba(10,12,18,0.82)";
+      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = 24 * u;
+      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, bh / 2);
+      ctx.fillStyle = "rgba(10,12,18,0.86)";
       ctx.fill();
-      ctx.lineWidth = 3 * u;
-      ctx.strokeStyle = rgba(st.accent, 0.85);
+      ctx.shadowBlur = 0;
+      // Same colour as the answer's arrow on the board.
+      ctx.lineWidth = 5 * u;
+      ctx.strokeStyle = colour;
       ctx.stroke();
-      const [letter, ...rest] = o.split(")");
-      const bubble = 64 * u;
+      const m = o.match(/^\s*([A-Za-z])\s*[).:]\s*(.+)$/);
+      const letter = m ? m[1].toUpperCase() : String.fromCharCode(65 + i);
+      const label = (m ? m[2] : o).trim();
+      const bubble = 62 * u;
+      ctx.font = `700 ${42 * u}px ${SANS}`;
+      const tw = Math.min(ctx.measureText(label).width, bw - bubble - 48 * u);
+      const x0 = -(bubble + 14 * u + tw) / 2;
       ctx.beginPath();
-      ctx.arc(-bw / 2 + 24 * u + bubble / 2, 0, bubble / 2, 0, Math.PI * 2);
-      ctx.fillStyle = st.accent;
+      ctx.arc(x0 + bubble / 2, 0, bubble / 2, 0, Math.PI * 2);
+      ctx.fillStyle = colour;
       ctx.fill();
       ctx.fillStyle = "#0a0c11";
-      ctx.font = `800 ${36 * u}px ${SANS}`;
+      ctx.font = `800 ${34 * u}px ${SANS}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(rest.length ? letter.trim() : String.fromCharCode(65 + i), -bw / 2 + 24 * u + bubble / 2, 2 * u);
+      ctx.fillText(letter, x0 + bubble / 2, 2 * u);
       ctx.fillStyle = "#ffffff";
-      ctx.font = `700 ${46 * u}px ${SANS}`;
+      ctx.font = `700 ${42 * u}px ${SANS}`;
       ctx.textAlign = "left";
-      ctx.fillText((rest.length ? rest.join(")") : o).trim(), -bw / 2 + 48 * u + bubble, 2 * u);
+      ctx.fillText(label, x0 + bubble + 14 * u, 2 * u, bw - bubble - 48 * u);
       ctx.restore();
     });
-    const after = startY + opts.length * (bh + gap);
-    animatedText(ctx, frame.text.text, { cx, top: after + 4 * u, max: L.textMax, size: 38 * u, font: SANS, weight: 600, color: "rgba(235,238,248,0.85)", accent: st.accent, age: age - 0.8, alpha: a, u, maxLines: 2 });
+    animatedText(ctx, frame.text.text, { cx, top: rowY + bh + 26 * u, max: L.textMax, size: 34 * u, font: SANS, weight: 600, color: "rgba(235,238,248,0.85)", accent: st.accent, age: age - 0.8, alpha: a, u, maxLines: 1 });
     if (frame.countdown !== null && frame.countdown > 0) {
+      // Under the question, where the move pill usually is.
       const total = frame.scene.countdown;
-      const R = 54 * u;
-      const ccy = startY - R - 40 * u;
+      const R = 50 * u;
+      const ccy = Math.max(top + h + R + 24 * u, L.pillY);
       ctx.save();
       ctx.globalAlpha = a;
       ctx.beginPath();
@@ -632,7 +691,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
       ctx.lineCap = "round";
       ctx.stroke();
       ctx.fillStyle = "#ffffff";
-      ctx.font = `800 ${60 * u}px ${SANS}`;
+      ctx.font = `800 ${56 * u}px ${SANS}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(Math.ceil(frame.countdown)), cx, ccy + 3 * u);
@@ -730,28 +789,22 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
   }
 }
 
-function drawBadge(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, age: number, u: number): void {
+function drawBadge(ctx: CanvasRenderingContext2D, x: number, y: number, img: HTMLImageElement, age: number, u: number): void {
   const k = backOut(age / 0.45);
   if (k <= 0) return;
-  const r = 46 * u;
+  const size = 118 * u;
   ctx.save();
   ctx.translate(x, y - (1 - clamp01(age / 0.45)) * 30 * u);
   ctx.scale(k, k);
   ctx.shadowColor = "rgba(0,0,0,0.45)";
   ctx.shadowBlur = 24 * u;
+  // A white ring keeps the badge readable on light and wooden boards.
   ctx.beginPath();
-  ctx.arc(0, 0, r, 0, Math.PI * 2);
-  ctx.fillStyle = BADGE_COLOUR[text as Exclude<Badge, "">] ?? "#5b8cff";
+  ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
+  ctx.fillStyle = "#ffffff";
   ctx.fill();
   ctx.shadowBlur = 0;
-  ctx.lineWidth = 5 * u;
-  ctx.strokeStyle = "#ffffff";
-  ctx.stroke();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `900 ${(text.length > 1 ? 40 : 50) * u}px ${SANS}`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, 0, 3 * u);
+  ctx.drawImage(img, -size * 0.45, -size * 0.45, size * 0.9, size * 0.9);
   ctx.restore();
 }
 

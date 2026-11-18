@@ -11,6 +11,7 @@ import {
   moveTokens,
   normalizeProject,
   parseMoves,
+  POLL_COLOURS,
   scene,
   scenePositions,
   START_FEN,
@@ -20,11 +21,12 @@ import {
 } from "../../src/ui/studio/model";
 import { pieceMesh, triangulate } from "../../src/ui/studio/pieces";
 import { arrowMesh } from "../../src/ui/studio/renderer";
-import { compile, frameAt, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
+import { compile, frameAt, plainMove, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
+import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
 import { buildAiPrompt, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
-import { buildProject, defaultAnswers, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
+import { buildProject, defaultAnswers, suggestPerspective, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
 const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProject => ({
   id: "p",
@@ -296,8 +298,10 @@ describe("studio AI scripts", () => {
     expect(variation.fen).toBe(parseMoves(START_FEN, "e4 e5 Lc4 Sc6 Dh5").fen);
     const mate = p.scenes.find((s) => s.moves === "4. Dxf7#")!;
     expect(mate.effects).toEqual(["mate", "shake"]);
-    expect(mate.badge).toBe("!!");
     expect(mate.tempo).toBe(0.7);
+    expect([variation.badge, p.scenes.find((s) => s.moves === "3… Sf6")!.badge]).toEqual(["best", "blunder"]);
+    // Every effect the studio has is explained to the AI.
+    for (const word of ["matt:", "drohung:", "spotlight:", "wackeln:", "zoom:", "blitz:", "konfetti:", "zeitlupe:"]) expect(prompt).toContain(`- ${word}`);
     expect(p.scenes.find((s) => s.title === "Ziel: f7")!.arrows).toEqual([{ from: "c4", to: "f7", tone: "bad" }]);
     expect(p.scenes.find((s) => s.card === "poll")!.options).toHaveLength(3);
     expect(p.style.environment).toBe("podium");
@@ -351,7 +355,7 @@ Viel Spaß!`;
 });
 
 describe("studio effects", () => {
-  const mate = () => make([scene({ moves: "1. f3 e5 2. g4 Dh4#", effects: ["mate", "threat"], badge: "!!", duration: 2 })]);
+  const mate = () => make([scene({ moves: "1. f3 e5 2. g4 Dh4#", effects: ["mate", "threat"], badge: "brilliant", duration: 2 })]);
 
   it("tips the mated king over away from the queen, lifts the badge and adds the boom", () => {
     const p = mate();
@@ -364,7 +368,7 @@ describe("studio effects", () => {
     expect(king.tilt).toBeGreaterThan(1.2);
     // Queen on h4, king on e1: it falls towards smaller files (negative x) and towards rank 1 (positive z).
     expect(Math.sin(king.tiltYaw!)).toBeLessThan(0);
-    expect(late.badge).toMatchObject({ text: "!!", square: "h4" });
+    expect(late.badge).toMatchObject({ kind: "brilliant", square: "h4" });
     expect(frameAt(tl, p, c.fxAt - 0.1)!.fx).toEqual([]);
     expect(tl.sounds.some((s) => s.kind === "boom")).toBe(true);
   });
@@ -375,5 +379,54 @@ describe("studio effects", () => {
     const slow = make([scene({ moves: "1. e4 e5", effects: ["slowmo"] })]);
     const [a, b] = compile(slow).scenes[0].steps;
     expect(b.t1 - b.t0).toBeGreaterThan(2 * (a.t1 - a.t0));
+  });
+});
+
+describe("studio for viewers", () => {
+  it("keeps one side of the board for the whole video", () => {
+    const scenes = [scene({ moves: "1. e4", camera: "white" }), scene({ moves: "1... e5", camera: "corner" })];
+    const white = make(scenes);
+    const black = { ...white, video: { ...white.video, perspective: "black" as const } };
+    const yaw = (p: StudioProject, t: number) => frameAt(compile(p), p, t)!.camera.yaw;
+    for (const t of [0.5, 5]) expect(yaw(black, t) - yaw(white, t)).toBeCloseTo(180);
+    // "weiss"/"schwarz" from the AI mean a side, relative to the video's perspective.
+    const r = importAiScript(JSON.stringify({ perspektive: "schwarz", szenen: [{ zug: "1. e4", kamera: "schwarz" }, { zug: "1... c5", kamera: "weiss", bewertung: "??" }] })).project!;
+    expect([r.video.perspective, r.scenes[0].camera, r.scenes[1].camera, r.scenes[1].badge]).toEqual(["black", "white", "black", "blunder"]);
+    expect(suggestPerspective(playMove(treeFromPgn("1. e4 e5 2. Lc4 Sc6 3. Dh5").tree, { line: "main", ply: 5 }, { from: "g7", to: "g6" })!.tree)).toBe("white");
+    const t = treeFromPgn("1. e4 e5 2. Lc4 Sc6 3. Dh5 Sf6").tree;
+    t.keyPly = 5;
+    expect(suggestPerspective(t)).toBe("black");
+  });
+
+  it("draws each poll answer as an arrow in its button's colour", () => {
+    const p = make([scene({ moves: "1. e4 e5 2. Lc4 Sc6 3. Dh5" }), scene({ card: "poll", options: ["A) Sf6", "B) g6", "C) Zauberzug"], countdown: 3, duration: 4 })]);
+    const tl = compile(p);
+    expect(tl.scenes[1].poll).toEqual([
+      { from: "g8", to: "f6", colour: POLL_COLOURS[0], letter: "A" },
+      { from: "g7", to: "g6", colour: POLL_COLOURS[1], letter: "B" },
+    ]);
+    const f = frameAt(tl, p, tl.scenes[1].start + 1.5)!;
+    expect(f.arrows.filter((a) => a.colour).map((a) => [a.to, a.alpha])).toEqual([
+      ["f6", 1],
+      ["g6", 1],
+    ]);
+    expect(f.pollMarks.map((m) => m.letter)).toEqual(["A", "B"]);
+  });
+
+  it("spells moves out, says whose move it is and lights the squares the subtitle names", () => {
+    const chess = new Chess();
+    expect(["Nf3", "e5", "Nxe5"].map((m) => plainMove(chess.move(m)))).toEqual(["Springer nach f3", "Bauer nach e5", "Springer schlägt auf e5"]);
+    expect(plainMove(new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").move("O-O"))).toBe("Kurze Rochade");
+    expect(plainMove(new Chess(parseMoves(START_FEN, "e4 e5 Lc4 Sc6 Dh5 Sf6").fen).move("Qxf7#"))).toBe("Dame schlägt auf f7, Matt");
+    const p = make([scene({ moves: "1. e4 e5 2. Sf3", text: "Der Springer greift *e5* an.", duration: 5 })]);
+    const tl = compile(p);
+    const end = frameAt(tl, p, tl.total - 0.4)!;
+    expect(end.pill).toMatchObject({ text: "2. Sf3", plain: "Springer nach f3", side: "w" });
+    expect(end.hints.map((h) => h.square)).toEqual(["e5"]);
+    // A piece in flight draws its path.
+    const st = tl.scenes[0].steps[0];
+    expect(frameAt(tl, p, (st.t0 + st.t1) / 2)!.arrows.some((a) => a.from === "e2" && a.to === "e4")).toBe(true);
+    // Old projects with annotation symbols keep their badge.
+    expect(normalizeProject({ scenes: [{ moves: "e4", badge: "!!" }] }).scenes[0].badge).toBe("brilliant");
   });
 });

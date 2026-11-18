@@ -18,6 +18,7 @@ import {
   type Environment,
   type Platform,
   type Scene,
+  type Side,
   type StudioArrow,
   type StudioMark,
   type StudioProject,
@@ -231,6 +232,8 @@ export interface Answers {
   ending: Ending;
   environment: Environment;
   script: string;
+  /** Side the board is seen from; "auto" = the side that plays the key move, else White. */
+  perspective: Side | "auto";
 }
 
 export const KIND_LABEL: Record<VideoKind, string> = { opening: "Eröffnung erklären", trap: "Falle oder Trick", puzzle: "Rätsel", game: "Partie-Moment" };
@@ -278,10 +281,11 @@ const VIBES: Record<Vibe, { theme: ThemeId; serif: boolean; tempo: number; orbit
 };
 
 export function defaultAnswers(kind: VideoKind = "opening"): Answers {
-  return { kind, platform: "tiktok", length: 30, vibe: "viral", level: "beginner", name: "", hook: "", poll: kind === "trap" || kind === "puzzle", ending: kind === "puzzle" ? "comment" : "follow", environment: "neon", script: "" };
+  return { kind, platform: "tiktok", length: 30, vibe: "viral", level: "beginner", name: "", hook: "", poll: kind === "trap" || kind === "puzzle", ending: kind === "puzzle" ? "comment" : "follow", environment: "neon", script: "", perspective: "auto" };
 }
 
-const CAMERAS: CameraPreset[] = ["corner", "white", "close", "side", "black", "low", "top"];
+// No view from the other side: one perspective for the whole video is easier to follow.
+const CAMERAS: CameraPreset[] = ["corner", "white", "close", "side", "low", "top"];
 
 interface Group {
   start: number;
@@ -324,6 +328,13 @@ function distractors(fen: string, right: string, count: number): string[] {
     .sort((a, b) => score(b) - score(a) || a.san.localeCompare(b.san))
     .slice(0, count)
     .map((m) => m.san);
+}
+
+/** The side the viewer should sit on: whoever plays the key move (the trap, the solution). */
+export function suggestPerspective(tree: GameTree): Side {
+  if (tree.keyPly < 0) return "white";
+  const whiteFirst = (tree.startFen.split(" ")[1] ?? "w") === "w";
+  return (tree.keyPly % 2 === 0) === whiteFirst ? "white" : "black";
 }
 
 /** Builds the whole video project from the played moves and the answers. */
@@ -410,7 +421,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           duration: fast ? 3.4 : 4.4,
           mood: "wow",
           effects: played.isCheckmate() ? ["mate"] : ["zoom", "confetti"],
-          badge: played.isCheckmate() ? "" : "!!",
+          badge: played.isCheckmate() ? "" : "brilliant",
         }),
       );
     } else {
@@ -443,7 +454,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           duration: (fast ? 2.2 : 3) + g.moves.length * (fast ? 0.9 : 1.2),
           mood: isKey ? "wow" : "think",
           effects: played.isCheckmate() ? ["mate"] : isKey ? ["zoom"] : arrows.some((x) => x.tone === "bad") && fast ? ["threat"] : [],
-          badge: isKey && !played.isCheckmate() ? "!" : "",
+          badge: isKey && !played.isCheckmate() ? "great" : "",
         }),
       );
       backToMain = false;
@@ -494,7 +505,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
     startFen,
     scenes,
     style,
-    video: { ...DEFAULT_VIDEO, platform: a.platform, format: a.platform === "youtube" ? "16:9" : "9:16", tempo: vibe.tempo },
+    video: { ...DEFAULT_VIDEO, perspective: a.perspective === "auto" ? suggestPerspective(tree) : a.perspective, platform: a.platform, format: a.platform === "youtube" ? "16:9" : "9:16", tempo: vibe.tempo },
     updatedAt: Date.now(),
   };
   const withScript = a.script.trim() ? distributeScript(project, a.script) : project;

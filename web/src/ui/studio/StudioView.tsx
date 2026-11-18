@@ -8,7 +8,7 @@ import { BRAND, FILE_PREFIX } from "../../brand";
 import { navigate } from "../router";
 import { MoveSounds } from "./audio";
 import {
-  BADGE_COLOUR,
+  BADGE_FILE,
   BADGE_LABEL,
   CAMERA_LABEL,
   CARD_LABEL,
@@ -39,6 +39,7 @@ import {
   type Material,
   type Mood,
   type Scene,
+  type Side,
   type StudioProject,
   type StudioStyle,
   type StudioVideo,
@@ -550,6 +551,7 @@ export function StudioView() {
               scene={scene}
               error={sceneError}
               lucena={project.video.lucena}
+              perspective={project.video.perspective}
               effective={current?.dur ?? scene.duration}
               tool={tool}
               tone={tone}
@@ -759,6 +761,7 @@ function SceneEditor({
   scene,
   error,
   lucena,
+  perspective,
   effective,
   tool,
   tone,
@@ -774,6 +777,7 @@ function SceneEditor({
   scene: Scene;
   error?: string;
   lucena: boolean;
+  perspective: Side;
   effective: number;
   tool: Tool;
   tone: Tone;
@@ -854,11 +858,11 @@ function SceneEditor({
         })}
       </div>
       {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
-      <Field label="Bewertung des Zugs" hint="Rundes Zeichen über dem Feld, auf dem der letzte Zug landet.">
+      <Field label="Bewertung des Zugs" hint={scene.badge ? `${BADGE_LABEL[scene.badge]}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.` : "Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs."}>
         <div class="studio-badges">
           {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
-            <button key={b || "none"} class={scene.badge === b ? "on" : ""} style={b ? { "--bc": BADGE_COLOUR[b] } : undefined} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]}>
-              {b || "–"}
+            <button key={b || "none"} class={scene.badge === b ? "on" : ""} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]} aria-label={BADGE_LABEL[b]}>
+              {b ? <img src={`${import.meta.env.BASE_URL}badges/${BADGE_FILE[b]}`} alt="" width={30} height={30} /> : "–"}
             </button>
           ))}
         </div>
@@ -866,6 +870,7 @@ function SceneEditor({
       <Slider label="Zugtempo dieser Szene" value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
 
       <h4 class="studio-sub">Kamera</h4>
+      <p class="studio-hint">Immer aus Sicht von {perspective === "black" ? "Schwarz" : "Weiß"}, änderbar unter „Video“.</p>
       <div class="studio-cams">
         {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
           <button key={c} class={scene.camera === c ? "on" : ""} onClick={() => onChange({ camera: c })}>
@@ -1022,6 +1027,16 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
   const v = project.video;
   return (
     <div class="studio-form">
+      <Field label="Sicht aufs Brett" hint="Gilt für alle Szenen: die Kameras drehen sich mit, so bleibt die Seite im ganzen Video gleich.">
+        <Seg<Side>
+          value={v.perspective}
+          options={[
+            ["white", "Weiß unten"],
+            ["black", "Schwarz unten"],
+          ]}
+          onChange={(perspective) => onVideo({ perspective })}
+        />
+      </Field>
       <Field label="Plattform" hint="Bestimmt die sichere Zone in der Vorschau und bei YouTube das Querformat.">
         <select
           class="studio-select"
@@ -1066,6 +1081,8 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
       <Toggle label="Webadresse" checked={v.watermark} onChange={(watermark) => onVideo({ watermark })} />
       <Toggle label="Lucena spricht die Untertitel" checked={v.lucena} onChange={(lucena) => onVideo({ lucena })} />
       <Toggle label="Zug-Anzeige (z. B. 3. Lb5)" checked={v.movePill} onChange={(movePill) => onVideo({ movePill })} />
+      {v.movePill && <Toggle label="Zug in Worten darunter („Weiß: Läufer nach b5“)" checked={v.plainMoves} onChange={(plainMoves) => onVideo({ plainMoves })} />}
+      <Toggle label="Felder aus dem Untertitel leuchten auf" checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
       <Toggle label="Letzten Zug hervorheben" checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
       <Toggle label="Fortschrittsbalken" checked={v.progress} onChange={(progress) => onVideo({ progress })} />
       <Toggle label="Kamerafahrt zum Start" checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />

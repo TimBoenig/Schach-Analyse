@@ -6,7 +6,6 @@
 import { Chess } from "chess.js";
 
 import {
-  BADGE_LABEL,
   CAMERA_LABEL,
   DEFAULT_VIDEO,
   EFFECT_LABEL,
@@ -28,6 +27,7 @@ import {
   type Mood,
   type Platform,
   type Scene,
+  type Side,
   type StudioArrow,
   type StudioMark,
   type StudioProject,
@@ -50,8 +50,8 @@ const word = (v: unknown): string =>
     .replace(/[^a-z0-9!?#]/g, "");
 
 const CAMERAS: Record<string, CameraPreset> = {
-  weiss: "white", weisssicht: "white", white: "white", normal: "white", standard: "white",
-  schwarz: "black", schwarzsicht: "black", black: "black",
+  normal: "white", standard: "white", eigeneseite: "white", hinten: "white",
+  gegenueber: "black", vongegenueber: "black", gegner: "black", gegnersicht: "black",
   oben: "top", vonoben: "top", top: "top", draufsicht: "top",
   schraeg: "corner", ecke: "corner", corner: "corner", diagonal: "corner",
   seitlich: "side", seite: "side", side: "side",
@@ -99,7 +99,18 @@ const ENVS: Record<string, Environment> = {
 const PLATFORMS: Record<string, Platform> = {
   tiktok: "tiktok", reels: "reels", instagram: "reels", instagramreels: "reels", shorts: "shorts", youtubeshorts: "shorts", youtube: "youtube", youtubequer: "youtube",
 };
-const BADGES = Object.keys(BADGE_LABEL).filter(Boolean) as Exclude<Badge, "">[];
+const BADGES: Record<string, Exclude<Badge, "">> = {
+  brillant: "brilliant", brilliant: "brilliant", "!!": "brilliant",
+  grossartig: "great", great: "great", greatfind: "great", "!": "great",
+  bester: "best", besterzug: "best", best: "best", stern: "best",
+  exzellent: "excellent", excellent: "excellent", "!?": "excellent",
+  gut: "good", good: "good",
+  buch: "book", buchzug: "book", book: "book", theorie: "book",
+  ungenau: "inaccuracy", ungenauigkeit: "inaccuracy", inaccuracy: "inaccuracy", "?!": "inaccuracy",
+  fehler: "mistake", mistake: "mistake", "?": "mistake",
+  verpasst: "miss", miss: "miss", verpasstergewinn: "miss",
+  patzer: "blunder", blunder: "blunder", "??": "blunder",
+};
 
 // ---------- the prompt ----------
 
@@ -117,49 +128,69 @@ export function buildAiPrompt(o: PromptOptions): string {
   const example = {
     titel: "Matt in 4 Zügen",
     plattform: o.platform,
-    laenge: 20,
+    laenge: 25,
+    perspektive: "weiss",
     look: "nova",
     umgebung: "buehne",
     szenen: [
-      { karte: "titel", titel: "Fällst du darauf rein?", untertitel: "Matt in *4 Zügen*", sprechtext: "Diese Falle kostet jeden Tag tausende Partien.", kamera: "weiss", dauer: 2.5 },
-      { zug: "1. e4 e5", titel: "Ganz normal", untertitel: "Beide besetzen das *Zentrum*.", kamera: "weiss", markierungen: ["e4 akzent", "e5 akzent"], dauer: 2.5 },
+      { karte: "titel", titel: "Fällst du darauf rein?", untertitel: "Matt in *4 Zügen*", sprechtext: "Auf diese Falle fallen viele Anfänger herein.", kamera: "normal", dauer: 2.5 },
+      { zug: "1. e4 e5", titel: "Ganz normal", untertitel: "Beide Bauern gehen ins *Zentrum*.", kamera: "normal", markierungen: ["e4 akzent", "e5 akzent"], dauer: 2.5 },
       { zug: "2. Lc4", titel: "Ziel: f7", untertitel: "Der Läufer zielt auf *f7*.", sprechtext: "Der Läufer schaut schon auf f7.", kamera: "schraeg", fokus: true, pfeile: ["c4-f7 gefahr"], effekte: ["drohung"], dauer: 2.5 },
       { zug: "2... Sc6 3. Dh5", titel: "Die Dame kommt", untertitel: "Zwei Angreifer auf *f7*.", kamera: "nah", pfeile: ["h5-f7 gefahr", "c4-f7 gefahr"], effekte: ["zoom"], dauer: 3 },
       { karte: "umfrage", titel: "Was spielt Schwarz?", antworten: ["A) Sf6", "B) g6", "C) De7"], countdown: 3 },
-      { zug: "3... Sf6", titel: "Der Fehler", kamera: "schwarz", bewertung: "??", stimmung: "traurig", dauer: 2 },
-      { zug: "4. Dxf7#", titel: "Schachmatt!", kamera: "tief", effekte: ["matt", "wackeln"], bewertung: "!!", zugtempo: 0.7 },
-      { variante: { zurueck: 2 }, kleineZeile: "Besser", zug: "3... g6", titel: "So verteidigst du", pfeile: ["g6-h5 gut"], kamera: "schraeg" },
-      { karte: "abspann", titel: "Folge für mehr Fallen", untertitel: "Teil 2 kommt morgen" },
+      { zug: "3... Sf6", titel: "Der Fehler", kamera: "seitlich", bewertung: "patzer", stimmung: "traurig", dauer: 2 },
+      { zug: "4. Dxf7#", titel: "Schachmatt!", kamera: "tief", effekte: ["matt", "wackeln"], zugtempo: 0.7 },
+      { variante: { zurueck: 2 }, kleineZeile: "Besser", zug: "3... g6", titel: "So verteidigst du", untertitel: "*g6* vertreibt die Dame.", pfeile: ["g6-h5 gut"], bewertung: "bester", kamera: "schraeg", effekte: ["spotlight"] },
+      { karte: "abspann", titel: "Folge für mehr Fallen", untertitel: "Teil 2 kommt morgen", effekte: ["konfetti"] },
     ],
   };
-  return `Du schreibst das komplette Drehbuch für ein kurzes Schach-Video, das ich in meinem 3D-Videostudio automatisch erstellen lasse. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
+  return `Du schreibst das komplette Drehbuch für ein kurzes Schach-Video, das mein 3D-Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
 
 MEIN VIDEO
 - Thema: ${o.topic.trim() || "(such dir ein spannendes Thema aus)"}
-- Plattform: ${PLATFORM_LABEL[o.platform]} (Hochformat${o.platform === "youtube" ? ", hier Querformat" : ""})
+- Plattform: ${PLATFORM_LABEL[o.platform]} (${o.platform === "youtube" ? "Querformat" : "Hochformat"})
 - Ziellänge: etwa ${o.length} Sekunden
 ${o.notes.trim() ? `- Das ist mir wichtig:\n${o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n")}\n` : ""}
-REGELN FÜR EIN GUTES VIDEO
+SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH
 1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.
-2. Kurze Untertitel (höchstens etwa 90 Zeichen). *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.
-3. Jede Szene kann einen eigenen Sprechtext haben: das, was ich im Video sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer).
-4. Willst du pro Zug eine eigene Kamera, einen eigenen Text oder eigene Pfeile, mach für jeden Zug eine eigene Szene.
-5. Die Summe aller "dauer"-Werte soll ungefähr die Ziellänge ergeben.
-6. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.
+2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten ("Der Springer greift e5 an") und nenne dabei das Feld. Felder, die im Untertitel stehen, leuchten auf dem Brett auf.
+3. Höchstens eine neue Idee pro Szene. Kurze Untertitel (höchstens etwa 90 Zeichen). *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.
+4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.
+5. Bleib bei EINER Sicht aufs Brett: "perspektive" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze "gegenueber" nur ganz selten.
+6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.
+7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller "dauer"-Werte soll ungefähr die Ziellänge ergeben.
+8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.
+
+WAS DAS STUDIO KANN (setz es gezielt ein, nicht in jeder Szene)
+Effekte ("effekte", mehrere möglich):
+- matt: Der König kippt um, eine rote Druckwelle läuft übers Brett, die Kamera fährt ran, großer Schriftzug SCHACHMATT, dumpfer Schlag. Nur in der Szene mit dem Mattzug.
+- drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).
+- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel. Für den einen Zug, auf den es ankommt.
+- wackeln: Die Kamera bebt, wenn die Figur aufsetzt. Für harte Schläge.
+- zoom: Schneller Zoom auf das Zielfeld.
+- blitz: Kurzer heller Blitz beim Zug. Für Überraschungen.
+- konfetti: Konfetti-Explosion. Für den Gewinnzug oder das Ende.
+- zeitlupe: Der letzte Zug der Szene läuft langsam. Für den Schlüsselzug.
+Bewertung des Zugs ("bewertung", das Symbol erscheint wie auf Analyse-Seiten über dem Zielfeld): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.
+Umfrage ("karte": "umfrage"): bis zu 3 Antworten als Züge, z. B. "A) Sf6". Jede Antwort bekommt auf dem Brett automatisch einen farbigen Pfeil (A blau, B orange, C lila) in derselben Farbe wie ihr Knopf, so verstehen es auch Zuschauer ohne Notation. Die Antworten müssen legale Züge in der aktuellen Stellung sein. Die nächste Szene zeigt die Auflösung.
+Frage mit Countdown ("karte": "frage"): Rätsel-Frage, dann tickt der Countdown herunter.
+Kameras ("kamera"): normal (hinter der eigenen Seite), schraeg, seitlich, oben (von oben, gut für Pläne), tief (tief und dramatisch), nah (nah dran), gegenueber (von der anderen Seite, selten). Dazu zoom (0.5 = nah, 1 = ganzes Brett), drehung (langsame Kamerafahrt in Grad pro Sekunde, z. B. 5 oder -5) und fokus (true = Kamera lehnt sich zum Zielfeld).
+Tempo: "zugtempo" pro Szene (0.4 langsam bis 2.5 schnell), oben "geschwindigkeit" für das ganze Video (0.5 bis 2.5).
+Lucena: eine KI-Kugel neben den Untertiteln mit "stimmung": froehlich, nachdenklich, begeistert, traurig.
+Looks ("look"): ${Object.keys(THEMES).join(", ")}. Umgebungen ("umgebung"): schwebend, buehne, holztisch, neon, turniersaal, bibliothek.
 
 SCHACH-REGELN (sehr wichtig)
 - Nur legale Züge in der richtigen Reihenfolge. Prüfe jeden Zug, bevor du ihn schreibst.
-- Züge in Standard-Notation, deutsch (S, L, T, D, K) oder englisch (N, B, R, Q, K), z. B. "1. e4 e5 2. Sf3" oder "3... a6".
-- Eine Szene kann einen oder mehrere Züge haben ("zug"). Die Züge gehen immer in der Stellung weiter, in der die vorige Szene aufgehört hat.
-- Variante zeigen: "variante": { "zurueck": n } geht vorher n Halbzüge zurück (1 Halbzug = ein Zug von Weiß oder Schwarz) und spielt dann die Züge dieser Szene.
-- Zurück zur Hauptvariante: "hauptvariante": true in der nächsten Szene springt zur Stellung, bevor die Variante begann.
+- Standard-Notation, deutsch (S, L, T, D, K) oder englisch (N, B, R, Q, K), z. B. "1. e4 e5 2. Sf3" oder "3... a6".
+- Eine Szene kann einen oder mehrere Züge haben ("zug"). Die Züge gehen in der Stellung weiter, in der die vorige Szene aufgehört hat.
+- Variante: "variante": { "zurueck": n } geht vorher n Halbzüge zurück (1 Halbzug = ein Zug von Weiß oder Schwarz) und spielt dann die Züge dieser Szene.
+- Zurück zur Hauptvariante: "hauptvariante": true springt zur Stellung, bevor die Variante begann.
 - Eine besondere Startstellung (Rätsel, Endspiel) gibst du als "startstellung" (FEN) an.
 
-FELDER
-Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), geschwindigkeit (Gesamttempo 0.5 bis 2.5, 1 = normal), zugtempo (wie schnell die Figuren ziehen, 0.4 bis 2.5), look (${Object.keys(THEMES).join(", ")}), umgebung (schwebend, buehne, holztisch, neon, turniersaal, bibliothek), startstellung, einstellungen { lucena: true/false (KI-Kugel neben den Untertiteln), ton, zuganzeige, fortschritt, koordinaten, kameraflug }.
-Szene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (kleine Zeile über dem Titel, z. B. "Variante 1"), dauer (Sekunden), kamera (weiss, schwarz, oben, schraeg, seitlich, tief, nah), zoom (0.5 = nah, 1 = ganzes Brett), drehung (langsame Kamerafahrt, Grad pro Sekunde, z. B. 5 oder -5), fokus (true = Kamera lehnt sich zum Zielfeld), pfeile (z. B. "f3-e5 gefahr"), markierungen (z. B. "e5 gut"), effekte, bewertung (${BADGES.join(", ")}), zugtempo (nur diese Szene), stimmung (froehlich, nachdenklich, begeistert, traurig), countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage, z. B. "A) Lb5"), variante, hauptvariante.
+ALLE FELDER
+Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, startstellung, einstellungen { lucena, ton, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug } (jeweils true oder false).
+Szene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (z. B. "Variante 1"), dauer, kamera, zoom, drehung, fokus, pfeile (z. B. "f3-e5 gefahr"), markierungen (z. B. "e5 gut"), effekte, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.
 Farben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.
-Effekte: matt (König kippt um, nur bei Schachmatt), drohung (bedrohte Felder pulsieren rot), spotlight (alles außer dem Zielfeld wird dunkel), wackeln (Kamera bebt beim Zug), zoom (schneller Zoom aufs Feld), blitz (heller Blitz), konfetti (für starke Züge und Siege), zeitlupe (der letzte Zug der Szene in Zeitlupe). Setz Effekte gezielt ein, nicht in jeder Szene.
 
 BEISPIEL (nur für das Format, schreib dein eigenes Video):
 \`\`\`json
@@ -275,6 +306,8 @@ export function importAiScript(input: string): AiImport {
     else warnings.push("Die Startstellung (FEN) ist ungültig, ich nehme die Grundstellung.");
   }
 
+  const perspective: Side = ["schwarz", "black", "s", "b"].includes(word(field(root, "perspektive", "perspective", "sicht", "seite"))) ? "black" : "white";
+
   // The positions along the line being shown; variations cut it back, the main line is kept aside.
   let line: string[] = [startFen];
   let mainLine: string[] | null = null;
@@ -330,8 +363,10 @@ export function importAiScript(input: string): AiImport {
     const card = cardWord ? CARDS[cardWord] : "none";
     if (cardWord && !card) warnings.push(`Szene ${n}: Karte „${String(field(o, "karte", "card", "typ", "type"))}“ kenne ich nicht.`);
     const camWord = word(field(o, "kamera", "camera", "perspektive"));
-    const camera = CAMERAS[camWord] ?? (card === "outro" ? "corner" : "white");
-    if (camWord && !CAMERAS[camWord]) warnings.push(`Szene ${n}: Kamera „${String(field(o, "kamera", "camera"))}“ kenne ich nicht, ich nehme ${CAMERA_LABEL[camera]}.`);
+    // "weiss"/"schwarz" mean a side: the video's own side is the normal view, the other one is "von gegenüber".
+    const sideCam = camWord === "weiss" || camWord === "white" || camWord === "weisssicht" ? (perspective === "white" ? "white" : "black") : camWord === "schwarz" || camWord === "black" || camWord === "schwarzsicht" ? (perspective === "black" ? "white" : "black") : null;
+    const camera = sideCam ?? CAMERAS[camWord] ?? (card === "outro" ? "corner" : "white");
+    if (camWord && !sideCam && !CAMERAS[camWord]) warnings.push(`Szene ${n}: Kamera „${String(field(o, "kamera", "camera"))}“ kenne ich nicht, ich nehme ${CAMERA_LABEL[camera]}.`);
 
     const effectsRaw = field(o, "effekte", "effects", "effekt");
     const effects: Effect[] = [];
@@ -343,8 +378,8 @@ export function importAiScript(input: string): AiImport {
     // A mate on the board gets its animation even when the AI forgot it.
     if (effectsRaw === undefined && parsed.moves.length && walk.isCheckmate()) effects.push("mate");
 
-    const badgeRaw = text(field(o, "bewertung", "badge", "symbol"), 4);
-    const badge = (BADGES as string[]).includes(badgeRaw) ? (badgeRaw as Badge) : "";
+    const badgeRaw = text(field(o, "bewertung", "badge", "symbol"), 30);
+    const badge: Badge = BADGES[badgeRaw] ?? BADGES[word(badgeRaw)] ?? "";
     if (badgeRaw && !badge) warnings.push(`Szene ${n}: Bewertung „${badgeRaw}“ gibt es nicht.`);
 
     const arrows = asList(field(o, "pfeile", "arrows", "pfeil")).map(arrowOf);
@@ -399,10 +434,13 @@ export function importAiScript(input: string): AiImport {
     name: text(field(root, "titel", "title", "name"), 80) || "KI-Video",
     startFen,
     scenes,
-    style: styleFromTheme(theme, { environment, coords: setting(false, "koordinaten", "coords") }),
+    style: styleFromTheme(theme, { environment, coords: setting(true, "koordinaten", "coords") }),
     video: {
       ...DEFAULT_VIDEO,
       format: platform === "youtube" ? "16:9" : "9:16",
+      perspective,
+      plainMoves: setting(true, "zuginworten", "plainmoves"),
+      squareHints: setting(true, "felderleuchten", "squarehints"),
       platform,
       speed: speed ?? 1,
       tempo: tempo ?? 1,
@@ -431,6 +469,7 @@ export function toAiScript(project: StudioProject): string {
   const out = {
     titel: project.name,
     plattform: project.video.platform,
+    perspektive: project.video.perspective === "black" ? "schwarz" : "weiss",
     geschwindigkeit: project.video.speed,
     zugtempo: project.video.tempo,
     look: project.style.theme,
@@ -452,7 +491,7 @@ export function toAiScript(project: StudioProject): string {
       ...(s.arrows.length ? { pfeile: s.arrows.map((a) => `${a.from}-${a.to} ${TONE_WORD[a.tone]}`) } : {}),
       ...(s.marks.length ? { markierungen: s.marks.map((m) => `${m.square} ${TONE_WORD[m.tone]}`) } : {}),
       ...(s.effects.length ? { effekte: s.effects.map((e) => rev(EFFECTS, e)) } : {}),
-      ...(s.badge ? { bewertung: s.badge } : {}),
+      ...(s.badge ? { bewertung: rev(BADGES, s.badge) } : {}),
       ...(s.tempo !== 1 ? { zugtempo: s.tempo } : {}),
       ...(s.options.length ? { antworten: s.options } : {}),
       ...(s.countdown ? { countdown: s.countdown } : {}),

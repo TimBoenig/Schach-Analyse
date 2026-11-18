@@ -17,8 +17,10 @@ export type Environment = "void" | "podium" | "table" | "neon" | "hall" | "libra
 export type Platform = "tiktok" | "reels" | "shorts" | "youtube";
 /** Show effects that start when the scene's moves have landed. */
 export type Effect = "mate" | "threat" | "spotlight" | "shake" | "zoom" | "flash" | "confetti" | "slowmo";
-/** Move rating shown as a round badge on the square the last move landed on. */
-export type Badge = "" | "!!" | "!" | "!?" | "?!" | "?" | "??";
+/** Move rating shown as the analysis page's round badge on the square the last move landed on. */
+export type Badge = "" | "brilliant" | "great" | "best" | "excellent" | "good" | "book" | "inaccuracy" | "mistake" | "miss" | "blunder";
+/** The side the whole video is watched from; camera presets are relative to it. */
+export type Side = "white" | "black";
 
 export interface StudioArrow {
   from: string;
@@ -90,6 +92,12 @@ export type Format = "9:16" | "1:1" | "16:9";
 
 export interface StudioVideo {
   format: Format;
+  /** Whose side the board is seen from in every scene. */
+  perspective: Side;
+  /** Moves spelled out under the notation ("Springer nach f3") for viewers who don't read notation. */
+  plainMoves: boolean;
+  /** Squares named in the subtitle light up softly. */
+  squareHints: boolean;
   fps: 30 | 60;
   /** Speed of the piece moves, 1 = normal. */
   tempo: number;
@@ -137,8 +145,8 @@ export function toneColor(tone: Tone, style: StudioStyle): string {
 }
 
 export const CAMERA_LABEL: Record<CameraPreset, string> = {
-  white: "Weiß-Sicht",
-  black: "Schwarz-Sicht",
+  white: "Normal",
+  black: "Von gegenüber",
   top: "Von oben",
   corner: "Schräg",
   side: "Seitlich",
@@ -158,18 +166,49 @@ export const EFFECT_LABEL: Record<Effect, { label: string; hint: string }> = {
   confetti: { label: "Konfetti", hint: "Konfetti für starke Züge und Siege" },
   slowmo: { label: "Zeitlupe", hint: "Der letzte Zug der Szene läuft langsam" },
 };
-export const BADGE_LABEL: Record<Badge, string> = { "": "Keine", "!!": "!! Brillant", "!": "! Stark", "!?": "!? Interessant", "?!": "?! Ungenau", "?": "? Fehler", "??": "?? Patzer" };
-export const BADGE_COLOUR: Record<Exclude<Badge, "">, string> = { "!!": "#26c9c3", "!": "#5b8cff", "!?": "#b07cff", "?!": "#ffb84d", "?": "#ff8a3d", "??": "#ff4d5e" };
+export const BADGE_LABEL: Record<Badge, string> = {
+  "": "Keine",
+  brilliant: "Brillant",
+  great: "Großartig",
+  best: "Bester Zug",
+  excellent: "Exzellent",
+  good: "Gut",
+  book: "Buchzug",
+  inaccuracy: "Ungenauigkeit",
+  mistake: "Fehler",
+  miss: "Verpasst",
+  blunder: "Patzer",
+};
+/** The analysis page's badge files (public/badges), so videos show the same symbols as the site. */
+export const BADGE_FILE: Record<Exclude<Badge, "">, string> = {
+  brilliant: "brilliant.svg",
+  great: "great_find.svg",
+  best: "best_v2.svg",
+  excellent: "excellent.svg",
+  good: "good.svg",
+  book: "book.svg",
+  inaccuracy: "inaccuracy.svg",
+  mistake: "mistake.svg",
+  miss: "missed_win.svg",
+  blunder: "blunder.svg",
+};
+/** Old projects stored annotation symbols. */
+export const BADGE_FROM_SYMBOL: Record<string, Exclude<Badge, "">> = { "!!": "brilliant", "!": "great", "!?": "good", "?!": "inaccuracy", "?": "mistake", "??": "blunder" };
+/** Colours of the three poll answers: arrows on the board and the answer buttons match. */
+export const POLL_COLOURS = ["#4da3ff", "#ffb84d", "#c77dff"] as const;
 export const MOOD_LABEL: Record<Mood, string> = { happy: "Fröhlich", think: "Nachdenklich", wow: "Begeistert", sad: "Traurig" };
 export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
 
 export function styleFromTheme(theme: ThemeId, keep?: Partial<StudioStyle>): StudioStyle {
   const { label: _label, ...colours } = THEMES[theme];
-  return { reflection: true, coords: false, titleFont: "sans", environment: "podium", ...keep, ...colours, theme };
+  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", ...keep, ...colours, theme };
 }
 
 export const DEFAULT_VIDEO: StudioVideo = {
   format: "9:16",
+  perspective: "white",
+  plainMoves: true,
+  squareHints: true,
   fps: 30,
   tempo: 1,
   speed: 1,
@@ -325,6 +364,9 @@ export function normalizeProject(raw: unknown): StudioProject {
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {
     format: pick(vi.format, ["9:16", "1:1", "16:9"] as const, "9:16"),
+    perspective: vi.perspective === "black" ? "black" : "white",
+    plainMoves: bool(vi.plainMoves, true),
+    squareHints: bool(vi.squareHints, true),
     fps: vi.fps === 60 ? 60 : 30,
     tempo: num(vi.tempo, 0.4, 2.5, 1),
     speed: num(vi.speed, 0.5, 2.5, 1),
@@ -369,7 +411,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       countdown: num(s.countdown, 0, 10, 0),
       mood: pick(s.mood, ["happy", "think", "wow", "sad"] as const, "happy"),
       effects: [...new Set((Array.isArray(s.effects) ? s.effects : []).filter((e): e is Effect => typeof e === "string" && e in EFFECT_LABEL))],
-      badge: pick(s.badge, Object.keys(BADGE_LABEL) as Badge[], ""),
+      badge: BADGE_FROM_SYMBOL[String(s.badge)] ?? pick(s.badge, Object.keys(BADGE_LABEL) as Badge[], ""),
       speech: str(s.speech, "", 1200),
       tempo: num(s.tempo, 0.3, 3, 1),
     });
@@ -411,7 +453,7 @@ export function spanishTemplate(): StudioProject {
     scene({ moves: "2... Sc6", title: "Druck auf e5", text: "Schwarz *deckt* e5 mit dem Springer.", duration: 3.6, camera: "corner", arrows: [{ from: "c6", to: "e5", tone: "good" }] }),
     scene({ moves: "3. Lb5", title: "Das ist der Spanier!", text: "Der Läufer greift den *Verteidiger* von e5 an.", duration: 4.4, camera: "close", focus: true, arrows: [{ from: "b5", to: "c6", tone: "bad" }, { from: "c6", to: "e5", tone: "idea" }], marks: [{ square: "c6", tone: "bad" }], mood: "wow", effects: ["zoom"] }),
     scene({ title: "Die Idee dahinter", text: "Fällt der Springer auf c6, wackelt e5. Weiß macht *langfristig Druck*.", duration: 4.6, camera: "top", arrows: [{ from: "b5", to: "c6", tone: "bad" }, { from: "f3", to: "e5", tone: "bad" }], marks: [{ square: "e5", tone: "bad" }], mood: "think" }),
-    scene({ moves: "3... a6", title: "Morphy-Verteidigung", text: "Schwarz stellt den Läufer *sofort zur Rede*.", duration: 3.8, camera: "black", focus: true, arrows: [{ from: "a6", to: "b5", tone: "bad" }] }),
+    scene({ moves: "3... a6", title: "Morphy-Verteidigung", text: "Schwarz stellt den Läufer *sofort zur Rede*.", duration: 3.8, camera: "corner", focus: true, arrows: [{ from: "a6", to: "b5", tone: "bad" }] }),
     scene({ moves: "4. La4 Sf6", title: "Weiter im Plan", text: "Der Läufer bleibt auf der Diagonale, Schwarz greift *e4* an.", duration: 4.4, camera: "corner", arrows: [{ from: "a4", to: "c6", tone: "accent" }, { from: "f6", to: "e4", tone: "bad" }] }),
     scene({ moves: "5. O-O", title: "König in Sicherheit", text: "Nimmt Schwarz auf e4, holt sich Weiß den Bauern mit *d4 und Te1* zurück.", duration: 4.8, camera: "low", orbit: -5, mood: "happy" }),
     outro(),
@@ -424,10 +466,10 @@ export function scholarTemplate(): StudioProject {
     scene({ card: "intro", title: "Matt in 4 Zügen", text: "Die Falle, auf die fast jeder reinfällt", duration: 3.4, camera: "white", orbit: 5, mood: "wow" }),
     scene({ moves: "1. e4 e5 2. Lc4", title: "Ganz harmlos?", text: "Der Läufer zielt schon auf *f7*, den schwächsten Punkt.", duration: 4.2, camera: "corner", arrows: [{ from: "c4", to: "f7", tone: "bad" }], marks: [{ square: "f7", tone: "bad" }], mood: "think" }),
     scene({ moves: "2... Sc6 3. Dh5", title: "Die Dame kommt", text: "Zwei Angreifer auf *f7*, nur der König deckt.", duration: 4.2, camera: "close", focus: true, effects: ["threat"], arrows: [{ from: "h5", to: "f7", tone: "bad" }, { from: "c4", to: "f7", tone: "bad" }] }),
-    scene({ moves: "3... Sf6??", title: "Der Fehler", text: "Schwarz greift die Dame an und *übersieht* das Matt.", duration: 3.6, camera: "black", arrows: [{ from: "f6", to: "h5", tone: "idea" }], mood: "sad", badge: "??" }),
+    scene({ moves: "3... Sf6??", title: "Der Fehler", text: "Schwarz greift die Dame an und *übersieht* das Matt.", duration: 3.6, camera: "corner", arrows: [{ from: "f6", to: "h5", tone: "idea" }], mood: "sad", badge: "blunder" }),
     scene({ moves: "4. Dxf7#", title: "Schachmatt!", text: "Gedeckt vom Läufer kann der König die Dame *nicht schlagen*.", duration: 4.2, camera: "low", orbit: 8, focus: true, mood: "wow", effects: ["mate", "shake"] }),
     scene({ fen: afterQh5, moves: "3... g6", title: "So verteidigst du", text: "*g6* vertreibt die Dame, bevor sie zuschlagen kann.", duration: 4.4, camera: "corner", arrows: [{ from: "g6", to: "h5", tone: "good" }], mood: "happy" }),
-    scene({ fen: afterQh5, moves: "3... De7", title: "Oder ganz solide", text: "*De7* deckt f7 und e5 auf einmal.", duration: 4, camera: "black", arrows: [{ from: "e7", to: "f7", tone: "good" }, { from: "e7", to: "e5", tone: "good" }], mood: "think" }),
+    scene({ fen: afterQh5, moves: "3... De7", title: "Oder ganz solide", text: "*De7* deckt f7 und e5 auf einmal.", duration: 4, camera: "side", arrows: [{ from: "e7", to: "f7", tone: "good" }, { from: "e7", to: "e5", tone: "good" }], mood: "think" }),
     outro({ title: "Fällst du auf Fallen rein?" }),
   ]);
 }
@@ -453,7 +495,7 @@ export function blankProject(): StudioProject {
 export function fromMoves(name: string, text: string, startFen = START_FEN, pairs = true): { project: StudioProject; error?: string } {
   const parsed = parseMoves(startFen, text);
   const scenes: Scene[] = [scene({ card: "intro", title: name || "Neue Eröffnung", text: "Einfach erklärt", duration: 3.4, orbit: 4 })];
-  const cams: CameraPreset[] = ["white", "corner", "close", "black", "side", "top"];
+  const cams: CameraPreset[] = ["white", "corner", "close", "side", "top"];
   const fullmove = Number(startFen.split(" ")[5]) || 1;
   const whiteFirst = (startFen.split(" ")[1] ?? "w") === "w";
   let i = 0;
