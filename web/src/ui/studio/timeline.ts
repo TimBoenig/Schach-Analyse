@@ -97,8 +97,8 @@ export const CAMERAS: Record<CameraPreset, CameraState> = {
   top: { yaw: 0, pitch: 88, zoom: 1.02, tx: 0, tz: 0 },
   corner: { yaw: 38, pitch: 44, zoom: 0.98, tx: 0, tz: 0 },
   side: { yaw: 50, pitch: 42, zoom: 1, tx: 0, tz: 0 },
-  low: { yaw: -24, pitch: 20, zoom: 0.82, tx: 0, tz: 0.4 },
-  close: { yaw: 12, pitch: 52, zoom: 0.8, tx: 0, tz: 0 },
+  low: { yaw: -24, pitch: 22, zoom: 0.96, tx: 0, tz: 0.4 },
+  close: { yaw: 12, pitch: 52, zoom: 0.95, tx: 0, tz: 0 },
 };
 
 export interface FramePiece {
@@ -367,13 +367,13 @@ function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraStat
     const [fx, fz] = squareXZ(c.focus);
     tx += fx * 0.4;
     tz += fz * 0.4;
-    zoom *= 0.88;
+    zoom *= 0.94;
   }
   return { yaw: holdSide(base.yaw + s.orbit * local, flip, s.camera === "black"), pitch: base.pitch, zoom, tx, tz };
 }
 
 /** Largest turn away from the video's own side. Beyond this viewers lose track of who plays up the board. */
-export const MAX_SIDE_TURN = 45;
+export const MAX_SIDE_TURN = 40;
 
 /** Keeps the camera on the video's side unless the scene explicitly asks for the opposite view. */
 export function holdSide(yaw: number, flip: boolean, opposite: boolean): number {

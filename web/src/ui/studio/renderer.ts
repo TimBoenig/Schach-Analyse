@@ -116,15 +116,18 @@ interface GpuMesh {
 export const FOV_Y = (44 * Math.PI) / 180;
 
 /** Camera distance at zoom 1, so the whole board fits even in a tall, narrow video. */
-export function fitDistance(aspect: number): number {
+export function fitDistance(aspect: number, yaw = 0): number {
   const fovX = 2 * Math.atan(Math.tan(FOV_Y / 2) * aspect);
-  return 5.0 / Math.tan(Math.min(fovX, FOV_Y) / 2);
+  // A board turned towards its corner is wider on screen (half the side times |cos|+|sin|), so back off with the turn.
+  const a = (((yaw % 90) + 90) % 90) * (Math.PI / 180);
+  const radius = 4.1 * (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))) + 0.9;
+  return radius / Math.tan(Math.min(fovX, FOV_Y) / 2);
 }
 
 export function cameraMatrix(cam: CameraState, aspect: number): { viewProj: Mat4; eye: V3 } {
   const pitch = (Math.min(89, Math.max(5, cam.pitch)) * Math.PI) / 180;
   const yaw = (cam.yaw * Math.PI) / 180;
-  const dist = fitDistance(aspect) * cam.zoom;
+  const dist = fitDistance(aspect, cam.yaw) * cam.zoom;
   const target: V3 = [cam.tx, 0, cam.tz];
   const eye: V3 = [target[0] + Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, target[2] + Math.cos(yaw) * Math.cos(pitch) * dist];
   // In a tall video the board sits a little lower, leaving room for the headline.

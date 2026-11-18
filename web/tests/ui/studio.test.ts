@@ -444,7 +444,7 @@ describe("studio perspective and sound", () => {
       const off = ((((yaw - 180) % 360) + 540) % 360) - 180;
       expect(Math.abs(off)).toBeLessThanOrEqual(MAX_SIDE_TURN + 0.01);
     }
-    expect(holdSide(170, true, true)).toBe(45);
+    expect(holdSide(170, true, true)).toBe(40);
     expect(holdSide(10, false, false)).toBe(10);
   });
 
@@ -466,5 +466,13 @@ describe("studio perspective and sound", () => {
     expect(duckedVolume(0.6, true)).toBeLessThan(0.6);
     expect(duckedVolume(0.6, false)).toBe(0.6);
     expect(normalizeProject({ video: { music: "bogus", musicVolume: 7 } }).video).toMatchObject({ music: "lofi", musicVolume: 1, voice: false });
+  });
+});
+
+describe("studio framing", () => {
+  it("backs the camera off when the board is turned, so no corner is cut", async () => {
+    const { fitDistance } = await import("../../src/ui/studio/renderer");
+    expect(fitDistance(0.56, 45)).toBeGreaterThan(fitDistance(0.56, 0) * 1.1);
+    expect(fitDistance(0.56, 180)).toBeCloseTo(fitDistance(0.56, 0));
   });
 });
