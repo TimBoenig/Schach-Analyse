@@ -3,7 +3,15 @@
 // Sizes are in "units" of a 1080-pixel-wide video, so every format scales.
 import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { toScreen, type Mat4 } from "./math3d";
-import type { StudioProject } from "./model";
+import { PLATFORM_LABEL, type Platform, type StudioProject } from "./model";
+
+/** Areas the apps cover with their own buttons and captions, in units of a 1080 x 1920 video. */
+const SAFE: Record<Platform, { top: number; bottom: number; right: number }> = {
+  tiktok: { top: 130, bottom: 380, right: 140 },
+  reels: { top: 110, bottom: 420, right: 130 },
+  shorts: { top: 120, bottom: 360, right: 130 },
+  youtube: { top: 0, bottom: 0, right: 0 },
+};
 import type { Frame } from "./timeline";
 
 export interface Assets {
@@ -266,7 +274,25 @@ export function compose(
   const titleScale = st.titleFont === "serif" ? 1.2 : 1;
   const textAlphaBase = card.kind === "none" ? 1 : 1 - cardA;
 
-  // ---- headline
+  // ---- kicker ("Variante 2") and headline
+  if (frame.label && textAlphaBase > 0.01) {
+    const k = easeOut(frame.title.age / 0.4);
+    ctx.save();
+    ctx.globalAlpha = frame.title.alpha * textAlphaBase * k;
+    ctx.font = `700 ${28 * u}px ${SANS}`;
+    const text = frame.label.toUpperCase();
+    const w = ctx.measureText(text).width + 40 * u;
+    const h = 50 * u;
+    const y = L.titleTop - 64 * u;
+    roundRect(ctx, W / 2 - w / 2, y, w, h, h / 2);
+    ctx.fillStyle = st.accent;
+    ctx.fill();
+    ctx.fillStyle = "#0a0c11";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, W / 2, y + h / 2 + 1 * u);
+    ctx.restore();
+  }
   if (textAlphaBase > 0.01) {
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.5)";
@@ -411,10 +437,11 @@ export function compose(
     ctx.strokeStyle = "rgba(255,120,120,0.7)";
     ctx.setLineDash([12 * u, 10 * u]);
     ctx.lineWidth = 2 * u;
+    const z = SAFE[v.platform] ?? SAFE.tiktok;
     const zones: [number, number, number, number][] = [
-      [0, 0, W, 130 * u],
-      [0, H - 380 * u, W, 380 * u],
-      [W - 140 * u, H * 0.42, 140 * u, H * 0.58 - 380 * u],
+      [0, 0, W, z.top * u],
+      [0, H - z.bottom * u, W, z.bottom * u],
+      [W - z.right * u, H * 0.42, z.right * u, H * 0.58 - z.bottom * u],
     ];
     for (const [x, y, w, h] of zones) {
       ctx.fillRect(x, y, w, h);
@@ -425,7 +452,7 @@ export function compose(
     ctx.font = `600 ${24 * u}px ${SANS}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("Hier liegen die Knöpfe von TikTok und Reels", W / 2, H - 190 * u);
+    ctx.fillText(`Hier liegen die Knöpfe von ${PLATFORM_LABEL[v.platform]}`, W / 2, H - z.bottom * u / 2);
     ctx.restore();
   }
 }
@@ -464,6 +491,76 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
     const h = animatedText(ctx, frame.title.text, { cx, top: top + 30 * u, max: L.textMax, size: 112 * u * serifScale, font: titleFont, weight: titleWeight, color: "#ffffff", accent: st.accent, age: age - 0.15, alpha: a, line: 1.02, u, maxLines: 3 });
     animatedText(ctx, frame.text.text, { cx, top: top + 60 * u + h, max: L.textMax, size: 46 * u, font: SANS, weight: 500, color: "rgba(235,238,248,0.88)", accent: st.accent, age: age - 0.5, alpha: a, u, maxLines: 2 });
     ctx.restore();
+    return;
+  }
+  if (frame.card.kind === "poll") {
+    const top = L.portrait ? H * 0.15 : H * 0.1;
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 30 * u;
+    const h = animatedText(ctx, frame.title.text, { cx, top, max: L.textMax, size: 78 * u * serifScale, font: titleFont, weight: titleWeight, color: "#ffffff", accent: st.accent, age, alpha: a, u, maxLines: 2 });
+    ctx.restore();
+    const opts = frame.scene.options;
+    const bw = Math.min(L.textMax, 760 * u);
+    const bh = 104 * u;
+    const gap = 22 * u;
+    const startY = L.portrait ? H * 0.6 : top + h + 60 * u;
+    opts.forEach((o, i) => {
+      const k = backOut((age - 0.35 - i * 0.12) / 0.5);
+      if (k <= 0) return;
+      const y = startY + i * (bh + gap);
+      ctx.save();
+      ctx.globalAlpha = a * Math.min(1, k);
+      ctx.translate(cx, y + bh / 2);
+      ctx.scale(0.85 + 0.15 * k, 0.85 + 0.15 * k);
+      roundRect(ctx, -bw / 2, -bh / 2, bw, bh, 26 * u);
+      ctx.fillStyle = "rgba(10,12,18,0.82)";
+      ctx.fill();
+      ctx.lineWidth = 3 * u;
+      ctx.strokeStyle = rgba(st.accent, 0.85);
+      ctx.stroke();
+      const [letter, ...rest] = o.split(")");
+      const bubble = 64 * u;
+      ctx.beginPath();
+      ctx.arc(-bw / 2 + 24 * u + bubble / 2, 0, bubble / 2, 0, Math.PI * 2);
+      ctx.fillStyle = st.accent;
+      ctx.fill();
+      ctx.fillStyle = "#0a0c11";
+      ctx.font = `800 ${36 * u}px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(rest.length ? letter.trim() : String.fromCharCode(65 + i), -bw / 2 + 24 * u + bubble / 2, 2 * u);
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `700 ${46 * u}px ${SANS}`;
+      ctx.textAlign = "left";
+      ctx.fillText((rest.length ? rest.join(")") : o).trim(), -bw / 2 + 48 * u + bubble, 2 * u);
+      ctx.restore();
+    });
+    const after = startY + opts.length * (bh + gap);
+    animatedText(ctx, frame.text.text, { cx, top: after + 4 * u, max: L.textMax, size: 38 * u, font: SANS, weight: 600, color: "rgba(235,238,248,0.85)", accent: st.accent, age: age - 0.8, alpha: a, u, maxLines: 2 });
+    if (frame.countdown !== null && frame.countdown > 0) {
+      const total = frame.scene.countdown;
+      const R = 54 * u;
+      const ccy = startY - R - 40 * u;
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(cx, ccy, R, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(8,10,16,0.75)";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx, ccy, R, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * frame.countdown) / total);
+      ctx.strokeStyle = st.accent;
+      ctx.lineWidth = 8 * u;
+      ctx.lineCap = "round";
+      ctx.stroke();
+      ctx.fillStyle = "#ffffff";
+      ctx.font = `800 ${60 * u}px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(Math.ceil(frame.countdown)), cx, ccy + 3 * u);
+      ctx.restore();
+    }
     return;
   }
   if (frame.card.kind === "question") {

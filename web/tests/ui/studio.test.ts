@@ -22,6 +22,8 @@ import { pieceMesh, triangulate } from "../../src/ui/studio/pieces";
 import { arrowMesh } from "../../src/ui/studio/renderer";
 import { compile, frameAt, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
 import { parseHash, toHash } from "../../src/ui/router";
+import { environment } from "../../src/ui/studio/environments";
+import { buildProject, defaultAnswers, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
 const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProject => ({
   id: "p",
@@ -174,5 +176,104 @@ describe("studio captions", () => {
       { word: ".", emph: false, glue: true },
       { word: "Ende", emph: false, glue: false },
     ]);
+  });
+});
+
+describe("studio assistant", () => {
+  const trap = () => treeFromPgn("1. e4 e5 2. Lc4 Sc6 3. Dh5 Sf6 4. Dxf7#").tree;
+  const legalEverywhere = (p: StudioProject) => expect(() => scenePositions(p)).not.toThrow();
+
+  it("turns a different move on the board into a variation and back-steps out of it", () => {
+    const t = trap();
+    const r = playMove(t, { line: "main", ply: 5 }, { from: "g7", to: "g6" })!;
+    expect(r.tree.main).toHaveLength(7);
+    expect(r.tree.variations).toEqual([{ from: 5, moves: ["g6"] }]);
+    expect(r.cursor).toEqual({ line: 0, ply: 1 });
+    // The main-line move again just steps forward instead of branching.
+    expect(playMove(t, { line: "main", ply: 5 }, { from: "g8", to: "f6" })!.tree.variations).toEqual([]);
+    expect(playMove(t, { line: "main", ply: 5 }, { from: "a2", to: "a4" })).toBeNull();
+    const back = takeBack(r.tree, r.cursor);
+    expect(back.tree.variations).toEqual([]);
+    expect(fenAt(back.tree, back.cursor)).toBe(fenAt(t, { line: "main", ply: 5 }));
+  });
+
+  it("builds a trap video with a poll before the key move, a variation and a jump back", () => {
+    const t = playMove(trap(), { line: "main", ply: 5 }, { from: "g7", to: "g6" })!.tree;
+    t.keyPly = 6;
+    const p = buildProject(t, { ...defaultAnswers("trap"), name: "Schäfermatt", poll: true });
+    legalEverywhere(p);
+    const cards = p.scenes.map((s) => s.card);
+    const poll = cards.indexOf("poll");
+    expect(poll).toBeGreaterThan(0);
+    expect(p.scenes[poll].options).toHaveLength(3);
+    expect(p.scenes[poll].options.some((o) => o.endsWith("Dxf7#"))).toBe(true);
+    expect(p.scenes[poll + 1].title).toMatch(/^Richtig: [ABC]\) Dxf7#$/);
+    const variation = p.scenes.find((s) => s.label === "Variante 1")!;
+    expect(variation.fen).toBe(fenAt(t, { line: "main", ply: 5 }));
+    // The scene after the variation returns to the main line explicitly.
+    expect(p.scenes[poll].fen).toBe(fenAt(t, { line: "main", ply: 6 }));
+    expect(cards.at(-1)).toBe("outro");
+    expect(cards[0]).not.toBe("none");
+  });
+
+  it.each([15, 30, 60])("stretches or squeezes a video to about %i seconds", (seconds) => {
+    const p = buildProject(treeFromPgn("1. e4 e5 2. Sf3 Sc6 3. Lb5 a6 4. La4 Sf6 5. 0-0 Le7").tree, { ...defaultAnswers("opening"), length: seconds as 15 | 30 | 45 | 60 });
+    legalEverywhere(p);
+    const total = compile(fitLength(p, seconds)).total;
+    expect(Math.abs(total - seconds)).toBeLessThan(seconds * 0.2);
+  });
+
+  it("puts script sentences on the scene that names their move and the call to action on the outro", () => {
+    const p = buildProject(trap(), { ...defaultAnswers("trap"), poll: false });
+    const script = "Diese Falle sieht harmlos aus. Mit Dh5 greift Weiß sofort f7 an. Dxf7 ist Schachmatt. Folge für mehr Fallen!";
+    const out = distributeScript(p, script);
+    const withText = (re: RegExp) => out.scenes.find((s) => re.test(s.text));
+    expect(withText(/Dh5 greift/)?.moves).toMatch(/Dh5/);
+    expect(withText(/Schachmatt/)?.moves).toMatch(/Dxf7/);
+    expect(out.scenes.at(-1)!.title).toMatch(/^Folge für mehr Fallen/);
+    // Every scene with script text lasts long enough to read it.
+    for (const s of out.scenes.filter((x) => x.text && script.includes(x.text.split(" | ")[0]))) expect(s.duration).toBeGreaterThanOrEqual(s.text.split(/\s+/).filter(Boolean).length / 2.6);
+  });
+
+  it("explains threats and checks with arrows", () => {
+    const fen = fenAt(trap(), { line: "main", ply: 4 });
+    const qh5 = explainMove(fen, "Qh5", 4);
+    expect(qh5.arrows.some((a) => a.from === "h5" && a.to === "f7")).toBe(true);
+    expect(qh5.text).toMatch(/droht Matt/);
+    const mate = explainMove(fenAt(trap(), { line: "main", ply: 6 }), "Qxf7#", 6);
+    expect(mate.text).toMatch(/matt/i);
+  });
+
+  it("shows subtitle parts one after another and speed shortens the video", () => {
+    const p = make([scene({ moves: "e4", text: "Erster Teil | Zweiter Teil", duration: 4 })]);
+    const tl = compile(p);
+    expect(frameAt(tl, p, 0.5)!.text.text).toBe("Erster Teil");
+    expect(frameAt(tl, p, tl.total - 0.3)!.text.text).toBe("Zweiter Teil");
+    const fast = { ...p, video: { ...p.video, speed: 2 } };
+    expect(compile(fast).total).toBeLessThan(tl.total);
+  });
+
+  it.each(["podium", "table", "neon", "hall", "library"] as const)("builds a valid %s environment", (id) => {
+    const env = environment(id, "#6d7cff")!;
+    expect(env.parts.length).toBeGreaterThan(0);
+    for (const { mesh } of env.parts) {
+      const count = mesh.vertices.length / STRIDE;
+      expect(count).toBeLessThan(65536);
+      expect(Math.max(...mesh.indices)).toBeLessThan(count);
+    }
+    expect(environment("void", "#6d7cff")).toBeNull();
+  });
+
+  it("repairs old projects without the new fields", () => {
+    const old = JSON.parse(JSON.stringify(make([scene({ moves: "e4" })])));
+    delete old.style.environment;
+    delete old.video.speed;
+    delete old.video.platform;
+    delete old.scenes[0].options;
+    const p = normalizeProject(old)!;
+    expect(p.style.environment).toBe("void");
+    expect(p.video.speed).toBe(1);
+    expect(p.video.platform).toBe("tiktok");
+    expect(p.scenes[0].options).toEqual([]);
   });
 });

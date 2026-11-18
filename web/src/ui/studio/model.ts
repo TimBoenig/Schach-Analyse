@@ -11,7 +11,10 @@ export type Tone = "accent" | "good" | "bad" | "idea" | "white";
 export type Mood = "happy" | "think" | "wow" | "sad";
 export type CameraPreset = "white" | "black" | "top" | "corner" | "side" | "low" | "close";
 /** A full-screen card over the board: opening title, question with countdown, or the closing call to action. */
-export type Card = "none" | "intro" | "question" | "outro";
+export type Card = "none" | "intro" | "question" | "poll" | "outro";
+/** Where the board stands: code-built 3D surroundings. */
+export type Environment = "void" | "podium" | "table" | "neon" | "hall" | "library";
+export type Platform = "tiktok" | "reels" | "shorts" | "youtube";
 
 export interface StudioArrow {
   from: string;
@@ -30,7 +33,7 @@ export interface Scene {
   /** Optional position the scene jumps to before its moves (for "what if" lines). */
   fen: string;
   title: string;
-  /** Subtitle; words in *stars* are drawn in the accent colour. */
+  /** Subtitle; words in *stars* are drawn in the accent colour, "|" splits it into parts shown one after another. */
   text: string;
   /** Seconds; stretched automatically when the moves need longer. */
   duration: number;
@@ -44,7 +47,11 @@ export interface Scene {
   arrows: StudioArrow[];
   marks: StudioMark[];
   card: Card;
-  /** Seconds of a visible countdown (question cards). */
+  /** Small line above the headline, e.g. "Variante 2". */
+  label: string;
+  /** Answers of a poll card ("A) Lb5"), shown as buttons to comment on. */
+  options: string[];
+  /** Seconds of a visible countdown (question and poll cards). */
   countdown: number;
   mood: Mood;
 }
@@ -66,6 +73,7 @@ export interface StudioStyle {
   reflection: boolean;
   coords: boolean;
   titleFont: "sans" | "serif";
+  environment: Environment;
 }
 
 export type Format = "9:16" | "1:1" | "16:9";
@@ -75,6 +83,9 @@ export interface StudioVideo {
   fps: 30 | 60;
   /** Speed of the piece moves, 1 = normal. */
   tempo: number;
+  /** Speed of the whole video: scenes and moves together (2 = twice as fast). */
+  speed: number;
+  platform: Platform;
   brand: boolean;
   watermark: boolean;
   progress: boolean;
@@ -95,7 +106,7 @@ export interface StudioProject {
   updatedAt: number;
 }
 
-export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont">> = {
+export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment">> = {
   nova: { label: "Nova", light: "#d3d8e6", dark: "#4b5675", frame: "#121620", whitePiece: "#f3f1ec", blackPiece: "#1b1d24", material: "porcelain", bgTop: "#1a2140", bgBottom: "#05060a", accent: "#8d9aff" },
   marmor: { label: "Marmor", light: "#ece9e3", dark: "#8b909b", frame: "#26292f", whitePiece: "#f7f5f0", blackPiece: "#16171b", material: "porcelain", bgTop: "#2c313b", bgBottom: "#08090b", accent: "#3fd2ea" },
   holz: { label: "Holz", light: "#e9d0a5", dark: "#a5714a", frame: "#43291a", whitePiece: "#f4eadb", blackPiece: "#2a1a12", material: "matte", bgTop: "#2b1e15", bgBottom: "#0a0705", accent: "#ff9d5c" },
@@ -124,19 +135,23 @@ export const CAMERA_LABEL: Record<CameraPreset, string> = {
   low: "Tief & dramatisch",
   close: "Nah dran",
 };
-export const CARD_LABEL: Record<Card, string> = { none: "Keine", intro: "Titelkarte", question: "Frage + Countdown", outro: "Abspann" };
+export const CARD_LABEL: Record<Card, string> = { none: "Keine", intro: "Titelkarte", question: "Frage + Countdown", poll: "Umfrage", outro: "Abspann" };
+export const ENV_LABEL: Record<Environment, string> = { void: "Schwebend", podium: "Bühne", table: "Holztisch", neon: "Neon-Arena", hall: "Turniersaal", library: "Bibliothek" };
+export const PLATFORM_LABEL: Record<Platform, string> = { tiktok: "TikTok", reels: "Instagram Reels", shorts: "YouTube Shorts", youtube: "YouTube (quer)" };
 export const MOOD_LABEL: Record<Mood, string> = { happy: "Fröhlich", think: "Nachdenklich", wow: "Begeistert", sad: "Traurig" };
 export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 1920], "1:1": [1080, 1080], "16:9": [1920, 1080] };
 
 export function styleFromTheme(theme: ThemeId, keep?: Partial<StudioStyle>): StudioStyle {
   const { label: _label, ...colours } = THEMES[theme];
-  return { reflection: true, coords: false, titleFont: "sans", ...keep, ...colours, theme };
+  return { reflection: true, coords: false, titleFont: "sans", environment: "podium", ...keep, ...colours, theme };
 }
 
 export const DEFAULT_VIDEO: StudioVideo = {
   format: "9:16",
   fps: 30,
   tempo: 1,
+  speed: 1,
+  platform: "tiktok",
   brand: true,
   watermark: true,
   progress: true,
@@ -168,6 +183,8 @@ export function scene(over: Partial<Scene> = {}): Scene {
     arrows: [],
     marks: [],
     card: "none",
+    label: "",
+    options: [],
     countdown: 0,
     mood: "happy",
     ...over,
@@ -185,7 +202,7 @@ export function moveTokens(text: string): string[] {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\([^)]*\)/g, " ")
     .split(/\s+/)
-    .map((t) => t.replace(/^\d+\.+/, "").replace(/[!?]+$/g, "").trim())
+    .map((t) => t.replace(/^\d+(\.+|…)/, "").replace(/^…/, "").replace(/[!?]+$/g, "").trim())
     .filter((t) => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
     .map((t) =>
       t
@@ -277,12 +294,15 @@ export function normalizeProject(raw: unknown): StudioProject {
     reflection: st.reflection !== false,
     coords: st.coords === true,
     titleFont: pick(st.titleFont, ["sans", "serif"] as const, "sans"),
+    environment: pick(st.environment, Object.keys(ENV_LABEL) as Environment[], "void"),
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {
     format: pick(vi.format, ["9:16", "1:1", "16:9"] as const, "9:16"),
     fps: vi.fps === 60 ? 60 : 30,
     tempo: num(vi.tempo, 0.4, 2.5, 1),
+    speed: num(vi.speed, 0.5, 2.5, 1),
+    platform: pick(vi.platform, Object.keys(PLATFORM_LABEL) as Platform[], "tiktok"),
     brand: bool(vi.brand, true),
     watermark: bool(vi.watermark, true),
     progress: bool(vi.progress, true),
@@ -309,7 +329,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       moves: str(s.moves, "", 600),
       fen: str(s.fen, "", 120),
       title: str(s.title, "", 120),
-      text: str(s.text, "", 300),
+      text: str(s.text, "", 900),
       duration: num(s.duration, 1, 30, 3.5),
       camera: pick(s.camera, Object.keys(CAMERA_LABEL) as CameraPreset[], "white"),
       zoom: num(s.zoom, 0.45, 1.6, 1),
@@ -317,7 +337,9 @@ export function normalizeProject(raw: unknown): StudioProject {
       focus: s.focus === true,
       arrows,
       marks,
-      card: pick(s.card, ["none", "intro", "question", "outro"] as const, "none"),
+      card: pick(s.card, ["none", "intro", "question", "poll", "outro"] as const, "none"),
+      label: str(s.label, "", 40),
+      options: (Array.isArray(s.options) ? s.options : []).filter((o): o is string => typeof o === "string").slice(0, 3).map((o) => o.slice(0, 40)),
       countdown: num(s.countdown, 0, 10, 0),
       mood: pick(s.mood, ["happy", "think", "wow", "sad"] as const, "happy"),
     });

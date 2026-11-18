@@ -8,6 +8,7 @@ import type { PieceSymbol } from "chess.js";
 import { box, merge, STRIDE, type Material, type Mesh } from "../three/mesh";
 import { lookAt, multiply, perspective, placement, screenToBoard, type Mat4, type V3 } from "./math3d";
 import { toneColor, type StudioStyle } from "./model";
+import { environment, type EnvLine } from "./environments";
 import { pieceMesh } from "./pieces";
 import { squareXZ, xzSquare, type CameraState, type Frame } from "./timeline";
 
@@ -26,7 +27,8 @@ void main() {
 const LIT_FRAG = `
 precision highp float;
 varying vec3 vN, vW; varying vec4 vColor;
-uniform vec3 uEye, uTint, uGlow;
+uniform vec3 uEye, uTint, uGlow, uFogColor;
+uniform vec2 uFog;
 uniform float uUseTint, uMetal, uGloss, uAlpha, uDim;
 const vec3 KEY = vec3(-0.42, 0.78, 0.46);
 const vec3 FILL = vec3(0.86, 0.32, 0.4);
@@ -59,7 +61,10 @@ void main() {
     + room(reflect(-v, n)) * fresnel * mix(0.25, 1.0, uGloss) * mix(0.75, 1.0, metal)
     + vec3(1.0, 0.98, 0.95) * spec * 0.6 + uGlow;
   color = color / (1.0 + color * 0.32);
-  gl_FragColor = vec4(pow(color, vec3(1.0 / 2.2)) * uDim * uAlpha, uAlpha);
+  vec3 outc = pow(color, vec3(1.0 / 2.2)) * uDim;
+  // Distance haze, measured from the board's centre so the board itself stays crisp.
+  outc = mix(outc, uFogColor, smoothstep(uFog.x, uFog.y, length(vW.xz)));
+  gl_FragColor = vec4(outc * uAlpha, uAlpha);
 }`;
 
 const FLAT_VERT = `
@@ -68,7 +73,7 @@ uniform mat4 uViewProj;
 varying vec2 vUV;
 void main() { vUV = aUV; gl_Position = uViewProj * vec4(aPos, 1.0); }`;
 
-// Modes: 0 solid, 1 soft round blob (shadows, stage light), 2 square glow, 3 ring.
+// Modes: 0 solid, 1 soft round blob (shadows, stage light), 2 square glow, 3 ring, 4 line fading to its ends.
 const FLAT_FRAG = `
 precision mediump float;
 varying vec2 vUV;
@@ -83,6 +88,9 @@ void main() {
     float m = max(d.x, d.y);
     a = 0.32 + 0.68 * smoothstep(0.62, 0.98, m);
     a *= 1.0 - smoothstep(0.985, 1.0, m);
+  } else if (uMode > 3.5) {
+    float e = 1.0 - abs(vUV.x * 2.0 - 1.0);
+    a = e * e * (1.0 - smoothstep(0.0, 1.0, abs(vUV.y * 2.0 - 1.0)) * 0.5);
   } else if (uMode > 2.5) {
     float r = length(vUV * 2.0 - 1.0);
     a = smoothstep(0.12, 0.0, abs(r - uParam)) * (1.0 - uParam * 0.6);
@@ -136,6 +144,8 @@ export class StudioRenderer {
   private board: GpuMesh | null = null;
   private frame: GpuMesh | null = null;
   private boardKey = "";
+  private envKey = "";
+  private env: { parts: { mesh: GpuMesh; glow?: [number, number, number]; gloss: number }[]; lines: EnvLine[]; fog: [number, number]; fogColor?: string } | null = null;
   private dyn: WebGLBuffer;
   viewProj: Mat4 = new Float32Array(16);
 
@@ -146,7 +156,7 @@ export class StudioRenderer {
     this.gl = gl;
     this.lit = this.program(LIT_VERT, LIT_FRAG, ["aPos", "aNormal", "aColor"]);
     this.flat = this.program(FLAT_VERT, FLAT_FRAG, ["aPos", "aUV"]);
-    for (const n of ["uModel", "uViewProj", "uEye", "uTint", "uGlow", "uUseTint", "uMetal", "uGloss", "uAlpha", "uDim"]) this.litU[n] = gl.getUniformLocation(this.lit, n);
+    for (const n of ["uModel", "uViewProj", "uEye", "uTint", "uGlow", "uUseTint", "uMetal", "uGloss", "uAlpha", "uDim", "uFogColor", "uFog"]) this.litU[n] = gl.getUniformLocation(this.lit, n);
     for (const n of ["uViewProj", "uColor", "uMode", "uParam"]) this.flatU[n] = gl.getUniformLocation(this.flat, n);
     this.dyn = gl.createBuffer()!;
     gl.enable(gl.DEPTH_TEST);
@@ -215,6 +225,16 @@ export class StudioRenderer {
     this.frame = this.upload(frame);
   }
 
+  private ensureEnv(style: StudioStyle): void {
+    const key = `${style.environment}${style.accent}`;
+    if (key === this.envKey) return;
+    this.envKey = key;
+    const scene = environment(style.environment, style.accent);
+    this.env = scene
+      ? { parts: scene.parts.map((p) => ({ mesh: this.upload(p.mesh), glow: p.glow, gloss: p.gloss ?? 0.5 })), lines: scene.lines, fog: scene.fog, fogColor: scene.fogColor }
+      : null;
+  }
+
   private piece(type: PieceSymbol): GpuMesh {
     let m = this.pieces.get(type);
     if (!m) {
@@ -274,6 +294,7 @@ export class StudioRenderer {
     gl.viewport(0, 0, w, h);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     this.ensureBoard(style);
+    this.ensureEnv(style);
     const { viewProj, eye } = cameraMatrix(frame.camera, w / h);
     this.viewProj = viewProj;
     const accent = hexToRgb(style.accent);
@@ -289,12 +310,15 @@ export class StudioRenderer {
     gl.useProgram(this.flat);
     gl.uniformMatrix4fv(this.flatU.uViewProj, false, viewProj);
     gl.depthMask(false);
-    this.drawFlat(quad(0, 0, 22, -0.45), accent, 0.2, 1);
+    if (!this.env) this.drawFlat(quad(0, 0, 22, -0.45), accent, 0.2, 1);
     gl.depthMask(true);
 
     gl.useProgram(this.lit);
     gl.uniformMatrix4fv(this.litU.uViewProj, false, viewProj);
     gl.uniform3fv(this.litU.uEye, eye);
+    const fogHex = this.env?.fogColor ?? mixHex(style.bgTop, style.bgBottom, 0.6);
+    gl.uniform3fv(this.litU.uFogColor, hexToRgb(fogHex));
+    gl.uniform2fv(this.litU.uFog, this.env ? this.env.fog : [1e4, 2e4]);
     const pieceOpts = (p: Frame["pieces"][number]) => ({ tint: p.color === "w" ? tintW : tintB, metal, gloss, alpha: p.alpha });
     const yawOf = (p: Frame["pieces"][number]) => (p.color === "b" ? Math.PI : 0);
     // The squares go down first without depth and mark the stencil: the
@@ -312,6 +336,21 @@ export class StudioRenderer {
       for (const p of frame.pieces) {
         if (p.alpha <= 0.01) continue;
         this.drawLit(this.piece(p.type), placement([p.x, -p.y, p.z], yawOf(p), p.scale, -p.scale), { ...pieceOpts(p), alpha: 0.3 * p.alpha * Math.max(0, 1 - p.y * 0.8) });
+      }
+    }
+    // The surroundings go everywhere except inside the board, where the mirror image is.
+    if (this.env) {
+      gl.stencilFunc(gl.NOTEQUAL, 1, 0xff);
+      for (const part of this.env.parts) this.drawLit(part.mesh, placement([0, 0, 0], 0, 1), { metal: 0, gloss: part.gloss, glow: part.glow });
+      if (this.env.lines.length) {
+        gl.useProgram(this.flat);
+        gl.uniformMatrix4fv(this.flatU.uViewProj, false, viewProj);
+        gl.depthMask(false);
+        const data: number[] = [];
+        for (const l of this.env.lines) data.push(...lineQuad(l));
+        this.drawFlat(data, accent, 0.7, 4);
+        gl.depthMask(true);
+        gl.useProgram(this.lit);
       }
     }
     gl.disable(gl.STENCIL_TEST);
@@ -363,6 +402,24 @@ export class StudioRenderer {
     const hit = screenToBoard(this.viewProj, sx, sy);
     return hit ? xzSquare(hit.x, hit.z) : null;
   }
+}
+
+function mixHex(a: string, b: string, k: number): string {
+  const x = hexToRgb(a);
+  const y = hexToRgb(b);
+  const c = x.map((v, i) => Math.round((v + (y[i] - v) * k) * 255));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+/** A thin glowing strip on the floor (neon grid), faded with distance from the board. */
+function lineQuad(l: EnvLine): number[] {
+  const [ax, az] = l.a;
+  const [bx, bz] = l.b;
+  const len = Math.hypot(bx - ax, bz - az) || 1;
+  const px = (-(bz - az) / len) * l.width;
+  const pz = ((bx - ax) / len) * l.width;
+  const p = (x: number, z: number, u: number, v: number) => [x, l.y, z, u, v];
+  return [...p(ax + px, az + pz, 0, 0), ...p(bx + px, bz + pz, 1, 0), ...p(bx - px, bz - pz, 1, 1), ...p(ax + px, az + pz, 0, 0), ...p(bx - px, bz - pz, 1, 1), ...p(ax - px, az - pz, 0, 1)];
 }
 
 /** A flat square of `size` on the board plane, with uv 0..1. */
