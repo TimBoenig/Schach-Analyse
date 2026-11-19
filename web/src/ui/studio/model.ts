@@ -74,6 +74,16 @@ export type Material = "porcelain" | "chrome" | "matte" | "wood";
 
 /** How the subtitles sit on the video: in a dark box, as bold outlined text, or big and heavy without a box. */
 export type CaptionStyle = "box" | "outline" | "punch";
+/**
+ * How the board is drawn: the 3D show board (TikTok, Shorts) or a flat board
+ * seen from above, like in a book, which beginners and phone screens read best.
+ */
+export type BoardView = "3d" | "2d" | "billboard";
+/** Order of the choices in the editor. */
+export const VIEWS: BoardView[] = ["2d", "billboard", "3d"];
+export const VIEW_LABEL: Record<BoardView, string> = { "2d": "2D – klar wie im Buch", billboard: "3D-Brett, 2D-Figuren", "3d": "3D – Show-Look" };
+/** The views with a 3D board (camera, surroundings, reflection). */
+export const isBoard3d = (v: BoardView) => v !== "2d";
 export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: "Im Kasten", outline: "Mit Kontur", punch: "Groß und fett" };
 export const MATERIAL_LABEL: Record<Material, string> = { porcelain: "Lack", matte: "Matt", chrome: "Chrom", wood: "Holz" };
 
@@ -97,6 +107,7 @@ export interface StudioStyle {
   captionStyle: CaptionStyle;
   /** Size of all texts, 1 = normal. */
   textScale: number;
+  view: BoardView;
 }
 
 export type Format = "9:16" | "1:1" | "16:9";
@@ -109,6 +120,8 @@ export interface StudioVideo {
   plainMoves: boolean;
   /** Squares named in the subtitle light up softly. */
   squareHints: boolean;
+  /** Notation inside titles and subtitles is written out for beginners ("Sf3" → "Springer f3"). */
+  spellMoves: boolean;
   fps: 30 | 60;
   /** Speed of the piece moves, 1 = normal. */
   tempo: number;
@@ -145,7 +158,7 @@ export interface StudioProject {
   updatedAt: number;
 }
 
-export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale">> = {
+export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale" | "view">> = {
   nova: { label: "Nova", light: "#d3d8e6", dark: "#4b5675", frame: "#121620", whitePiece: "#f3f1ec", blackPiece: "#1b1d24", material: "porcelain", bgTop: "#1a2140", bgBottom: "#05060a", accent: "#8d9aff" },
   marmor: { label: "Marmor", light: "#ece9e3", dark: "#8b909b", frame: "#26292f", whitePiece: "#f7f5f0", blackPiece: "#16171b", material: "porcelain", bgTop: "#2c313b", bgBottom: "#08090b", accent: "#3fd2ea" },
   holz: { label: "Holz", light: "#e9d0a5", dark: "#a5714a", frame: "#43291a", whitePiece: "#ecd3a4", blackPiece: "#3a2216", material: "wood", bgTop: "#2b1e15", bgBottom: "#0a0705", accent: "#ff9d5c" },
@@ -223,7 +236,7 @@ export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 19
 
 export function styleFromTheme(theme: ThemeId, keep?: Partial<StudioStyle>): StudioStyle {
   const { label: _label, ...colours } = THEMES[theme];
-  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", pieceRim: true, captionStyle: "box", textScale: 1, ...keep, ...colours, theme };
+  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", pieceRim: true, captionStyle: "box", textScale: 1, view: "3d", ...keep, ...colours, theme };
 }
 
 export const DEFAULT_VIDEO: StudioVideo = {
@@ -231,6 +244,7 @@ export const DEFAULT_VIDEO: StudioVideo = {
   perspective: "white",
   plainMoves: true,
   squareHints: true,
+  spellMoves: true,
   fps: 30,
   tempo: 1,
   speed: 1,
@@ -309,6 +323,28 @@ export function moveTokens(text: string): string[] {
 /** SAN with German piece letters, as the app shows moves (Sf3, Lb5, Dxf7#). */
 export function germanSan(san: string): string {
   return san.replace(/^[NBRQK]/, (p) => TO_GERMAN[p]).replace(/=([NBRQ])/, (_m, p: string) => `=${TO_GERMAN[p]}`);
+}
+
+const PIECE_NAME: Record<string, string> = { S: "Springer", N: "Springer", L: "Läufer", B: "Läufer", T: "Turm", R: "Turm", D: "Dame", Q: "Dame", K: "König" };
+const NOT_WORD = "A-Za-zÄÖÜäöüß0-9";
+const SAN_IN_TEXT = new RegExp(`(?<![${NOT_WORD}])(?:([KDTLSNBRQ])([a-h]?[1-8]?)(x?)([a-h][1-8])|([a-h])x([a-h][1-8])|([a-h][18])=([DTLSQRBN])|(O-O-O|0-0-0|O-O|0-0))([+#]?)(?![${NOT_WORD}-])`, "g");
+
+/**
+ * Writes the notation inside a sentence out for viewers who can't read it:
+ * "Sf3" → "Springer f3", "Dxf7#" → "Dame schlägt auf f7, Matt", "O-O" → "kurze Rochade".
+ * Plain squares and pawn moves ("e4") stay as they are, they are already readable.
+ */
+export function spellNotation(text: string): string {
+  return text.replace(SAN_IN_TEXT, (_all, piece: string, _from: string, takes: string, to: string, pawnFile: string, pawnTo: string, promoSq: string, promo: string, castle: string, mark: string) => {
+    let out: string;
+    if (piece) out = takes ? `${PIECE_NAME[piece]} schlägt auf ${to}` : `${PIECE_NAME[piece]} ${to}`;
+    else if (pawnFile) out = `Bauer schlägt auf ${pawnTo}`;
+    else if (promoSq) out = `${promoSq} wird ${PIECE_NAME[promo]}`;
+    else out = castle.length > 3 ? "lange Rochade" : "kurze Rochade";
+    if (mark === "#") out += ", Matt";
+    else if (mark === "+") out += " mit Schach";
+    return out;
+  });
 }
 
 export interface ParsedMoves {
@@ -391,6 +427,8 @@ export function normalizeProject(raw: unknown): StudioProject {
     pieceRim: st.pieceRim !== false,
     captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
     textScale: num(st.textScale, 0.8, 1.3, 1),
+    // Projects from before the 2D board: YouTube lessons get the clearer flat board, short videos keep 3D.
+    view: st.view === "2d" || st.view === "3d" || st.view === "billboard" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {
@@ -398,6 +436,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     perspective: vi.perspective === "black" ? "black" : "white",
     plainMoves: bool(vi.plainMoves, true),
     squareHints: bool(vi.squareHints, true),
+    spellMoves: bool(vi.spellMoves, true),
     fps: vi.fps === 60 ? 60 : 30,
     tempo: num(vi.tempo, 0.4, 2.5, 1),
     speed: num(vi.speed, 0.5, 2.5, 1),

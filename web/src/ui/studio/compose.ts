@@ -20,6 +20,8 @@ export interface Assets {
   orb: HTMLCanvasElement | null;
   /** Move badges by kind ("brilliant" …), loaded from public/badges. */
   badges: Record<string, HTMLImageElement>;
+  /** The site's 2D pieces by "white-knight" …: flat board and move symbols. */
+  pieces: Record<string, HTMLImageElement>;
 }
 
 export interface ComposeOptions {
@@ -87,6 +89,88 @@ function wrap(ctx: CanvasRenderingContext2D, list: Token[], max: number, emphFon
   return lines;
 }
 
+/**
+ * Wraps a text into at most `maxLines`: first the given size, then smaller in
+ * steps down to `minScale` of it. Only a text that is far too long for even the
+ * smallest size loses its end, and then visibly with "…", never silently.
+ */
+export function fitText(ctx: CanvasRenderingContext2D, list: Token[], max: number, maxLines: number, size: number, font: (size: number) => string, emphFont?: (size: number) => string, minScale = 0.62): { lines: Token[][]; size: number } {
+  let sz = size;
+  for (;;) {
+    ctx.font = font(sz);
+    const lines = wrap(ctx, list, max, emphFont?.(sz));
+    if (lines.length <= maxLines) return { lines, size: sz };
+    if (sz <= size * minScale + 0.01) {
+      const kept = lines.slice(0, maxLines);
+      const last = kept[kept.length - 1];
+      last[last.length - 1] = { ...last[last.length - 1], word: `${last[last.length - 1].word.replace(/[.,;:!?]+$/, "")}…` };
+      return { lines: kept, size: sz };
+    }
+    sz = Math.max(size * minScale, sz * 0.92);
+  }
+}
+
+/** One line of text, made smaller until it fits `max` (never squeezed). Returns the size to use. */
+function fitLine(ctx: CanvasRenderingContext2D, text: string, max: number, size: number, font: (size: number) => string, minScale = 0.6): number {
+  let sz = size;
+  ctx.font = font(sz);
+  while (sz > size * minScale && ctx.measureText(text).width > max) {
+    sz *= 0.94;
+    ctx.font = font(sz);
+  }
+  return sz;
+}
+
+const FIGURINE: Record<string, string> = { K: "king", D: "queen", T: "rook", L: "bishop", S: "knight" };
+
+/** "3. Lb5" → number, piece letter (drawn as the piece itself) and the rest. Pawn moves and castling carry no piece. */
+export function moveParts(label: string): { no: string; piece: string; rest: string; black: boolean } {
+  const m = label.match(/^(\d+(?:\.+|…)\s*)?(?:([KDTLS])(?=[a-h]?[1-8]?x?[a-h][1-8]))?(.*)$/s)!;
+  return { no: m[1] ?? "", piece: m[2] ?? "", rest: m[3] ?? "", black: /…|\.\.\./.test(m[1] ?? "") };
+}
+
+/**
+ * Draws a move in figurine notation: the piece letter becomes a small picture
+ * of the piece, so "Lb5" reads as "(bishop) b5" even for people who don't know
+ * the German letters. Uses the current font; returns the width.
+ */
+function drawMove(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size: number, assets: Assets, black: boolean | null, draw = true): number {
+  const p = moveParts(label);
+  const isBlack = black ?? p.black;
+  const img = p.piece ? assets.pieces[`${isBlack ? "black" : "white"}-${FIGURINE[p.piece]}`] : undefined;
+  const align = ctx.textAlign;
+  ctx.textAlign = "left";
+  let cx = x;
+  if (p.no) {
+    if (draw) ctx.fillText(p.no, cx, y);
+    cx += ctx.measureText(p.no).width;
+  }
+  if (img) {
+    const s = size * 1.18;
+    if (draw) {
+      // The picture sits on the text's middle line; black pieces get a light chip so they show on dark backgrounds.
+      const mid = ctx.textBaseline === "middle" ? y : y - size * 0.36;
+      if (isBlack) {
+        ctx.save();
+        ctx.fillStyle = "rgba(255,255,255,0.86)";
+        ctx.beginPath();
+        ctx.arc(cx + s / 2, mid, s * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.drawImage(img, cx, mid - s / 2, s, s);
+    }
+    cx += s + size * 0.06;
+  } else if (p.piece) {
+    if (draw) ctx.fillText(p.piece, cx, y);
+    cx += ctx.measureText(p.piece).width;
+  }
+  if (draw) ctx.fillText(p.rest, cx, y);
+  cx += ctx.measureText(p.rest).width;
+  ctx.textAlign = align;
+  return cx - x;
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   const rr = Math.min(r, h / 2, w / 2);
   ctx.beginPath();
@@ -113,9 +197,11 @@ function animatedText(
   o: { cx: number; top: number; max: number; size: number; font: string; weight: number; color: string; accent: string; age: number; alpha: number; line?: number; u: number; maxLines?: number },
 ): number {
   if (!text.trim() || o.alpha <= 0) return 0;
-  ctx.font = `${o.weight} ${o.size}px ${o.font}`;
-  const lines = wrap(ctx, tokens(text), o.max).slice(0, o.maxLines ?? 4);
-  const lh = o.size * (o.line ?? 1.12);
+  const fit = fitText(ctx, tokens(text), o.max, o.maxLines ?? 4, o.size, (sz) => `${o.weight} ${sz}px ${o.font}`);
+  const size = fit.size;
+  ctx.font = `${o.weight} ${size}px ${o.font}`;
+  const lines = fit.lines;
+  const lh = size * (o.line ?? 1.12);
   const space = ctx.measureText(" ").width;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
@@ -123,7 +209,7 @@ function animatedText(
   lines.forEach((line, li) => {
     const width = line.reduce((s, t, k) => s + ctx.measureText(t.word).width + gap(t, k, space), 0);
     let x = o.cx - width / 2;
-    const y = o.top + lh * li + o.size * 0.86;
+    const y = o.top + lh * li + size * 0.86;
     for (const [k, t] of line.entries()) {
       x += gap(t, k, space);
       const rise = easeOut((o.age - i * 0.045) / 0.5);
@@ -138,7 +224,7 @@ function animatedText(
   return lh * lines.length;
 }
 
-interface Layout {
+export interface Layout {
   u: number;
   portrait: boolean;
   brandY: number;
@@ -148,7 +234,7 @@ interface Layout {
   textMax: number;
 }
 
-function layout(W: number, H: number): Layout {
+export function layout(W: number, H: number): Layout {
   const u = Math.min(W, H) / 1080;
   const ratio = H / W;
   if (ratio > 1.4) return { u, portrait: true, brandY: 170 * u, titleTop: 262 * u, pillY: 500 * u, subCenter: H - 470 * u, textMax: 860 * u };
@@ -222,6 +308,8 @@ export function compose(
   viewProj: Mat4,
   assets: Assets,
   opts: ComposeOptions = {},
+  /** Paints flat pieces standing on the 3D board, right after the board picture. */
+  pieces?: (ctx: CanvasRenderingContext2D) => void,
 ): void {
   const { width: W, height: H } = ctx.canvas;
   const L = layout(W, H);
@@ -231,8 +319,8 @@ export function compose(
   background(ctx, W, H, project, frame.time);
   ctx.drawImage(board, 0, 0, W, H);
 
-  // Board letters and numbers, drawn flat on the frame of the 3D board.
-  if (st.coords) {
+  // Board letters and numbers, drawn flat on the frame of the 3D board (the 2D board draws its own).
+  if (st.coords && st.view !== "2d") {
     ctx.font = `600 ${22 * u}px ${SANS}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -244,6 +332,9 @@ export function compose(
       if (b) ctx.fillText(String(i + 1), b.x * W, b.y * H);
     }
   }
+
+  // Standees stand in front of the frame's letters, as real pieces would.
+  pieces?.(ctx);
 
   // Editor-only: square under the pointer while drawing arrows or marks.
   if (opts.hover) {
@@ -394,7 +485,8 @@ export function compose(
     ctx.translate(W / 2, L.pillY);
     ctx.scale(0.6 + 0.4 * k, 0.6 + 0.4 * k);
     ctx.font = `800 ${54 * u}px ${SANS}`;
-    const tw = ctx.measureText(frame.pill.text).width;
+    const black = frame.pill.side === "b";
+    const tw = drawMove(ctx, frame.pill.text, 0, 0, 54 * u, assets, black, false);
     const dot = 30 * u;
     const pw = tw + 64 * u + dot + 14 * u;
     const ph = 94 * u;
@@ -412,22 +504,25 @@ export function compose(
     const dx = -pw / 2 + 32 * u + dot / 2;
     ctx.beginPath();
     ctx.arc(dx, 0, dot / 2, 0, Math.PI * 2);
-    ctx.fillStyle = frame.pill.side === "w" ? "#f6f4ee" : "#15161b";
+    ctx.fillStyle = black ? "#15161b" : "#f6f4ee";
     ctx.fill();
     ctx.lineWidth = 2.5 * u;
-    ctx.strokeStyle = frame.pill.side === "w" ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.7)";
+    ctx.strokeStyle = black ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.25)";
     ctx.stroke();
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(frame.pill.text, dx + dot / 2 + 14 * u, 2 * u);
+    drawMove(ctx, frame.pill.text, dx + dot / 2 + 14 * u, 2 * u, 54 * u, assets, black);
     if (v.plainMoves && frame.pill.plain) {
-      ctx.font = `700 ${34 * u}px ${SANS}`;
+      const words = `${black ? "Schwarz" : "Weiß"}: ${frame.pill.plain}`;
+      // The pill is scaled while it pops in; measure against the frame's width at full size.
+      const size = fitLine(ctx, words, W - 90 * u, 34 * u, (sz) => `700 ${sz}px ${SANS}`);
+      ctx.font = `700 ${size}px ${SANS}`;
       ctx.textAlign = "center";
       ctx.fillStyle = "#ffffff";
       ctx.shadowColor = "rgba(0,0,0,0.7)";
       ctx.shadowBlur = 14 * u;
-      ctx.fillText(`${frame.pill.side === "w" ? "Weiß" : "Schwarz"}: ${frame.pill.plain}`, 0, ph / 2 + 34 * u);
+      ctx.fillText(words, 0, ph / 2 + 34 * u);
     }
     ctx.restore();
   }
@@ -440,12 +535,14 @@ export function compose(
     const a = frame.text.alpha * textAlphaBase * clamp01(frame.text.age / 0.3);
     const orbSize = hasLucena ? 132 * u : 0;
     const cap = st.captionStyle;
-    const size = 47 * u * st.textScale * (cap === "punch" ? 1.25 : 1);
     const maxW = L.textMax - orbSize - (hasLucena ? 24 * u : 0);
+    const baseSize = 47 * u * st.textScale * (cap === "punch" ? 1.25 : 1);
+    const fit = fitText(ctx, tokens(frame.text.text), maxW - 64 * u, cap === "punch" ? 2 : 3, baseSize, (sz) => (cap === "box" ? `650 ${sz}px ${SANS}` : `800 ${sz}px ${SANS}`), (sz) => `900 ${sz}px ${SANS}`);
+    const size = fit.size;
     const regular = cap === "box" ? `650 ${size}px ${SANS}` : `800 ${size}px ${SANS}`;
     const bold = `900 ${size}px ${SANS}`;
     ctx.font = regular;
-    const lines = wrap(ctx, tokens(frame.text.text), maxW - 64 * u, bold).slice(0, cap === "punch" ? 2 : 3);
+    const lines = fit.lines;
     const lh = size * 1.28;
     const space = ctx.measureText(" ").width;
     const widthOf = (tk: Token) => {
@@ -668,8 +765,15 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
       const letter = m ? m[1].toUpperCase() : String.fromCharCode(65 + i);
       const label = (m ? m[2] : o).trim();
       const bubble = 62 * u;
-      ctx.font = `700 ${42 * u}px ${SANS}`;
-      const tw = Math.min(ctx.measureText(label).width, bw - bubble - 48 * u);
+      // Move answers show the piece as a picture ("Lb5" → bishop b5); a long answer gets smaller instead of squeezed.
+      const room = bw - bubble - 48 * u;
+      let lsize = 42 * u;
+      ctx.font = `700 ${lsize}px ${SANS}`;
+      while (lsize > 24 * u && drawMove(ctx, label, 0, 0, lsize, assets, null, false) > room) {
+        lsize *= 0.94;
+        ctx.font = `700 ${lsize}px ${SANS}`;
+      }
+      const tw = Math.min(drawMove(ctx, label, 0, 0, lsize, assets, null, false), room);
       const x0 = -(bubble + 14 * u + tw) / 2;
       ctx.beginPath();
       ctx.arc(x0 + bubble / 2, 0, bubble / 2, 0, Math.PI * 2);
@@ -681,12 +785,12 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
       ctx.textBaseline = "middle";
       ctx.fillText(letter, x0 + bubble / 2, 2 * u);
       ctx.fillStyle = "#ffffff";
-      ctx.font = `700 ${42 * u}px ${SANS}`;
+      ctx.font = `700 ${lsize}px ${SANS}`;
       ctx.textAlign = "left";
-      ctx.fillText(label, x0 + bubble + 14 * u, 2 * u, bw - bubble - 48 * u);
+      drawMove(ctx, label, x0 + bubble + 14 * u, 2 * u, lsize, assets, null);
       ctx.restore();
     });
-    animatedText(ctx, frame.text.text, { cx, top: rowY + bh + 26 * u, max: L.textMax, size: 34 * u, font: SANS, weight: 600, color: "rgba(235,238,248,0.85)", accent: st.accent, age: age - 0.8, alpha: a, u, maxLines: 1 });
+    animatedText(ctx, frame.text.text, { cx, top: rowY + bh + 26 * u, max: L.textMax, size: 34 * u, font: SANS, weight: 600, color: "rgba(235,238,248,0.85)", accent: st.accent, age: age - 0.8, alpha: a, u, maxLines: 2 });
     if (frame.countdown !== null && frame.countdown > 0) {
       // Under the question, where the move pill usually is.
       const total = frame.scene.countdown;
@@ -878,30 +982,52 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
   // Chapter
   if (frame.label) {
     ctx.globalAlpha = base * frame.title.alpha;
-    ctx.font = `700 ${24 * u * ts}px ${SANS}`;
+    const size = fitLine(ctx, frame.label.toUpperCase(), maxW, 24 * u * ts, (sz) => `700 ${sz}px ${SANS}`);
+    ctx.font = `700 ${size}px ${SANS}`;
     ctx.fillStyle = st.accent;
     ctx.fillText(frame.label.toUpperCase(), x0, y);
     y += 22 * u;
   }
-  // Headline
+  // Headline: up to three lines, smaller when it is long.
   ctx.globalAlpha = base * frame.title.alpha * clamp01(frame.title.age / 0.5);
-  ctx.font = `${st.titleFont === "serif" ? 400 : 800} ${54 * u * ts * (st.titleFont === "serif" ? 1.15 : 1)}px ${titleFont}`;
+  const tWeight = st.titleFont === "serif" ? 400 : 800;
+  const tFont = (sz: number) => `${tWeight} ${sz}px ${titleFont}`;
+  const tFit = fitText(ctx, tokens(frame.title.text.replace(/\*/g, "")), maxW, 3, 54 * u * ts * (st.titleFont === "serif" ? 1.15 : 1), tFont);
+  ctx.font = tFont(tFit.size);
   ctx.fillStyle = "#ffffff";
-  for (const line of wrapPlain(ctx, frame.title.text, maxW).slice(0, 2)) {
-    y += 62 * u * ts;
-    ctx.fillText(line, x0, y);
+  for (const line of tFit.lines) {
+    y += tFit.size * 1.15;
+    ctx.fillText(line.map((t, k) => (k && !t.glue ? " " : "") + t.word).join(""), x0, y);
   }
   y += 26 * u;
   ctx.globalAlpha = base * 0.4;
   ctx.fillStyle = st.accent;
   ctx.fillRect(x0, y, 64 * u, 4 * u);
   y += 34 * u;
+
+  // The bottom block: the move just played in words, then the move list.
+  const moves = frame.moveList.slice(-10);
+  const listTop = H - (moves.length ? 250 : 120) * u;
+  const nowTop = listTop - (frame.pill ? 118 * u : 0);
+
   // Explanation: the whole text at once, at reading size, *words* in the accent colour.
-  const size = 33 * u * ts;
+  // A long one gets smaller until it fits above the move block; it is never cut off.
+  const bodySize = 33 * u * ts;
+  const room = nowTop - 56 * u - y;
+  const maxLines = Math.max(3, Math.floor(room / (bodySize * 1.45)));
+  let size = bodySize;
+  let lines: Token[][] = [];
+  for (;;) {
+    ctx.font = `450 ${size}px ${SANS}`;
+    lines = wrap(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, `700 ${size}px ${SANS}`);
+    if (lines.length * size * 1.45 <= room || size <= bodySize * 0.66) break;
+    size *= 0.94;
+  }
+  const fitAll = Math.max(maxLines, Math.floor(room / (size * 1.45)));
+  if (lines.length > fitAll) lines = fitText(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, fitAll, size, (sz) => `450 ${sz}px ${SANS}`, (sz) => `700 ${sz}px ${SANS}`, 1).lines;
   const regular = `450 ${size}px ${SANS}`;
   const bold = `700 ${size}px ${SANS}`;
   ctx.font = regular;
-  const lines = wrap(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, bold).slice(0, 9);
   const space = ctx.measureText(" ").width;
   ctx.globalAlpha = base * frame.text.alpha * clamp01(frame.text.age / 0.5);
   lines.forEach((line) => {
@@ -915,31 +1041,49 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
       x += ctx.measureText(tk.word).width;
     }
   });
-  // Move list at the bottom: the last moves in pairs, the current one highlighted.
-  const moves = frame.moveList.slice(-10);
+
+  // The move on the board right now, as a symbol and in plain words, for viewers who don't read notation.
+  if (frame.pill) {
+    ctx.globalAlpha = base * clamp01(frame.pill.age / 0.3);
+    const black = frame.pill.side === "b";
+    ctx.font = `600 ${20 * u}px ${SANS}`;
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillText(`ZUG VON ${black ? "SCHWARZ" : "WEISS"}`, x0, nowTop);
+    ctx.font = `800 ${36 * u}px ${SANS}`;
+    ctx.fillStyle = "#ffffff";
+    const mw = drawMove(ctx, frame.pill.text, x0, nowTop + 50 * u, 36 * u, assets, black);
+    const words = frame.pill.plain;
+    const wsize = fitLine(ctx, words, maxW - mw - 26 * u, 28 * u, (sz) => `600 ${sz}px ${SANS}`);
+    ctx.font = `600 ${wsize}px ${SANS}`;
+    ctx.fillStyle = "rgba(238,240,246,0.85)";
+    ctx.fillText(words, x0 + mw + 22 * u, nowTop + 48 * u);
+  }
+
+  // Move list at the bottom: the last moves, pieces as symbols, the current one highlighted.
   if (moves.length) {
     ctx.globalAlpha = base;
-    const top = H - 250 * u;
+    const top = listTop;
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
     ctx.fillText("ZÜGE", x0, top);
-    ctx.font = `600 ${28 * u}px ${SANS}`;
+    const msize = 28 * u;
+    ctx.font = `600 ${msize}px ${SANS}`;
     let x = x0;
     let row = top + 46 * u;
     moves.forEach((m, i) => {
       const now = i === moves.length - 1;
-      const w = ctx.measureText(m).width + 26 * u;
+      const w = drawMove(ctx, m, 0, 0, msize, assets, null, false) + 26 * u;
       if (x + w > x0 + maxW) {
         x = x0;
-        row += 44 * u;
+        row += 46 * u;
       }
       if (now) {
-        roundRect(ctx, x - 10 * u, row - 30 * u, w, 42 * u, 10 * u);
+        roundRect(ctx, x - 10 * u, row - 31 * u, w, 44 * u, 10 * u);
         ctx.fillStyle = rgba(st.accent, 0.25);
         ctx.fill();
       }
       ctx.fillStyle = now ? "#ffffff" : "rgba(238,240,246,0.7)";
-      ctx.fillText(m, x, row);
+      drawMove(ctx, m, x, row, msize, assets, null);
       x += w + 8 * u;
     });
   }
@@ -948,18 +1092,4 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     ctx.drawImage(assets.orb, W - 150 * u, H - 150 * u, 110 * u, 110 * u);
   }
   ctx.restore();
-}
-
-function wrapPlain(ctx: CanvasRenderingContext2D, text: string, maxW: number): string[] {
-  const out: string[] = [];
-  let cur = "";
-  for (const w of text.replace(/\*/g, "").split(/\s+/)) {
-    const next = cur ? `${cur} ${w}` : w;
-    if (cur && ctx.measureText(next).width > maxW) {
-      out.push(cur);
-      cur = w;
-    } else cur = next;
-  }
-  if (cur) out.push(cur);
-  return out;
 }

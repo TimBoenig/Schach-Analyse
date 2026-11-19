@@ -20,6 +20,7 @@ import {
   validFen,
   newId,
   type Badge,
+  type BoardView,
   type CameraPreset,
   type Card,
   type Effect,
@@ -36,7 +37,7 @@ import {
   type CaptionStyle,
   type Tone,
 } from "./model";
-import { compile, SHORT_CHUNK } from "./timeline";
+import { compile, LESSON_CHUNK, SHORT_CHUNK } from "./timeline";
 import type { MusicId } from "./music";
 import { fitLength, movesLabel } from "./wizard";
 
@@ -101,10 +102,11 @@ const ENVS: Record<string, Environment> = {
 };
 const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "porcelain", glanz: "porcelain", matt: "matte", matte: "matte", chrom: "chrome", chrome: "chrome", metall: "chrome", holz: "wood", wood: "wood", holzfiguren: "wood" };
 const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch" };
+const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d", aufsteller: "billboard", billboard: "billboard", mix: "billboard", "3d2d": "billboard" };
 const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
 const MUSICS: Record<string, MusicId> = { keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
 /** Longest texts that still fit the frame at normal text size. */
-export const FIT = { title: 30, subtitle: 95, label: 22, option: 14, lesson: 330 };
+export const FIT = { title: 30, subtitle: 95, label: 22, option: 14, lesson: LESSON_CHUNK };
 
 const PLATFORMS: Record<string, Platform> = {
   tiktok: "tiktok", reels: "reels", instagram: "reels", instagramreels: "reels", shorts: "shorts", youtubeshorts: "shorts", youtube: "youtube", youtubequer: "youtube",
@@ -154,11 +156,12 @@ const LONG_RULES = `SO WIRD ES EIN GUTES LERNVIDEO
 8. Kamera meist "normal" oder "oben", ruhig, ohne Drehung. Bleib bei EINER Perspektive.
 9. Umfragen nur, wenn sie zum Mitdenken einladen ("Was würdest du hier spielen?"), höchstens zwei im ganzen Video.
 10. Keine erfundenen Zahlen, Statistiken oder Partien. Wenn du eine berühmte Partie zeigst, nur mit den echten Zügen.
+11. Schreib für Anfänger: nenn die Figur beim Namen und das Feld ("der Springer zieht nach f3", "der Läufer schlägt den Springer auf c6") statt nur Notation wie "Sf3" oder "Lxc6". Begriffe wie Gabel, Fesselung oder Rochade erklärst du beim ersten Mal in einem halben Satz.
 
 `;
 
 const LONG_LAYOUT = `SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)
-- Links das 3D-Brett, groß und ruhig.
+- Links das Brett, groß und ruhig, standardmäßig flach von oben (2D) wie in einem Schachbuch.
 - Rechts eine Lesespalte: oben das Kapitel ("kleineZeile") in Akzentfarbe, darunter der "titel" (höchstens 2 Zeilen, etwa ${FIT.title} Zeichen), darunter der ganze "untertitel" als Erklärung (bis 9 Zeilen, höchstens ${FIT.lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.
 - Karten ("titel", "frage", "umfrage", "abspann") legen sich wie gewohnt über das ganze Bild.
 
@@ -206,7 +209,7 @@ export function buildAiPrompt(o: PromptOptions): string {
       { karte: "abspann", titel: "Folge für mehr Fallen", untertitel: "Teil 2 kommt morgen", effekte: ["konfetti"] },
     ],
   };
-  return `Du schreibst das komplette Drehbuch für ${long ? "ein ruhiges, lehrreiches YouTube-Video im Querformat" : "ein kurzes Schach-Video"}, das mein 3D-Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
+  return `Du schreibst das komplette Drehbuch für ${long ? "ein ruhiges, lehrreiches YouTube-Video im Querformat" : "ein kurzes Schach-Video"}, das mein Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.
 
 MEIN VIDEO
 - Thema: ${o.topic.trim() || "(such dir ein spannendes Thema aus)"}
@@ -215,7 +218,7 @@ ${o.side === "black" ? '- Perspektive: schwarz (setz "perspektive": "schwarz")\n
 ${o.notes.trim() ? `- Das ist mir wichtig:\n${o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n")}\n` : ""}
 ${long ? LONG_RULES : `SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH
 1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.
-2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten ("Der Springer greift e5 an") und nenne dabei das Feld. Felder, die im Untertitel stehen, leuchten auf dem Brett auf.
+2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten ("Der Springer greift e5 an") und nenne dabei das Feld. Schreib Figuren aus ("Springer nach f3" statt "Sf3"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.
 3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens ${SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.
 4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.
 5. Bleib bei EINER Sicht aufs Brett: "perspektive" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze "gegenueber" nur ganz selten.
@@ -245,15 +248,16 @@ ${long ? LONG_LAYOUT : `SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Qu
 - "kleineZeile": kleiner farbiger Streifen über dem Titel, höchstens ${FIT.label} Zeichen (z. B. "Variante 2", "Falle", "Teil 1").
 - "titel": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa ${FIT.title} Zeichen. Kurz und knackig, wie eine Schlagzeile.
 - Darunter die Zug-Anzeige (z. B. "● 3. Lb5") und der Zug in Worten ("Weiß: Läufer nach b5"), beides automatisch.
-- In der Mitte das 3D-Brett, es füllt die Breite.
+- In der Mitte das Brett (3D-Show-Look, oder mit "ansicht": "2d" flach von oben).
 - "untertitel": unter dem Brett, höchstens 3 Zeilen, etwa ${FIT.subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.
 - Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.
 - Karten: "titel" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), "frage" und "umfrage" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens ${FIT.option} Zeichen), "abspann" ist das große Schlussbild mit Logo.
-- Ein Titel oder Untertitel, der zu lang ist, wird abgeschnitten. Lieber zwei Szenen als eine überfüllte.
+- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.
 
 `}DESIGN ("design" oben im JSON, alles optional, passend zum Thema wählen)
 - look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).
-- figuren: lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.
+- ansicht: 2d (flaches Brett von oben, am klarsten, Standard bei YouTube), 3d (plastisches Show-Brett, Standard bei TikTok, Reels, Shorts) oder aufsteller (3D-Brett mit flachen 2D-Figuren, die sich immer zur Kamera drehen).
+- figuren (nur 3D): lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.
 - untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).
 - schrift: modern oder elegant (Serifen, für Geschichte und Klassiker).
 - akzent: eigene Akzentfarbe als Farbcode, z. B. "#ffb84d".
@@ -271,7 +275,7 @@ SCHACH-REGELN (sehr wichtig)
 - Eine besondere Startstellung (Rätsel, Endspiel) gibst du als "startstellung" (FEN) an.
 
 ALLE FELDER
-Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, design { figuren, untertitelStil, schrift, akzent, textgroesse, musik, figurenRand }, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, felderLeuchten, fortschritt, koordinaten, kameraflug, spiegelung } (jeweils true oder false).
+Video (oben): titel, plattform (${list(PLATFORMS)}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, design { ansicht, figuren, untertitelStil, schrift, akzent, textgroesse, musik, figurenRand }, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, zuegeAusschreiben, felderLeuchten, fortschritt, koordinaten, kameraflug, spiegelung } (jeweils true oder false).
 Szene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (z. B. "Variante 1"), dauer, kamera, zoom, drehung, fokus, pfeile (z. B. "f3-e5 gefahr"), markierungen (z. B. "e5 gut"), effekte, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.
 Farben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.
 
@@ -526,6 +530,7 @@ export function importAiScript(input: string): AiImport {
   const material = pick(PIECE_LOOKS, "Figuren", "figuren", "pieces", "material");
   const captionStyle = pick(CAPTIONS, "Untertitel-Stil", "untertitelstil", "captionstyle", "untertitel");
   const titleFont = pick(FONTS, "Schrift", "schrift", "font");
+  const view = pick(VIEWS, "Ansicht", "ansicht", "brett", "view");
   const music = pick(MUSICS, "Musik", "musik", "music");
   const accentRaw = text(dfield("akzent", "akzentfarbe", "accent"), 12);
   const accent = /^#[0-9a-f]{6}$/i.test(accentRaw) ? accentRaw : undefined;
@@ -547,6 +552,8 @@ export function importAiScript(input: string): AiImport {
       ...(material ? { material } : {}),
       ...(captionStyle ? { captionStyle } : {}),
       ...(titleFont ? { titleFont } : {}),
+      // YouTube lessons default to the flat board: it is the easiest to follow for a long explanation.
+      view: view ?? (platform === "youtube" ? "2d" : "3d"),
       ...(accent ? { accent } : {}),
       ...(textScale !== null ? { textScale } : {}),
       ...(rim !== null ? { pieceRim: rim } : {}),
@@ -557,6 +564,7 @@ export function importAiScript(input: string): AiImport {
       perspective,
       plainMoves: setting(true, "zuginworten", "plainmoves"),
       squareHints: setting(true, "felderleuchten", "squarehints"),
+      spellMoves: setting(true, "zuegeausschreiben", "spellmoves"),
       platform,
       speed: speed ?? 1,
       // Lessons move the pieces more calmly so the viewer can follow every move.
@@ -576,7 +584,7 @@ export function importAiScript(input: string): AiImport {
     const max = FIT.title / Math.max(0.8, project.style.textScale);
     if (sc.title.length > max) warnings.push(`Szene ${i + 1}: Titel ist ${sc.title.length} Zeichen lang, ins Bild passen etwa ${Math.round(max)}.`);
     const plain = sc.text.replace(/[*|]/g, "");
-    if (project.video.lesson && plain.length > FIT.lesson) warnings.push(`Szene ${i + 1}: Erklärung ist zu lang (${plain.length} Zeichen), rechts passen etwa ${FIT.lesson}.`);
+    if (project.video.lesson && plain.length > FIT.lesson) warnings.push(`Szene ${i + 1}: Erklärung ist lang (${plain.length} Zeichen), rechts passen etwa ${FIT.lesson}. Sie wird deshalb in Teilen nacheinander gezeigt.`);
   });
   const length = number(field(root, "laenge", "length", "dauer"));
   if (length && length >= 5 && speed === null) project = fitLength(project, length);
@@ -601,6 +609,7 @@ export function toAiScript(project: StudioProject): string {
     look: project.style.theme,
     umgebung: rev(ENVS, project.style.environment),
     design: {
+      ansicht: project.style.view === "billboard" ? "aufsteller" : project.style.view,
       figuren: rev(PIECE_LOOKS, project.style.material),
       untertitelStil: rev(CAPTIONS, project.style.captionStyle),
       schrift: rev(FONTS, project.style.titleFont),

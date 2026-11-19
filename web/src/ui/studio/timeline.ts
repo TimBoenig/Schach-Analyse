@@ -6,6 +6,7 @@ import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
   germanSan,
+  spellNotation,
   parseMoves,
   POLL_COLOURS,
   scenePositions,
@@ -194,16 +195,22 @@ function piecesOf(fen: string, next: () => number): PieceState[] {
 
 const PIECE_WORD: Record<PieceSymbol, string> = { p: "Bauer", n: "Springer", b: "Läufer", r: "Turm", q: "Dame", k: "König" };
 
-/** "Springer nach f3", "Bauer schlägt auf d5", "Kurze Rochade": the move for people who don't read notation. */
+/**
+ * The move for people who don't read notation: "Springer von g1 nach f3",
+ * "Läufer schlägt Springer auf c6", "Kurze Rochade: König nach g1".
+ * Naming the start square and the captured piece lets a beginner find both on the board.
+ */
 export function plainMove(m: Move): string {
-  if (m.flags.includes("k")) return "Kurze Rochade";
-  if (m.flags.includes("q")) return "Lange Rochade";
+  const mark = m.san.includes("#") ? ", Matt" : m.san.includes("+") ? ", Schach" : "";
+  if (m.flags.includes("k")) return `Kurze Rochade: König nach ${m.to}${mark}`;
+  if (m.flags.includes("q")) return `Lange Rochade: König nach ${m.to}${mark}`;
   const who = PIECE_WORD[m.piece];
-  let s = m.captured ? `${who} schlägt auf ${m.to}` : `${who} nach ${m.to}`;
-  if (m.promotion) s += ` und wird ${m.promotion === "q" ? "Dame" : PIECE_WORD[m.promotion]}`;
-  if (m.san.includes("#")) s += ", Matt";
-  else if (m.san.includes("+")) s += ", Schach";
-  return s;
+  let s: string;
+  if (m.flags.includes("e")) s = `${who} schlägt Bauer en passant auf ${m.to}`;
+  else if (m.captured) s = `${who} schlägt ${PIECE_WORD[m.captured]} auf ${m.to}`;
+  else s = `${who} von ${m.from} nach ${m.to}`;
+  if (m.promotion) s += ` und wird ${PIECE_WORD[m.promotion]}`;
+  return s + mark;
 }
 
 /** "3. Lb5" or "3… a6": the move pill always says which move it is. */
@@ -593,8 +600,9 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
   const titleAlpha = titleStays ? 1 : clamp01(tail / 0.3);
   // A subtitle with "|" shows its parts one after another, each for an equal share of the scene.
   const lesson = isLesson(project);
-  const parts = textParts(s.text, !lesson);
-  let textNow = s.text;
+  const spell = (x: string) => (project.video.spellMoves ? spellNotation(x) : x);
+  const parts = textParts(spell(s.text), !lesson);
+  let textNow = parts[0] ?? "";
   let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
   let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
   if (parts.length > 1) {
@@ -615,7 +623,9 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     for (const square of [...named].slice(0, 4)) hints.push({ square, alpha: k });
   }
 
-  const cardIn = prev?.scene.card === s.card && s.card !== "none" ? 1 : clamp01(local / CARD_FADE);
+  // The very first card is there from the first frame: fading it in would show the plain headline and
+  // subtitle underneath for a moment, the same text twice at the start of the video.
+  const cardIn = !prev || (prev.scene.card === s.card && s.card !== "none") ? 1 : clamp01(local / CARD_FADE);
   const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / CARD_FADE);
   const countdown = (s.card === "question" || s.card === "poll") && s.countdown > 0 ? Math.max(0, s.countdown - Math.max(0, local - 0.6)) : null;
 
@@ -630,7 +640,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     lastMove,
     landing,
     camera: cameraAt(timeline, index, local, project.video.introFly),
-    title: { text: s.title, age: time - titleStart, alpha: titleAlpha },
+    title: { text: spell(s.title), age: time - titleStart, alpha: titleAlpha },
     text: { text: textNow, age: time - textStart, alpha: textAlpha },
     label: s.label,
     pill,
@@ -655,25 +665,29 @@ export const isLesson = (p: StudioProject) => p.video.lesson && p.video.format =
 /** Characters a short-video viewer can read at a glance while still watching the board. */
 export const SHORT_CHUNK = 60;
 
+/** Characters the lesson's reading column holds at normal text size; longer explanations turn pages. */
+export const LESSON_CHUNK = 330;
+
 /**
- * Splits a subtitle into the parts shown one after another. "|" splits by hand;
- * in short videos a long text is also split at sentences and then commas, so
- * there is never more on screen than fits one quick look.
+ * Splits a subtitle into the parts shown one after another. "|" splits by hand.
+ * A part longer than fits is split at sentences, then commas, then words: in
+ * short videos at a quick look (SHORT_CHUNK), in lessons at a full reading
+ * column (LESSON_CHUNK). So a text is never cut off, it only turns a page.
  */
 export function textParts(text: string, short: boolean): string[] {
   const manual = text.split("|").map((x) => x.trim()).filter(Boolean);
-  if (!short) return manual.length ? manual : [text];
+  const limit = short ? SHORT_CHUNK : LESSON_CHUNK;
   const out: string[] = [];
   for (const part of manual) {
-    if (part.length <= SHORT_CHUNK) {
+    if (part.length <= limit) {
       out.push(part);
       continue;
     }
-    const pieces = part.match(/[^.!?:;]+[.!?:;]*\s*/g) ?? [part];
-    const units = pieces.flatMap((p) => (p.length <= SHORT_CHUNK ? [p] : p.match(/[^,]+,?\s*/g) ?? [p]));
+    const sentences = part.match(/[^.!?:;]+[.!?:;]*\s*/g) ?? [part];
+    const units = sentences.flatMap((p) => (p.length <= limit ? [p] : (p.match(/[^,]+,?\s*/g) ?? [p]).flatMap((c) => (c.length <= limit ? [c] : byWords(c, limit)))));
     let cur = "";
     for (const unit of units) {
-      if (cur && (cur + unit).trim().length > SHORT_CHUNK) {
+      if (cur && (cur + unit).trim().length > limit) {
         out.push(cur.trim());
         cur = "";
       }
@@ -681,7 +695,31 @@ export function textParts(text: string, short: boolean): string[] {
     }
     if (cur.trim()) out.push(cur.trim());
   }
-  return out.length ? out : [text];
+  return out.length ? balanceStars(out) : [text];
+}
+
+function byWords(text: string, limit: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const w of text.split(/\s+/).filter(Boolean)) {
+    if (cur && cur.length + 1 + w.length > limit) {
+      out.push(`${cur} `);
+      cur = w;
+    } else cur = cur ? `${cur} ${w}` : w;
+  }
+  if (cur) out.push(`${cur} `);
+  return out;
+}
+
+/** A *highlight* split across two parts is closed at the end of the first and reopened in the next. */
+function balanceStars(parts: string[]): string[] {
+  let open = false;
+  return parts.map((p) => {
+    let q = open ? `*${p}` : p;
+    open = ((q.match(/\*/g) ?? []).length % 2) === 1;
+    if (open) q += "*";
+    return q;
+  });
 }
 
 /** Move labels of the line on the board, up to now. */

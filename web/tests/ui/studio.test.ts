@@ -14,6 +14,7 @@ import {
   POLL_COLOURS,
   scene,
   scenePositions,
+  spellNotation,
   START_FEN,
   styleFromTheme,
   TEMPLATES,
@@ -417,13 +418,14 @@ describe("studio for viewers", () => {
 
   it("spells moves out, says whose move it is and lights the squares the subtitle names", () => {
     const chess = new Chess();
-    expect(["Nf3", "e5", "Nxe5"].map((m) => plainMove(chess.move(m)))).toEqual(["Springer nach f3", "Bauer nach e5", "Springer schlägt auf e5"]);
-    expect(plainMove(new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").move("O-O"))).toBe("Kurze Rochade");
-    expect(plainMove(new Chess(parseMoves(START_FEN, "e4 e5 Lc4 Sc6 Dh5 Sf6").fen).move("Qxf7#"))).toBe("Dame schlägt auf f7, Matt");
+    expect(["Nf3", "e5", "Nxe5"].map((m) => plainMove(chess.move(m)))).toEqual(["Springer von g1 nach f3", "Bauer von e7 nach e5", "Springer schlägt Bauer auf e5"]);
+    expect(plainMove(new Chess("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1").move("O-O"))).toBe("Kurze Rochade: König nach g1");
+    expect(plainMove(new Chess(parseMoves(START_FEN, "e4 e5 Lc4 Sc6 Dh5 Sf6").fen).move("Qxf7#"))).toBe("Dame schlägt Bauer auf f7, Matt");
+    expect(plainMove(new Chess("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1").move("exd6"))).toBe("Bauer schlägt Bauer en passant auf d6");
     const p = make([scene({ moves: "1. e4 e5 2. Sf3", text: "Der Springer greift *e5* an.", duration: 5 })]);
     const tl = compile(p);
     const end = frameAt(tl, p, tl.total - 0.4)!;
-    expect(end.pill).toMatchObject({ text: "2. Sf3", plain: "Springer nach f3", side: "w" });
+    expect(end.pill).toMatchObject({ text: "2. Sf3", plain: "Springer von g1 nach f3", side: "w" });
     expect(end.hints.map((h) => h.square)).toEqual(["e5"]);
     // A piece in flight draws its path.
     const st = tl.scenes[0].steps[0];
@@ -526,6 +528,105 @@ describe("studio long lessons and short captions", () => {
     expect(parts.join(" ")).toBe(long);
     expect(textParts(long, false)).toEqual([long]);
     expect(textParts("A | B", false)).toEqual(["A", "B"]);
+  });
+
+  it("never cuts a text off: overlong parts turn pages at words and keep their highlights", async () => {
+    const { textParts, SHORT_CHUNK, LESSON_CHUNK } = await import("../../src/ui/studio/timeline");
+    // One long run without any punctuation used to stay in one piece and lose its end on screen.
+    const run = "Der weiße Springer springt jetzt mitten ins Zentrum hinein und greift dabei gleich zwei schwarze Figuren auf einmal an";
+    const parts = textParts(run, true);
+    expect(parts.length).toBeGreaterThan(1);
+    for (const p of parts) expect(p.length).toBeLessThanOrEqual(SHORT_CHUNK + 2);
+    expect(parts.join(" ").replace(/\s+/g, " ")).toBe(run);
+    // A highlight that spans the cut is closed and reopened, so both halves stay coloured.
+    const starred = textParts("Achtung *der Läufer auf c4 zielt die ganze Zeit schon auf den Punkt f7 neben dem König* jetzt", true);
+    for (const p of starred) expect((p.match(/\*/g) ?? []).length % 2).toBe(0);
+    // Lessons page only when the reading column is full.
+    const lesson = "Ein ruhiger Satz zum Plan. ".repeat(20).trim();
+    const pages = textParts(lesson, false);
+    expect(pages.length).toBe(2);
+    for (const p of pages) expect(p.length).toBeLessThanOrEqual(LESSON_CHUNK);
+  });
+
+  it("draws a piece letter as the piece itself only when the label really is a move", async () => {
+    const { moveParts } = await import("../../src/ui/studio/compose");
+    expect(moveParts("3. Lb5")).toEqual({ no: "3. ", piece: "L", rest: "b5", black: false });
+    expect(moveParts("3… Sxe5+")).toEqual({ no: "3… ", piece: "S", rest: "xe5+", black: true });
+    expect(moveParts("12. e4")).toMatchObject({ piece: "", rest: "e4" });
+    expect(moveParts("Springer nach f3")).toMatchObject({ piece: "", rest: "Springer nach f3" });
+    expect(moveParts("O-O")).toMatchObject({ piece: "", rest: "O-O" });
+  });
+
+  it("shows the opening card from the very first frame, so its text never appears twice", () => {
+    const p = make([scene({ card: "intro", title: "Die Spanische", text: "In 60 Sekunden", duration: 3 }), scene({ moves: "e4", title: "Zug", duration: 3 })]);
+    const tl = compile(p);
+    expect(frameAt(tl, p, 0)!.card.alpha).toBe(1);
+    // Later cards still fade in.
+    const q = make([scene({ moves: "e4", title: "Zug", duration: 3 }), scene({ card: "outro", title: "Ende", duration: 3 })]);
+    const tq = compile(q);
+    expect(frameAt(tq, q, tq.scenes[1].start + 0.05)!.card.alpha).toBeLessThan(0.5);
+  });
+
+  it("writes notation in texts out for beginners, but leaves squares and pawn moves alone", () => {
+    expect(spellNotation("Nach *Sf3* und Lxc6 steht e5 schwach.")).toBe("Nach *Springer f3* und Läufer schlägt auf c6 steht e5 schwach.");
+    expect(spellNotation("Dxf7# gewinnt, Td8+ auch, Nf3 ist englisch.")).toBe("Dame schlägt auf f7, Matt gewinnt, Turm d8 mit Schach auch, Springer f3 ist englisch.");
+    expect(spellNotation("Nach O-O-O oder 0-0 kommt exd5 und e8=D.")).toBe("Nach lange Rochade oder kurze Rochade kommt Bauer schlägt auf d5 und e8 wird Dame.");
+    // Words, squares, arrows and pawn moves stay untouched.
+    expect(spellNotation("Der König auf e1, Bauer e4, Pfeil f3-e5, Kd")).toBe("Der König auf e1, Bauer e4, Pfeil f3-e5, Kd");
+    // In the video it applies to titles and subtitles, the stored project stays as written.
+    const p = make([scene({ moves: "1. e4", title: "Warum Sf3?", text: "Weil *Sf3* e5 angreift.", duration: 4 })]);
+    const tl = compile(p);
+    const f = frameAt(tl, p, 3)!;
+    expect([f.title.text, f.text.text]).toEqual(["Warum Springer f3?", "Weil *Springer f3* e5 angreift."]);
+    expect(p.scenes[0].text).toBe("Weil *Sf3* e5 angreift.");
+    const off = { ...p, video: { ...p.video, spellMoves: false } };
+    expect(frameAt(compile(off), off, 3)!.text.text).toBe("Weil *Sf3* e5 angreift.");
+  });
+
+  it("uses the flat 2D board for YouTube lessons and keeps 3D for short videos", () => {
+    // New lessons from the assistant and the AI import start in 2D, short videos in 3D.
+    const lessonJson = buildAiPrompt({ topic: "Italienisch", platform: "youtube", length: 240, notes: "" });
+    const lesson = importAiScript(lessonJson.slice(lessonJson.indexOf("```json") + 7, lessonJson.lastIndexOf("```"))).project!;
+    expect(lesson.style.view).toBe("2d");
+    const shortJson = buildAiPrompt({ topic: "Falle", platform: "tiktok", length: 30, notes: "" });
+    expect(importAiScript(shortJson.slice(shortJson.indexOf("```json") + 7, shortJson.lastIndexOf("```"))).project!.style.view).toBe("3d");
+    // The AI can ask for either look, and the round trip keeps it.
+    const asked = importAiScript(JSON.stringify({ plattform: "tiktok", design: { ansicht: "2d" }, szenen: [{ zug: "e4", titel: "x" }] })).project!;
+    expect(asked.style.view).toBe("2d");
+    expect(toAiScript(asked)).toContain('"ansicht": "2d"');
+    // Saved projects from before: lessons switch to 2D, everything else stays 3D.
+    expect(normalizeProject({ video: { format: "16:9", lesson: true } }).style.view).toBe("2d");
+    expect(normalizeProject({ video: { format: "9:16" } }).style.view).toBe("3d");
+    expect(normalizeProject({ style: { view: "3d" }, video: { format: "16:9", lesson: true } }).style.view).toBe("3d");
+    // Flat standees on the 3D board: a look of its own, also for the AI.
+    expect(normalizeProject({ style: { view: "billboard" } }).style.view).toBe("billboard");
+    const standees = importAiScript(JSON.stringify({ design: { ansicht: "aufsteller" }, szenen: [{ zug: "e4", titel: "x" }] })).project!;
+    expect(standees.style.view).toBe("billboard");
+    expect(toAiScript(standees)).toContain('"ansicht": "aufsteller"');
+  });
+
+  it("maps the flat board so overlays and clicks land on the right square, from both sides", async () => {
+    const { boardSlot, flatView, flatMatrix } = await import("../../src/ui/studio/flat");
+    for (const yaw of [0, 180]) {
+      const frame = { camera: { yaw, pitch: 54, zoom: 1, tx: 0, tz: 0 }, lesson: true } as Parameters<typeof flatView>[0];
+      const slot = boardSlot(1920, 1080, true);
+      const view = flatView(frame, slot);
+      const m = flatMatrix(1920, 1080, view);
+      const [x, z] = squareXZ("b2");
+      const p = toScreen(m, [x, 0, z])!;
+      // White's corner is bottom left from White's side, top right from Black's.
+      if (yaw === 0) expect([p.x < 0.3, p.y > 0.5]).toEqual([true, true]);
+      else expect([p.x > 0.15, p.y < 0.5]).toEqual([true, true]);
+      // The lesson board stays left of the reading column.
+      expect(slot.cx + slot.size / 2).toBeLessThan(1920 * 0.6);
+      const hit = screenToBoard(m, p.x, p.y)!;
+      expect(xzSquare(hit.x, hit.z)).toBe("b2");
+    }
+    // In a tall video the board sits between the move pill and the subtitles and stays inside the picture.
+    const tall = boardSlot(1080, 1920, false);
+    expect(tall.size).toBeGreaterThan(650);
+    expect(tall.cy - tall.size / 2).toBeGreaterThan(560);
+    expect(tall.cy + tall.size / 2).toBeLessThan(1920 - 470);
   });
 
   it("builds YouTube scripts as calm lessons with the board left and a move list", () => {
