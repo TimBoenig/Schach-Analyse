@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { BRAND, FILE_PREFIX } from "../../brand";
 import { navigate } from "../router";
 import { StudioAudio, type AudioMix } from "./audio";
+import { canExportFast, exportFast } from "./fastExport";
 import { deleteClip, loadClip, saveClip, type ClipKind } from "./audioStore";
 import { MUSIC_LABEL, type MusicId } from "./music";
 import {
@@ -396,8 +397,33 @@ export function StudioView() {
     setExp({ phase: "recording", progress: 0 });
     const sounds = audio();
     const audioMix = mix();
+    const progress = (k: number) => setExp((x) => (x && x.phase === "recording" ? { ...x, progress: k } : x));
+    // Fast path: frames as fast as the device renders them, no waiting for the video's length.
+    if (await canExportFast(W, H, project.video.fps, true)) {
+      try {
+        const blob = await exportFast({
+          canvas: out,
+          fps: project.video.fps,
+          duration: timeline.total,
+          paint: (t) => stage.paint(timeline, project, t),
+          timeline,
+          mix: audioMix,
+          onProgress: progress,
+          isCancelled: () => cancelRef.current,
+        });
+        stage.destroy();
+        if (!blob) return setExp(null);
+        setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: "mp4" });
+        return;
+      } catch {
+        // Some encoder setups fail late; the real-time recording below still works there.
+        if (cancelRef.current) return setExp(null);
+        progress(0);
+      }
+    }
     sounds.speakers(false);
     try {
+      if (!sounds.stream) throw new Error("Ton fehlt");
       const { blob, type } = await recordVideo({
         canvas: out,
         fps: project.video.fps,
@@ -405,7 +431,7 @@ export function StudioView() {
         paint: (t) => stage.paint(timeline, project, t),
         audio: sounds.stream.stream,
         onStart: () => sounds.schedule(timeline, 0, audioMix),
-        onProgress: (k) => setExp((x) => (x && x.phase === "recording" ? { ...x, progress: k } : x)),
+        onProgress: progress,
         isCancelled: () => cancelRef.current,
       });
       stage.destroy();
@@ -728,7 +754,7 @@ export function StudioView() {
             {exp.phase === "recording" && (
               <>
                 <h3>Video wird aufgenommen …</h3>
-                <p class="muted">Die Aufnahme läuft in Echtzeit ({fmtTime(timeline.total)}). Lass diesen Tab bitte im Vordergrund.</p>
+                <p class="muted">Das Video wird so schnell erstellt, wie dein Gerät es schafft (in alten Browsern in Echtzeit, {fmtTime(timeline.total)}). Lass diesen Tab bitte im Vordergrund.</p>
                 <div class="studio-bar">
                   <span style={{ width: `${Math.round(exp.progress * 100)}%` }} />
                 </div>
@@ -1185,7 +1211,7 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
         <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder="Grundstellung" onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
       </Field>
       <p class="studio-hint">
-        Export als {type ? type.toUpperCase() : "– (Browser kann nicht aufnehmen)"}. Die Aufnahme läuft in Echtzeit, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.
+        Export als {type ? type.toUpperCase() : "– (Browser kann nicht aufnehmen)"}. Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.
       </p>
     </div>
   );

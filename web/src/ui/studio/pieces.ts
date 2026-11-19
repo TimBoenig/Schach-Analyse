@@ -216,15 +216,103 @@ function pawn(): Mesh {
 
 function rook(): Mesh {
   const body = lathe(
-    [...foot(0.34), [0.26, 0.19], [0.23, 0.3], [0.215, 0.55], [0.25, 0.59], [0.31, 0.62], [0.31, 0.66], [0.29, 0.68], [0.29, 0.79], [0.2, 0.79], [0.2, 0.73], [0, 0.73]],
+    [...foot(0.34), [0.26, 0.19], [0.23, 0.3], [0.21, 0.55], [0.25, 0.59], [0.31, 0.62], [0.31, 0.66], [0.29, 0.68], [0.29, 0.8], [0.19, 0.8], [0.19, 0.74], [0, 0.74]],
     WHITE,
   );
-  const crenels: Mesh[] = [];
+  // Battlements: four curved merlons on the rim with clear gaps, like a real turret.
+  const merlons: Mesh[] = [];
   for (let i = 0; i < 4; i++) {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    crenels.push(box([Math.cos(a) * 0.245, 0.85, Math.sin(a) * 0.245], [0.13, 0.13, 0.13], WHITE));
+    const mid = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    merlons.push(ringSegment(0.19, 0.29, 0.8, 0.9, mid - 0.5, mid + 0.5, 10));
   }
-  return merge(body, ...crenels);
+  return merge(body, ...merlons);
+}
+
+/** A solid piece of a ring (inner and outer radius, height range, angle range): rook battlements. */
+export function ringSegment(r0: number, r1: number, y0: number, y1: number, a0: number, a1: number, n: number, material: Material = WHITE): Mesh {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const quad = (pts: [number, number, number][], nrm: [number, number, number][]) => {
+    const b = vertices.length / STRIDE;
+    pts.forEach((p, k) => vertices.push(...p, ...nrm[k], ...material.color, material.metal));
+    indices.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  };
+  for (let i = 0; i < n; i++) {
+    const t0 = a0 + ((a1 - a0) * i) / n;
+    const t1 = a0 + ((a1 - a0) * (i + 1)) / n;
+    const [c0, s0, c1, s1] = [Math.cos(t0), Math.sin(t0), Math.cos(t1), Math.sin(t1)];
+    quad([[r1 * c0, y0, r1 * s0], [r1 * c0, y1, r1 * s0], [r1 * c1, y1, r1 * s1], [r1 * c1, y0, r1 * s1]], [[c0, 0, s0], [c0, 0, s0], [c1, 0, s1], [c1, 0, s1]]);
+    quad([[r0 * c1, y0, r0 * s1], [r0 * c1, y1, r0 * s1], [r0 * c0, y1, r0 * s0], [r0 * c0, y0, r0 * s0]], [[-c1, 0, -s1], [-c1, 0, -s1], [-c0, 0, -s0], [-c0, 0, -s0]]);
+    quad([[r0 * c0, y1, r0 * s0], [r0 * c1, y1, r0 * s1], [r1 * c1, y1, r1 * s1], [r1 * c0, y1, r1 * s0]], [[0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0]]);
+  }
+  for (const [t, sgn] of [[a0, -1], [a1, 1]] as const) {
+    const [c, sn] = [Math.cos(t), Math.sin(t)];
+    const nx = -sn * sgn;
+    const nz = c * sgn;
+    quad([[r0 * c, y0, r0 * sn], [r0 * c, y1, r0 * sn], [r1 * c, y1, r1 * sn], [r1 * c, y0, r1 * sn]], [[nx, 0, nz], [nx, 0, nz], [nx, 0, nz], [nx, 0, nz]]);
+  }
+  return { vertices, indices };
+}
+
+/**
+ * Extrudes a side outline ([z, y] points) to a slab with fully rounded edges
+ * (a quarter circle of the given radius), so a carved horse head looks soft
+ * and solid instead of cut from a board.
+ */
+export function extrudeRound(outline: [number, number][], thickness: number, radius: number, material: Material = WHITE, steps = 5): Mesh {
+  const vertices: number[] = [];
+  const indices: number[] = [];
+  const n = outline.length;
+  const area = outline.reduce((s, [x, y], i) => s + x * outline[(i + 1) % n][1] - outline[(i + 1) % n][0] * y, 0);
+  const sign = area > 0 ? 1 : -1;
+  // Outward normal at each vertex (average of the two edges), in the (z, y) plane.
+  const vn = outline.map((p, i) => {
+    const a = outline[(i + n - 1) % n];
+    const b = outline[(i + 1) % n];
+    const e1 = [p[0] - a[0], p[1] - a[1]];
+    const e2 = [b[0] - p[0], b[1] - p[1]];
+    const n1 = [e1[1] * sign, -e1[0] * sign].map((v) => v / (Math.hypot(e1[0], e1[1]) || 1));
+    const n2 = [e2[1] * sign, -e2[0] * sign].map((v) => v / (Math.hypot(e2[0], e2[1]) || 1));
+    const m = [n1[0] + n2[0], n1[1] + n2[1]];
+    const l = Math.hypot(m[0], m[1]) || 1;
+    return [m[0] / l, m[1] / l] as [number, number];
+  });
+  const h = thickness / 2;
+  // Rings from one face over the rounded side to the other face.
+  const rings: number[] = [];
+  for (let k = -steps; k <= steps; k++) {
+    const phi = (k / steps) * (Math.PI / 2);
+    const inset = radius * (1 - Math.cos(phi));
+    const x = Math.sign(phi) * (h - radius) + radius * Math.sin(phi);
+    const base = vertices.length / STRIDE;
+    rings.push(base);
+    outline.forEach((p, i) => {
+      const [nz, ny] = vn[i];
+      vertices.push(x, p[1] - ny * inset, p[0] - nz * inset, Math.sin(phi), ny * Math.cos(phi), nz * Math.cos(phi), ...material.color, material.metal);
+    });
+  }
+  for (let r = 0; r < rings.length - 1; r++) {
+    for (let i = 0; i < n; i++) {
+      const a = rings[r] + i;
+      const b = rings[r] + ((i + 1) % n);
+      const c = rings[r + 1] + ((i + 1) % n);
+      const d = rings[r + 1] + i;
+      if (sign > 0) indices.push(a, b, c, a, c, d);
+      else indices.push(a, c, b, a, d, c);
+    }
+  }
+  // Flat caps on both faces, from the fully inset outline.
+  const inner = outline.map((p, i) => [p[0] - vn[i][0] * radius, p[1] - vn[i][1] * radius] as [number, number]);
+  const tri = triangulate(inner);
+  for (const side of [-1, 1]) {
+    const base = vertices.length / STRIDE;
+    for (const p of inner) vertices.push(side * h, p[1], p[0], side, 0, 0, ...material.color, material.metal);
+    for (let i = 0; i < tri.length; i += 3) {
+      if (side > 0) indices.push(base + tri[i], base + tri[i + 1], base + tri[i + 2]);
+      else indices.push(base + tri[i], base + tri[i + 2], base + tri[i + 1]);
+    }
+  }
+  return { vertices, indices };
 }
 
 const BISHOP: ProfilePoint[] = [
@@ -234,7 +322,7 @@ const BISHOP: ProfilePoint[] = [
 
 function bishop(): Mesh {
   const body = lathe(BISHOP, WHITE);
-  return merge(body, slitBand(BISHOP, 0.9, 0.75, 0.014, DETAIL), translate(sphere(0.055), 0, 1.12, 0));
+  return merge(body, slitBand(BISHOP, 0.9, 0.75, 0.022, DETAIL), translate(sphere(0.055), 0, 1.12, 0));
 }
 
 function queen(): Mesh {
@@ -261,19 +349,21 @@ function king(): Mesh {
 }
 
 function knight(): Mesh {
-  const base = lathe([...foot(0.34), [0.25, 0.2], [0.22, 0.24], [0, 0.24]], WHITE);
-  // Side outline of the horse's head, nose pointing to -z (towards the opponent of White).
+  const base = lathe([...foot(0.34), [0.25, 0.2], [0.22, 0.26], [0, 0.26]], WHITE);
+  // Side outline of a Staunton horse head, nose pointing to -z: neck, mane, ears, forehead, muzzle, jaw, chest.
   const head: [number, number][] = [
-    [0.25, 0.22], [0.28, 0.42], [0.27, 0.6], [0.23, 0.78], [0.16, 0.92], [0.15, 1.06], [0.09, 0.99],
-    [0.02, 1.0], [-0.08, 0.95], [-0.19, 0.85], [-0.29, 0.73], [-0.34, 0.64], [-0.3, 0.56], [-0.2, 0.56],
-    [-0.11, 0.59], [-0.06, 0.52], [-0.12, 0.42], [-0.18, 0.3], [-0.19, 0.22],
+    [0.25, 0.24], [0.29, 0.38], [0.3, 0.52], [0.29, 0.65], [0.25, 0.78], [0.19, 0.89], [0.15, 0.97], [0.13, 1.06], [0.1, 1.11],
+    [0.065, 1.03], [0.02, 1.0], [-0.06, 0.97], [-0.14, 0.92], [-0.21, 0.85], [-0.28, 0.77], [-0.33, 0.7], [-0.355, 0.64],
+    [-0.345, 0.59], [-0.3, 0.565], [-0.24, 0.57], [-0.18, 0.59], [-0.12, 0.6], [-0.08, 0.56], [-0.085, 0.48], [-0.13, 0.4],
+    [-0.18, 0.32], [-0.2, 0.24],
   ];
-  // Mane: a narrower ridge along the back of the neck.
+  // Mane: a raised ridge down the back of the neck.
   const mane: [number, number][] = [
-    [0.27, 0.36], [0.31, 0.5], [0.3, 0.66], [0.25, 0.82], [0.18, 0.95], [0.13, 0.9], [0.2, 0.76], [0.23, 0.6], [0.23, 0.44],
+    [0.26, 0.34], [0.31, 0.46], [0.315, 0.6], [0.29, 0.74], [0.23, 0.86], [0.17, 0.96], [0.13, 0.92], [0.19, 0.82], [0.24, 0.7], [0.255, 0.56], [0.24, 0.44],
   ];
-  const eyes = [-1, 1].map((side) => translate(sphere(0.03, 10), side * 0.16, 0.85, -0.06)).map((m) => recolor(m, DETAIL));
-  return merge(base, extrude(head, 0.32, WHITE, 0.04), extrude(mane, 0.12, WHITE, 0.03), ...eyes);
+  const eyes = [-1, 1].map((side) => recolor(translate(sphere(0.028, 10), side * 0.125, 0.86, -0.08), DETAIL));
+  const nostrils = [-1, 1].map((side) => recolor(translate(sphere(0.018, 8), side * 0.09, 0.66, -0.33), DETAIL));
+  return merge(base, extrudeRound(head, 0.27, 0.07), extrudeRound(mane, 0.11, 0.035), ...eyes, ...nostrils);
 }
 
 function recolor(mesh: Mesh, material: Material): Mesh {
