@@ -279,6 +279,10 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
  * while the board still turns and zooms. Sized by the camera's sideways
  * direction, so a piece keeps its size even when the camera looks from straight above.
  */
+/** Where the piece pictures (45 × 45, Cburnett) have their middle and their foot, as a share of the height. */
+export const STANDEE_MIDDLE = 0.54;
+export const STANDEE_FOOT = 0.88;
+
 export function drawStandees(ctx: CanvasRenderingContext2D, frame: Frame, viewProj: Mat4, pieces: Record<string, HTMLImageElement>): void {
   const { width: W, height: H } = ctx.canvas;
   const yaw = (frame.camera.yaw * Math.PI) / 180;
@@ -295,11 +299,18 @@ export function drawStandees(ctx: CanvasRenderingContext2D, frame: Frame, viewPr
     if (!base || !side) continue;
     const bx = base.x * W;
     const by = base.y * H;
-    const size = Math.hypot(side.x * W - bx, side.y * H - by) * 2 * 1.08 * p.scale;
+    // How flat the view is: 0 from straight above, near 1 from low down.
+    const flat = Math.cos((Math.max(5, Math.min(89, frame.camera.pitch)) * Math.PI) / 180);
+    const square = Math.hypot(side.x * W - bx, side.y * H - by) * 2;
+    // From above a piece fits inside its square; from low down it may stand a little taller, like a real one.
+    const size = square * (0.9 + 0.14 * flat) * p.scale;
     ctx.save();
     ctx.globalAlpha = p.alpha;
-    // The piece's foot sits on its square, a little below the square's centre so it looks planted.
-    ctx.translate(bx, by + size * 0.12);
+    // Which point of the picture sits on the square's centre: the middle of the piece when the camera looks
+    // from above (so it covers its own square, not the one behind), sliding to its foot (88 % down the
+    // picture) as the camera gets lower, so it still stands on the square instead of floating.
+    const anchor = STANDEE_MIDDLE + (STANDEE_FOOT - STANDEE_MIDDLE) * flat;
+    ctx.translate(bx, by + size * (1 - anchor));
     if (p.tilt) {
       const sx = Math.sin((p.tiltYaw ?? 0) - yaw);
       ctx.rotate((sx >= 0 ? 1 : -1) * p.tilt);
