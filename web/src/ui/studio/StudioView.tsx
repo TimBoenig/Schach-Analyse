@@ -50,6 +50,8 @@ import {
   type Tone,
   CAPTION_LABEL,
   VIEW_LABEL,
+  VIEWS,
+  isBoard3d,
   type BoardView,
   MATERIAL_LABEL,
   type CaptionStyle,
@@ -1077,8 +1079,8 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
   );
   return (
     <div class="studio-form">
-      <Field label="Brett" hint={style.view === "2d" ? "Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos." : "Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts."}>
-        <Seg<BoardView> value={style.view} options={(["2d", "3d"] as BoardView[]).map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange({ view })} />
+      <Field label="Brett" hint={style.view === "2d" ? "Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos." : style.view === "billboard" ? "3D-Brett mit Kamerafahrten, die Figuren sind flache Aufsteller, die sich immer zur Kamera drehen." : "Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts."}>
+        <Seg<BoardView> value={style.view} options={VIEWS.map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange({ view })} />
       </Field>
       <Field label="Look">
         <div class="studio-themes">
@@ -1097,7 +1099,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           })}
         </div>
       </Field>
-      {style.view === "3d" && <Field label="Wo das Brett steht">
+      {isBoard3d(style.view) && <Field label="Wo das Brett steht">
         <div class="studio-envs">
           {(Object.keys(ENV_LABEL) as Environment[]).map((e) => (
             <button key={e} class={style.environment === e ? "on" : ""} onClick={() => onChange({ environment: e })}>

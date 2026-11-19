@@ -78,8 +78,12 @@ export type CaptionStyle = "box" | "outline" | "punch";
  * How the board is drawn: the 3D show board (TikTok, Shorts) or a flat board
  * seen from above, like in a book, which beginners and phone screens read best.
  */
-export type BoardView = "3d" | "2d";
-export const VIEW_LABEL: Record<BoardView, string> = { "2d": "2D – klar wie im Buch", "3d": "3D – Show-Look" };
+export type BoardView = "3d" | "2d" | "billboard";
+/** Order of the choices in the editor. */
+export const VIEWS: BoardView[] = ["2d", "billboard", "3d"];
+export const VIEW_LABEL: Record<BoardView, string> = { "2d": "2D – klar wie im Buch", billboard: "3D-Brett, 2D-Figuren", "3d": "3D – Show-Look" };
+/** The views with a 3D board (camera, surroundings, reflection). */
+export const isBoard3d = (v: BoardView) => v !== "2d";
 export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: "Im Kasten", outline: "Mit Kontur", punch: "Groß und fett" };
 export const MATERIAL_LABEL: Record<Material, string> = { porcelain: "Lack", matte: "Matt", chrome: "Chrom", wood: "Holz" };
 
@@ -424,7 +428,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
     textScale: num(st.textScale, 0.8, 1.3, 1),
     // Projects from before the 2D board: YouTube lessons get the clearer flat board, short videos keep 3D.
-    view: st.view === "2d" || st.view === "3d" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
+    view: st.view === "2d" || st.view === "3d" || st.view === "billboard" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {

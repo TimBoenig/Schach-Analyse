@@ -372,7 +372,9 @@ export class StudioRenderer {
     gl.depthMask(true);
     gl.stencilFunc(gl.EQUAL, 1, 0xff);
     gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
-    if (style.reflection) {
+    // Flat standees are painted on top by the 2D layer; only their shadows go on the board.
+    const solid = style.view !== "billboard";
+    if (style.reflection && solid) {
       for (const p of frame.pieces) {
         if (p.alpha <= 0.01) continue;
         this.drawLit(this.piece(p.type), modelOf(p, true), { ...pieceOpts(p), alpha: 0.3 * p.alpha * Math.max(0, 1 - p.y * 0.8) });
@@ -461,7 +463,7 @@ export class StudioRenderer {
     gl.depthMask(true);
 
     gl.useProgram(this.lit);
-    const ordered = [...frame.pieces].sort((a, b) => b.alpha - a.alpha);
+    const ordered = solid ? [...frame.pieces].sort((a, b) => b.alpha - a.alpha) : [];
     for (const p of ordered) {
       if (p.alpha <= 0.01) continue;
       this.drawLit(this.piece(p.type), modelOf(p, false), pieceOpts(p));

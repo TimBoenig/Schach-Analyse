@@ -623,7 +623,9 @@ export function frameAt(timeline: Timeline, project: StudioProject, t: number): 
     for (const square of [...named].slice(0, 4)) hints.push({ square, alpha: k });
   }
 
-  const cardIn = prev?.scene.card === s.card && s.card !== "none" ? 1 : clamp01(local / CARD_FADE);
+  // The very first card is there from the first frame: fading it in would show the plain headline and
+  // subtitle underneath for a moment, the same text twice at the start of the video.
+  const cardIn = !prev || (prev.scene.card === s.card && s.card !== "none") ? 1 : clamp01(local / CARD_FADE);
   const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / CARD_FADE);
   const countdown = (s.card === "question" || s.card === "poll") && s.countdown > 0 ? Math.max(0, s.countdown - Math.max(0, local - 0.6)) : null;
 

@@ -102,7 +102,7 @@ const ENVS: Record<string, Environment> = {
 };
 const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "porcelain", glanz: "porcelain", matt: "matte", matte: "matte", chrom: "chrome", chrome: "chrome", metall: "chrome", holz: "wood", wood: "wood", holzfiguren: "wood" };
 const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch" };
-const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d" };
+const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d", aufsteller: "billboard", billboard: "billboard", mix: "billboard", "3d2d": "billboard" };
 const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
 const MUSICS: Record<string, MusicId> = { keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
 /** Longest texts that still fit the frame at normal text size. */
@@ -256,7 +256,7 @@ ${long ? LONG_LAYOUT : `SO SIEHT DAS VIDEO AUS (${o.platform === "youtube" ? "Qu
 
 `}DESIGN ("design" oben im JSON, alles optional, passend zum Thema wählen)
 - look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).
-- ansicht: 2d (flaches Brett von oben, am klarsten, Standard bei YouTube) oder 3d (plastisches Show-Brett, Standard bei TikTok, Reels, Shorts).
+- ansicht: 2d (flaches Brett von oben, am klarsten, Standard bei YouTube), 3d (plastisches Show-Brett, Standard bei TikTok, Reels, Shorts) oder aufsteller (3D-Brett mit flachen 2D-Figuren, die sich immer zur Kamera drehen).
 - figuren (nur 3D): lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.
 - untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).
 - schrift: modern oder elegant (Serifen, für Geschichte und Klassiker).
@@ -609,7 +609,7 @@ export function toAiScript(project: StudioProject): string {
     look: project.style.theme,
     umgebung: rev(ENVS, project.style.environment),
     design: {
-      ansicht: project.style.view,
+      ansicht: project.style.view === "billboard" ? "aufsteller" : project.style.view,
       figuren: rev(PIECE_LOOKS, project.style.material),
       untertitelStil: rev(CAPTIONS, project.style.captionStyle),
       schrift: rev(FONTS, project.style.titleFont),

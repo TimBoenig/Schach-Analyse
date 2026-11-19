@@ -557,6 +557,16 @@ describe("studio long lessons and short captions", () => {
     expect(moveParts("O-O")).toMatchObject({ piece: "", rest: "O-O" });
   });
 
+  it("shows the opening card from the very first frame, so its text never appears twice", () => {
+    const p = make([scene({ card: "intro", title: "Die Spanische", text: "In 60 Sekunden", duration: 3 }), scene({ moves: "e4", title: "Zug", duration: 3 })]);
+    const tl = compile(p);
+    expect(frameAt(tl, p, 0)!.card.alpha).toBe(1);
+    // Later cards still fade in.
+    const q = make([scene({ moves: "e4", title: "Zug", duration: 3 }), scene({ card: "outro", title: "Ende", duration: 3 })]);
+    const tq = compile(q);
+    expect(frameAt(tq, q, tq.scenes[1].start + 0.05)!.card.alpha).toBeLessThan(0.5);
+  });
+
   it("writes notation in texts out for beginners, but leaves squares and pawn moves alone", () => {
     expect(spellNotation("Nach *Sf3* und Lxc6 steht e5 schwach.")).toBe("Nach *Springer f3* und Läufer schlägt auf c6 steht e5 schwach.");
     expect(spellNotation("Dxf7# gewinnt, Td8+ auch, Nf3 ist englisch.")).toBe("Dame schlägt auf f7, Matt gewinnt, Turm d8 mit Schach auch, Springer f3 ist englisch.");
@@ -588,6 +598,11 @@ describe("studio long lessons and short captions", () => {
     expect(normalizeProject({ video: { format: "16:9", lesson: true } }).style.view).toBe("2d");
     expect(normalizeProject({ video: { format: "9:16" } }).style.view).toBe("3d");
     expect(normalizeProject({ style: { view: "3d" }, video: { format: "16:9", lesson: true } }).style.view).toBe("3d");
+    // Flat standees on the 3D board: a look of its own, also for the AI.
+    expect(normalizeProject({ style: { view: "billboard" } }).style.view).toBe("billboard");
+    const standees = importAiScript(JSON.stringify({ design: { ansicht: "aufsteller" }, szenen: [{ zug: "e4", titel: "x" }] })).project!;
+    expect(standees.style.view).toBe("billboard");
+    expect(toAiScript(standees)).toContain('"ansicht": "aufsteller"');
   });
 
   it("maps the flat board so overlays and clicks land on the right square, from both sides", async () => {

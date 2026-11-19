@@ -7,7 +7,7 @@
 import type { PieceSymbol } from "chess.js";
 
 import { layout } from "./compose";
-import { screenToBoard, type Mat4 } from "./math3d";
+import { screenToBoard, toScreen, type Mat4 } from "./math3d";
 import { toneColor, type StudioStyle } from "./model";
 import { arrowMesh } from "./renderer";
 import { squareXZ, xzSquare, type Frame } from "./timeline";
@@ -271,4 +271,43 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
   ctx.arcTo(x, y + h, x, y, rr);
   ctx.arcTo(x, y, x + w, y, rr);
   ctx.closePath();
+}
+
+/**
+ * "3D board, 2D pieces": the site's flat pieces stand on the 3D board like
+ * cardboard standees and always face the camera, so they read like a diagram
+ * while the board still turns and zooms. Sized by the camera's sideways
+ * direction, so a piece keeps its size even when the camera looks from straight above.
+ */
+export function drawStandees(ctx: CanvasRenderingContext2D, frame: Frame, viewProj: Mat4, pieces: Record<string, HTMLImageElement>): void {
+  const { width: W, height: H } = ctx.canvas;
+  const yaw = (frame.camera.yaw * Math.PI) / 180;
+  const right: [number, number] = [Math.cos(yaw), -Math.sin(yaw)];
+  // Distance along the view (clip w): far pieces first, so near ones overlap them.
+  const depth = (p: Frame["pieces"][number]) => viewProj[3] * p.x + viewProj[7] * p.y + viewProj[11] * p.z + viewProj[15];
+  const list = frame.pieces.filter((p) => p.alpha > 0.01).sort((a, b) => depth(b) - depth(a));
+  const u = Math.min(W, H) / 1080;
+  for (const p of list) {
+    const img = pieces[pieceKey(p.color, p.type)];
+    if (!img) continue;
+    const base = toScreen(viewProj, [p.x, Math.max(0, p.y), p.z]);
+    const side = toScreen(viewProj, [p.x + right[0] * 0.5, Math.max(0, p.y), p.z + right[1] * 0.5]);
+    if (!base || !side) continue;
+    const bx = base.x * W;
+    const by = base.y * H;
+    const size = Math.hypot(side.x * W - bx, side.y * H - by) * 2 * 1.08 * p.scale;
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    // The piece's foot sits on its square, a little below the square's centre so it looks planted.
+    ctx.translate(bx, by + size * 0.12);
+    if (p.tilt) {
+      const sx = Math.sin((p.tiltYaw ?? 0) - yaw);
+      ctx.rotate((sx >= 0 ? 1 : -1) * p.tilt);
+    }
+    ctx.shadowColor = "rgba(0,0,0,0.45)";
+    ctx.shadowBlur = 10 * u;
+    ctx.shadowOffsetY = 4 * u;
+    ctx.drawImage(img, -size / 2, -size, size, size);
+    ctx.restore();
+  }
 }

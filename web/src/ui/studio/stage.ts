@@ -2,9 +2,9 @@
 // Used by the editor preview and, at full size, by the video export.
 import { Orb } from "../coach/orb";
 import { compose, type Assets, type ComposeOptions } from "./compose";
-import { FlatBoard, pieceKey } from "./flat";
+import { drawStandees, FlatBoard, pieceKey } from "./flat";
 import { BADGE_FILE } from "./model";
-import type { StudioProject } from "./model";
+import type { BoardView, StudioProject } from "./model";
 import { StudioRenderer } from "./renderer";
 import { frameAt, type Frame, type Timeline } from "./timeline";
 
@@ -15,7 +15,7 @@ export class StudioStage {
   private assets: Assets = { logo: null, orb: null, badges: {}, pieces: {} };
   /** The flat board, made on first use. */
   private flat: FlatBoard | null = null;
-  private lastView: "2d" | "3d" = "3d";
+  private lastView: BoardView = "3d";
   private orb: Orb | null = null;
   private orbCanvas: HTMLCanvasElement | null = null;
 
@@ -102,7 +102,8 @@ export class StudioStage {
       compose(this.ctx, frame, project, this.flat.canvas, this.flat.viewProj, this.assets, opts);
     } else {
       this.renderer.render(frame, project.style);
-      compose(this.ctx, frame, project, this.renderer.canvas, this.renderer.viewProj, this.assets, opts);
+      const sprites = project.style.view === "billboard" ? (ctx: CanvasRenderingContext2D) => drawStandees(ctx, frame, this.renderer.viewProj, this.assets.pieces) : undefined;
+      compose(this.ctx, frame, project, this.renderer.canvas, this.renderer.viewProj, this.assets, opts, sprites);
     }
     return frame;
   }

@@ -308,6 +308,8 @@ export function compose(
   viewProj: Mat4,
   assets: Assets,
   opts: ComposeOptions = {},
+  /** Paints flat pieces standing on the 3D board, right after the board picture. */
+  pieces?: (ctx: CanvasRenderingContext2D) => void,
 ): void {
   const { width: W, height: H } = ctx.canvas;
   const L = layout(W, H);
@@ -330,6 +332,9 @@ export function compose(
       if (b) ctx.fillText(String(i + 1), b.x * W, b.y * H);
     }
   }
+
+  // Standees stand in front of the frame's letters, as real pieces would.
+  pieces?.(ctx);
 
   // Editor-only: square under the pointer while drawing arrows or marks.
   if (opts.hover) {
