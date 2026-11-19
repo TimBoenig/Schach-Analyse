@@ -49,6 +49,8 @@ import {
   type ThemeId,
   type Tone,
   CAPTION_LABEL,
+  VIEW_LABEL,
+  type BoardView,
   MATERIAL_LABEL,
   type CaptionStyle,
 } from "./model";
@@ -308,7 +310,7 @@ export function StudioView() {
     const stage = stageRef.current;
     if (!canvas || !stage) return null;
     const r = canvas.getBoundingClientRect();
-    return stage.renderer.squareAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
+    return stage.squareAt((e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height);
   };
   const onBoardClick = (e: MouseEvent) => {
     if (tool === "none") return;
@@ -691,7 +693,7 @@ export function StudioView() {
               onRemoveVoice={removeVoice}
             />
           )}
-          {tab === "video" && <VideoEditor project={project} type={type?.ext ?? null} onVideo={setVideo} onStart={(fen) => update((p) => ({ ...p, startFen: fen }))} />}
+          {tab === "video" && <VideoEditor project={project} type={type?.ext ?? null} onVideo={setVideo} onStyle={setStyle} onStart={(fen) => update((p) => ({ ...p, startFen: fen }))} />}
         </div>
         {saveError && <p class="studio-warn">Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.</p>}
       </aside>
@@ -1075,12 +1077,15 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
   );
   return (
     <div class="studio-form">
+      <Field label="Brett" hint={style.view === "2d" ? "Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos." : "Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts."}>
+        <Seg<BoardView> value={style.view} options={(["2d", "3d"] as BoardView[]).map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange({ view })} />
+      </Field>
       <Field label="Look">
         <div class="studio-themes">
           {(Object.keys(THEMES) as ThemeId[]).map((id) => {
             const t = THEMES[id];
             return (
-              <button key={id} class={style.theme === id ? "on" : ""} onClick={() => onChange(styleFromTheme(id, { reflection: style.reflection, coords: style.coords, titleFont: style.titleFont, pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment }))}>
+              <button key={id} class={style.theme === id ? "on" : ""} onClick={() => onChange(styleFromTheme(id, { reflection: style.reflection, coords: style.coords, titleFont: style.titleFont, pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment, view: style.view }))}>
                 <span class="studio-swatch" style={{ background: `linear-gradient(135deg, ${t.bgTop}, ${t.bgBottom})` }}>
                   <i style={{ background: t.light }} />
                   <i style={{ background: t.dark }} />
@@ -1092,7 +1097,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           })}
         </div>
       </Field>
-      <Field label="Wo das Brett steht">
+      {style.view === "3d" && <Field label="Wo das Brett steht">
         <div class="studio-envs">
           {(Object.keys(ENV_LABEL) as Environment[]).map((e) => (
             <button key={e} class={style.environment === e ? "on" : ""} onClick={() => onChange({ environment: e })}>
@@ -1101,25 +1106,25 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
             </button>
           ))}
         </div>
-      </Field>
+      </Field>}
       <h4 class="studio-sub">Farben</h4>
       <div class="studio-colours">
         {colour("Helle Felder", "light")}
         {colour("Dunkle Felder", "dark")}
         {colour("Rahmen", "frame")}
-        {colour("Weiße Figuren", "whitePiece")}
-        {colour("Schwarze Figuren", "blackPiece")}
+        {style.view === "3d" && colour("Weiße Figuren", "whitePiece")}
+        {style.view === "3d" && colour("Schwarze Figuren", "blackPiece")}
         {colour("Akzent", "accent")}
         {colour("Hintergrund oben", "bgTop")}
         {colour("Hintergrund unten", "bgBottom")}
       </div>
-      <Field label="Figuren">
+      {style.view === "3d" && <Field label="Figuren">
         <Seg<Material>
           value={style.material}
           options={(Object.keys(MATERIAL_LABEL) as Material[]).map((m) => [m, MATERIAL_LABEL[m]] as [Material, string])}
           onChange={(material) => onChange({ material })}
         />
-      </Field>
+      </Field>}
       <Field label="Schrift der Überschriften">
         <Seg<"sans" | "serif">
           value={style.titleFont}
@@ -1134,8 +1139,8 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
         <Seg<CaptionStyle> value={style.captionStyle} options={(Object.keys(CAPTION_LABEL) as CaptionStyle[]).map((c) => [c, CAPTION_LABEL[c]] as [CaptionStyle, string])} onChange={(captionStyle) => onChange({ captionStyle })} />
       </Field>
       <Slider label="Textgröße" value={style.textScale} min={0.8} max={1.3} step={0.05} unit="×" onChange={(textScale) => onChange({ textScale })} />
-      <Toggle label="Heller Rand an den Figuren (besser zu unterscheiden)" checked={style.pieceRim} onChange={(pieceRim) => onChange({ pieceRim })} />
-      <Toggle label="Spiegelung im Brett" checked={style.reflection} onChange={(reflection) => onChange({ reflection })} />
+      {style.view === "3d" && <Toggle label="Heller Rand an den Figuren (besser zu unterscheiden)" checked={style.pieceRim} onChange={(pieceRim) => onChange({ pieceRim })} />}
+      {style.view === "3d" && <Toggle label="Spiegelung im Brett" checked={style.reflection} onChange={(reflection) => onChange({ reflection })} />}
       <Toggle label="Koordinaten am Rand" checked={style.coords} onChange={(coords) => onChange({ coords })} />
     </div>
   );
@@ -1143,7 +1148,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
 
 // ---------- video ----------
 
-function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProject; type: string | null; onVideo: (p: Partial<StudioVideo>) => void; onStart: (fen: string) => void }) {
+function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: StudioProject; type: string | null; onVideo: (p: Partial<StudioVideo>) => void; onStyle: (p: Partial<StudioStyle>) => void; onStart: (fen: string) => void }) {
   const v = project.video;
   return (
     <div class="studio-form">
@@ -1163,7 +1168,11 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
           value={v.platform}
           onChange={(e) => {
             const platform = e.currentTarget.value as Platform;
-            onVideo({ platform, format: platform === "youtube" ? "16:9" : v.format === "16:9" ? "9:16" : v.format });
+            const wasYoutube = v.platform === "youtube";
+            onVideo({ platform, format: platform === "youtube" ? "16:9" : v.format === "16:9" ? "9:16" : v.format, ...(platform === "youtube" ? { lesson: true } : {}) });
+            // Lessons start with the clear 2D board, short videos with the 3D show look; both can be changed in Stil.
+            if (platform === "youtube" && !wasYoutube) onStyle({ view: "2d" });
+            else if (platform !== "youtube" && wasYoutube) onStyle({ view: "3d" });
           }}
         >
           {(Object.keys(PLATFORM_LABEL) as Platform[]).map((p) => (
@@ -1201,7 +1210,8 @@ function VideoEditor({ project, type, onVideo, onStart }: { project: StudioProje
       <Toggle label="Webadresse" checked={v.watermark} onChange={(watermark) => onVideo({ watermark })} />
       <Toggle label="Lucena spricht die Untertitel" checked={v.lucena} onChange={(lucena) => onVideo({ lucena })} />
       <Toggle label="Zug-Anzeige (z. B. 3. Lb5)" checked={v.movePill} onChange={(movePill) => onVideo({ movePill })} />
-      {v.movePill && <Toggle label="Zug in Worten darunter („Weiß: Läufer nach b5“)" checked={v.plainMoves} onChange={(plainMoves) => onVideo({ plainMoves })} />}
+      {v.movePill && <Toggle label="Zug in Worten darunter („Weiß: Läufer von f1 nach b5“)" checked={v.plainMoves} onChange={(plainMoves) => onVideo({ plainMoves })} />}
+      <Toggle label="Notation in Titeln und Untertiteln ausschreiben („Sf3“ wird „Springer f3“)" checked={v.spellMoves} onChange={(spellMoves) => onVideo({ spellMoves })} />
       <Toggle label="Felder aus dem Untertitel leuchten auf" checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
       <Toggle label="Letzten Zug hervorheben" checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
       <Toggle label="Fortschrittsbalken" checked={v.progress} onChange={(progress) => onVideo({ progress })} />

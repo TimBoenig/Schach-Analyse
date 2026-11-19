@@ -498,7 +498,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
   const end = ENDINGS[a.ending];
   scenes.push(scene({ card: "outro", title: end.title, text: end.text, duration: 4, camera: "corner", orbit: 6, mood: "wow" }));
 
-  const style = styleFromTheme(vibe.theme, { titleFont: vibe.serif ? "serif" : "sans", environment: a.environment });
+  const style = styleFromTheme(vibe.theme, { titleFont: vibe.serif ? "serif" : "sans", environment: a.environment, view: a.platform === "youtube" ? "2d" : "3d" });
   const project: StudioProject = {
     id: newId("p"),
     name: a.name.trim() || hook,
