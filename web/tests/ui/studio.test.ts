@@ -557,6 +557,45 @@ describe("studio long lessons and short captions", () => {
     expect(moveParts("O-O")).toMatchObject({ piece: "", rest: "O-O" });
   });
 
+  it("stands flat pieces on their own square, from above and from the side", async () => {
+    const { drawStandees } = await import("../../src/ui/studio/flat");
+    const { cameraMatrix } = await import("../../src/ui/studio/renderer");
+    const W = 1080;
+    const H = 1920;
+    for (const pitch of [88, 54, 22]) {
+      const camera = { yaw: 0, pitch, zoom: 1, tx: 0, tz: 0 };
+      const { viewProj } = cameraMatrix(camera, W / H);
+      const [x, z] = squareXZ("e4");
+      let at = [0, 0];
+      let rect = [0, 0, 0, 0];
+      const ctx = {
+        canvas: { width: W, height: H },
+        save() {},
+        restore() {},
+        rotate() {},
+        translate(a: number, b: number) {
+          at = [a, b];
+        },
+        drawImage(_i: unknown, dx: number, dy: number, w: number, h: number) {
+          rect = [at[0] + dx, at[1] + dy, w, h];
+        },
+      } as unknown as CanvasRenderingContext2D;
+      const frame = { camera, pieces: [{ id: 1, type: "p", color: "w", x, y: 0, z, scale: 1, alpha: 1 }] } as unknown as Parameters<typeof drawStandees>[1];
+      drawStandees(ctx, frame, viewProj, { "white-pawn": {} as HTMLImageElement });
+      const c = toScreen(viewProj, [x, 0, z])!;
+      const [left, top, w, h] = rect;
+      // Centred sideways on the square at every angle.
+      expect(Math.abs(left + w / 2 - c.x * W)).toBeLessThan(1);
+      const foot = top + h * 0.88;
+      const middle = top + h * 0.54;
+      if (pitch === 88) expect(Math.abs(middle - c.y * H)).toBeLessThan(h * 0.05);
+      else expect(foot).toBeGreaterThanOrEqual(c.y * H - 1);
+      // The foot never lands on the square in front of it.
+      const next = toScreen(viewProj, [x, 0, z + 0.5])!;
+      expect(foot).toBeLessThan(next.y * H);
+    }
+  });
+
   it("shows the opening card from the very first frame, so its text never appears twice", () => {
     const p = make([scene({ card: "intro", title: "Die Spanische", text: "In 60 Sekunden", duration: 3 }), scene({ moves: "e4", title: "Zug", duration: 3 })]);
     const tl = compile(p);
