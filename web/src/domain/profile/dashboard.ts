@@ -154,7 +154,7 @@ export function focusNotes(cur: PlayerProfile, cmp: PeriodComparison): string[] 
   const acc = cmp.kpis.find((k) => k.key === "accuracy");
   if (acc && acc.delta !== null && trendOf(acc) !== "flat") {
     notes.push(
-      t("Deine Genauigkeit ist um {de} Punkte {1} ", { de: de(Math.abs(acc.delta), 1), 1: acc.delta > 0 ? "gestiegen" : "gefallen" }) +
+      t("Deine Genauigkeit ist um {de} Punkte {1} ", { de: de(Math.abs(acc.delta), 1), 1: acc.delta > 0 ? t("gestiegen") : t("gefallen") }) +
         `(${de(acc.previous as number, 1)} → ${de(acc.value as number, 1)} %).`,
     );
   }

@@ -14,7 +14,7 @@ import { navigate } from "../router";
 import { openStage } from "../stage/store";
 import { Level } from "../viz/Bars";
 import { WinChart } from "./WinChart";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
@@ -54,8 +54,7 @@ export function StandingLine({ standing, speed }: { standing: Standing | null; s
   return (
     <p class="rp-standing">
       
-      {t("Genauer als")} <strong class="tnum">{Math.round(standing.better_than)} %</strong> deiner {standing.games} anderen {kind}{" "}
-      <span class="faint tnum">{t("(dein Schnitt")} {de(standing.average)} %)</span>
+      {tj("Genauer als {x} deiner {games} anderen {kind} {x2}", { x: <strong class="tnum">{Math.round(standing.better_than)} %</strong>, games: standing.games, kind, x2: <span class="faint tnum">{t("(dein Schnitt {n} %)", { n: de(standing.average) })}</span> })}
     </p>
   );
 }
@@ -67,7 +66,7 @@ export function PhaseRows({ review }: { review: GameReview }) {
         <div key={p.phase} class={`rp-phase${p.accuracy === null ? " empty" : ""}`}>
           <span class="rp-phase-name">
             <strong>{p.name}</strong>
-            <small class="tnum">{p.moves ? t("{moves} Züge{1}", { moves: p.moves, 1: p.errors ? t(" · {errors} {1} Fehler", { errors: p.errors, 1: p.errors === 1 ? "grober" : "grobe" }) : "" }) : "–"}</small>
+            <small class="tnum">{p.moves ? t("{moves} Züge{1}", { moves: p.moves, 1: p.errors ? (p.errors === 1 ? t(" · 1 grober Fehler") : t(" · {errors} grobe Fehler", { errors: p.errors })) : "" }) : "–"}</small>
           </span>
           <Level value={p.accuracy} tone={p.errors >= 2 ? "bad" : p.accuracy !== null && p.accuracy >= 85 && !p.errors ? "good" : "accent"} />
           <b class="tnum">{p.accuracy !== null ? `${de(p.accuracy, 0)} %` : "–"}</b>
@@ -160,7 +159,7 @@ export function ReportPanel({
         <div class="rp-actions">
           <button class="btn primary rp-story" onClick={() => openStage({ kind: "report", subject: gameId })}>
             <CoachAvatar mood="happy" size={22} />
-            {COACH_NAME}  {t("erklärt die Partie")}
+            {t("{COACH_NAME} erklärt die Partie", { COACH_NAME })}
           </button>
           {errors > 0 && (
             <button class="btn" onClick={() => practiseGame(gameId)}>
@@ -182,7 +181,7 @@ export function ReportPanel({
           <button class="rp-turn" onClick={() => onJump(turning.ply_index + 1)}>
             <span class="rp-turn-tag">{t("Wendepunkt")}</span>
             <span>
-              <strong>{turning.move_label}</strong> · {pct(turning.wp_before)} auf {pct(turning.wp_after)}
+              {tj("{move_label} · {n} auf {n2}", { move_label: <strong>{turning.move_label}</strong>, n: pct(turning.wp_before), n2: pct(turning.wp_after) })}
             </span>
             <IconChevron />
           </button>
@@ -196,7 +195,7 @@ export function ReportPanel({
               <span class="eyebrow">{t("Dein bester Moment")}</span>
               <strong>{best.move_label}</strong>
               <small>
-                {classLabel(best.classification as never)} · {pct(best.wp_before)} auf {pct(best.wp_after)}
+                {t("{classLabel} · {n} auf {n2}", { classLabel: classLabel(best.classification as never), n: pct(best.wp_before), n2: pct(best.wp_after) })}
               </small>
             </button>
           )}
@@ -205,8 +204,7 @@ export function ReportPanel({
               <span class="eyebrow">{t("Am teuersten")}</span>
               <strong>{worst.move_label}</strong>
               <small>
-                {classLabel(worst.classification as never)}
-                {worst.best_move_san ? t(" · besser {best_move_san}", { best_move_san: worst.best_move_san }) : ""}
+                {t("{classLabel}{n}", { classLabel: classLabel(worst.classification as never), n: worst.best_move_san ? t(" · besser {best_move_san}", { best_move_san: worst.best_move_san }) : "" })}
               </small>
             </button>
           )}

@@ -198,7 +198,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       "conversion",
       conversionScore(conv),
       t("{fmtDe} % der klar gewonnenen Stellungen (ab +3) auch gewonnen, ", { fmtDe: fmtDe(conv, 0) }) +
-        `${adv.converted_advantage ?? 0} von ${hadWin}`,
+        t("{n} von {hadWin}", { n: adv.converted_advantage ?? 0, hadWin }),
       hadWin,
       hadWin,
       hadWin >= MIN_SITUATIONS,
@@ -212,7 +212,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
       "defense",
       defenseScore(comeback),
       t("{fmtDe} % der klar verlorenen Stellungen (ab −3) noch gehalten oder gedreht, ", { fmtDe: fmtDe(comeback, 0) }) +
-        `${adv.comeback_drawn_or_won ?? 0} von ${hadLose}`,
+        t("{n} von {hadLose}", { n: adv.comeback_drawn_or_won ?? 0, hadLose }),
       hadLose,
       hadLose,
       hadLose >= MIN_SITUATIONS,

@@ -359,7 +359,9 @@ export function syncNow(opts: SyncOptions = {}): Promise<SyncReport> {
 }
 
 function describeFailed(n: number): string {
-  return t("{0} konnte{1} gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.", { 0: n === 1 ? t("Ein Eintrag") : t("{n} Einträge", { n }), 1: n === 1 ? "" : "n" });
+  return n === 1
+    ? t("Ein Eintrag konnte gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.")
+    : t("{n} Einträge konnten gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.", { n });
 }
 
 /** German message for a failed round; a paused or unreachable server is the usual cause. */

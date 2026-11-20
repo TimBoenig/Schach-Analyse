@@ -7,7 +7,7 @@ import { BRAND, SUPPORT_EMAIL } from "../brand";
 import { PageHeader } from "./Layout";
 import { navigate, type LegalTab } from "./router";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 /**
  * Operator details for the Impressum (§ 5 DDG, § 18 MStV). The address must be
@@ -52,11 +52,11 @@ function Impressum() {
       </p>
       <h3>{t("Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV")}</h3>
       <p>
-        {OPERATOR.name}{t(", Anschrift wie oben.")}
+        {t("{name}, Anschrift wie oben.", { name: OPERATOR.name })}
       </p>
       <h3>{t("Haftung für Inhalte")}</h3>
       <p>
-        {BRAND}  {t("ist ein privates, kostenloses Angebot ohne Werbung. Bewertungen, Einstufungen und Trainingsvorschläge entstehen automatisch durch eine Schach-Engine. Sie sind Hilfsmittel und ohne Gewähr für Richtigkeit und Vollständigkeit.")}
+        {t("{BRAND} ist ein privates, kostenloses Angebot ohne Werbung. Bewertungen, Einstufungen und Trainingsvorschläge entstehen automatisch durch eine Schach-Engine. Sie sind Hilfsmittel und ohne Gewähr für Richtigkeit und Vollständigkeit.", { BRAND })}
       </p>
       <h3>{t("Haftung für Links")}</h3>
       <p>
@@ -66,7 +66,7 @@ function Impressum() {
       <h3>{t("Urheberrecht")}</h3>
       <p>
         
-        {t("Programm und Gestaltung von")} {BRAND}  {t("sind urheberrechtlich geschützt. Enthaltene Fremdbestandteile und ihre Lizenzen stehen unter Lizenzen. Schachpartien und Ergebnisse stammen von den jeweiligen Spielern und Plattformen.")}
+        {t("Programm und Gestaltung von {BRAND} sind urheberrechtlich geschützt. Enthaltene Fremdbestandteile und ihre Lizenzen stehen unter Lizenzen. Schachpartien und Ergebnisse stammen von den jeweiligen Spielern und Plattformen.", { BRAND })}
       </p>
     </section>
   );
@@ -109,7 +109,7 @@ function Datenschutz() {
       <h3>{t("5. Daten anderer Spieler")}</h3>
       <p>
         
-        {t("Fügst du Freunde oder Gegner hinzu, lädt die App deren öffentlich einsehbare Partien und Benutzernamen und wertet sie für dich aus. Das geschieht auf deinem Gerät und, falls du ein Konto nutzt, in deiner Sicherung. Grundlage ist das berechtigte Interesse, öffentlich zugängliche Partien zu analysieren (Art. 6 Abs. 1 lit. f DSGVO). Wer nicht möchte, dass seine Partien hier ausgewertet werden, kann sich unter")} <Mail /> melden.
+        {tj("Fügst du Freunde oder Gegner hinzu, lädt die App deren öffentlich einsehbare Partien und Benutzernamen und wertet sie für dich aus. Das geschieht auf deinem Gerät und, falls du ein Konto nutzt, in deiner Sicherung. Grundlage ist das berechtigte Interesse, öffentlich zugängliche Partien zu analysieren (Art. 6 Abs. 1 lit. f DSGVO). Wer nicht möchte, dass seine Partien hier ausgewertet werden, kann sich unter {mail} melden.", { mail: <Mail /> })}
       </p>
 
       <h3>{t("6. Konto und Synchronisierung (freiwillig)")}</h3>
@@ -151,43 +151,38 @@ function Lizenzen() {
     <section class="card legal-text">
       <h2>{t("Lizenzen")}</h2>
       <p>
-        {BRAND}  {t("enthält die folgenden Bestandteile anderer Urheber. Ihre Lizenzen erlauben die Nutzung in dieser App; die Hinweise unten erfüllen die geforderte Namensnennung.")}
+        {t("{BRAND} enthält die folgenden Bestandteile anderer Urheber. Ihre Lizenzen erlauben die Nutzung in dieser App; die Hinweise unten erfüllen die geforderte Namensnennung.", { BRAND })}
       </p>
       <ul>
         <li>
-          <strong>{ENGINE_NAME}</strong> {ENGINE_VERSION}  {t("(Schach-Engine) von Michał Witanowski – MIT-Lizenz,")}{" "}
-          <a href="https://github.com/Witek902/Caissa" target="_blank" rel="noopener">
+          {tj("{ENGINE_NAME} {ENGINE_VERSION} (Schach-Engine) von Michał Witanowski – MIT-Lizenz, {x}, {x2}", { ENGINE_NAME: <strong>{ENGINE_NAME}</strong>, ENGINE_VERSION, x: <a href="https://github.com/Witek902/Caissa" target="_blank" rel="noopener">
             github.com/Witek902/Caissa
-          </a>
-          ,{" "}
-          <a href={`${import.meta.env.BASE_URL}caissa/LICENSE.txt`} target="_blank" rel="noopener">
+          </a>, x2: <a href={`${import.meta.env.BASE_URL}caissa/LICENSE.txt`} target="_blank" rel="noopener">
             
             {t("Lizenztext")}
-          </a>
+          </a> })}
         </li>
         <li>
-          <strong>{t("Schachfiguren")}</strong>  {t("(„Cburnett“) von Colin M. L. Burnett, über Wikimedia Commons – unverändert genutzt unter")}{" "}
-          <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.de" target="_blank" rel="noopener">
+          {tj("{x} („Cburnett“) von Colin M. L. Burnett, über Wikimedia Commons – unverändert genutzt unter {x2}", { x: <strong>{t("Schachfiguren")}</strong>, x2: <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.de" target="_blank" rel="noopener">
             CC BY-SA 3.0
-          </a>
+          </a> })}
         </li>
         <li>
-          <strong>Chess Analyzer Pro</strong>  {t("(Grundlage der Bewertungslogik) – MIT-Lizenz, © 2024–2026 imutkarsht und Mitwirkende")}
+          {tj("{x} (Grundlage der Bewertungslogik) – MIT-Lizenz, © 2024–2026 imutkarsht und Mitwirkende", { x: <strong>Chess Analyzer Pro</strong> })}
         </li>
         <li>
-          <strong>chess.js</strong> – BSD-2-Clause; <strong>Preact</strong>, <strong>supabase-js</strong> und{" "}
-          <strong>Workbox</strong>  {t("– MIT-Lizenz")}
+          {tj("{x} – BSD-2-Clause; {x2}, {x3} und {x4} – MIT-Lizenz", { x: <strong>chess.js</strong>, x2: <strong>Preact</strong>, x3: <strong>supabase-js</strong>, x4: <strong>Workbox</strong> })}
         </li>
         <li>
-          <strong>Geist</strong> und <strong>Instrument Serif</strong>  {t("(Schriften) – SIL Open Font License 1.1")}
+          {tj("{x} und {x2} (Schriften) – SIL Open Font License 1.1", { x: <strong>Geist</strong>, x2: <strong>Instrument Serif</strong> })}
         </li>
         <li>
-          <strong>{t("Eröffnungsnamen")}</strong>  {t("aus lichess-org/chess-openings – CC0 (gemeinfrei)")}
+          {tj("{x} aus lichess-org/chess-openings – CC0 (gemeinfrei)", { x: <strong>{t("Eröffnungsnamen")}</strong> })}
         </li>
       </ul>
       <p class="faint small">
         
-        {t("Die Texte der MIT-, BSD- und OFL-Lizenzen gewähren die Nutzung ohne Gewähr und verlangen, dass der Urheberhinweis erhalten bleibt.")} {BRAND}  {t("ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.")}
+        {t("Die Texte der MIT-, BSD- und OFL-Lizenzen gewähren die Nutzung ohne Gewähr und verlangen, dass der Urheberhinweis erhalten bleibt. {BRAND} ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.", { BRAND })}
       </p>
     </section>
   );

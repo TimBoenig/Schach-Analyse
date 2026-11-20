@@ -26,7 +26,7 @@ import { SplitBar, Stat } from "../viz/Bars";
 import { OpeningPick } from "./OpeningPick";
 import { pct, plural, type StartSession, StateTag } from "./shared";
 import type { TrainingState } from "./useTraining";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 // Single exercises listed before "show all": enough to see what is in an area.
 const ROWS = 8;
@@ -62,10 +62,10 @@ function Summary({ t: tk, rows, start }: { t: TrainingState; rows: CategoryOverv
       <Stat label={t("Neu")} value={<CountUp value={totals.fresh} />} sub={t("noch nie versucht")} />
       <Stat label={t("Im Aufbau")} value={<CountUp value={totals.learning} />} sub={t("versucht, noch nicht sicher")} />
       <Stat label={t("Sicher")} value={<CountUp value={totals.mastered} />} sub={t("dreimal in Folge auf Anhieb")} tone={totals.mastered ? "good" : undefined} />
-      <Stat label={t("Heute fällig")} value={<CountUp value={due.length} />} sub={due.length ? t("Wiederholungen, die älteste zuerst") : "nichts offen"}>
+      <Stat label={t("Heute fällig")} value={<CountUp value={due.length} />} sub={due.length ? t("Wiederholungen, die älteste zuerst") : t("nichts offen")}>
         {due.length > 0 && (
           <button class="btn small primary" onClick={() => start({ title: t("Fällige Wiederholungen"), ids: due.slice(0, SESSION_SIZE) })}>
-            <IconPlay /> {due.length > SESSION_SIZE ? `${SESSION_SIZE} wiederholen` : t("Wiederholen")}
+            <IconPlay /> {due.length > SESSION_SIZE ? t("{SESSION_SIZE} wiederholen", { SESSION_SIZE }) : t("Wiederholen")}
           </button>
         )}
       </Stat>
@@ -86,7 +86,7 @@ function AreaList({ rows, selected, onSelect }: { rows: CategoryOverview[]; sele
               <button key={c} class={`tx-area${selected === c ? " on" : ""}${r.total ? "" : " empty"}`} aria-current={selected === c ? "true" : undefined} onClick={() => onSelect(c)}>
                 <span class="tx-area-name">
                   <strong>{CATEGORIES[c].label}</strong>
-                  {r.due > 0 && <span class="tx-due tnum">{r.due}  {t("fällig")}</span>}
+                  {r.due > 0 && <span class="tx-due tnum">{t("{due} fällig", { due: r.due })}</span>}
                 </span>
                 <span class="tx-area-n tnum">{r.total}</span>
                 <span class="tx-area-bar">
@@ -119,13 +119,12 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
         <div>
           <h3>{info.label}</h3>
           <p class="card-sub">
-            {info.text}
-            {c !== "basics" && playouts > 0 ? t(" Davon {plural} zum Ausspielen gegen die Engine.", { plural: plural(playouts, t("Stellung"), t("Stellungen")) }) : ""}
+            {t("{text}{n}", { text: info.text, n: c !== "basics" && playouts > 0 ? t(" Davon {plural} zum Ausspielen gegen die Engine.", { plural: plural(playouts, t("Stellung"), t("Stellungen")) }) : "" })}
           </p>
         </div>
         {row.rate !== null && (
           <span class="card-tag tnum" title={t("{solved} von {attempts} Versuchen auf Anhieb gelöst", { solved: row.solved, attempts: row.attempts })}>
-            {pct(row.rate)}  {t("auf Anhieb")}
+            {t("{n} auf Anhieb", { n: pct(row.rate) })}
           </span>
         )}
       </header>
@@ -141,19 +140,16 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
               <SplitBar parts={fillParts(row)} height={10} />
               <span class="tx-fill-legend tnum">
                 <span>
-                  <i style={{ background: "var(--win)" }} /> {row.mastered} sicher
+                  <i style={{ background: "var(--win)" }} /> {t("{mastered} sicher", { mastered: row.mastered })}</span>
+                <span>
+                  <i style={{ background: "var(--accent)" }} /> {t("{learning} im Aufbau", { learning: row.learning })}
                 </span>
                 <span>
-                  <i style={{ background: "var(--accent)" }} /> {row.learning}  {t("im Aufbau")}
-                </span>
-                <span>
-                  <i style={{ background: "var(--surface-3)" }} /> {row.fresh} neu
-                </span>
+                  <i style={{ background: "var(--surface-3)" }} /> {t("{fresh} neu", { fresh: row.fresh })}</span>
               </span>
             </div>
             <button class="btn primary big" onClick={() => start({ title: info.label, ids: set })}>
-              <IconPlay /> {c === "basics" ? t("Alle der Reihe nach") : t("{plural} üben", { plural: plural(set.length, t("Aufgabe"), t("Aufgaben")) })}
-              <small class="tnum">ca. {estimateMinutes(set, tk.byId)}  {t("Min")}</small>
+              <IconPlay /> {tj("{n}{x}", { n: c === "basics" ? t("Alle der Reihe nach") : t("{plural} üben", { plural: plural(set.length, t("Aufgabe"), t("Aufgaben")) }), x: <small class="tnum">{t("ca. {estimateMinutes} Min", { estimateMinutes: estimateMinutes(set, tk.byId) })}</small> })}
             </button>
           </div>
           <div class="tx-list">

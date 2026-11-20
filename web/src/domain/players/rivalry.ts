@@ -199,10 +199,10 @@ export function duelInsights(games: RawGame[], me: string[], them: string[], nam
 
   const facts: string[] = [];
   if (accuracy.my_change && accuracy.mine !== null && accuracy.my_usual !== null) {
-    facts.push(t("Gegen {name} spielst du klar {1} als sonst: {fmt} statt {fmt2} % Genauigkeit.", { name, 1: accuracy.my_change === "better" ? "genauer" : "ungenauer", fmt: fmt(accuracy.mine, 1), fmt2: fmt(accuracy.my_usual, 1) }));
+    facts.push(t("Gegen {name} spielst du klar {1} als sonst: {fmt} statt {fmt2} % Genauigkeit.", { name, 1: accuracy.my_change === "better" ? t("genauer") : t("ungenauer"), fmt: fmt(accuracy.mine, 1), fmt2: fmt(accuracy.my_usual, 1) }));
   }
   if (accuracy.their_change && accuracy.theirs !== null && accuracy.their_usual !== null) {
-    facts.push(t("{name} spielt gegen dich klar {1} als sonst: {fmt} statt {fmt2} %.", { name, 1: accuracy.their_change === "better" ? "genauer" : "ungenauer", fmt: fmt(accuracy.theirs, 1), fmt2: fmt(accuracy.their_usual, 1) }));
+    facts.push(t("{name} spielt gegen dich klar {1} als sonst: {fmt} statt {fmt2} %.", { name, 1: accuracy.their_change === "better" ? t("genauer") : t("ungenauer"), fmt: fmt(accuracy.theirs, 1), fmt2: fmt(accuracy.their_usual, 1) }));
   }
   const errs = first_error.me + first_error.them;
   if (errs >= MIN_SITUATIONS) {

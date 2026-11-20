@@ -12,7 +12,7 @@ import { MOD } from "./keys";
 import { AREAS, type Area, MAIN_AREAS } from "./Layout";
 import { navigate, type Route } from "./router";
 import { openStage } from "./stage/store";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 const SETTINGS_AREA = AREAS.find((a) => a.id === "settings")!;
 
@@ -62,8 +62,7 @@ function AccountItem({ active, onClick }: { active: boolean; onClick: () => void
         ) : (
           <>
             
-            {t("Anmelden")}
-            <span class="account-chip-state">{t("Analysen auf allen Geräten")}</span>
+            {tj("Anmelden{x}", { x: <span class="account-chip-state">{t("Analysen auf allen Geräten")}</span> })}
           </>
         )}
       </span>
@@ -148,8 +147,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
           </div>
           <span class="side-job-sub">
             
-            {t("Partie")} {job.progress.index} von {job.progress.games}
-            {job.progress.deeper > 0 ? t(" · danach gründlicher") : ""}
+            {t("Partie {index} von {games}{n}", { index: job.progress.index, games: job.progress.games, n: job.progress.deeper > 0 ? t(" · danach gründlicher") : "" })}
           </span>
           <JobBar pct={job.pct} />
         </div>
@@ -158,8 +156,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
         <span class="orb-mini" aria-hidden="true" />
         <span class="side-lucena-text">
           
-          {t("Rundgang mit Lucena")}
-          <small>{t("Die App in einer Minute")}</small>
+          {tj("Rundgang mit Lucena{x}", { x: <small>{t("Die App in einer Minute")}</small> })}
         </span>
       </button>
       <AccountItem active={route.view === "account"} onClick={() => onNavigate({ view: "account" })} />
@@ -167,7 +164,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
       <div class="side-meta">
         <button onClick={onKeys}>
           
-          {t("Tastenkürzel")} <kbd>?</kbd>
+          {tj("Tastenkürzel {x}", { x: <kbd>?</kbd> })}
         </button>
         <a href="#/rechtliches">{t("Impressum")}</a>
       </div>
@@ -184,7 +181,7 @@ export function Dock({ area, analysing, onNavigate }: Pick<ShellNavProps, "area"
         <button class="dock-job" onClick={() => navigate({ view: "games" })}>
           <span class="side-status" aria-hidden="true" />
           <span>
-            {job.label} <small>{t("· Partie")} {job.progress.index} von {job.progress.games}</small>
+            {job.label} <small>{t("· Partie {index} von {games}", { index: job.progress.index, games: job.progress.games })}</small>
           </span>
           <JobBar pct={job.pct} />
         </button>

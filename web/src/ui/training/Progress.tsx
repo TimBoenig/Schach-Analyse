@@ -31,7 +31,7 @@ import { Level, SplitBar, Stat } from "../viz/Bars";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
 import { dayDate, dayShort, Ladder, pct, plural } from "./shared";
 import type { TrainingState } from "./useTraining";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const CALENDAR_WEEKS = 16;
 const RATE_WEEKS = 8;
@@ -54,9 +54,9 @@ function Summary({ t: tk }: { t: TrainingState }) {
       <Stat
         label={t("Auf Anhieb gelöst")}
         value={totals.rate === null ? "–" : <CountUp value={totals.rate} format={(v) => pct(v)} />}
-        sub={totals.done ? `${totals.correct} von ${totals.done}` : t("noch keine Aufgabe")}
+        sub={totals.done ? t("{correct} von {done}", { correct: totals.correct, done: totals.done }) : t("noch keine Aufgabe")}
       />
-      <Stat label={t("Sitzen sicher")} value={<CountUp value={pool.mastered} />} sub={`von ${plural(pool.total, t("Übung"), t("Übungen"))}`} tone={pool.mastered ? "good" : undefined}>
+      <Stat label={t("Sitzen sicher")} value={<CountUp value={pool.mastered} />} sub={t("von {n}", { n: plural(pool.total, t("Übung"), t("Übungen")) })} tone={pool.mastered ? "good" : undefined}>
         <SplitBar
           parts={[
             { key: "mastered", label: t("Sicher"), value: pool.mastered, color: "var(--win)" },
@@ -86,8 +86,7 @@ function CalendarCard({ t: tk }: { t: TrainingState }) {
         <div>
           <h3>{t("Wie oft du trainierst")}</h3>
           <p class="card-sub">
-            <strong class="tnum">{plural(a.activeDays, t("Trainingstag"), t("Trainingstage"))}</strong> in den letzten {CALENDAR_WEEKS}  {t("Wochen, zusammen")} {plural(a.done, t("Aufgabe"), t("Aufgaben"))}.
-          </p>
+            {tj("{x} in den letzten {CALENDAR_WEEKS} Wochen, zusammen {n}.", { x: <strong class="tnum">{plural(a.activeDays, t("Trainingstag"), t("Trainingstage"))}</strong>, CALENDAR_WEEKS, n: plural(a.done, t("Aufgabe"), t("Aufgaben")) })}</p>
         </div>
       </header>
       <div class="tp-grid-wrap">
@@ -122,18 +121,19 @@ function CalendarCard({ t: tk }: { t: TrainingState }) {
         <span class="tp-cal-info tnum">
           {shown ? (
             <>
-              <strong>{dayShort(shown.date)}</strong> {shown.done ? t("{plural}, {correct} auf Anhieb{2}", { plural: plural(shown.done, t("Aufgabe"), t("Aufgaben")), correct: shown.correct, 2: hover ? "" : t(" (dein stärkster Tag)") }) : t("kein Training")}
+              {tj("{dayShort} {n}", { dayShort: <strong>{dayShort(shown.date)}</strong>, n: shown.done ? t("{plural}, {correct} auf Anhieb{2}", { plural: plural(shown.done, t("Aufgabe"), t("Aufgaben")), correct: shown.correct, 2: hover ? "" : t(" (dein stärkster Tag)") }) : t("kein Training") })}
             </>
           ) : (
             t("Noch kein Trainingstag in diesem Zeitraum.")
           )}
         </span>
         <span class="tp-scale" aria-hidden="true">
-          weniger <i class="tp-cell l0" />
+          
+          {t("weniger")}{" "}<i class="tp-cell l0" />
           <i class="tp-cell l1" />
           <i class="tp-cell l2" />
           <i class="tp-cell l3" />
-          <i class="tp-cell l4" /> mehr
+          <i class="tp-cell l4" /> {" "}{t("mehr")}
         </span>
       </div>
     </section>
@@ -158,7 +158,7 @@ function RateCard({ t: tk }: { t: TrainingState }) {
       ? t("Für eine sichere Aussage brauche ich in den letzten 14 Tagen und in den 14 davor je mindestens {TREND_MIN_ATTEMPTS} Aufgaben.", { TREND_MIN_ATTEMPTS })
       : overall.direction === "flat"
         ? t("Stabil: {0}{comma} Prozentpunkte gegenüber den 14 Tagen davor, das liegt im Rahmen des Zufalls.", { 0: overall.delta! >= 0 ? "+" : "", comma: comma(overall.delta!) })
-        : t("In den letzten 14 Tagen {0}: {1}{comma} Prozentpunkte.", { 0: overall.direction === "up" ? "deutlich gestiegen" : "deutlich gefallen", 1: overall.delta! > 0 ? "+" : "", comma: comma(overall.delta!) });
+        : t("In den letzten 14 Tagen {0}: {1}{comma} Prozentpunkte.", { 0: overall.direction === "up" ? t("deutlich gestiegen") : t("deutlich gefallen"), 1: overall.delta! > 0 ? "+" : "", comma: comma(overall.delta!) });
   return (
     <section class="card span-5 tp-rate">
       <header class="card-head">
@@ -195,28 +195,25 @@ function RetentionCard({ t: tk }: { t: TrainingState }) {
           <div class="tp-keep-main">
             <span class="tp-big tnum">{pct(rate)}</span>
             <span class="tp-keep-text">
-              <strong>
-                {r.solved} von {r.done}
-              </strong>{" "}
-              
-              {t("wiederholten Aufgaben auf Anhieb gelöst")}
+              {tj("{x} wiederholten Aufgaben auf Anhieb gelöst", { x: <strong>
+                {t("{solved} von {done}", { solved: r.solved, done: r.done })}
+              </strong> })}
             </span>
           </div>
           <Level value={rate} band={(r.high - r.low) / 2} tone={r.low >= 85 ? "good" : r.high < 60 ? "bad" : "accent"} />
           <p class="tp-verdict">
             
-            {t("Sicher zwischen")} {r.low} und {r.high} %.{" "}
-            {r.low >= 85
+            {t("Sicher zwischen {low} und {high} %. {n}", { low: r.low, high: r.high, n: r.low >= 85
               ? t("Sehr gut. Die Abstände dürfen ruhig größer werden.")
               : r.high < 60
                 ? t("Zwischen den Wiederholungen geht viel verloren. Kürzere, dafür tägliche Einheiten helfen hier am meisten.")
-                : t("Im Zielbereich: schwer genug, dass du etwas lernst, leicht genug, dass es hängen bleibt.")}
+                : t("Im Zielbereich: schwer genug, dass du etwas lernst, leicht genug, dass es hängen bleibt.") })}
           </p>
         </>
       ) : (
         <p class="tn-none">
           
-          {t("Noch")} {plural(Math.max(0, 8 - r.done), t("Wiederholung"), t("Wiederholungen"))}  {t("bis zu einer belastbaren Quote. Wiederholte Aufgaben zeigen, was du nach ein paar Tagen noch kannst. Das ist der eigentliche Lerneffekt.")}
+          {t("Noch {n} bis zu einer belastbaren Quote. Wiederholte Aufgaben zeigen, was du nach ein paar Tagen noch kannst. Das ist der eigentliche Lerneffekt.", { n: plural(Math.max(0, 8 - r.done), t("Wiederholung"), t("Wiederholungen")) })}
         </p>
       )}
     </section>
@@ -228,8 +225,8 @@ function transferText(row: TransferRow): string {
     const need = Math.max(0, 10 - row.gamesAfter);
     return need > 0 ? t("noch {plural} nötig", { plural: plural(need, t("Partie"), t("Partien")) }) : t("noch zu wenige Züge");
   }
-  if (row.verdict === -1) return "deutlich besser";
-  if (row.verdict === 1) return "deutlich schlechter";
+  if (row.verdict === -1) return t("deutlich besser");
+  if (row.verdict === 1) return t("deutlich schlechter");
   return t("keine klare Änderung");
 }
 
@@ -323,7 +320,7 @@ function AreasCard({ t: tk }: { t: TrainingState }) {
                 <strong>{CATEGORIES[c].label}</strong>
                 {d === "up" || d === "down" ? (
                   <small class={d === "up" ? "good" : "bad"} title={t("Letzte 14 Tage deutlich {0} als die 14 davor", { 0: TREND_TEXT[d] })}>
-                    zuletzt {TREND_TEXT[d]}
+                    {t("zuletzt {n}", { n: TREND_TEXT[d] })}
                   </small>
                 ) : null}
               </span>
@@ -357,7 +354,7 @@ function AreasCard({ t: tk }: { t: TrainingState }) {
       </div>
       <Foot>
         
-        {t("Die Quote erscheint ab")} {RATE_MIN_ATTEMPTS}  {t("Versuchen, blasse Balken beruhen auf weniger als")} {TREND_MIN_ATTEMPTS}{t(". „Zuletzt besser“ oder „schlechter“ steht nur da, wenn die letzten 14 Tage sich klar von den 14 davor unterscheiden. Eine Übung gilt als sicher, wenn du sie dreimal hintereinander auf Anhieb gelöst hast.")}
+        {t("Die Quote erscheint ab {RATE_MIN_ATTEMPTS} Versuchen, blasse Balken beruhen auf weniger als {TREND_MIN_ATTEMPTS}. „Zuletzt besser“ oder „schlechter“ steht nur da, wenn die letzten 14 Tage sich klar von den 14 davor unterscheiden. Eine Übung gilt als sicher, wenn du sie dreimal hintereinander auf Anhieb gelöst hast.", { RATE_MIN_ATTEMPTS, TREND_MIN_ATTEMPTS })}
       </Foot>
     </section>
   );
@@ -403,7 +400,7 @@ function OpeningsCard({ t: tk }: { t: TrainingState }) {
               {STATE_LABEL[r.state]}
             </span>
             <span role="cell" class="num tnum">
-              {r.attempts ? `${r.solved} von ${r.attempts}` : "–"}
+              {r.attempts ? t("{solved} von {attempts}", { solved: r.solved, attempts: r.attempts }) : "–"}
             </span>
           </div>
         ))}

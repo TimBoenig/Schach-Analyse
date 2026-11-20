@@ -34,7 +34,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div class="crash card" role="alert">
         <CoachAvatar mood="sad" size={72} />
-        <h3>{this.props.area ?? t("Diese Seite")}  {t("konnte nicht angezeigt werden")}</h3>
+        <h3>{t("{area} konnte nicht angezeigt werden", { area: this.props.area ?? t("Diese Seite") })}</h3>
         <p class="muted">
           
           {t("Deine Partien und Analysen sind sicher gespeichert. Versuch es noch einmal oder lade die App neu. Wenn es wieder passiert, hilft ein Screenshot dieser Meldung bei der Fehlersuche.")}

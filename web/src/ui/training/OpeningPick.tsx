@@ -62,8 +62,7 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
                   <span class="op-name">
                     <strong>{openingLabel(d.opening)}</strong>
                     <small class="tnum">
-                      {plural(d.games, t("Partie"), t("Partien"))}
-                      {d.score_pct !== null ? t(" · {0} % der Punkte", { 0: Math.round(d.score_pct) }) : ""}
+                      {t("{n}{n2}", { n: plural(d.games, t("Partie"), t("Partien")), n2: d.score_pct !== null ? t(" · {0} % der Punkte", { 0: Math.round(d.score_pct) }) : "" })}
                     </small>
                   </span>
                   <Ladder box={p?.box ?? 0} />
@@ -78,8 +77,7 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
             <span class="op-go-text">
               <strong>{openingLabel(chosen.opening)}</strong>
               <small>
-                {chosen.moves.length}  {t("Halbzüge")}
-                {chosen.correction ? t(" · korrigiert: {best_san} statt {played_san}", { best_san: chosen.correction.best_san, played_san: chosen.correction.played_san }) : ""}
+                {t("{length} Halbzüge{n}", { length: chosen.moves.length, n: chosen.correction ? t(" · korrigiert: {best_san} statt {played_san}", { best_san: chosen.correction.best_san, played_san: chosen.correction.played_san }) : "" })}
               </small>
             </span>
             <button class="btn primary" onClick={() => start({ title: openingLabel(chosen.opening), ids: [chosen.id] })}>
@@ -117,8 +115,7 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
               </div>
               <footer>
                 <span class="tnum op-sure">
-                  {sure} von {ids.length} sicher
-                </span>
+                  {t("{sure} von {length} sicher", { sure, length: ids.length })}</span>
                 <button class="btn small" onClick={() => start({ title: o.name, ids })}>
                   <IconPlay /> {ids.length === 1 ? t("Linie lernen") : t("Alle {length} lernen", { length: ids.length })}
                 </button>

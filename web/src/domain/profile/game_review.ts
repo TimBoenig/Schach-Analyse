@@ -28,7 +28,7 @@ export const MAX_KEY_MOMENTS = 6;
 export const KEY_MOMENT_MIN_SWING = 0.12;
 
 const GRADE_WORDS: Record<number, string> = {
-  1: "sehr gut",
+  1: t("sehr gut"),
   2: "gut",
   3: "befriedigend",
   4: "ausreichend",

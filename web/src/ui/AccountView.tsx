@@ -34,7 +34,7 @@ import { navigate } from "./router";
 import { PageHeader } from "./Layout";
 import { Coach, CoachAvatar } from "./Coach";
 import { IconEye, IconEyeOff, IconSync } from "./icons";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 type Mode = "login" | "register" | "link" | "forgot" | "newPassword";
 /** A mail is on its way and the page waits for its link to be opened. */
@@ -85,7 +85,7 @@ function PasswordField({
 function ago(ms: number): string {
   if (!ms) return t("noch nie");
   const min = Math.round((Date.now() - ms) / 60000);
-  if (min < 1) return "gerade eben";
+  if (min < 1) return t("gerade eben");
   if (min < 60) return t("vor {min} Min.", { min });
   return new Date(ms).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }
@@ -235,7 +235,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                   </button>
                 </strong>
                 <div class="small muted account-mail">{status.email}</div>
-                {info?.createdAt ? <div class="faint small">{t("Dabei seit")} {memberSince(info.createdAt)}</div> : null}
+                {info?.createdAt ? <div class="faint small">{t("Dabei seit {memberSince}", { memberSince: memberSince(info.createdAt) })}</div> : null}
               </>
             )}
           </div>
@@ -295,7 +295,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
       <section class="card tile span-6">
         <div class="tile-head">
           <h3>{t("Online gespeichert")}</h3>
-          <span class="tile-sub">{counts ? `${counts.analysed} analysiert` : " "}</span>
+          <span class="tile-sub">{counts ? t("{analysed} analysiert", { analysed: counts.analysed }) : " "}</span>
         </div>
         <ul class="synced-list">
           {SYNCED.map(([tk, d]) => (
@@ -319,7 +319,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
           <div class="account-form">
             {recovery && <p style={{ marginTop: 0 }}>{t("Du hast den Link zum Zurücksetzen geöffnet. Lege jetzt ein neues Passwort fest.")}</p>}
             <PasswordField label={t("Neues Passwort")} value={pw} onInput={setPw} autocomplete="new-password" />
-            <p class="faint small">{t("Mindestens")} {MIN_PASSWORD}  {t("Zeichen, mit einer Zahl oder einem Sonderzeichen.")}</p>
+            <p class="faint small">{t("Mindestens {MIN_PASSWORD} Zeichen, mit einer Zahl oder einem Sonderzeichen.", { MIN_PASSWORD })}</p>
             <div class="row" style={{ gap: "8px" }}>
               <button
                 class="btn primary"
@@ -442,8 +442,7 @@ function MailSent({ pending, onBack }: { pending: NonNullable<Pending>; onBack: 
       <h3>{title}</h3>
       <p>
         
-        {t("Wir haben eine Mail an")} <strong>{pending.email}</strong>  {t("geschickt. Öffne den Link darin")}
-        {pending.kind === "reset" ? t(" und lege ein neues Passwort fest.") : t(", dann bist du hier automatisch angemeldet.")}
+        {tj("Wir haben eine Mail an {email} geschickt. Öffne den Link darin{n}", { email: <strong>{pending.email}</strong>, n: pending.kind === "reset" ? t(" und lege ein neues Passwort fest.") : t(", dann bist du hier automatisch angemeldet.") })}
       </p>
       <ul class="small muted mail-tips">
         <li>{t("Keine Mail nach zwei Minuten? Schau im Spam- oder Werbung-Ordner nach.")}</li>
@@ -521,8 +520,7 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
         {counts && counts.games > 0 && (
           <p class="unsaved-note small">
             
-            {t("Auf diesem Gerät liegen")} {counts.games}  {t("Partien")}
-            {counts.analysed ? t(", {analysed} davon analysiert", { analysed: counts.analysed }) : ""}{t(", bisher ohne Sicherung.")}
+            {t("Auf diesem Gerät liegen {games} Partien{n}, bisher ohne Sicherung.", { games: counts.games, n: counts.analysed ? t(", {analysed} davon analysiert", { analysed: counts.analysed }) : "" })}
           </p>
         )}
         <BenefitList />
@@ -613,8 +611,7 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
               {mode === "register" && (
                 <p class="faint small" style={{ marginBottom: 0 }}>
                   
-                  {t("Wie wir mit deinen Daten umgehen, steht in der")} <a href="#/rechtliches/datenschutz">{t("Datenschutzerklärung")}</a>.
-                </p>
+                  {tj("Wie wir mit deinen Daten umgehen, steht in der {x}.", { x: <a href="#/rechtliches/datenschutz">{t("Datenschutzerklärung")}</a> })}</p>
               )}
             </form>
             {msg && <p class={`small ${msg.error ? "error" : "ok"}`}>{msg.text}</p>}

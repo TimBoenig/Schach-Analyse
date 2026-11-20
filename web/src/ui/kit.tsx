@@ -324,7 +324,7 @@ export function WhatIfSlider({
         <strong class="tnum">{text}</strong>
         {moved && <span class={`lg-slider-delta ${good ? "up" : "down"}`}>{deltaText}</span>}
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} aria-label={`${label} ausprobieren`} onInput={(e) => onInput(Number(e.currentTarget.value))} />
+      <input type="range" min={min} max={max} step={step} value={value} aria-label={t("{label} ausprobieren", { label })} onInput={(e) => onInput(Number(e.currentTarget.value))} />
     </label>
   );
 }

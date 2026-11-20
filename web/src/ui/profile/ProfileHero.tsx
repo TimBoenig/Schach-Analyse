@@ -4,7 +4,7 @@ import { trSpeed } from "../../domain/i18n";
 import type { PlayerProfile } from "../../domain/profile";
 import { CountUp } from "../kit";
 import { Level, SplitBar, Stat } from "../viz/Bars";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const signed = (v: number, digits = 1) => `${v >= 0 ? "+" : "−"}${de(Math.abs(v), digits)}`;
@@ -22,8 +22,7 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
       <div class="pf-hero-id">
         <span class="eyebrow">
           
-          {t("Dein Profil ·")} {games} · {profile.analyzed_games.toLocaleString("de-DE")} analysiert
-        </span>
+          {t("Dein Profil · {games} · {n} analysiert", { games, n: profile.analyzed_games.toLocaleString("de-DE") })}</span>
         {profile.style ? (
           <>
             <h2 class="pf-hero-title">
@@ -44,7 +43,7 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
             rc ? (
               <>
                 
-                {t("Performance")} <b class="tnum">{rc.performance ?? "–"}</b>  {t("· Ø Gegner")} <b class="tnum">{rc.avg_opponent ?? "–"}</b>
+                {tj("Performance {x} · Ø Gegner {x2}", { x: <b class="tnum">{rc.performance ?? "–"}</b>, x2: <b class="tnum">{rc.avg_opponent ?? "–"}</b> })}
               </>
             ) : (
               t("Die Partien enthalten keine Wertungszahlen.")
@@ -66,7 +65,7 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
           value={o.games ? `${de(o.score_pct, 0)} %` : "–"}
           sub={
             <>
-              <b class="tnum">{o.wins}</b>  {t("Siege ·")} <b class="tnum">{o.draws}</b>  {t("Remis ·")} <b class="tnum">{o.losses}</b>  {t("Niederlagen")}
+              {tj("{wins} Siege · {draws} Remis · {losses} Niederlagen", { wins: <b class="tnum">{o.wins}</b>, draws: <b class="tnum">{o.draws}</b>, losses: <b class="tnum">{o.losses}</b> })}
             </>
           }
         >
@@ -86,7 +85,7 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
           sub={
             rc && rc.expected_score !== null ? (
               <>
-                <b class="tnum">{de(rc.score)}</b>  {t("geholt,")} <b class="tnum">{de(rc.expected_score)}</b>  {t("nach Wertung erwartet")}
+                {tj("{x} geholt, {x2} nach Wertung erwartet", { x: <b class="tnum">{de(rc.score)}</b>, x2: <b class="tnum">{de(rc.expected_score)}</b> })}
               </>
             ) : (
               t("Dafür braucht es die Wertungen beider Spieler.")
@@ -101,7 +100,7 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
           sub={
             rc && accDelta !== null ? (
               <>
-                <b class={`tnum ${accDelta >= 2 ? "good" : accDelta <= -2 ? "bad" : ""}`}>{signed(accDelta)}</b> {rc.reference === "opponents" ? t("zu deinen Gegnern ({de})", { de: de(rc.typical_accuracy, 0) }) : t("zum Richtwert {de} für {rating}", { de: de(rc.typical_accuracy, 0), rating: rc.rating })}
+                {tj("{signed} {n}", { signed: <b class={`tnum ${accDelta >= 2 ? "good" : accDelta <= -2 ? "bad" : ""}`}>{signed(accDelta)}</b>, n: rc.reference === "opponents" ? t("zu deinen Gegnern ({de})", { de: de(rc.typical_accuracy, 0) }) : t("zum Richtwert {de} für {rating}", { de: de(rc.typical_accuracy, 0), rating: rc.rating }) })}
               </>
             ) : profile.analyzed_games ? (
               t("über alle analysierten Partien")

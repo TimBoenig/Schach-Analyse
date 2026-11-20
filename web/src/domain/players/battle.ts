@@ -155,7 +155,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
   else if (!leader) verdict = t("Ausgeglichen: {wins_a}:{wins_b} Runden, keiner ist insgesamt vorn.", { wins_a, wins_b });
   else {
     const [mine, theirs] = leader === "a" ? [wins_a, wins_b] : [wins_b, wins_a];
-    const how = mine - theirs >= 3 ? "klar" : mine > theirs ? "knapp" : t("nach Stärke");
+    const how = mine - theirs >= 3 ? t("klar") : mine > theirs ? t("knapp") : t("nach Stärke");
     verdict = t("{name} gewinnt {how} mit {mine}:{theirs} Runden{4}.", { name: name(leader), how, mine, theirs, 4: tipping ? t(", entschieden in „{label}“", { label: tipping.r.label }) : "" });
     // Rounds count wins only; the strength bar weighs every round, open ones
     // included. When the two disagree, say so instead of leaving a 51:49 bar

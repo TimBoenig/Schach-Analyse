@@ -17,7 +17,7 @@ function Records({ t: tk }: { t: MoveTally }) {
   const r = tk.records;
   return (
     <section class="card span-12 mv-records">
-      <Stat label={t("Partien mit Brillanz")} value={r.games_with_brilliant} sub={`von ${plural(tk.games, t("Partie"), t("Partien"))}`} />
+      <Stat label={t("Partien mit Brillanz")} value={r.games_with_brilliant} sub={t("von {n}", { n: plural(tk.games, t("Partie"), t("Partien")) })} />
       <Stat label={t("Meiste Brillanz in einer Partie")} value={r.most_brilliant} sub={r.most_brilliant === 1 ? t("brillanter Zug") : t("brillante Züge")} />
       <Stat label={t("Partien ohne Patzer")} value={r.blunder_free_games} sub={t("{0} % deiner Partien", { 0: Math.round((r.blunder_free_games / tk.games) * 100) })} />
       <Stat label={t("Längste Serie ohne Patzer")} value={r.longest_blunder_free} sub={r.longest_blunder_free === 1 ? t("Partie am Stück") : t("Partien am Stück")} />
@@ -54,8 +54,7 @@ export function ShineSection({ t: tk }: { t: MoveTally }) {
                 <span class="tn-row-title">
                   <span class="tnum">{m.move}</span>
                   <small>
-                    gegen {m.opponent}
-                    {PHASE_SHORT[m.phase] ? ` · ${PHASE_SHORT[m.phase]}` : ""}
+                    {t("gegen {opponent}{n}", { opponent: m.opponent, n: PHASE_SHORT[m.phase] ? ` · ${PHASE_SHORT[m.phase]}` : "" })}
                   </small>
                 </span>
                 <span class="mv-date tnum">{formatDate(m.date)}</span>
@@ -97,9 +96,9 @@ export function ShineSection({ t: tk }: { t: MoveTally }) {
                   )}
                 </span>
                 <span class="tn-row-title">
-                  <span>gegen {g.opponent}</span>
+                  <span>{t("gegen {opponent}", { opponent: g.opponent })}</span>
                   <small>
-                    {formatDate(g.date)} · {de(g.accuracy, 0)}  {t("% Genauigkeit")}
+                    {t("{formatDate} · {n} % Genauigkeit", { formatDate: formatDate(g.date), n: de(g.accuracy, 0) })}
                   </small>
                 </span>
                 <IconChevron />

@@ -76,7 +76,7 @@ export function LandingHow() {
       <div class="ld-how-head">
         <p class="ld-kicker">{t("So funktioniert's")}</p>
         <h2 id="ld-how-title">{t("Von deinen Partien zu deinem Trainingsplan.")}</h2>
-        <p class="ld-lead">{COACH_NAME}  {t("liest jede deiner Partien wie ein Trainer, der nie müde wird, und erzählt dir nur, was sich in vielen Partien wirklich zeigt.")}</p>
+        <p class="ld-lead">{t("{COACH_NAME} liest jede deiner Partien wie ein Trainer, der nie müde wird, und erzählt dir nur, was sich in vielen Partien wirklich zeigt.", { COACH_NAME })}</p>
       </div>
       <div class="ld-how-grid">
         <ol class="ld-how-steps">

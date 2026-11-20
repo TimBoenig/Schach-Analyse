@@ -52,7 +52,7 @@ import { FORMATS, formatOptionLabel } from "./useProfile";
 import { AnalyzeFriends, Avatar, de, gamesOf, pct0, PlayerFilters, plural, profileFor, RefreshAll, toneOf, useQueue } from "./players/common";
 import { LeaguePage } from "./players/League";
 import { DuelStory, FaceOff, NextGameCard, TaleOfTape, TippingCard } from "./players/Rivalry";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 // Analysing on a tablet takes a while per game; the newest games say the most.
 const ANALYZE_BATCH = 20;
@@ -308,7 +308,7 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
 
 /** Win/draw/loss split as one bar, readable at a glance. */
 function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
-  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen")} {name}</span>;
+  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen {name}", { name })}</span>;
   const n = h.wins + h.draws + h.losses || 1;
   return (
     <div class="h2h-bar-wrap">
@@ -323,13 +323,11 @@ function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
 }
 
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
-  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen")} {name}</span>;
+  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen {name}", { name })}</span>;
   return (
     <span class="small">
       
-      {t("Du gegen")} {name}: <strong class="tnum">{h.wins}</strong> S · <strong class="tnum">{h.draws}</strong> R ·{" "}
-      <strong class="tnum">{h.losses}</strong> N
-    </span>
+      {tj("Du gegen {name}: {wins} S · {draws} R · {losses} N", { name, wins: <strong class="tnum">{h.wins}</strong>, draws: <strong class="tnum">{h.draws}</strong>, losses: <strong class="tnum">{h.losses}</strong> })}</span>
   );
 }
 
@@ -392,7 +390,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                 </span>
                 <span>
                   <strong class="tnum">{c.analyzed}</strong>
-                  <span class="faint small"> analysiert</span>
+                  <span class="faint small"> {" "}{t("analysiert")}</span>
                 </span>
                 {c.rating && (
                   <span>
@@ -418,7 +416,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
         <details class="card tile hidden-players">
           <summary>
             <strong>{t("Ausgeblendet")}</strong>
-            <span class="faint small"> · {plural(cards.hidden.length, t("Spieler"), t("Spieler"))}{t(", nicht in Rangliste und Vergleich")}</span>
+            <span class="faint small"> {t(" · {n}, nicht in Rangliste und Vergleich", { n: plural(cards.hidden.length, t("Spieler"), t("Spieler")) })}</span>
           </summary>
           <div class="suggest-list">
             {cards.hidden.map((c) => (
@@ -427,8 +425,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   <strong>{c.player.name}</strong>
                   <span class="faint small">
                     {" "}
-                    · {plural(c.games, t("Partie"), t("Partien"))}
-                    {c.player.friend ? t(" · Freund") : ""}
+                    {t("· {n}{n2}", { n: plural(c.games, t("Partie"), t("Partien")), n2: c.player.friend ? t(" · Freund") : "" })}
                   </span>
                 </a>
                 <button class="btn small" onClick={() => void updatePlayer(c.player.id, { hidden: false })}>
@@ -453,7 +450,7 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   <strong>{s.username}</strong>
                   <span class="faint small">
                     {" "}
-                    · {plural(s.games, t("Partie"), t("Partien"))}  {t("· du holst")} {pct0(s.score_pct)}
+                    {t("· {n} · du holst {n2}", { n: plural(s.games, t("Partie"), t("Partien")), n2: pct0(s.score_pct) })}
                   </span>
                 </span>
                 <button class="btn small" onClick={() => setAdding({ username: s.username, source: sourceOf(s.username) })}>
@@ -516,7 +513,7 @@ function PickList({ picks, empty }: { picks: OpeningPick[]; empty: string }) {
             {i === 0 && p.value >= 5 && <span class="pill accent">{t("Empfehlung")}</span>}
             <span class="spacer" />
             <span class={`pill ${p.their_score_pct !== null && p.their_score_pct <= 40 ? "win" : p.their_score_pct !== null && p.their_score_pct >= 60 ? "loss" : "draw"}`}>
-              holt {pct0(p.their_score_pct)}
+              {t("holt {n}", { n: pct0(p.their_score_pct) })}
             </span>
           </div>
           <div class="small muted">{p.text}</div>
@@ -530,7 +527,7 @@ function Repertoire({ report }: { report: ScoutReport }) {
   const total = report.their_first_moves.reduce((s, m) => s + m.games, 0);
   return (
     <>
-      <h4>{t("Mit Weiß eröffnet")} {report.name} mit</h4>
+      <h4>{t("Mit Weiß eröffnet {name} mit", { name: report.name })}</h4>
       {report.their_first_moves.length ? (
         <div class="move-chips">
           {report.their_first_moves.slice(0, 5).map((m) => (
@@ -542,13 +539,13 @@ function Repertoire({ report }: { report: ScoutReport }) {
       ) : (
         <p class="muted small">{t("Keine Weißpartien.")}</p>
       )}
-      <h4>{t("Mit Schwarz antwortet")} {report.name}</h4>
+      <h4>{t("Mit Schwarz antwortet {name}", { name: report.name })}</h4>
       {report.their_replies.length ? (
         <div class="reply-list">
           {report.their_replies.slice(0, 4).map((v) => (
             <div key={v.san} class="small">
-              <strong>{t("auf 1.")} {v.san}</strong>
-              <span class="muted"> mit {v.replies.slice(0, 3).map((r) => `1… ${r.san} (${r.games})`).join(", ")}</span>
+              <strong>{t("auf 1. {san}", { san: v.san })}</strong>
+              <span class="muted"> {t(" mit {n}", { n: v.replies.slice(0, 3).map((r) => `1… ${r.san} (${r.games})`).join(", ") })}</span>
             </div>
           ))}
         </div>
@@ -574,7 +571,7 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
     <section class="card tile span-6">
       <div class="tile-head">
         <h3>{t("Gemeinsame Eröffnungen")}</h3>
-        <span class="tile-sub">{t("deine Punkte gegen die von")} {name}</span>
+        <span class="tile-sub">{t("deine Punkte gegen die von {name}", { name })}</span>
       </div>
       {rows.length ? (
         <div class="shared-ops">
@@ -582,16 +579,16 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
             <div class="shared-op" key={`${o.color}${o.name}`}>
               <div class="shared-op-head">
                 <strong>{o.name}</strong>
-                <span class="faint small">mit {o.color === "white" ? t("Weiß") : t("Schwarz")}</span>
+                <span class="faint small">{t("mit {n}", { n: o.color === "white" ? t("Weiß") : t("Schwarz") })}</span>
                 <span class="spacer" />
                 <span class={`pill ${o.better === "me" ? "win" : o.better === "them" ? "loss" : ""}`}>
-                  {o.better === "me" ? t("du klar besser") : o.better === "them" ? `${name} klar besser` : t("ähnlich")}
+                  {o.better === "me" ? t("du klar besser") : o.better === "them" ? t("{name} klar besser", { name }) : t("ähnlich")}
                 </span>
               </div>
               <div class="shared-op-vals small">
                 <span>
                   
-                  {t("Du")} <strong class="tnum">{pct0(o.mine.score_pct)}</strong> <span class="faint">({o.mine.games})</span>
+                  {tj("Du {x} {x2}", { x: <strong class="tnum">{pct0(o.mine.score_pct)}</strong>, x2: <span class="faint">({o.mine.games})</span> })}
                 </span>
                 <span>
                   {name} <strong class="tnum">{pct0(o.theirs.score_pct)}</strong> <span class="faint">({o.theirs.games})</span>
@@ -601,7 +598,7 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
           ))}
         </div>
       ) : (
-        <p class="muted small">{t("Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens")} {MIN_LINE_GAMES}  {t("Mal gespielt habt.")}</p>
+        <p class="muted small">{t("Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens {MIN_LINE_GAMES} Mal gespielt habt.", { MIN_LINE_GAMES })}</p>
       )}
     </section>
   );
@@ -710,7 +707,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         ...(all ? { count: null, months: null } : {}),
       });
       const missed = failed.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(", ");
-      setBusy(`${plural(result.imported, t("neue Partie"), t("neue Partien"))} geladen.${missed ? t(" Nicht erreichbar: {missed}.", { missed }) : ""}`);
+      setBusy(t("{n} geladen.{n2}", { n: plural(result.imported, t("neue Partie"), t("neue Partien")), n2: missed ? t(" Nicht erreichbar: {missed}.", { missed }) : "" }));
       window.setTimeout(() => setBusy(""), missed ? 6000 : 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -767,14 +764,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}
             title={t("Die neuesten Partien zuerst")}
           >
-            <IconPlay /> {running > 0 ? t("Analyse läuft ({running})", { running }) : `${Math.min(open.length, ANALYZE_BATCH)} analysieren`}
+            <IconPlay /> {running > 0 ? t("Analyse läuft ({running})", { running }) : t("{n} analysieren", { n: Math.min(open.length, ANALYZE_BATCH) })}
           </button>
         )}
       </div>
       {busy && <p class="small muted">{busy}</p>}
       {player.hidden && (
         <div class="notice row" style={{ marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
-          <span>{player.name}  {t("ist ausgeblendet und zählt nicht in der Rangliste.")}</span>
+          <span>{t("{name} ist ausgeblendet und zählt nicht in der Rangliste.", { name: player.name })}</span>
           <button class="btn small" onClick={() => void updatePlayer(player.id, { hidden: false })}>
             <IconEye />  {t("Wieder einblenden")}
           </button>
@@ -785,10 +782,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       {duelSpeed && format !== duelSpeed && (
         <p class="small muted duel-speed-hint">
           
-          {t("Ihr spielt meist")} {formatOptionLabel(duelSpeed, false)} gegeneinander.{" "}
+          {t("Ihr spielt meist {formatOptionLabel} gegeneinander.", { formatOptionLabel: formatOptionLabel(duelSpeed, false) })}{" "}
           <button class="btn small" onClick={() => setFormat(duelSpeed)}>
             
-            {t("Tipps nur für")} {formatOptionLabel(duelSpeed, false)}
+            {t("Tipps nur für {formatOptionLabel}", { formatOptionLabel: formatOptionLabel(duelSpeed, false) })}
           </button>
         </p>
       )}
@@ -803,9 +800,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
         <div class="empty">
           <p>
             
-            {t("Noch keine Partien von")} {player.name}
-            {format !== "All Formats" || date !== "All Time" ? t(" in diesem Zeitraum") : ""}.{" "}
-            {online ? t("Lade die Partien von Lichess oder Chess.com.") : t("Importiere eine PGN mit Partien dieser Person.")}
+            {t("Noch keine Partien von {name}{n}. {n2}", { name: player.name, n: format !== "All Formats" || date !== "All Time" ? t(" in diesem Zeitraum") : "", n2: online ? t("Lade die Partien von Lichess oder Chess.com.") : t("Importiere eine PGN mit Partien dieser Person.") })}
           </p>
           {online && (
             <button class="btn primary" disabled={Boolean(busy)} onClick={() => void refresh()}>
@@ -851,8 +846,8 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             <>
           <section class="card tile span-12">
             <div class="tile-head">
-              <h3>{t("So schlägst du")} {player.name}</h3>
-              <span class="tile-sub">aus {plural(them.total_games, t("Partie"), t("Partien"))} von {player.name}</span>
+              <h3>{t("So schlägst du {name}", { name: player.name })}</h3>
+              <span class="tile-sub">{t("aus {n} von {name}", { n: plural(them.total_games, t("Partie"), t("Partien")), name: player.name })}</span>
             </div>
             {report.plan.length ? (
               <TipList tips={report.plan} numbered />
@@ -864,12 +859,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
                 <div class="row" style={{ justifyContent: "space-between" }}>
                   <span>
                     
-                    {t("Eröffnungstipps kommen schon aus den Ergebnissen. Für Taktik- und Strategietipps braucht die App analysierte Partien von")} {player.name}.
-                  </span>
+                    {t("Eröffnungstipps kommen schon aus den Ergebnissen. Für Taktik- und Strategietipps braucht die App analysierte Partien von {name}.", { name: player.name })}</span>
                   {open.length > 0 && running === 0 && (
                     <button class="btn primary small" onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}>
-                      <IconPlay /> {Math.min(open.length, ANALYZE_BATCH)} analysieren
-                    </button>
+                      <IconPlay /> {t("{n} analysieren", { n: Math.min(open.length, ANALYZE_BATCH) })}</button>
                   )}
                 </div>
               </div>
@@ -879,7 +872,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
           <section class="card tile span-6">
             <div class="tile-head">
               <h3>{t("Du hast Weiß")}</h3>
-              <span class="tile-sub">{player.name}  {t("mit Schwarz")}</span>
+              <span class="tile-sub">{t("{name} mit Schwarz", { name: player.name })}</span>
             </div>
             <PickList picks={report.as_white} empty={t("Keine Eröffnung, in der {name} mit Schwarz klar schwach punktet (gezählt ab {MIN_LINE_GAMES} Partien pro Eröffnung).", { name: player.name, MIN_LINE_GAMES })} />
           </section>
@@ -887,7 +880,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
           <section class="card tile span-6">
             <div class="tile-head">
               <h3>{t("Du hast Schwarz")}</h3>
-              <span class="tile-sub">{player.name}  {t("mit Weiß")}</span>
+              <span class="tile-sub">{t("{name} mit Weiß", { name: player.name })}</span>
             </div>
             <PickList picks={report.as_black} empty={t("Keine Antwort, gegen die {name} mit Weiß klar schwach punktet (gezählt ab {MIN_LINE_GAMES} Partien pro Antwort).", { name: player.name, MIN_LINE_GAMES })} />
           </section>
@@ -896,7 +889,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             <section class="card tile span-6">
               <div class="tile-head">
                 <h3>{t("Vorsicht")}</h3>
-                <span class="tile-sub">{t("Stärken von")} {player.name}</span>
+                <span class="tile-sub">{t("Stärken von {name}", { name: player.name })}</span>
               </div>
               <div class="insights">
                 {report.cautions.map((c) => (
@@ -911,14 +904,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>{t("Repertoire von")} {player.name}</h3>
+              <h3>{t("Repertoire von {name}", { name: player.name })}</h3>
             </div>
             <Repertoire report={report} />
           </section>
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>{t("So verliert")} {player.name}</h3>
+              <h3>{t("So verliert {name}", { name: player.name })}</h3>
               <span class="tile-sub">{plural(them.overview.losses, t("Niederlage"), t("Niederlagen"))}</span>
             </div>
             {report.losses.length ? (
@@ -995,7 +988,7 @@ function FriendDetails({
       <>
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>{name}  {t("und du")}</h3>
+            <h3>{t("{name} und du", { name })}</h3>
             <span class="tile-sub">{t("Zugbewertungen im Vergleich")}</span>
           </div>
           {tk && m ? (
@@ -1027,13 +1020,13 @@ function FriendDetails({
     <>
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>{t("Zugbilanz von")} {name}</h3>
-          <span class="tile-sub">{tk ? `aus ${plural(tk.games, t("analysierten Partie"), t("analysierten Partien"))}` : ""}</span>
+          <h3>{t("Zugbilanz von {name}", { name })}</h3>
+          <span class="tile-sub">{tk ? t("aus {n}", { n: plural(tk.games, t("analysierten Partie"), t("analysierten Partien")) }) : ""}</span>
         </div>
         {tk ? (
           <ClassTiles tally={tk} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
         ) : (
-          <p class="muted small">{t("Analysiere Partien von")} {name}{t(", dann siehst du hier brillante Züge, Fehler und Patzer.")}</p>
+          <p class="muted small">{t("Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.", { name })}</p>
         )}
       </section>
 
@@ -1058,7 +1051,7 @@ function FriendDetails({
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>{t("Aktivität von")} {name}</h3>
+          <h3>{t("Aktivität von {name}", { name })}</h3>
           <span class="tile-sub">{t("Partien pro Tag")}</span>
         </div>
         <Calendar daily={daily} today={localDay()} note={t("Nur Partien, die in der App gespeichert sind.")} />
@@ -1067,7 +1060,7 @@ function FriendDetails({
       {them.style && (
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>{t("Spielstil:")} {them.style.label}</h3>
+            <h3>{t("Spielstil: {label}", { label: them.style.label })}</h3>
           </div>
           <StyleAxes axes={them.style.axes} />
         </section>
@@ -1075,7 +1068,7 @@ function FriendDetails({
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>{t("Neueste Partien von")} {name}</h3>
+          <h3>{t("Neueste Partien von {name}", { name })}</h3>
         </div>
         <RecentGames profile={them} />
       </section>
@@ -1102,7 +1095,7 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
         <span>
           <strong>{t("In Rangliste und Vergleich ausblenden")}</strong>
           <small class="faint">
-            {player.name}  {t("bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“. Diese Seite bleibt erreichbar.")}
+            {t("{name} bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“. Diese Seite bleibt erreichbar.", { name: player.name })}
           </small>
         </span>
       </label>

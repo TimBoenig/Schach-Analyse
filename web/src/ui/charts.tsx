@@ -175,10 +175,10 @@ export function RadarChart({
             </span>
           )}
           {hasTypical && h.typical !== null && h.typical !== undefined && (
-            <span class="faint">  {t("· typisch")} {Math.round(h.typical)}</span>
+            <span class="faint">  {t("· typisch {n}", { n: Math.round(h.typical) })}</span>
           )}
           {h.raw !== null && h.raw !== undefined && Math.abs(h.raw - h.value) >= 3 && (
-            <span class="faint">  {t("· gemessen")} {Math.round(h.raw)}</span>
+            <span class="faint">  {t("· gemessen {n}", { n: Math.round(h.raw) })}</span>
           )}
         </Tip>
       )}

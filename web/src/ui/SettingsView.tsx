@@ -43,7 +43,7 @@ function AboutCard() {
         <SettingsHead icon={<IconInfo />} title={t("Über {BRAND}", { BRAND })} />
       </div>
       <p class="small muted" style={{ margin: 0 }}>
-        {BRAND} ({BRAND_DOMAIN}{t(") ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit")} {ENGINE_NAME} {ENGINE_VERSION}  {t("(WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings (CC0).")}
+        {t("{BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings (CC0).", { BRAND, BRAND_DOMAIN, ENGINE_NAME, ENGINE_VERSION })}
       </p>
       {unlocked && (
         <div class="about-studio">

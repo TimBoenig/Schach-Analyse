@@ -6,7 +6,7 @@ import { CountUp } from "../kit";
 import { CLASS_COLOR, classLabel } from "../labels";
 import { SplitBar, Stat } from "../viz/Bars";
 import { de, plural } from "./shared";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 /** Lucena's one sentence on the tally. */
 function lead(tk: MoveTally, topPct: number): string {
@@ -21,7 +21,7 @@ function Versus({ theirs, verdict }: { theirs: string; verdict: -1 | 0 | 1 }) {
   return (
     <>
       
-      {t("Gegner")} {theirs} · {verdict === 0 ? t("kein klarer Unterschied") : <b class={verdict > 0 ? "good" : "bad"}>{verdict > 0 ? t("du bist klar besser") : t("du bist klar schwächer")}</b>}
+      {t("Gegner {theirs} · ", { theirs })}{verdict === 0 ? t("kein klarer Unterschied") : <b class={verdict > 0 ? "good" : "bad"}>{verdict > 0 ? t("du bist klar besser") : t("du bist klar schwächer")}</b>}
     </>
   );
 }
@@ -34,10 +34,10 @@ export function MovesSummary({ t: tk, onShine }: { t: MoveTally; onShine: () => 
     <section class="card span-12 mv-sum" id="s-bilanz">
       <div class="mv-sum-head">
         <span class="eyebrow">
-          {plural(tk.moves, t("Zug"), t("Züge"))} aus {plural(tk.games, t("analysierter Partie"), t("analysierten Partien"))}
+          {t("{n} aus {n2}", { n: plural(tk.moves, t("Zug"), t("Züge")), n2: plural(tk.games, t("analysierter Partie"), t("analysierten Partien")) })}
         </span>
         <h2 class="mv-title">
-          <CountUp value={s.top_pct} />  {t("von 100 Zügen sind")} <span>{t("der beste Zug")}</span>
+          <CountUp value={s.top_pct} />  {tj("von 100 Zügen sind {x}", { x: <span>{t("der beste Zug")}</span> })}
         </h2>
         <p class="mv-sub">{lead(tk, s.top_pct)}</p>
       </div>

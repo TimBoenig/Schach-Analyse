@@ -31,7 +31,7 @@ function ref(f: GameFeatures, m: MoveEvent | null = null, detail = ""): GameRef 
   return {
     game_id: f.game_id,
     ply_index: m.ply_index,
-    label: `${moveLabel(m.move_number, f.rec.user_color === "white", m.san)} gegen ${opp}`,
+    label: t("{moveLabel} gegen {opp}", { moveLabel: moveLabel(m.move_number, f.rec.user_color === "white", m.san), opp }),
     detail: detail || `${trClassification(m.classification)} · ${when}`,
   };
 }
@@ -309,7 +309,7 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
         exampleRefs.push({
           game_id: f.game_id,
           ply_index: Math.max(0, Math.trunc(Number(h.ply ?? 1)) - 1),
-          label: `${h.san ?? ""} gegen ${f.rec.opp_name}`,
+          label: t("{n} gegen {opp_name}", { n: h.san ?? "", opp_name: f.rec.opp_name }),
           detail: t("{trPiece} eingestellt · {date}", { trPiece: trPiece(piece), date: f.date }),
         });
         break;
@@ -470,7 +470,7 @@ function castlingPattern(feats: GameFeatures[]): Pattern[] {
             t("Sicherheit."),
           "mittel",
           okScore - lateScore,
-          late.slice(0, 6).map((f) => ref(f, null, `als ${trColor(f.rec.user_color)}`)),
+          late.slice(0, 6).map((f) => ref(f, null, t("als {trColor}", { trColor: trColor(f.rec.user_color) }))),
         ),
       ];
     }

@@ -26,7 +26,7 @@ import { navigate } from "../router";
 import { BrilliantFx } from "../BrilliantFx";
 import { Coach } from "../Coach";
 import { ENGINE_NAME } from "../../engine/info";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 export interface RunnerProps<T> {
   ex: T;
@@ -349,7 +349,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           <div class="ex-cat">{CATEGORIES[ex.category].label}</div>
           <div class="puzzle-turn">
             <span class={`turn-dot ${userWhite ? "w" : "b"}`} />
-            <h3>{userWhite ? t("Weiß") : t("Schwarz")}  {t("am Zug")}</h3>
+            <h3>{t("{n} am Zug", { n: userWhite ? t("Weiß") : t("Schwarz") })}</h3>
             {steps > 1 && (
               <span class="puzzle-steps" aria-label={t("Zug {0} von {steps}", { 0: Math.min(ownStep, steps), steps })}>
                 {Array.from({ length: steps }, (_, i) => (
@@ -359,13 +359,10 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             )}
           </div>
           <p style={{ marginTop: 0 }}>{ex.prompt}</p>
-          {steps > 1 && at === 0 && !solved && <p class="small muted">{t("Diese Aufgabe hat")} {steps}  {t("Züge: Nach deinem Zug antwortet der Gegner.")}</p>}
+          {steps > 1 && at === 0 && !solved && <p class="small muted">{t("Diese Aufgabe hat {steps} Züge: Nach deinem Zug antwortet der Gegner.", { steps })}</p>}
           <p class="small muted puzzle-source">
             
-            {t("Aus deiner Partie gegen")} <strong>{ex.opponent || "?"}</strong>
-            {ex.date ? ` (${formatDate(ex.date)})` : ""}{t(". Gespielt:")} <strong>{ex.played_san}</strong> ({trClassification(ex.classification)},{" "}
-            {trPhase(ex.phase)}, −{(ex.wp_loss * 100).toFixed(0)} %).
-          </p>
+            {tj("Aus deiner Partie gegen {x}{n}. Gespielt: {played_san} ({trClassification}, {trPhase}, −{n2} %).", { x: <strong>{ex.opponent || "?"}</strong>, n: ex.date ? ` (${formatDate(ex.date)})` : "", played_san: <strong>{ex.played_san}</strong>, trClassification: trClassification(ex.classification), trPhase: trPhase(ex.phase), n2: (ex.wp_loss * 100).toFixed(0) })}</p>
           {feedback && (
             <Coach mood={feedback.ok ? "wow" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text}>
               {feedback.detail}
@@ -396,19 +393,19 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           {(solved || reveal) && others.length > 0 && (
             <p class="small">
               
-              {t("Im ersten Zug ebenfalls richtig:")} <strong>{others.join(", ")}</strong>
+              {tj("Im ersten Zug ebenfalls richtig: {x}", { x: <strong>{others.join(", ")}</strong> })}
             </p>
           )}
           {(solved || reveal) && ex.line_san.length > 1 && (
             <p class="small">
               
-              {t("Fortsetzung der Engine:")} <span class="mono">{ex.line_san.join(" ")}</span>
+              {tj("Fortsetzung der Engine: {x}", { x: <span class="mono">{ex.line_san.join(" ")}</span> })}
             </p>
           )}
           {reveal && !solved && (
             <p>
               
-              {t("Lösung:")} <strong>{ex.line_san.slice(0, Math.max(1, positions.length - 1)).join(" ") || ex.solution_san}</strong>
+              {tj("Lösung: {x}", { x: <strong>{ex.line_san.slice(0, Math.max(1, positions.length - 1)).join(" ") || ex.solution_san}</strong> })}
             </p>
           )}
           <div class="row">
@@ -561,22 +558,20 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
       <div class="side-panel">
         <div class="card">
           <div class="ex-cat">{t("Weiterspielen")}</div>
-          <h3>{t("Ab hier spielst du frei gegen")} {ENGINE_NAME}</h3>
+          <h3>{t("Ab hier spielst du frei gegen {ENGINE_NAME}", { ENGINE_NAME })}</h3>
           <p class="small muted" style={{ marginTop: 0 }}>
             
-            {t("Noch")} {Math.max(0, PLAY_ON_MOVES - stats.moves)}  {t("eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.")}
+            {t("Noch {n} eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.", { n: Math.max(0, PLAY_ON_MOVES - stats.moves) })}
           </p>
           <div class="playon-stats tnum">
             <span>
-              <strong>{stats.sound}</strong> gesund
-            </span>
+              {tj("{sound} gesund", { sound: <strong>{stats.sound}</strong> })}</span>
             <span class="bad">
-              <strong>{stats.errors}</strong>  {t("Fehler")}
+              {tj("{errors} Fehler", { errors: <strong>{stats.errors}</strong> })}
             </span>
             {stats.brilliant > 0 && (
               <span class="brill">
-                <strong>{stats.brilliant}</strong> brillant
-              </span>
+                {tj("{brilliant} brillant", { brilliant: <strong>{stats.brilliant}</strong> })}</span>
             )}
           </div>
           {note && <Coach mood={note.ok ? "wow" : "think"} tone={note.ok ? "var(--win)" : "var(--loss)"} title={note.text} />}
@@ -748,16 +743,14 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
         <div class="card">
           <div class="ex-cat">{CATEGORIES.repertoire.label}</div>
           <h3>
-            {openingLabel(ex.opening)} mit {userWhite ? t("Weiß") : t("Schwarz")}
+            {t("{openingLabel} mit {n}", { openingLabel: openingLabel(ex.opening), n: userWhite ? t("Weiß") : t("Schwarz") })}
           </h3>
           <p class="small muted" style={{ marginTop: 0 }}>
-            {ex.library
+            {t("{n} Spiele deine Züge, der Gegner antwortet automatisch.", { n: ex.library
               ? t("Hauptlinie aus der Eröffnungsbibliothek.")
-              : t("Deine Hauptvariante aus {games} Partien{1}.", { games: ex.games, 1: ex.score_pct !== null ? t(" ({0} % Punkte)", { 0: Math.round(ex.score_pct) }) : "" })}{" "}
-            
-            {t("Spiele deine Züge, der Gegner antwortet automatisch.")}
+              : t("Deine Hauptvariante aus {games} Partien{1}.", { games: ex.games, 1: ex.score_pct !== null ? t(" ({0} % Punkte)", { 0: Math.round(ex.score_pct) }) : "" }) })}
           </p>
-          {ex.idea && <p class="note-box small">{t("Idee:")} {ex.idea}</p>}
+          {ex.idea && <p class="note-box small">{t("Idee: {idea}", { idea: ex.idea })}</p>}
           <div class={`learn-mode${learning ? " on" : ""}`}>
             {learning ? t("Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach.") : t("Abfrage: ohne Hilfe.")}
             {!done && (
@@ -772,9 +765,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
           {atCorrection && ex.correction && (
             <p class="note-box small">
               
-              {t("Achtung: Hier hast du in")} {ex.correction.games} {ex.correction.games === 1 ? t("Partie") : t("Partien")} <strong>{ex.correction.played_san}</strong>{" "}
-              
-              {t("gespielt – laut Engine ein Fehler. Finde den besseren Zug.")}
+              {tj("Achtung: Hier hast du in {games} {n} {played_san} gespielt – laut Engine ein Fehler. Finde den besseren Zug.", { games: ex.correction.games, n: ex.correction.games === 1 ? t("Partie") : t("Partien"), played_san: <strong>{ex.correction.played_san}</strong> })}
             </p>
           )}
           {feedback && !done && (
@@ -792,8 +783,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
           {done && ex.correction && (
             <p class="small">
               
-              {t("Merke:")} <strong>{ex.correction.best_san}</strong> statt {ex.correction.played_san}.
-            </p>
+              {tj("Merke: {best_san} statt {played_san}.", { best_san: <strong>{ex.correction.best_san}</strong>, played_san: ex.correction.played_san })}</p>
           )}
           <p class="small mono drill-moves">{moveText || t("Startstellung")}</p>
           <div class="row">
@@ -806,7 +796,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
             {done && !learning && (
               <button class="btn" onClick={() => setPlayOn(true)}>
                 
-                {t("Weiterspielen gegen")} {ENGINE_NAME}
+                {t("Weiterspielen gegen {ENGINE_NAME}", { ENGINE_NAME })}
               </button>
             )}
             {done && !learning && <NextButton onNext={onNext} label={nextLabel} />}

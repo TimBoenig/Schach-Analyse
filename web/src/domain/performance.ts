@@ -130,5 +130,5 @@ export function perfName(choice: PerfChoice): string {
 
 /** "4 Engines · 128 MB Hash je Engine". */
 export function perfLabel(p: PerfSettings): string {
-  return t("{engines} {1} · {hashMb} MB Hash{3}", { engines: p.engines, 1: p.engines === 1 ? "Engine" : "Engines", hashMb: p.hashMb, 3: p.engines > 1 ? t(" je Engine") : "" });
+  return (p.engines === 1 ? t("1 Engine · {hashMb} MB Hash", { hashMb: p.hashMb }) : t("{engines} Engines · {hashMb} MB Hash je Engine", { engines: p.engines, hashMb: p.hashMb }));
 }

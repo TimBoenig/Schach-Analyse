@@ -38,19 +38,17 @@ export function LiveDepth({ queue }: { queue: QueueState }) {
   return (
     <div class="live-depth">
       <label class="small">
-        <span class="muted">{t("Tiefe für")} {SCOPE_NAME[scope]}</span>
+        <span class="muted">{t("Tiefe für {n}", { n: SCOPE_NAME[scope] })}</span>
         <select value={choice.preset} onChange={(e) => change(e.currentTarget.value)} aria-label={t("Analysetiefe während der Analyse ändern")}>
           {PRESET_ORDER.map((p) => (
             <option key={p} value={p}>
-              {DEPTH_PRESETS[p].name}  {t("(Tiefe")} {DEPTH_PRESETS[p].settings.depth})
-            </option>
+              {t("{name} (Tiefe {depth})", { name: DEPTH_PRESETS[p].name, depth: DEPTH_PRESETS[p].settings.depth })}</option>
           ))}
-          {choice.preset === "custom" && <option value="custom">{t("Eigene (Tiefe")} {choice.depth})</option>}
+          {choice.preset === "custom" && <option value="custom">{t("Eigene (Tiefe {depth})", { depth: choice.depth })}</option>}
         </select>
       </label>
       <span class="faint small">
-        {settingsLabel(queue.settings)}
-        {engines}  {t("· gilt ab dem nächsten Zug, ohne Neustart")}
+        {t("{settingsLabel}{engines} · gilt ab dem nächsten Zug, ohne Neustart", { settingsLabel: settingsLabel(queue.settings), engines })}
       </span>
     </div>
   );

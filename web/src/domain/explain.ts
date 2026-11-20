@@ -30,7 +30,7 @@ import { PIECE_VALUES, TacticalTheme } from "./tactics/constants";
 import { getHangingPieces } from "./tactics/hanging";
 import { detectTacticalMotifs } from "./tactics/motifs";
 import { staticExchangeEvaluation } from "./tactics/see";
-import { t } from "../i18n";
+import { lang, t } from "../i18n";
 
 export interface ExplainInput {
   fenBefore: string;
@@ -68,15 +68,28 @@ const NAMES: Record<PieceType, { nom: string; acc: string; of: string; gen: "m" 
   6: { nom: t("König"), acc: t("König"), of: t("Königs"), gen: "m", fork: t("Königsgabel") },
 };
 
+// German needs gender and case; English has one form ("your knight", "it").
+// i18n: the German words below are grammar, not texts to translate.
+const en = () => lang() === "en";
 const fem = (tk: PieceType) => NAMES[tk].gen === "f";
-const yourNom = (tk: PieceType) => `${fem(tk) ? "deine" : "dein"} ${NAMES[tk].nom}`;
-const yourAcc = (tk: PieceType) => `${fem(tk) ? "deine" : "deinen"} ${NAMES[tk].acc}`;
-const theirNom = (tk: PieceType) => `${fem(tk) ? "seine" : "sein"} ${NAMES[tk].nom}`;
-const yourOf = (tk: PieceType) => `${fem(tk) ? "deiner" : "deines"} ${NAMES[tk].of}`;
-const theirAcc = (tk: PieceType) => `${fem(tk) ? "seine" : "seinen"} ${NAMES[tk].acc}`;
+const yourNom = (tk: PieceType) => (en() ? `your ${NAMES[tk].nom}` : `${fem(tk) ? "deine" : "dein"} ${NAMES[tk].nom}`);
+// i18n: grammar
+const yourAcc = (tk: PieceType) => (en() ? `your ${NAMES[tk].acc}` : `${fem(tk) ? "deine" : "deinen"} ${NAMES[tk].acc}`);
+// i18n: grammar
+const theirNom = (tk: PieceType) => (en() ? `their ${NAMES[tk].nom}` : `${fem(tk) ? "seine" : "sein"} ${NAMES[tk].nom}`);
+// i18n: grammar
+const yourOf = (tk: PieceType) => (en() ? `your ${NAMES[tk].of}` : `${fem(tk) ? "deiner" : "deines"} ${NAMES[tk].of}`);
+// i18n: grammar
+const theirAcc = (tk: PieceType) => (en() ? `their ${NAMES[tk].acc}` : `${fem(tk) ? "seine" : "seinen"} ${NAMES[tk].acc}`);
 /** Dative after "mit": "mit deinem Springer", "mit einem Bauern". */
-const withPiece = (tk: PieceType) => (tk === PAWN ? t("einem Bauern") : `${fem(tk) ? "deiner" : "deinem"} ${NAMES[tk].nom}`);
-const pronoun = (tk: PieceType) => (fem(tk) ? "sie" : "er");
+// i18n: grammar
+const withPiece = (tk: PieceType) => (tk === PAWN ? t("einem Bauern") : en() ? `your ${NAMES[tk].nom}` : `${fem(tk) ? "deiner" : "deinem"} ${NAMES[tk].nom}`);
+// i18n: grammar
+const pronoun = (tk: PieceType) => (en() ? "it" : fem(tk) ? "sie" : "er");
+/** Article or relative pronoun that follows the piece's gender in German. */
+// i18n: grammar
+const ARTICLE_EN: Record<string, string> = { die: "which", der: "which", den: "which", Die: "The", Der: "The", "deine ungedeckte": "your undefended", "deinen ungedeckten": "your undefended", "die ungedeckte": "the undefended", "den ungedeckten": "the undefended" };
+const art = (de: string) => (en() ? (ARTICLE_EN[de] ?? de) : de);
 
 function material(board: TBoard, color: Color): number {
   let sum = 0;
@@ -145,7 +158,7 @@ function attackedTargets(board: TBoard, sq: number, victim: Color): PieceType[] 
 
 function joinPieces(types: PieceType[], fmt: (tk: PieceType) => string): string {
   const parts = types.slice(0, 3).map(fmt);
-  return parts.length > 1 ? `${parts.slice(0, -1).join(", ")} und ${parts[parts.length - 1]}` : parts[0] ?? "";
+  return parts.length > 1 ? t("{list} und {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0] ?? "";
 }
 
 /** The same position with the other side to move, or null when that is not a legal position. */
@@ -284,7 +297,7 @@ function preventedNote(tk: Threat, move: Move, before: TBoard): Note {
   if (move.to === tk.move.from) return note(t("Du schlägst die Figur, die {yourAcc} auf {sq} bedroht hat.", { yourAcc: yourAcc(victim), sq }), marks, [tk.square]);
   const captured = before.pieceAt(move.to);
   if (captured && captured.color !== before.turn) return note(t("Du nimmst eine Figur, die {yourAcc} auf {sq} angegriffen hat.", { yourAcc: yourAcc(victim), sq }), marks, [tk.square]);
-  return note(t("Damit schützt du {yourAcc} auf {sq}, {2} dein Gegner sonst mit {san} gewonnen hätte.", { yourAcc: yourAcc(victim), sq, 2: fem(victim) ? "die" : "den", san: tk.san }), marks, [tk.square]);
+  return note(t("Damit schützt du {yourAcc} auf {sq}, {2} dein Gegner sonst mit {san} gewonnen hätte.", { yourAcc: yourAcc(victim), sq, 2: art(fem(victim) ? "die" : "den"), san: tk.san }), marks, [tk.square]);
 }
 
 /** Pin or skewer set up by the slider on `sq` of `attacker`; `you` = the attacker is the mover. */
@@ -337,7 +350,7 @@ function replyNote(afterMove: TBoard, reply: Move, replySan: string, me: Color, 
     const free = legalDefenders(afterMove, me, reply.to).length === 0;
     const capturer = afterMove.pieceAt(reply.from);
     // A recapturable trade is no loss; only free pieces or captures by a cheaper piece are.
-    if (free) return note(t("Dein Gegner schlägt mit {replySan} {1} {acc}.", { replySan, 1: fem(tk) ? "deine ungedeckte" : "deinen ungedeckten", acc: NAMES[tk].acc }), marks);
+    if (free) return note(t("Dein Gegner schlägt mit {replySan} {1} {acc}.", { replySan, 1: art(fem(tk) ? "deine ungedeckte" : "deinen ungedeckten"), acc: NAMES[tk].acc }), marks);
     if (capturer && PIECE_VALUES[capturer.type] < PIECE_VALUES[tk]) return note(t("Dein Gegner schlägt mit {replySan} {yourAcc} und gewinnt Material, auch wenn du zurückschlägst.", { replySan, yourAcc: yourAcc(tk) }), marks);
   }
   return null;
@@ -419,7 +432,7 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
     const tk = captured.type;
     const free = legalDefenders(before, !me, move.to).length === 0;
     if (recapture) out.push(note(evens ? t("Du schlägst zurück und gleichst das Material wieder aus.") : t("Du schlägst zurück.")));
-    else if (tk !== PAWN && free) out.push(note(t("Du schlägst {0} {acc} auf {squareName}.", { 0: fem(tk) ? t("die ungedeckte") : "den ungedeckten", acc: NAMES[tk].acc, squareName: squareName(move.to) })));
+    else if (tk !== PAWN && free) out.push(note(t("Du schlägst {0} {acc} auf {squareName}.", { 0: art(fem(tk) ? "die ungedeckte" : "den ungedeckten"), acc: NAMES[tk].acc, squareName: squareName(move.to) })));
     else if (tk !== PAWN && PIECE_VALUES[piece.type] < PIECE_VALUES[tk] && piece.type !== KING) out.push(note(t("Du schlägst {theirAcc} mit {withPiece} und gewinnst Material.", { theirAcc: theirAcc(tk), withPiece: withPiece(piece.type) })));
   }
 
@@ -446,9 +459,9 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
       else if (tk?.kind === "fork") out.push(note(t("Du drohst {forkPhrase} gegen {joinPieces}.", { forkPhrase: forkPhrase(tk), joinPieces: joinPieces(tk.targets, theirAcc) }), marks, [tk.move.to]));
       else if (tk?.kind === "win") {
         const victim = tk.targets[0];
-        const by = tk.piece !== KING && PIECE_VALUES[tk.piece] < PIECE_VALUES[victim] ? ` mit ${withPiece(tk.piece)}` : "";
-        const where = `${theirAcc(victim)} auf ${squareName(tk.square)}`;
-        out.push(note(by ? t("Du greifst {where}{by} an.", { where, by }) : t("Du greifst {where} an, {1} nicht ausreichend gedeckt ist.", { where, 1: fem(victim) ? "die" : "der" }), marks, [tk.square]));
+        const by = tk.piece !== KING && PIECE_VALUES[tk.piece] < PIECE_VALUES[victim] ? t(" mit {piece}", { piece: withPiece(tk.piece) }) : "";
+        const where = t("{piece} auf {square}", { piece: theirAcc(victim), square: squareName(tk.square) });
+        out.push(note(by ? t("Du greifst {where}{by} an.", { where, by }) : t("Du greifst {where} an, {1} nicht ausreichend gedeckt ist.", { where, 1: art(fem(victim) ? "die" : "der") }), marks, [tk.square]));
       }
     }
   }
@@ -526,7 +539,7 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
         const targets = attackedTargets(afterBest, bm.to, !me);
         out.push(note(t("Besser war {bSan}: Damit greifst du mit einer Gabel {joinPieces} gleichzeitig an.", { bSan, joinPieces: joinPieces(targets, theirAcc) })));
       } else if (target && target.color !== me && target.type !== PAWN && legalDefenders(before, !me, bm.to).length === 0) {
-        out.push(note(t("Besser war {bSan}: {1} gegnerische {nom} auf {squareName} war ungedeckt.", { bSan, 1: fem(target.type) ? t("Die") : t("Der"), nom: NAMES[target.type].nom, squareName: squareName(bm.to) })));
+        out.push(note(t("Besser war {bSan}: {1} gegnerische {nom} auf {squareName} war ungedeckt.", { bSan, 1: art(fem(target.type) ? "Die" : "Der"), nom: NAMES[target.type].nom, squareName: squareName(bm.to) })));
       } else if (stopped) {
         const what = stopped.kind === "mate" ? t("das Matt durch {san}", { san: stopped.san }) : stopped.kind === "fork" ? forkPhrase(stopped) : t("den Verlust {yourOf}", { yourOf: yourOf(stopped.targets[0]) });
         out.push(note(t("Besser war {bSan}: Damit verhinderst du {what}.", { bSan, what })));

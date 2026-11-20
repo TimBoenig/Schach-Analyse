@@ -11,7 +11,7 @@ import { navigate, type Route } from "./router";
 import { openSection, STAT_SECTIONS, STATS_PAGES } from "./StatsLayout";
 import { setTheme } from "./theme";
 import { ENGINE_NAME } from "../engine/info";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 interface Command {
   id: string;
@@ -27,11 +27,11 @@ export const PAGES: { view: Route["view"]; label: string; key: string; keywords?
   { view: "games", label: t("Partien"), key: "2" },
   { view: "board", label: t("Partien › Analysebrett"), key: "9" },
   { view: "profile", label: t("Statistik › Überblick"), key: "4", keywords: t("profil fähigkeiten stärken schwächen stil") },
-  { view: "insights", label: t("Statistik › Ergebnisse"), key: "5", keywords: "einblicke entwicklung gegner bedenkzeit gewohnheiten" },
+  { view: "insights", label: t("Statistik › Ergebnisse"), key: "5", keywords: t("einblicke entwicklung gegner bedenkzeit gewohnheiten") },
   { view: "moves", label: t("Statistik › Züge & Fehler"), key: "3", keywords: t("zugbilanz brillant großartig patzer fehler zugbewertungen") },
   { view: "openings", label: t("Statistik › Eröffnungen"), key: "6", keywords: t("repertoire eröffnungsbaum") },
   { view: "training", label: "Training", key: "7" },
-  { view: "players", label: t("Spieler & Rangliste"), key: "0", keywords: "freunde gegner vergleich" },
+  { view: "players", label: t("Spieler & Rangliste"), key: "0", keywords: t("freunde gegner vergleich") },
   { view: "settings", label: t("Einstellungen"), key: "8" },
   { view: "account", label: t("Einstellungen › Konto & Sync"), key: "k" },
 ];
@@ -83,20 +83,20 @@ export function CommandPalette({
         id: "export",
         group: t("Aktionen"),
         label: t("Alle Daten exportieren"),
-        keywords: "export sicherung backup json csv pgn datei",
+        keywords: t("export sicherung backup json csv pgn datei"),
         run: () => void exportData("json", "All Time"),
       },
       {
         id: "export-ai",
         group: t("Aktionen"),
         label: t("Für KI exportieren (letzte 90 Tage)"),
-        keywords: "ki ai chatgpt claude gemini export analyse markdown datei",
+        keywords: t("ki ai chatgpt claude gemini export analyse markdown datei"),
         run: () => void exportForAi(PAGE_PERIODS.aiExport),
       },
       { id: "theme-dark", group: t("Aktionen"), label: t("Dunkles Design"), keywords: "theme dark nacht", run: () => void setTheme("dark") },
-      { id: "theme-light", group: t("Aktionen"), label: t("Helles Design"), keywords: "theme light tag", run: () => void setTheme("light") },
+      { id: "theme-light", group: t("Aktionen"), label: t("Helles Design"), keywords: t("theme light tag"), run: () => void setTheme("light") },
       { id: "theme-system", group: t("Aktionen"), label: t("Design automatisch"), keywords: "theme system", run: () => void setTheme("system") },
-      { id: "keys", group: t("Aktionen"), label: t("Tastenkürzel anzeigen"), hint: "?", keywords: "shortcuts hilfe", run: onShortcuts },
+      { id: "keys", group: t("Aktionen"), label: t("Tastenkürzel anzeigen"), hint: "?", keywords: t("shortcuts hilfe"), run: onShortcuts },
     ];
     const lower = names.map((n) => n.toLowerCase());
     const opp = (g: StoredGame) => (lower.includes(g.white.toLowerCase()) ? g.black : g.white);
@@ -188,15 +188,13 @@ export function CommandPalette({
         </div>
         <div class="palette-foot faint">
           <span>
-            <kbd>↑</kbd>
-            <kbd>↓</kbd>  {t("wählen")}
+            {tj("{x}{x2} wählen", { x: <kbd>↑</kbd>, x2: <kbd>↓</kbd> })}
           </span>
           <span>
-            <kbd>↵</kbd>  {t("öffnen")}
+            {tj("{x} öffnen", { x: <kbd>↵</kbd> })}
           </span>
           <span>
-            <kbd>{MOD}</kbd>
-            <kbd>K</kbd>  {t("Befehle")}
+            {tj("{MOD}{x} Befehle", { MOD: <kbd>{MOD}</kbd>, x: <kbd>K</kbd> })}
           </span>
         </div>
       </div>

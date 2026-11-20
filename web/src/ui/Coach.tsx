@@ -167,7 +167,7 @@ export function NeedNames({ what }: { what: string }) {
       <h3>{t("Wer bist du?")}</h3>
       <p>
         
-        {t("Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne. Dann")} {what}
+        {t("Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne. Dann {what}", { what })}
       </p>
       <button
         class="btn primary big"

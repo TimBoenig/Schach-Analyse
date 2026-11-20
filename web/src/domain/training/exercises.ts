@@ -263,7 +263,7 @@ function puzzle(f: GameFeatures, m: MoveEvent): PuzzleExercise | null {
     id: `p:${f.game_id}:${m.ply_index}`,
     kind: "puzzle",
     category,
-    title: `${label} gegen ${f.rec.opp_name || "?"}`,
+    title: t("{label} gegen {n}", { label, n: f.rec.opp_name || "?" }),
     fen: m.fen_before,
     solution,
     solution_san: san,

@@ -44,7 +44,7 @@ import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -239,7 +239,7 @@ function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: 
         <div class="eg-tip" style={{ left: `${Math.max(12, Math.min(88, (shown / n) * 100))}%` }}>
           <strong>{hm ? `${hm.move_number}${hm.fen_before.split(" ")[1] === "w" ? "." : "..."} ${hm.san}` : t("Start")}</strong>
           {hm?.classification && hm.classification !== "Book" ? ` · ${classLabel(hm.classification)}` : ""}
-          {hwc !== null && <span class="faint">  {t("· Weiß")} {Math.round(hwc * 100)} %</span>}
+          {hwc !== null && <span class="faint">  {t("· Weiß {n} %", { n: Math.round(hwc * 100) })}</span>}
         </div>
       )}
       <div class="eg-legend faint">
@@ -731,7 +731,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     <div class="engine-switches">
       <label class="switch-pill" title={t("{ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)", { ENGINE_NAME })}>
         <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
-        <span>{ENGINE_NAME} live</span>
+        <span>{t("{ENGINE_NAME} live", { ENGINE_NAME })}</span>
       </label>
       <label class="switch-pill" title={t("Zeigt, was der Gegner droht, wenn du jetzt nichts tust (X)")}>
         <input type="checkbox" checked={engine.threat} onChange={() => setEngine({ ...engine, threat: !engine.threat })} />
@@ -986,7 +986,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               {analyzing ? (
                 <>
                   <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
-                    <strong>{t("Analyse läuft …")} {progress} %</strong>
+                    <strong>{t("Analyse läuft … {progress} %", { progress })}</strong>
                     <button class="btn small" onClick={cancelCurrent}>
                       <IconStop />  {t("Abbrechen")}
                     </button>
@@ -996,7 +996,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   </div>
                   {queue && <LiveDepth queue={queue} />}
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    <EngineWait>{ENGINE_NAME}  {t("rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.")}</EngineWait>
+                    <EngineWait>{t("{ENGINE_NAME} rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.", { ENGINE_NAME })}</EngineWait>
                   </p>
                 </>
               ) : (
@@ -1027,7 +1027,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 {explore.sans.length > 0 && <VerdictCard san={explore.sans[explore.sans.length - 1]} verdict={lastVerdict} />}
                 {live.busy && !live.lines.length ? (
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    <EngineWait>{ENGINE_NAME}  {t("rechnet …")}</EngineWait>
+                    <EngineWait>{t("{ENGINE_NAME} rechnet …", { ENGINE_NAME })}</EngineWait>
                   </p>
                 ) : (
                   <EngineLines
@@ -1066,7 +1066,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
                       <div class="small" style={{ marginTop: "4px" }}>
                         
-                        {t("Besser war:")} <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
+                        {tj("Besser war: {x}", { x: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong> })}
                       </div>
                     )}
                   </div>
@@ -1117,7 +1117,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </button>
               <button class={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>
                 
-                {t("Bericht · Note")} {review.grade.split(" ")[0]}
+                {t("Bericht · Note {n}", { n: review.grade.split(" ")[0] })}
               </button>
             </div>
           )}
@@ -1188,7 +1188,7 @@ function BookNote({ move, next }: { move: MoveData; next: [string, string, strin
       {parts ? (
         <>
           
-          {t("Theorie:")} <strong>{parts.main}</strong>
+          {tj("Theorie: {main}", { main: <strong>{parts.main}</strong> })}
           {parts.variation && <span class="muted"> · {parts.variation}</span>}
         </>
       ) : (
@@ -1197,8 +1197,7 @@ function BookNote({ move, next }: { move: MoveData; next: [string, string, strin
       {continuations.length > 0 && (
         <div class="small muted" style={{ marginTop: "4px" }}>
           
-          {t("Bekannte Fortsetzungen:")} {continuations.slice(0, 6).join(", ")}
-          {continuations.length > 6 ? " …" : ""}
+          {t("Bekannte Fortsetzungen: {n}{n2}", { n: continuations.slice(0, 6).join(", "), n2: continuations.length > 6 ? " …" : "" })}
         </div>
       )}
     </div>

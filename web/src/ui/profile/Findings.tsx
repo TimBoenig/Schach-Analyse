@@ -123,7 +123,7 @@ export function StyleCard({ profile }: { profile: PlayerProfile }) {
               )}
             </>
           ) : (
-            <p class="muted small">{t("Der Spielstil erscheint ab")} {STYLE_MIN_GAMES}  {t("analysierten Partien.")}</p>
+            <p class="muted small">{t("Der Spielstil erscheint ab {STYLE_MIN_GAMES} analysierten Partien.", { STYLE_MIN_GAMES })}</p>
           )}
         </div>
         <div>

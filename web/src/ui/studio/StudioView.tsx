@@ -567,7 +567,7 @@ export function StudioView() {
       <main class="studio-stage">
         <div class="studio-canvas-wrap" ref={wrapRef}>
           {glError ? (
-            <p class="studio-gl-error">{t("3D geht auf diesem Gerät nicht:")} {glError}</p>
+            <p class="studio-gl-error">{t("3D geht auf diesem Gerät nicht: {glError}", { glError })}</p>
           ) : (
             <canvas
               ref={canvasRef}
@@ -645,8 +645,7 @@ export function StudioView() {
             <option value="">{t("Länge …")}</option>
             {[15, 30, 45, 60, 90].map((n) => (
               <option key={n} value={n}>
-                auf {n} s anpassen
-              </option>
+                {t("auf {n} s anpassen", { n })}</option>
             ))}
           </select>
           <label class="studio-safe" title={t("Zeigt, wo die App ihre Knöpfe hinlegt (nicht im Video)")}>
@@ -766,7 +765,7 @@ export function StudioView() {
             {exp.phase === "recording" && (
               <>
                 <h3>{t("Video wird aufgenommen …")}</h3>
-                <p class="muted">{t("Das Video wird so schnell erstellt, wie dein Gerät es schafft (in alten Browsern in Echtzeit,")} {fmtTime(timeline.total)}{t("). Lass diesen Tab bitte im Vordergrund.")}</p>
+                <p class="muted">{t("Das Video wird so schnell erstellt, wie dein Gerät es schafft (in alten Browsern in Echtzeit, {fmtTime}). Lass diesen Tab bitte im Vordergrund.", { fmtTime: fmtTime(timeline.total) })}</p>
                 <div class="studio-bar">
                   <span style={{ width: `${Math.round(exp.progress * 100)}%` }} />
                 </div>
@@ -781,8 +780,7 @@ export function StudioView() {
                 <h3>{t("Fertig!")}</h3>
                 <video src={exp.url} controls autoplay loop playsInline class={`studio-result f${project.video.format.replace(":", "x")}`} />
                 <p class="small muted">
-                  {W}×{H}, {project.video.fps}  {t("fps,")} {exp.ext?.toUpperCase()}, {((exp.blob?.size ?? 0) / 1e6).toFixed(1)} MB
-                  {exp.ext === "webm" ? t(" · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren.") : ""}
+                  {t("{W}×{H}, {fps} fps, {n}, {n2} MB{n3}", { W, H, fps: project.video.fps, n: exp.ext?.toUpperCase(), n2: ((exp.blob?.size ?? 0) / 1e6).toFixed(1), n3: exp.ext === "webm" ? t(" · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren.") : "" })}
                 </p>
                 <div class="studio-modal-actions">
                   <button class="btn primary" onClick={() => exp.blob && download(exp.blob, `${FILE_PREFIX}-${slug(project.name)}.${exp.ext}`)}>
@@ -931,7 +929,7 @@ function SceneEditor({
       {(scene.card === "question" || scene.card === "poll") && <Slider label={t("Countdown")} value={scene.countdown} min={0} max={10} step={1} unit=" s" onChange={(countdown) => onChange({ countdown })} />}
       <Field
         label={t("Züge in dieser Szene")}
-        hint={error ? <span class="bad">„{error}{t("“ ist hier kein gültiger Zug.")}</span> : t("Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug.")}
+        hint={error ? <span class="bad">{t("„{error}“ ist hier kein gültiger Zug.", { error })}</span> : t("Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug.")}
       >
         <input class={error ? "invalid" : ""} value={scene.moves} onInput={(e) => onChange({ moves: e.currentTarget.value })} placeholder={t("z. B. 3. Lb5")} spellcheck={false} />
       </Field>
@@ -977,7 +975,7 @@ function SceneEditor({
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
       <Slider label={t("Dauer")} value={scene.duration} min={1} max={15} step={0.1} unit=" s" onChange={(duration) => onChange({ duration })} />
-      {effective > scene.duration + 0.05 && <p class="studio-hint">{t("Die Szene braucht")} {effective.toFixed(1)}  {t("s (Züge, Effekte oder Sprechtext), so lange läuft sie.")}</p>}
+      {effective > scene.duration + 0.05 && <p class="studio-hint">{t("Die Szene braucht {n} s (Züge, Effekte oder Sprechtext), so lange läuft sie.", { n: effective.toFixed(1) })}</p>}
       <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
         <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
       </Field>
@@ -1007,7 +1005,7 @@ function SceneEditor({
       <Slider label={t("Zugtempo dieser Szene")} value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
 
       <h4 class="studio-sub">{t("Kamera")}</h4>
-      <p class="studio-hint">{t("Immer aus Sicht von")} {perspective === "black" ? t("Schwarz") : t("Weiß")}{t(", änderbar unter „Video“.")}</p>
+      <p class="studio-hint">{t("Immer aus Sicht von {n}, änderbar unter „Video“.", { n: perspective === "black" ? t("Schwarz") : t("Weiß") })}</p>
       <div class="studio-cams">
         {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
           <button key={c} class={scene.camera === c ? "on" : ""} onClick={() => onChange({ camera: c })}>
@@ -1041,7 +1039,7 @@ function SceneEditor({
             <li key={`a${i}`}>
               <span class="dot" style={{ background: toneColor(a.tone, style) }} />
               
-              {t("Pfeil")} {a.from} → {a.to}
+              {t("Pfeil {from} → {to}", { from: a.from, to: a.to })}
               <button onClick={() => onChange({ arrows: scene.arrows.filter((_, k) => k !== i) })} aria-label={t("Pfeil löschen")}>
                 ✕
               </button>
@@ -1051,7 +1049,7 @@ function SceneEditor({
             <li key={`m${i}`}>
               <span class="dot sq" style={{ background: toneColor(m.tone, style) }} />
               
-              {t("Feld")} {m.square}
+              {t("Feld {square}", { square: m.square })}
               <button onClick={() => onChange({ marks: scene.marks.filter((_, k) => k !== i) })} aria-label={t("Markierung löschen")}>
                 ✕
               </button>
@@ -1129,14 +1127,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
       </Field>}
       <h4 class="studio-sub">{t("Farben")}</h4>
       <div class="studio-colours">
-        {colour(t("Helle Felder"), "light")}
-        {colour(t("Dunkle Felder"), "dark")}
-        {colour(t("Rahmen"), "frame")}
-        {style.view === "3d" && colour(t("Weiße Figuren"), "whitePiece")}
-        {style.view === "3d" && colour(t("Schwarze Figuren"), "blackPiece")}
-        {colour(t("Akzent"), "accent")}
-        {colour(t("Hintergrund oben"), "bgTop")}
-        {colour(t("Hintergrund unten"), "bgBottom")}
+        {t("{colour}{colour2}{colour3}{n}{n2}{colour4}{colour5}{colour6}", { colour: colour(t("Helle Felder"), "light"), colour2: colour(t("Dunkle Felder"), "dark"), colour3: colour(t("Rahmen"), "frame"), n: style.view === "3d" && colour(t("Weiße Figuren"), "whitePiece"), n2: style.view === "3d" && colour(t("Schwarze Figuren"), "blackPiece"), colour4: colour(t("Akzent"), "accent"), colour5: colour(t("Hintergrund oben"), "bgTop"), colour6: colour(t("Hintergrund unten"), "bgBottom") })}
       </div>
       {style.view === "3d" && <Field label={t("Figuren")}>
         <Seg<Material>
@@ -1242,7 +1233,7 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
       </Field>
       <p class="studio-hint">
         
-        {t("Export als")} {type ? type.toUpperCase() : t("– (Browser kann nicht aufnehmen)")}{t(". Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.")}
+        {t("Export als {n}. Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.", { n: type ? type.toUpperCase() : t("– (Browser kann nicht aufnehmen)") })}
       </p>
     </div>
   );
@@ -1336,7 +1327,7 @@ function NewDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (p: S
           <Field label={t("Titel")}>
             <input value={name} onInput={(e) => setName(e.currentTarget.value)} />
           </Field>
-          <Field label={t("Züge (PGN)")} hint={built.error ? <span class="bad">{t("Ab „")}{built.error}{t("“ geht es nicht weiter.")}</span> : t("{0} Szenen mit Platzhaltertexten.", { 0: built.project.scenes.length - 2 })}>
+          <Field label={t("Züge (PGN)")} hint={built.error ? <span class="bad">{t("Ab „{error}“ geht es nicht weiter.", { error: built.error })}</span> : t("{0} Szenen mit Platzhaltertexten.", { 0: built.project.scenes.length - 2 })}>
             <textarea rows={3} value={moves} onInput={(e) => setMoves(e.currentTarget.value)} spellcheck={false} />
           </Field>
           <Toggle label={t("Weiß- und Schwarzzug in einer Szene")} checked={pairs} onChange={setPairs} />

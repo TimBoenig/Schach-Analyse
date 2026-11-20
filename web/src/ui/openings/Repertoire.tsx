@@ -71,7 +71,7 @@ export function OpeningCard({ o, selected, onSelect }: { o: OpeningStat; selecte
           <span>
             {o.wins} S · {o.draws} R · {o.losses} N
           </span>
-          {o.book_exit_move !== null && <span>{t("Theorie bis Zug")} {Math.round(o.book_exit_move)}</span>}
+          {o.book_exit_move !== null && <span>{t("Theorie bis Zug {n}", { n: Math.round(o.book_exit_move) })}</span>}
         </div>
       </div>
     </button>
@@ -164,7 +164,7 @@ export function RepertoireMap({
         ))}
         {average !== null && (
           <line x1={pad.l} x2={w - pad.r} y1={y(average)} y2={y(average)} class="rep-map-avg">
-            <title>{t("Dein Schnitt")} {Math.round(average)} %</title>
+            <title>{t("Dein Schnitt {n} %", { n: Math.round(average) })}</title>
           </line>
         )}
         {ticks.map((tk) => (
@@ -222,7 +222,7 @@ export function RepertoireMap({
                   </text>
                 )}
                 <title>
-                  {openingLabel(l.name)}: {pctText(l.score_pct)} aus {l.games} {l.games === 1 ? t("Partie") : t("Partien")}
+                  {t("{openingLabel}: {pctText} aus {games} {n}", { openingLabel: openingLabel(l.name), pctText: pctText(l.score_pct), games: l.games, n: l.games === 1 ? t("Partie") : t("Partien") })}
                 </title>
               </g>
             );
@@ -235,7 +235,7 @@ export function RepertoireMap({
       <div class="legend">
         <span class="legend-item">
           <span class="legend-key" style={{ background: "var(--win)", borderRadius: "50%" }} />
-          ab {MIN_LINE_GAMES}  {t("Partien")}
+          {t("ab {MIN_LINE_GAMES} Partien", { MIN_LINE_GAMES })}
         </span>
         <span class="legend-item">
           <span class="legend-key dashed" style={{ borderColor: "var(--text-3)", borderRadius: "50%" }} />
@@ -246,8 +246,7 @@ export function RepertoireMap({
           <span class="legend-item">
             <span class="legend-key dashed" style={{ borderColor: "var(--text-3)" }} />
             
-            {t("dein Schnitt")} {Math.round(average)} %
-          </span>
+            {t("dein Schnitt {n} %", { n: Math.round(average) })}</span>
         )}
       </div>
     </div>
@@ -292,8 +291,8 @@ export function TheoryTimeline({ lines, onSelect }: { lines: OpeningStat[]; onSe
       })}
       <div class="theory-scale small faint">
         <span>{t("Zug 1")}</span>
-        <span>{t("Zug")} {Math.round(maxMove / 2)}</span>
-        <span>{t("Zug")} {maxMove}</span>
+        <span>{t("Zug {n}", { n: Math.round(maxMove / 2) })}</span>
+        <span>{t("Zug {maxMove}", { maxMove })}</span>
       </div>
       <div class="legend">
         <span class="legend-item">

@@ -136,7 +136,7 @@ type TipText = (name: string, s: SkillScore, p: PlayerProfile) => { title: strin
 
 const EXPLOIT: Record<string, TipText> = {
   opening: (n, s) => ({
-    kind: "Eröffnung",
+    kind: "Eröffnung", // i18n: id
     title: t("Früh Fragen stellen"),
     text: t("{n} verliert schon in der Eröffnung an Boden ({detail}). Spiel aktive, prinzipielle Eröffnungen und stell früh konkrete Drohungen, statt ruhig aufzubauen.", { n, detail: s.detail }),
   }),
@@ -196,7 +196,7 @@ const CAUTION: Record<string, (name: string, s: SkillScore) => string> = {
 // What to steer towards when the user is clearly better in a skill, even if
 // the player is not weak there by the standard of the rating.
 const STEER: Record<string, (name: string) => { title: string; text: string; kind: TipKind }> = {
-  opening: (n) => ({ kind: "Eröffnung", title: t("Eröffnung zuspitzen"), text: t("Hol dir den Vorteil früh: Spiel deine Hauptvarianten und zwing {n} in Theorie, die du besser kennst.", { n }) }),
+  opening: (n) => ({ kind: "Eröffnung", title: t("Eröffnung zuspitzen"), text: t("Hol dir den Vorteil früh: Spiel deine Hauptvarianten und zwing {n} in Theorie, die du besser kennst.", { n }) }), // i18n: id
   middlegame: (n) => ({ kind: "Strategie", title: t("Mittelspiel ausspielen"), text: t("Halte die Figuren auf dem Brett und tausch nicht vorschnell ab, im Mittelspiel liegt dein Plus gegen {n}.", { n }) }),
   endgame: (n) => ({ kind: "Strategie", title: t("Ins Endspiel abwickeln"), text: t("Bei ausgeglichener Stellung abtauschen, vor allem die Damen: Im Endspiel bist du {n} überlegen.", { n }) }),
   tactics: (n) => ({ kind: "Taktik", title: t("Scharf spielen"), text: t("Such offene, taktische Stellungen: Du siehst Taktik klar besser als {n}.", { n }) }),
@@ -439,7 +439,7 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
     for (const r of first.replies) {
       if (r.games < MIN_LINE_GAMES || r.score_pct === null) continue;
       const my = mineVs?.replies.find((x) => x.san === r.san);
-      const only = r.score_pct <= 45 ? "nur " : "";
+      const only = r.score_pct <= 45 ? t("nur ") : "";
       picks.push({
         key: `b1_${first.san}_${r.san}`,
         title: `1. ${first.san} ${r.san}`,
@@ -497,7 +497,7 @@ function openingTip(side: "white" | "black", picks: OpeningPick[]): ScoutTip | n
   if (!best) return null;
   return {
     key: `opening_${side}`,
-    kind: "Eröffnung",
+    kind: "Eröffnung", // i18n: id
     title: side === "white" ? t("Mit Weiß: {title}", { title: best.title }) : t("Mit Schwarz: {title}", { title: best.title }),
     text: best.text,
     weight: best.value,

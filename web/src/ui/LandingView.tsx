@@ -8,7 +8,7 @@ import { LandingHow } from "./LandingHow";
 import { Model3D } from "./Model3D";
 import { navigate } from "./router";
 import { openStage } from "./stage/store";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 function openApp(): void {
   navigate({ view: "home" });
@@ -47,15 +47,14 @@ export function LandingView() {
           <p class="ld-kicker">{t("Dein persönlicher Schach-Coach")}</p>
           <h1>
             
-            {t("Finde heraus,")} <em>warum</em>  {t("du verlierst.")}
+            {tj("Finde heraus, {x} du verlierst.", { x: <em>{t("warum")}</em> })}
           </h1>
-          <p class="ld-lead">{BRAND}  {t("analysiert deine Partien von chess.com und Lichess, zeigt dir deine echten Stärken und Schwächen und trainiert genau das, was dich Punkte kostet.")}</p>
+          <p class="ld-lead">{t("{BRAND} analysiert deine Partien von chess.com und Lichess, zeigt dir deine echten Stärken und Schwächen und trainiert genau das, was dich Punkte kostet.", { BRAND })}</p>
           <div class="ld-cta-row">
             <button class="btn primary big ld-cta" onClick={startWithLucena}>
               <IconBolt />
               
-              {t("Mit")} {COACH_NAME} loslegen
-            </button>
+              {t("Mit {COACH_NAME} loslegen", { COACH_NAME })}</button>
             <button class="btn big" onClick={openApp}>
               
               {t("Direkt zur App")}
@@ -91,11 +90,10 @@ export function LandingView() {
         <div class="ld-cta-row">
           <button class="btn primary big ld-cta" onClick={startWithLucena}>
             
-            {t("Mit")} {COACH_NAME} loslegen
-            <IconChevron />
+            {t("Mit {COACH_NAME} loslegen", { COACH_NAME })}<IconChevron />
           </button>
           <button class="btn big" onClick={openApp}>
-            {BRAND}  {t("öffnen")}
+            {t("{BRAND} öffnen", { BRAND })}
           </button>
         </div>
       </section>

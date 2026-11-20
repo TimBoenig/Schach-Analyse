@@ -18,7 +18,7 @@ import { GradeBadge, gradeTone, MomentRow, ownErrors, PhaseRows, practiseGame, S
 import { WinChart } from "../report/WinChart";
 import { Stage } from "./Stage";
 import type { Mood } from "../Coach";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
@@ -69,11 +69,11 @@ function MomentBoard({ game, k, isWhite }: { game: GameAnalysis; k: KeyMoment; i
       <Board fen={m.fen_before} flipped={!isWhite} arrows={arrows} />
       <div class="rs-board-key">
         <span>
-          <i class={error ? "wrong" : "best"} /> gespielt
+          <i class={error ? "wrong" : "best"} /> {" "}{t("gespielt")}
         </span>
         {arrows.length > 1 && (
           <span>
-            <i class="best" /> besser
+            <i class="best" /> {" "}{t("besser")}
           </span>
         )}
       </div>
@@ -148,8 +148,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         sub={
           <p>
             
-            {t("Deine Note ist eine")} <strong>{grade.text}</strong>
-            {grade.word ? ` (${grade.word})` : ""}{t(". Sie folgt aus deiner Genauigkeit: wie nah deine Züge an denen der Engine lagen.")}
+            {tj("Deine Note ist eine {text}{n}. Sie folgt aus deiner Genauigkeit: wie nah deine Züge an denen der Engine lagen.", { text: <strong>{grade.text}</strong>, n: grade.word ? ` (${grade.word})` : "" })}
           </p>
         }
       >
@@ -190,8 +189,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         sub={
           <p>
             
-            {t("Die Linie ist deine Gewinnchance nach jedem Zug. Über der Mitte stehst du besser, darunter dein Gegner.")}
-            {tp ? t(" Am Wendepunkt ging sie von {pct} auf {pct2}.", { pct: pct(tp.wp_before), pct2: pct(tp.wp_after) }) : ""}
+            {t("Die Linie ist deine Gewinnchance nach jedem Zug. Über der Mitte stehst du besser, darunter dein Gegner.{n}", { n: tp ? t(" Am Wendepunkt ging sie von {pct} auf {pct2}.", { pct: pct(tp.wp_before), pct2: pct(tp.wp_after) }) : "" })}
           </p>
         }
       >
@@ -231,13 +229,11 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         sub={
           <p>
             
-            {t("Deine Gewinnchance fiel von")} <strong>{pct(worst.wp_before)}</strong> auf <strong>{pct(worst.wp_after)}</strong>.
-            {worst.best_move_san ? (
+            {tj("Deine Gewinnchance fiel von {x} auf {x2}.", { x: <strong>{pct(worst.wp_before)}</strong>, x2: <strong>{pct(worst.wp_after)}</strong> })}{worst.best_move_san ? (
               <>
                 {" "}
                 
-                {t("Besser war")} <strong>{worst.best_move_san}</strong>.
-              </>
+                {tj("Besser war {best_move_san}.", { best_move_san: <strong>{worst.best_move_san}</strong> })}</>
             ) : null}
           </p>
         }

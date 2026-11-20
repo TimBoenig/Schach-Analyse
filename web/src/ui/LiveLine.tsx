@@ -3,7 +3,7 @@ import type { MoveData } from "../domain/types";
 import { badgeFor, classLabel, formatEval } from "./labels";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
@@ -21,13 +21,12 @@ export function MoveFacts({ move }: { move: MoveData }) {
     <div class="move-facts small">
       <span title={t("Gewinnchance aus Sicht des Ziehenden")}>
         
-        {t("Gewinnchance")} {before} % → <strong>{after} %</strong>{" "}
-        <span class={delta <= -10 ? "neg" : delta >= 3 ? "pos" : "faint"}>
+        {tj("Gewinnchance {before} % → {x} {x2}", { before, x: <strong>{after} %</strong>, x2: <span class={delta <= -10 ? "neg" : delta >= 3 ? "pos" : "faint"}>
           ({delta > 0 ? "+" : delta < 0 ? "−" : "±"}
           {Math.abs(delta)})
-        </span>
+        </span> })}
       </span>
-      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">· {formatSeconds(move.time_spent)}  {t("Bedenkzeit")}</span>}
+      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">{t("· {formatSeconds} Bedenkzeit", { formatSeconds: formatSeconds(move.time_spent) })}</span>}
     </div>
   );
 }
@@ -85,7 +84,7 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
   if (verdict === undefined) {
     return (
       <div class="verdict pending small muted">
-        <span class="dot-wait" /> <EngineWait>{ENGINE_NAME} bewertet {san} …</EngineWait>
+        <span class="dot-wait" /> <EngineWait>{t("{ENGINE_NAME} bewertet {san} …", { ENGINE_NAME, san })}</EngineWait>
       </div>
     );
   }
@@ -102,8 +101,7 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
         {better?.pv_san && !verdict.explanation.includes(t("Besser war")) && (
           <div class="small muted" style={{ marginTop: "2px" }}>
             
-            {t("Besser war")} {better.pv_san.split(" ")[0]} ({formatEval(verdict.eval_before_cp, verdict.eval_before_mate)})
-          </div>
+            {t("Besser war {n} ({formatEval})", { n: better.pv_san.split(" ")[0], formatEval: formatEval(verdict.eval_before_cp, verdict.eval_before_mate) })}</div>
         )}
       </div>
     </div>

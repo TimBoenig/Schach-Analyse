@@ -33,7 +33,7 @@ export function HomeNudge({ games }: { games: number }) {
     return (
       <div class="nudge card">
         <div class="nudge-text">
-          <strong>{t("Sichere deine")} {games}  {t("Partien")}</strong>
+          <strong>{t("Sichere deine {games} Partien", { games })}</strong>
           <span class="small muted">
             
             {t("Mit einem kostenlosen Konto gehen Analysen und Trainingsfortschritt nie verloren und sind auf jedem Gerät dabei.")}

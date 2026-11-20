@@ -15,7 +15,7 @@ export interface LibraryOpening {
   name: string;
   color: "white" | "black";
   /** Against what the opening is played, for grouping. */
-  group: "1.e4 mit Weiß" | "1.d4 und andere mit Weiß" | "Gegen 1.e4" | "Gegen 1.d4";
+  group: "1.e4 mit Weiß" | "1.d4 und andere mit Weiß" | "Gegen 1.e4" | "Gegen 1.d4"; // i18n: id
   idea: string;
   lines: LibraryLine[];
 }
@@ -25,7 +25,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "italian",
     name: t("Italienische Partie"),
     color: "white",
-    group: "1.e4 mit Weiß",
+    group: "1.e4 mit Weiß", // i18n: id
     idea: t("Läufer auf c4 zielt auf f7, ruhiger Aufbau mit c3 und d3, später d4 oder Angriff am Königsflügel."),
     lines: [
       { name: "Giuoco Pianissimo", moves: "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O O-O Re1 a6" },
@@ -37,7 +37,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "ruy",
     name: t("Spanische Partie"),
     color: "white",
-    group: "1.e4 mit Weiß",
+    group: "1.e4 mit Weiß", // i18n: id
     idea: t("Druck auf den Springer c6 und damit auf e5. Langfristiger Plan c3 und d4 mit Raumvorteil."),
     lines: [
       { name: t("Geschlossene Variante"), moves: "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6 O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3" },
@@ -48,7 +48,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "scotch",
     name: t("Schottische Partie"),
     color: "white",
-    group: "1.e4 mit Weiß",
+    group: "1.e4 mit Weiß", // i18n: id
     idea: t("Sofort d4 öffnet das Zentrum, freies Figurenspiel statt langer Manöver."),
     lines: [{ name: t("Hauptvariante 4...Lc5"), moves: "e4 e5 Nf3 Nc6 d4 exd4 Nxd4 Bc5 Be3 Qf6 c3 Nge7 Bc4" }],
   },
@@ -56,7 +56,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "kings-gambit",
     name: t("Königsgambit"),
     color: "white",
-    group: "1.e4 mit Weiß",
+    group: "1.e4 mit Weiß", // i18n: id
     idea: t("Weiß opfert den f-Bauern für schnelle Entwicklung und die offene f-Linie."),
     lines: [{ name: "Kieseritzky", moves: "e4 e5 f4 exf4 Nf3 g5 h4 g4 Ne5" }],
   },
@@ -64,7 +64,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "qgd-white",
     name: t("Damengambit"),
     color: "white",
-    group: "1.d4 und andere mit Weiß",
+    group: "1.d4 und andere mit Weiß", // i18n: id
     idea: t("c4 greift d5 an. Weiß bekommt das Zentrum und Druck auf der c-Linie."),
     lines: [
       { name: t("Abgelehntes Damengambit"), moves: "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6 Bd3" },
@@ -76,7 +76,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "london",
     name: t("Londoner System"),
     color: "white",
-    group: "1.d4 und andere mit Weiß",
+    group: "1.d4 und andere mit Weiß", // i18n: id
     idea: t("Fester Aufbau mit Lf4, e3, c3 und Ld3, fast gegen alles spielbar, wenig Theorie."),
     lines: [
       { name: t("Gegen ...d5"), moves: "d4 d5 Bf4 Nf6 e3 e6 Nf3 c5 c3 Nc6 Nbd2 Bd6 Bg3 O-O Bd3" },
@@ -87,7 +87,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "english",
     name: t("Englische Partie"),
     color: "white",
-    group: "1.d4 und andere mit Weiß",
+    group: "1.d4 und andere mit Weiß", // i18n: id
     idea: t("Kontrolle von d5 vom Flügel aus, Fianchetto auf g2 und Druck auf die lange Diagonale."),
     lines: [{ name: t("Umgekehrter Sizilianer"), moves: "c4 e5 Nc3 Nf6 g3 d5 cxd5 Nxd5 Bg2 Nb6 Nf3 Nc6 O-O Be7" }],
   },
@@ -95,7 +95,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "reti",
     name: t("Réti-Eröffnung"),
     color: "white",
-    group: "1.d4 und andere mit Weiß",
+    group: "1.d4 und andere mit Weiß", // i18n: id
     idea: t("Flexibel mit Sf3 und g3, das Zentrum wird erst später besetzt."),
     lines: [{ name: t("Königsindischer Angriff"), moves: "Nf3 d5 g3 Nf6 Bg2 e6 O-O Be7 d3 O-O Nbd2 c5 e4" }],
   },
@@ -103,7 +103,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "sicilian",
     name: t("Sizilianische Verteidigung"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Ungleiche Bauernstruktur: Schwarz tauscht c- gegen d-Bauern und spielt auf Gegenangriff am Damenflügel."),
     lines: [
       { name: t("Najdorf, englischer Angriff"), moves: "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6 Be3 e5 Nb3 Be6 f3 Be7" },
@@ -115,7 +115,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "french",
     name: t("Französische Verteidigung"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Feste Kette e6–d5, Schwarz greift das weiße Zentrum mit c5 und f6 an."),
     lines: [
       { name: "Winawer", moves: "e4 e6 d4 d5 Nc3 Bb4 e5 c5 a3 Bxc3+ bxc3 Ne7 Qg4 O-O" },
@@ -126,7 +126,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "caro",
     name: t("Caro-Kann-Verteidigung"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Solide wie Französisch, aber der weißfeldrige Läufer kommt vor e6 heraus."),
     lines: [
       { name: t("Klassische Variante"), moves: "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5 Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3" },
@@ -137,7 +137,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "scandi",
     name: t("Skandinavische Verteidigung"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Sofortiger Zentrumsschlag, die Dame steht nach Da5 aktiv, einfache Pläne."),
     lines: [{ name: t("Hauptvariante 3...Da5"), moves: "e4 d5 exd5 Qxd5 Nc3 Qa5 d4 Nf6 Nf3 c6 Bc4 Bf5 Bd2 e6" }],
   },
@@ -145,7 +145,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "e5-black",
     name: t("1...e5 (offene Spiele)"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Klassisch und gesund: Zentrum halten, schnell entwickeln, früh rochieren."),
     lines: [
       { name: t("Gegen Italienisch"), moves: "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d3 d6 O-O a6 a4 O-O" },
@@ -156,7 +156,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "pirc",
     name: t("Pirc-Verteidigung"),
     color: "black",
-    group: "Gegen 1.e4",
+    group: "Gegen 1.e4", // i18n: id
     idea: t("Weiß darf das Zentrum bauen, Schwarz greift es später mit e5 oder c5 an."),
     lines: [{ name: t("Klassisches System"), moves: "e4 d6 d4 Nf6 Nc3 g6 Nf3 Bg7 Be2 O-O O-O c6" }],
   },
@@ -164,7 +164,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "qgd-black",
     name: t("Damengambit ablehnen"),
     color: "black",
-    group: "Gegen 1.d4",
+    group: "Gegen 1.d4", // i18n: id
     idea: t("Mit e6 und d5 hält Schwarz das Zentrum stabil, Befreiung später mit c5 oder e5."),
     lines: [
       { name: t("Orthodoxe Verteidigung"), moves: "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7 e3 O-O Nf3 Nbd7 Rc1 c6 Bd3" },
@@ -175,7 +175,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "kid",
     name: t("Königsindische Verteidigung"),
     color: "black",
-    group: "Gegen 1.d4",
+    group: "Gegen 1.d4", // i18n: id
     idea: t("Weiß bekommt das Zentrum, Schwarz kontert mit e5 und greift am Königsflügel an."),
     lines: [{ name: t("Klassische Variante"), moves: "d4 Nf6 c4 g6 Nc3 Bg7 e4 d6 Nf3 O-O Be2 e5 O-O Nc6 d5 Ne7" }],
   },
@@ -183,7 +183,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "nimzo",
     name: t("Nimzoindische Verteidigung"),
     color: "black",
-    group: "Gegen 1.d4",
+    group: "Gegen 1.d4", // i18n: id
     idea: t("Lb4 fesselt den Springer und kämpft um e4, oft gegen das Läuferpaar getauscht."),
     lines: [
       { name: t("Rubinstein 4.e3"), moves: "d4 Nf6 c4 e6 Nc3 Bb4 e3 O-O Bd3 d5 Nf3 c5 O-O Nc6" },
@@ -194,7 +194,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "grunfeld",
     name: t("Grünfeld-Indische Verteidigung"),
     color: "black",
-    group: "Gegen 1.d4",
+    group: "Gegen 1.d4", // i18n: id
     idea: t("Schwarz überlässt Weiß das große Zentrum und beschießt es mit Lg7 und c5."),
     lines: [{ name: t("Abtauschvariante"), moves: "d4 Nf6 c4 g6 Nc3 d5 cxd5 Nxd5 e4 Nxc3 bxc3 Bg7 Nf3 c5 Be3" }],
   },
@@ -202,7 +202,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     key: "dutch",
     name: t("Holländische Verteidigung"),
     color: "black",
-    group: "Gegen 1.d4",
+    group: "Gegen 1.d4", // i18n: id
     idea: t("f5 kontrolliert e4 und bereitet einen Königsangriff vor."),
     lines: [{ name: t("Klassisch"), moves: "d4 f5 g3 Nf6 Bg2 e6 Nf3 Be7 O-O O-O c4 d6 Nc3" }],
   },

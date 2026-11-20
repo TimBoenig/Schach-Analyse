@@ -18,7 +18,7 @@ import { Illus } from "./Illus";
 import { backStep, canAdvance, type ImportPhase, onboardPath, type SitePick, tourStop } from "./script";
 import { Stage, StagePoint } from "./Stage";
 import { markSeen } from "./store";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const SITE_LABEL: Record<Site, string> = { chesscom: "chess.com", lichess: "Lichess" };
 
@@ -180,11 +180,10 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         closeLabel={t("Ich kenne mich aus")}
         actions={
           <>
-            <span class="stage-hint">
+            {tj("{x}{nextButton}", { x: <span class="stage-hint">
               
-              {t("Weiter mit")} <kbd>{t("Enter")}</kbd>
-            </span>
-            {nextButton(t("Los geht's"))}
+              {tj("Weiter mit {x}", { x: <kbd>{t("Enter")}</kbd> })}
+            </span>, nextButton: nextButton(t("Los geht's")) })}
           </>
         }
       />
@@ -246,7 +245,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   if (step === "name") {
     const site = SITE_LABEL[pick as Site];
     return (
-      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={t("Wie heißt du bei {site}?", { site })} sub={<p>{t("Dein Benutzername reicht, kein Passwort. Ein Konto bei")} {BRAND}  {t("brauchst du nicht.")}</p>} actions={nextButton(t("Partien holen"), !ok)}>
+      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={t("Wie heißt du bei {site}?", { site })} sub={<p>{t("Dein Benutzername reicht, kein Passwort. Ein Konto bei {BRAND} brauchst du nicht.", { BRAND })}</p>} actions={nextButton(t("Partien holen"), !ok)}>
         <form
           class="stage-field"
           onSubmit={(e) => {
@@ -266,7 +265,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             aria-label={t("Benutzername bei {site}", { site })}
           />
         </form>
-        <p class="stage-note">{t("Ich lese nur, was bei")} {site}  {t("öffentlich zu sehen ist.")}</p>
+        <p class="stage-note">{t("Ich lese nur, was bei {site} öffentlich zu sehen ist.", { site })}</p>
       </Stage>
     );
   }
@@ -283,7 +282,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       ) : load.phase === "empty" ? (
         <p>
           
-          {t("Unter „")}{name.trim()}{t("“ gibt es bei")} {site}  {t("in den letzten Monaten keine Partien. Stimmt der Name?")}
+          {t("Unter „{n}“ gibt es bei {site} in den letzten Monaten keine Partien. Stimmt der Name?", { n: name.trim(), site })}
         </p>
       ) : look ? (
         <p>{t("Das ist deine Bilanz, bevor die Engine einen einzigen Zug gesehen hat.")}</p>
@@ -311,8 +310,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           <div class="stage-panel">
             <div class="stage-row">
               <strong>
-                <CountUp value={load.found} /> {load.found === 1 ? t("Partie") : t("Partien")} gefunden
-              </strong>
+                <CountUp value={load.found} /> {t("{n} gefunden", { n: load.found === 1 ? t("Partie") : t("Partien") })}</strong>
             </div>
             <div class="stage-meter busy" style={{ marginTop: "12px" }}>
               <span />
@@ -349,9 +347,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               </div>
               <div class="stage-row" style={{ marginTop: "12px" }}>
                 <span>
-                  {plural(look.white, t("Partie"), t("Partien"))}  {t("mit Weiß,")} {look.games - look.white}  {t("mit Schwarz")}
+                  {t("{n} mit Weiß, {n2} mit Schwarz", { n: plural(look.white, t("Partie"), t("Partien")), n2: look.games - look.white })}
                 </span>
-                {look.bullet > 0 && <span class="faint">davon {look.bullet} Bullet</span>}
+                {look.bullet > 0 && <span class="faint">{t("davon {bullet} Bullet", { bullet: look.bullet })}</span>}
               </div>
             </div>
           </>

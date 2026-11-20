@@ -26,7 +26,7 @@ import {
   type VideoKind,
   suggestPerspective,
 } from "./wizard";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 // ---------- move recorder ----------
 
@@ -132,8 +132,7 @@ export function MoveRecorder({
       <div class="rec-side">
         <p class="rec-hint">
           
-          {t("Zieh die Figuren. Gehst du zurück und spielst einen anderen Zug, entsteht automatisch eine")} <b>{t("Variante")}</b>.
-        </p>
+          {tj("Zieh die Figuren. Gehst du zurück und spielst einen anderen Zug, entsteht automatisch eine {x}.", { x: <b>{t("Variante")}</b> })}</p>
         <div class="rec-line">
           <span class="rec-line-name">{t("Hauptvariante")}</span>
           <div class="rec-moves">
@@ -151,7 +150,7 @@ export function MoveRecorder({
         </div>
         {tree.variations.map((v, vi) => (
           <div class="rec-line var" key={vi}>
-            <span class="rec-line-name">{t("Variante")} {vi + 1}</span>
+            <span class="rec-line-name">{t("Variante {n}", { n: vi + 1 })}</span>
             <div class="rec-moves">
               {v.moves.map((san, i) => (
                 <button key={i} class={cursor.line === vi && cursor.ply === i + 1 ? "on" : ""} onClick={() => onChange(tree, { line: vi, ply: i + 1 })}>
@@ -176,7 +175,7 @@ export function MoveRecorder({
         <details class="rec-more" open={pgnOpen} onToggle={(e) => setPgnOpen((e.currentTarget as HTMLDetailsElement).open)}>
           <summary>{t("PGN oder Zugliste einfügen")}</summary>
           <textarea rows={3} value={pgn} onInput={(e) => setPgn(e.currentTarget.value)} placeholder={t("1. e4 e5 2. Sf3 Sc6 3. Lb5")} spellcheck={false} />
-          {pgnError && <p class="bad small">{t("Ab „")}{pgnError}{t("“ geht es nicht weiter.")}</p>}
+          {pgnError && <p class="bad small">{t("Ab „{pgnError}“ geht es nicht weiter.", { pgnError })}</p>}
           <button class="btn ghost" onClick={loadPgn}>
             
             {t("Übernehmen")}
@@ -266,7 +265,7 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
               <input class="wz-input" value={answers.name} onInput={(e) => set({ name: e.currentTarget.value, hook: "" })} placeholder={t("z. B. Spanische Eröffnung")} />
               <p class="studio-hint">
                 
-                {t("Lieber ohne Assistent?")} <button class="studio-link" onClick={onAi}>{t("Von einer KI schreiben lassen")}</button> oder <button class="studio-link" onClick={onTemplates}>{t("Fertige Vorlage öffnen")}</button>
+                {t("Lieber ohne Assistent?")} <button class="studio-link" onClick={onAi}>{t("Von einer KI schreiben lassen")}</button> {" "}{t("oder")}{" "}<button class="studio-link" onClick={onTemplates}>{t("Fertige Vorlage öffnen")}</button>
               </p>
             </div>
           )}
@@ -371,8 +370,7 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
             </button>
           )}
           <span class="wz-summary">
-            {tree.main.length}  {t("Züge")}{tree.variations.length ? t(", {length} Variante{1}", { length: tree.variations.length, 1: tree.variations.length > 1 ? "n" : "" }) : ""} · {PLATFORM_LABEL[answers.platform]} · {answers.length} s
-          </span>
+            {t("{length} Züge{n} · {n2} · {length2} s", { length: tree.main.length, n: tree.variations.length ? t(", {length} Variante{1}", { length: tree.variations.length, 1: tree.variations.length > 1 ? "n" : "" }) : "", n2: PLATFORM_LABEL[answers.platform], length2: answers.length })}</span>
           {stepIndex < STEPS.length - 1 ? (
             <button class="btn primary" disabled={stepIndex === 1 && !ready} onClick={() => setStep(stepIndex + 1)}>
               

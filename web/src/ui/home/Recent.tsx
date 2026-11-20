@@ -38,7 +38,7 @@ export function RecentGames({ profile, limit = 6 }: { profile: PlayerProfile; li
                 </span>
               </span>
               <span class="recent-acc">
-                {g.accuracy !== null ? <strong class={`tnum ${accClass(g.accuracy)}`}>{de(g.accuracy)}</strong> : <span class="faint">offen</span>}
+                {g.accuracy !== null ? <strong class={`tnum ${accClass(g.accuracy)}`}>{de(g.accuracy)}</strong> : <span class="faint">{t("offen")}</span>}
                 <span class="recent-blunders">{g.accuracy === null ? t("nicht analysiert") : g.blunders ? t("{blunders} Patzer", { blunders: g.blunders }) : t("ohne Patzer")}</span>
               </span>
             </button>

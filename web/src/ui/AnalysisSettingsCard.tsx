@@ -46,7 +46,7 @@ import { getSetting, listGames, setSetting } from "../storage/db";
 import { IconBolt, IconCpu, IconGauge, IconTimer } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { ENGINE_NAME } from "../engine/info";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 const SCOPES: Array<[DepthScope, string]> = [
   ["own", t("Meine Partien")],
@@ -98,7 +98,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
             onClick={() => save({ preset: p })}
           >
             <strong>{DEPTH_PRESETS[p].name}</strong>
-            <small>{t("Tiefe")} {DEPTH_PRESETS[p].settings.depth}</small>
+            <small>{t("Tiefe {depth}", { depth: DEPTH_PRESETS[p].settings.depth })}</small>
           </button>
         ))}
         <button
@@ -108,7 +108,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           onClick={() => save({ preset: "custom", depth: settings.depth, seconds: settings.movetimeMs / 1000 })}
         >
           <strong>{t("Eigene")}</strong>
-          <small>selbst einstellen</small>
+          <small>{t("selbst einstellen")}</small>
         </button>
       </div>
 
@@ -117,7 +117,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           <label class="range-field">
             <span>
               
-              {t("Tiefe")} <strong class="tnum">{choice.depth}</strong>
+              {tj("Tiefe {depth}", { depth: <strong class="tnum">{choice.depth}</strong> })}
             </span>
             <input
               type="range"
@@ -132,7 +132,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           <label class="range-field">
             <span>
               
-              {t("Höchstens")} <strong class="tnum">{String(choice.seconds).replace(".", ",")} s</strong>  {t("pro Zug")}
+              {tj("Höchstens {x} pro Zug", { x: <strong class="tnum">{String(choice.seconds).replace(".", ",")} s</strong> })}
             </span>
             <input
               type="range"
@@ -145,27 +145,25 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
             />
           </label>
           <p class="faint small" style={{ margin: 0 }}>
-            {ENGINE_NAME}  {t("hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.")}
+            {t("{ENGINE_NAME} hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.", { ENGINE_NAME })}
           </p>
         </div>
       )}
 
       <div class="depth-meter" aria-hidden="true">
-        <span class="small faint">schneller</span>
+        <span class="small faint">{t("schneller")}</span>
         <div class="depth-meter-track">
           <div style={{ left: `${level * 100}%` }} />
         </div>
-        <span class="small faint">genauer</span>
+        <span class="small faint">{t("genauer")}</span>
       </div>
       <p class="small depth-estimate">
         <strong>{choice.preset === "custom" ? t("Eigene") : DEPTH_PRESETS[choice.preset].name}</strong> · {settingsLabel(settings)}
         <br />
         <span class="muted">
-          {est.measured
+          {t("{n} Änderungen gelten sofort, auch für eine Partie, die gerade analysiert wird.", { n: est.measured
             ? t("Eine Partie mit 40 Zügen dauert auf diesem Gerät etwa {durationDe}.", { durationDe: durationDe(est.seconds) })
-            : t("Eine Partie mit 40 Zügen dauert höchstens etwa {durationDe}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.", { durationDe: durationDe(est.seconds) })}{" "}
-          
-          {t("Änderungen gelten sofort, auch für eine Partie, die gerade analysiert wird.")}
+            : t("Eine Partie mit 40 Zügen dauert höchstens etwa {durationDe}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.", { durationDe: durationDe(est.seconds) }) })}
         </span>
       </p>
     </>
@@ -188,9 +186,7 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
     <>
       <p class="muted small" style={{ margin: "6px 0 10px" }}>
         
-        {t("Wie viel Rechenleistung die Analyse nutzen darf. Mehr Engines rechnen gleichzeitig an verschiedenen Zügen, so wird jede Partie schneller fertig und du kannst eine größere Tiefe wählen. Gilt nur für dieses Gerät. Dein Gerät hat")}{" "}
-        <strong>{cores}  {t("Kerne")}</strong>.
-      </p>
+        {tj("Wie viel Rechenleistung die Analyse nutzen darf. Mehr Engines rechnen gleichzeitig an verschiedenen Zügen, so wird jede Partie schneller fertig und du kannst eine größere Tiefe wählen. Gilt nur für dieses Gerät. Dein Gerät hat {x}.", { x: <strong>{t("{cores} Kerne", { cores })}</strong> })}</p>
       <div class="depth-grid perf-grid" role="radiogroup" aria-label={t("Leistung")}>
         {PERF_ORDER.map((p) => {
           const r = resolvePerf({ preset: p }, device);
@@ -210,7 +206,7 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
           onClick={() => save({ preset: "custom", engines: perf.engines, hashMb: perf.hashMb })}
         >
           <strong>{t("Eigene")}</strong>
-          <small>selbst einstellen</small>
+          <small>{t("selbst einstellen")}</small>
         </button>
       </div>
       {custom && (
@@ -218,8 +214,7 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
           <label class="range-field">
             <span>
               
-              {t("Engines gleichzeitig")} <strong class="tnum">{custom.engines}</strong>
-              <span class="faint"> von {maxEnginesFor(device)}</span>
+              {tj("Engines gleichzeitig {engines}{x}", { engines: <strong class="tnum">{custom.engines}</strong>, x: <span class="faint"> {t(" von {maxEnginesFor}", { maxEnginesFor: maxEnginesFor(device) })}</span> })}
             </span>
             <input
               type="range"
@@ -247,12 +242,11 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
         <strong>{custom ? t("Eigene") : PERF_PRESETS[choice.preset as keyof typeof PERF_PRESETS].name}</strong> · {perfLabel(perf)}
         <br />
         <span class="muted">
-          {perf.engines >= cores
+          {t("{n}{n2}", { n: perf.engines >= cores
             ? t("Alle Kerne sind belegt: der PC kann laut und warm werden, andere Programme werden langsamer.")
             : perf.engines > 1
               ? t("Belegt etwa {0} % der Rechenleistung, solange analysiert wird.", { 0: Math.round((perf.engines / cores) * 100) })
-              : t("Schont Akku und Lüfter. Gut für Handy und Tablet.")}
-          {device.mobile && perf.engines > 2 ? t(" Auf Handy und Tablet wird das Gerät dabei schnell heiß.") : ""}
+              : t("Schont Akku und Lüfter. Gut für Handy und Tablet."), n2: device.mobile && perf.engines > 2 ? t(" Auf Handy und Tablet wird das Gerät dabei schnell heiß.") : "" })}
         </span>
       </p>
     </>

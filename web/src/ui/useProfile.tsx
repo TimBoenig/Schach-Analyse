@@ -289,11 +289,11 @@ export function PeriodSelect({ value, onChange }: { value: string; onChange: (da
       {custom && (
         <span class="date-range">
           <label>
-            <span>von</span>
+            <span>{t("von")}</span>
             <input type="date" value={from} max={to || undefined} onChange={(e) => onChange(customRange(e.currentTarget.value, to))} />
           </label>
           <label>
-            <span>bis</span>
+            <span>{t("bis")}</span>
             <input type="date" value={to} min={from || undefined} onChange={(e) => onChange(customRange(from, e.currentTarget.value))} />
           </label>
         </span>

@@ -131,7 +131,7 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
   };
   const notMuchWeaker = (x: Game) => x.own === null || x.opp === null || x.opp >= x.own - WEAKER_OK;
   const vs = (c: Candidate) => t("gegen {opponent} · {dateDe}", { opponent: opponent(c.x), dateDe: dateDe(c.x.at) });
-  const until = (c: Candidate) => `bis ${dateDe(c.x.at)}`;
+  const until = (c: Candidate) => t("bis {dateDe}", { dateDe: dateDe(c.x.at) });
 
   // Each record: every member's personal best (ties: earlier game), then the group's.
   const defs: { def: Def; best: (list: Game[]) => Candidate[] }[] = [

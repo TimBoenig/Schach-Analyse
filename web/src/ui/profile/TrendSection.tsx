@@ -137,7 +137,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
               <p class="tr-figure">
                 <strong class="tnum">{de(ah.average)}</strong>
                 <span class="faint">
-                  Ø {spanText} · {plural(ah.games, t("Partie"), t("Partien"))}
+                  {t("Ø {spanText} · {n}", { spanText, n: plural(ah.games, t("Partie"), t("Partien")) })}
                 </span>
               </p>
             ) : (

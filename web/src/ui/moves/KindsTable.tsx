@@ -90,8 +90,7 @@ export function KindsTable({ t: tk, onShine }: { t: MoveTally; onShine: () => vo
               <div class="mv-block-head">
                 <span>{g.label}</span>
                 <span class="tnum">
-                  {plural(n, t("Zug"), t("Züge"))} · {de((n / (tk.moves || 1)) * 100)} %
-                </span>
+                  {t("{n} · {n2} %", { n: plural(n, t("Zug"), t("Züge")), n2: de((n / (tk.moves || 1)) * 100) })}</span>
               </div>
               {mine.map((r) => (
                 <Row key={r.key} r={r} games={tk.games} max={max} onPick={g.key === "shine" && r.count ? onShine : undefined} />
@@ -103,9 +102,7 @@ export function KindsTable({ t: tk, onShine }: { t: MoveTally; onShine: () => vo
 
       <Foot label={t("Wie lese ich die Tabelle?")}>
         
-        {t("Der Balken ist deine Rate je 100 Züge")}{tk.opponents ? t(", der Strich die deiner Gegner in denselben Partien") : ""}{t(". Jede der drei Gruppen hat ihren eigenen Maßstab, sonst wären seltene Züge unsichtbar.")} {tk.opponents ? t("„besser“ oder „schwächer“ steht nur da, wenn der Unterschied bei so vielen Zügen kein Zufall mehr sein kann; „gleichauf“ heißt, dass er es sein könnte. ") : ""}
-        
-        {t("Exzellente, gute und Buchzüge bekommen kein Urteil: mehr davon kann genauso gut heißen, dass beste Züge fehlen.")}
+        {t("Der Balken ist deine Rate je 100 Züge{n}. Jede der drei Gruppen hat ihren eigenen Maßstab, sonst wären seltene Züge unsichtbar. {n2}Exzellente, gute und Buchzüge bekommen kein Urteil: mehr davon kann genauso gut heißen, dass beste Züge fehlen.", { n: tk.opponents ? t(", der Strich die deiner Gegner in denselben Partien") : "", n2: tk.opponents ? t("„besser“ oder „schwächer“ steht nur da, wenn der Unterschied bei so vielen Zügen kein Zufall mehr sein kann; „gleichauf“ heißt, dass er es sein könnte. ") : "" })}
       </Foot>
     </section>
   );

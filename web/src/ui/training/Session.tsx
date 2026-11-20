@@ -11,7 +11,7 @@ import { Stage } from "../stage/Stage";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./Runners";
 import { plural, type SessionSpec } from "./shared";
 import type { TrainingState } from "./useTraining";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 /**
  * Lines the player does not know yet start in learn mode with the book moves
@@ -62,8 +62,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
           r.done ? (
             <p>
               
-              {t("Du hast")} <strong>{r.solved} von {plural(r.done, t("Aufgabe"), t("Aufgaben"))}</strong>  {t("auf Anhieb gelöst.")}{" "}
-              {r.missed.length ? t("Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen.") : t("Ich frage sie in größeren Abständen wieder ab.")}
+              {tj("Du hast {x} auf Anhieb gelöst. {n}", { x: <strong>{t("{solved} von {n}", { solved: r.solved, n: plural(r.done, t("Aufgabe"), t("Aufgaben")) })}</strong>, n: r.missed.length ? t("Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen.") : t("Ich frage sie in größeren Abständen wieder ab.") })}
             </p>
           ) : (
             <p>{t("Alle Aufgaben dieser Auswahl sind für heute erledigt.")}</p>
@@ -106,7 +105,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
                 <b>
                   <CountUp value={r.missed.length} />
                 </b>
-                <span>{r.missed.length === 1 ? "kommt morgen wieder" : "kommen morgen wieder"}</span>
+                <span>{r.missed.length === 1 ? t("kommt morgen wieder") : t("kommen morgen wieder")}</span>
               </div>
               <div class="stage-stat">
                 <b>
@@ -136,9 +135,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
             {titles.length > 0 && (
               <p class="stage-note">
                 
-                {t("Morgen wieder dabei:")} {titles.slice(0, 4).join(", ")}
-                {titles.length > 4 ? t(" und {0} weitere", { 0: titles.length - 4 }) : ""}.
-              </p>
+                {t("Morgen wieder dabei: {n}{n2}.", { n: titles.slice(0, 4).join(", "), n2: titles.length > 4 ? t(" und {0} weitere", { 0: titles.length - 4 }) : "" })}</p>
             )}
           </>
         )}
@@ -164,12 +161,10 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
           <p>
             {before && prevIds.length ? (
               <>
-                {before.title}: <strong>{prevOk} von {prevIds.length}</strong>  {t("auf Anhieb.")}{" "}
+                {tj("{title}: {x} auf Anhieb.", { title: before.title, x: <strong>{t("{prevOk} von {length}", { prevOk, length: prevIds.length })}</strong> })}{" "}
               </>
             ) : null}
-            {p.sub ? `${p.sub}, ` : ""}
-            {plural(p.ids.length, t("Aufgabe"), t("Aufgaben"))}.
-          </p>
+            {t("{n}{n2}.", { n: p.sub ? `${p.sub}, ` : "", n2: plural(p.ids.length, t("Aufgabe"), t("Aufgaben")) })}</p>
         }
         onNext={resume}
         onClose={resume}
@@ -209,7 +204,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
           {staged && part && (
             <span>
               
-              {t("Teil")} {partIndex + 1} von {parts.length} <IconChevron /> {part.title}
+              {t("Teil {n} von {length}", { n: partIndex + 1, length: parts.length })} <IconChevron /> {part.title}
             </span>
           )}
         </div>

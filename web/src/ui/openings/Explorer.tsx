@@ -213,9 +213,7 @@ export function Explorer({
                 <span class={`tnum em-score ${scoreClass(c.games >= MIN_LINE_GAMES ? c.score_pct : null)}`}>{pctText(c.score_pct)}</span>
                 {c.user && c.judged > 0 && !c.book && (
                   <span class={`em-note small${c.leak ? " bad" : " faint"}`}>
-                    {c.leak ? "⚠ " : ""}
-                    {c.errors ? t("Fehler in {errors} von {judged}", { errors: c.errors, judged: c.judged }) : `fehlerfrei in ${c.judged}`}
-                    {c.better && c.errors * 2 >= c.judged ? t(" · besser {better}", { better: c.better }) : ""}
+                    {t("{n}{n2}{n3}", { n: c.leak ? "⚠ " : "", n2: c.errors ? t("Fehler in {errors} von {judged}", { errors: c.errors, judged: c.judged }) : t("fehlerfrei in {judged}", { judged: c.judged }), n3: c.better && c.errors * 2 >= c.judged ? t(" · besser {better}", { better: c.better }) : "" })}
                   </span>
                 )}
               </button>

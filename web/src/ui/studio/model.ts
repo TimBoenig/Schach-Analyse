@@ -327,6 +327,7 @@ export function germanSan(san: string): string {
 }
 
 const PIECE_NAME: Record<string, string> = { S: t("Springer"), N: t("Springer"), L: t("Läufer"), B: t("Läufer"), T: t("Turm"), R: t("Turm"), D: t("Dame"), Q: t("Dame"), K: t("König") };
+// i18n: regex
 const NOT_WORD = "A-Za-zÄÖÜäöüß0-9";
 const SAN_IN_TEXT = new RegExp(`(?<![${NOT_WORD}])(?:([KDTLSNBRQ])([a-h]?[1-8]?)(x?)([a-h][1-8])|([a-h])x([a-h][1-8])|([a-h][18])=([DTLSQRBN])|(O-O-O|0-0-0|O-O|0-0))([+#]?)(?![${NOT_WORD}-])`, "g");
 
@@ -340,7 +341,7 @@ export function spellNotation(text: string): string {
     let out: string;
     if (piece) out = takes ? t("{0} schlägt auf {to}", { 0: PIECE_NAME[piece], to }) : `${PIECE_NAME[piece]} ${to}`;
     else if (pawnFile) out = t("Bauer schlägt auf {pawnTo}", { pawnTo });
-    else if (promoSq) out = `${promoSq} wird ${PIECE_NAME[promo]}`;
+    else if (promoSq) out = t("{square} wird {piece}", { square: promoSq, piece: PIECE_NAME[promo] });
     else out = castle.length > 3 ? t("lange Rochade") : t("kurze Rochade");
     if (mark === "#") out += t(", Matt");
     else if (mark === "+") out += t(" mit Schach");

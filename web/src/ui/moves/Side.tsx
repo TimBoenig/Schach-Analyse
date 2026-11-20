@@ -5,7 +5,7 @@ import { MIN_BUCKET_MOVES } from "../../domain/profile/evidence";
 import { Ring } from "../charts";
 import { IconPlay } from "../icons";
 import { navigate } from "../router";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 export function FindingsCard({ t: tk }: { t: MoveTally }) {
   return (
@@ -31,7 +31,7 @@ export function FindingsCard({ t: tk }: { t: MoveTally }) {
       ) : (
         <p class="tn-none">
           
-          {t("Noch kein klarer Unterschied zu den Gegnern, zwischen den Partiephasen oder zu früher. Genannt wird nur, was mindestens")} {MIN_BUCKET_MOVES}  {t("Züge pro Gruppe zeigen und kein Zufall sein kann.")}
+          {t("Noch kein klarer Unterschied zu den Gegnern, zwischen den Partiephasen oder zu früher. Genannt wird nur, was mindestens {MIN_BUCKET_MOVES} Züge pro Gruppe zeigen und kein Zufall sein kann.", { MIN_BUCKET_MOVES })}
         </p>
       )}
     </section>
@@ -53,11 +53,9 @@ export function PunishCard({ punish }: { punish: DeepInsights["punish"] }) {
           <strong class="tnum">{Math.round(punish.rate)} %</strong>
         </Ring>
         <p>
-          <strong class="tnum">
-            {punish.punished} von {punish.chances}
-          </strong>{" "}
-          
-          {t("groben Fehlern deiner Gegner hast du bestraft. Die anderen findest du als Übungen wieder.")}
+          {tj("{x} groben Fehlern deiner Gegner hast du bestraft. Die anderen findest du als Übungen wieder.", { x: <strong class="tnum">
+            {t("{punished} von {chances}", { punished: punish.punished, chances: punish.chances })}
+          </strong> })}
         </p>
       </div>
       <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: "chance" })}>

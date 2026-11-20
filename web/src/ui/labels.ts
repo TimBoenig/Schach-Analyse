@@ -222,8 +222,8 @@ export function loadedAgo(ms: number | null, now = Date.now()): string {
   if (!ms) return t("noch nie geladen");
   const day = (tk: number) => Math.floor((tk - new Date(tk).getTimezoneOffset() * 60_000) / 86_400_000);
   const d = day(now) - day(ms);
-  if (d <= 0) return "heute geladen";
-  if (d === 1) return "gestern geladen";
+  if (d <= 0) return t("heute geladen");
+  if (d === 1) return t("gestern geladen");
   return t("vor {d} Tagen geladen", { d });
 }
 

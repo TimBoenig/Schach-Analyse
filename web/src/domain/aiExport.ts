@@ -354,7 +354,7 @@ function skillsSection(p: PlayerProfile): string {
   const fide = sm
     ? [...sm.skills, ...(sm.overall ? [sm.overall] : [])].map((x) => [
         x.name,
-        `≈ ${x.capped < 0 ? `unter ${x.rating}` : x.capped > 0 ? t("über {rating}", { rating: x.rating }) : x.rating}`,
+        t("≈ {n}", { n: x.capped < 0 ? t("unter {rating}", { rating: x.rating }) : x.capped > 0 ? t("über {rating}", { rating: x.rating }) : x.rating }),
         `± ${x.margin}`,
         `${de(x.error_ratio, 2)}×`,
         x.games,
@@ -486,7 +486,7 @@ function openingSection(p: PlayerProfile, nrOf: (id: string) => string): string 
     l.path.join(" "),
     l.san,
     l.better ?? "–",
-    `${l.errors} von ${l.judged}`,
+    t("{errors} von {judged}", { errors: l.errors, judged: l.judged }),
     l.games,
     pct(l.score_pct),
     l.recent.slice(0, 3).map((g) => nrOf(g.id)).filter((n) => n !== "?").join(", "),

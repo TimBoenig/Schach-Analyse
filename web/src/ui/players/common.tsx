@@ -93,7 +93,7 @@ export function RefreshAll({ players, label = t("Alle aktualisieren") }: { playe
     setBusy(t("Lade Partien …"));
     const { imported, failed } = await importAllPlayers(online, { onProgress: setBusy });
     setBusy(
-      `${plural(imported, t("neue Partie"), t("neue Partien"))} geladen${failed.length ? t(", nicht erreichbar: {failed}", { failed: failed.join(", ") }) : ""}.`,
+      t("{n} geladen{n2}.", { n: plural(imported, t("neue Partie"), t("neue Partien")), n2: failed.length ? t(", nicht erreichbar: {failed}", { failed: failed.join(", ") }) : "" }),
     );
     window.setTimeout(() => setBusy(""), failed.length ? 6000 : 3000);
   };
@@ -141,7 +141,7 @@ export function AnalyzeFriends({ players, games, short }: { players: TrackedPlay
       <IconPlay />{" "}
       {waiting.length
         ? short
-          ? `${waiting.length} analysieren`
+          ? t("{length} analysieren", { length: waiting.length })
           : t("Neue Partien {who} analysieren ({length})", { who, length: waiting.length })
         : t("Analyse läuft ({plural})", { plural: plural(running, t("Partie"), t("Partien")) })}
     </button>

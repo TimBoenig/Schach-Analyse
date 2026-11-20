@@ -72,7 +72,7 @@ export function FormCurveCard({ profile, period, label, class: cls = "span-6" }:
       <header class="card-head">
         <div>
           <h3>{t("Formkurve")}</h3>
-          <p class="card-sub">{t("Deine Genauigkeit pro Woche ·")} {label}</p>
+          <p class="card-sub">{t("Deine Genauigkeit pro Woche · {label}", { label })}</p>
         </div>
       </header>
       {points.length >= 2 ? (

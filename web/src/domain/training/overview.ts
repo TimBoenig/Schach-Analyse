@@ -26,7 +26,7 @@ export function exerciseState(p: ExerciseProgress | undefined, today: string): E
 
 export const STATE_LABEL: Record<ExerciseState, string> = {
   new: "neu",
-  retry: "kommt morgen wieder",
+  retry: t("kommt morgen wieder"),
   due: t("fällig"),
   learning: t("im Aufbau"),
   mastered: "sicher",

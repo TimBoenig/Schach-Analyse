@@ -4,7 +4,7 @@ import { useMemo, useState } from "preact/hooks";
 
 import { buildAiPrompt, importAiScript, toAiScript } from "./aiScript";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const LENGTHS = [15, 30, 45, 60, 90];
 // Long YouTube lessons: about four minutes is the sweet spot Tim asked for.
@@ -41,10 +41,10 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
           <h3>{t("Mit KI erstellen")}</h3>
           <div class="ai-steps">
             <button class={step === "prompt" ? "on" : ""} onClick={() => setStep("prompt")}>
-              <b>1</b>  {t("Prompt für die KI")}
+              {tj("{x} Prompt für die KI", { x: <b>1</b> })}
             </button>
             <button class={step === "answer" ? "on" : ""} onClick={() => setStep("answer")}>
-              <b>2</b>  {t("Antwort einfügen")}
+              {tj("{x} Antwort einfügen", { x: <b>2</b> })}
             </button>
           </div>
         </div>
@@ -132,11 +132,11 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
               <div class="ai-check">
                 {result.stats && (
                   <p class="ai-stats">
-                    <b>{result.stats.scenes}</b>  {t("Szenen ·")} <b>{result.stats.moves}</b>  {t("Züge")}
+                    {tj("{scenes} Szenen · {moves} Züge", { scenes: <b>{result.stats.scenes}</b>, moves: <b>{result.stats.moves}</b> })}
                     {result.stats.variations ? (
                       <>
                         {" "}
-                        · <b>{result.stats.variations}</b> {result.stats.variations === 1 ? t("Variante") : t("Varianten")}
+                        {tj("· {variations} {n}", { variations: <b>{result.stats.variations}</b>, n: result.stats.variations === 1 ? t("Variante") : t("Varianten") })}
                       </>
                     ) : null}{" "}
                     · <b>{Math.round(result.stats.seconds)}</b> s

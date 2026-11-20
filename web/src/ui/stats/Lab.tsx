@@ -26,10 +26,10 @@ const COLOR_LABEL = { white: t("Weiß"), black: t("Schwarz") } as const;
 /** The picked conditions in words, e.g. "Mit Weiß · Blitz · abends · gegen Stärkere". */
 function pickText(pick: ConditionPick): string {
   const parts: string[] = [];
-  if (pick.color) parts.push(`mit ${COLOR_LABEL[pick.color]}`);
+  if (pick.color) parts.push(t("mit {color}", { color: COLOR_LABEL[pick.color] }));
   if (pick.speed) parts.push(trSpeed(pick.speed));
   if (pick.daypart) parts.push(DAYPARTS.find((d) => d.key === pick.daypart)!.label.toLowerCase());
-  if (pick.opp) parts.push(`gegen ${OPP_BANDS.find((b) => b.key === pick.opp)!.label}`);
+  if (pick.opp) parts.push(t("gegen {label}", { label: OPP_BANDS.find((b) => b.key === pick.opp)!.label }));
   return parts.join(" · ");
 }
 
@@ -98,12 +98,11 @@ export function ConditionFinder({ facts }: { facts: GameFact[] }) {
           <span class="kpi-label">{active ? pickText(pick) : t("Alle Partien")}</span>
           <span class="finder-score">
             <CountUp value={result.score_pct} format={(v) => `${Math.round(v)} %`} />
-            {gap !== null && active && <span class={`lg-slider-delta ${gap >= 0 ? "up" : "down"}`}>{gap >= 0 ? "+" : "−"}{de(Math.abs(gap))}  {t("zu sonst")}</span>}
+            {gap !== null && active && <span class={`lg-slider-delta ${gap >= 0 ? "up" : "down"}`}>{t("{n}{n2} zu sonst", { n: gap >= 0 ? "+" : "−", n2: de(Math.abs(gap)) })}</span>}
           </span>
           <WdlBar wins={result.wins} draws={result.draws} losses={result.losses} />
           <span class="small muted">
-            {result.games ? `${plural(result.games, t("Partie"), t("Partien"))}: ${result.wins} S · ${result.draws} R · ${result.losses} N` : t("Keine Partie in dieser Lage.")}
-            {result.range && active ? t(" · wahrscheinlich {de}–{de2} %", { de: de(result.range[0]), de2: de(result.range[1]) }) : ""}
+            {t("{n}{n2}", { n: result.games ? `${plural(result.games, t("Partie"), t("Partien"))}: ${result.wins} S · ${result.draws} R · ${result.losses} N` : t("Keine Partie in dieser Lage."), n2: result.range && active ? t(" · wahrscheinlich {de}–{de2} %", { de: de(result.range[0]), de2: de(result.range[1]) }) : "" })}
           </span>
           {verdict && <strong class={`small ${verdict.cls}`}>{verdict.text}</strong>}
           {note && <span class="small muted">{note}</span>}
@@ -111,7 +110,7 @@ export function ConditionFinder({ facts }: { facts: GameFact[] }) {
       </div>
       <p class="faint small finder-foot">
         
-        {t("Stärkere und Schwächere: ab")} {OPP_GAP}  {t("Wertungspunkten Abstand. Verglichen wird immer mit allen übrigen Partien.")}
+        {t("Stärkere und Schwächere: ab {OPP_GAP} Wertungspunkten Abstand. Verglichen wird immer mit allen übrigen Partien.", { OPP_GAP })}
       </p>
     </div>
   );

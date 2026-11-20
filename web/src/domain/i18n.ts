@@ -164,6 +164,6 @@ function rangeLabel(key: string): string {
   const end = b ? Number(b) - 1 : null;
   if (start !== null && end !== null) return `${dayDe(start)} – ${dayDe(end)}`;
   if (start !== null) return `ab ${dayDe(start)}`;
-  if (end !== null) return `bis ${dayDe(end)}`;
+  if (end !== null) return t("bis {dayDe}", { dayDe: dayDe(end) });
   return t("Gesamter Zeitraum");
 }

@@ -20,7 +20,7 @@ export function FocusCard({ current, cmp, label }: { current: PlayerProfile; cmp
       <header class="card-head">
         <div>
           <h3>{t("Deine Baustellen")}</h3>
-          <p class="card-sub">{t("Was dich gerade am meisten kostet ·")} {label}</p>
+          <p class="card-sub">{t("Was dich gerade am meisten kostet · {label}", { label })}</p>
         </div>
       </header>
       {focus.length ? (
@@ -41,7 +41,7 @@ export function FocusCard({ current, cmp, label }: { current: PlayerProfile; cmp
                   </div>
                   {cat && (
                     <button class="btn small ghost" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
-                      <IconPlay /> {CATEGORIES[cat].label}  {t("üben")}
+                      <IconPlay /> {t("{label} üben", { label: CATEGORIES[cat].label })}
                     </button>
                   )}
                 </div>

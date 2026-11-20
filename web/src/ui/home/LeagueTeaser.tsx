@@ -95,12 +95,10 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
       <div class="tile-head">
         <h3>
           
-          {t("Deine Liga: Platz")} {mine.rank} von {ranked.length}
+          {t("Deine Liga: Platz {rank} von {length}", { rank: mine.rank, length: ranked.length })}
         </h3>
         <span class="tile-sub">
-          {above ? t("{0} Elo hinter {name}", { 0: elo(above) - elo(mine), name: above.name }) : t("du führst")}
-          {below ? t(" · {0} vor {name}", { 0: elo(mine) - elo(below), name: below.name }) : ""}
-          {` · ${trFilter(ranking.period)}`}
+          {t("{n}{n2}{n3}", { n: above ? t("{0} Elo hinter {name}", { 0: elo(above) - elo(mine), name: above.name }) : t("du führst"), n2: below ? t(" · {0} vor {name}", { 0: elo(mine) - elo(below), name: below.name }) : "", n3: ` · ${trFilter(ranking.period)}` })}
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "players", tab: "rangliste" })}>

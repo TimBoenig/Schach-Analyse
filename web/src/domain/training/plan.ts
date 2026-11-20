@@ -268,7 +268,7 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
   }
 
   const main = blocks.filter((b) => b.category !== "review").slice(0, 2).map((b) => b.title.replace(/^Stärke halten: /, ""));
-  const headline = main.length ? t("Heute im Fokus: {main}", { main: main.join(" und ") }) : t("Heute: Wiederholung");
+  const headline = main.length ? t("Heute im Fokus: {main}", { main: main.join(t(" und ")) }) : t("Heute: Wiederholung");
   return {
     date: today,
     minutes: prefs.minutes,

@@ -270,7 +270,7 @@ export function gamesCsv(games: StoredGame[], usernames: string[]): string {
         g.eco,
         g.opening,
         moves.length,
-        done ? "ja" : "nein",
+        done ? t("ja") : t("nein"),
         side("white"),
         side("black"),
         color ? side(color) : null,

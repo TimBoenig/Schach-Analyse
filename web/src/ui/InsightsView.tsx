@@ -20,7 +20,7 @@ import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { type InsightsSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
 // for conclusions (the same limits the findings use).
@@ -111,9 +111,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {phaseRow(t("Eröffnung"), (b) => b.opening_errors)}
-                  {phaseRow(t("Mittelspiel"), (b) => b.middlegame_errors)}
-                  {phaseRow(t("Endspiel"), (b) => b.endgame_errors)}
+                  {t("{phaseRow}{phaseRow2}{phaseRow3}", { phaseRow: phaseRow(t("Eröffnung"), (b) => b.opening_errors), phaseRow2: phaseRow(t("Mittelspiel"), (b) => b.middlegame_errors), phaseRow3: phaseRow(t("Endspiel"), (b) => b.endgame_errors) })}
                 </tbody>
               </table>
             </div>
@@ -188,7 +186,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
             <BarList rows={ratingRows} referenceLabel={t("Elo-Erwartung")} />
             <Foot>
               
-              {t("Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus")} {plural(p.rated_games, t("Partie"), t("Partien"))}  {t("mit beiden Wertungen.")}
+              {t("Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus {n} mit beiden Wertungen.", { n: plural(p.rated_games, t("Partie"), t("Partien")) })}
             </Foot>
           </>
         ) : (
@@ -208,9 +206,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
         {s.median !== null && (
           <p class="small tile-foot">
             
-            {t("Median")} <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>{t(", die mittlere Hälfte deiner Partien liegt zwischen")}{" "}
-            {(s.p25 ?? 0).toFixed(0)} und {(s.p75 ?? 0).toFixed(0)} %.
-          </p>
+            {tj("Median {x}, die mittlere Hälfte deiner Partien liegt zwischen {n} und {n2} %.", { x: <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>, n: (s.p25 ?? 0).toFixed(0), n2: (s.p75 ?? 0).toFixed(0) })}</p>
         )}
       </Tile>
     ),
@@ -224,7 +220,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
       <Tile title={t("Wendepunkte")} sub={t("ab 75 % Gewinnchance")} span={6}>
         {tk.winning > 0 && (
           <>
-            <h4>{t("Aus")} {plural(tk.winning, t("gewonnener Stellung"), t("gewonnenen Stellungen"))}</h4>
+            <h4>{t("Aus {n}", { n: plural(tk.winning, t("gewonnener Stellung"), t("gewonnenen Stellungen")) })}</h4>
             <StackBar
               segments={[
                 { label: t("Gewonnen"), value: tk.converted, color: "var(--win)" },
@@ -236,7 +232,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
         )}
         {tk.losing > 0 && (
           <>
-            <h4>{t("Aus")} {plural(tk.losing, t("verlorener Stellung"), t("verlorenen Stellungen"))}</h4>
+            <h4>{t("Aus {n}", { n: plural(tk.losing, t("verlorener Stellung"), t("verlorenen Stellungen")) })}</h4>
             <StackBar
               segments={[
                 { label: t("Noch gewonnen"), value: tk.won_from_losing, color: "var(--win)" },
@@ -397,12 +393,11 @@ export function InsightsView() {
           }
           sub={
             <>
-              {balanceText(o.wins, o.draws, o.losses)}
-              {expDiff !== null && Math.abs(expDiff) >= 0.5
-                ? t(" · {de1} Punkte {1}, als deine Wertung erwarten lässt", { de1: de1(Math.abs(expDiff)), 1: expDiff > 0 ? "mehr" : "weniger" })
+              {t("{balanceText}{n}", { balanceText: balanceText(o.wins, o.draws, o.losses), n: expDiff !== null && Math.abs(expDiff) >= 0.5
+                ? (expDiff > 0 ? t(" · {de1} Punkte mehr, als deine Wertung erwarten lässt", { de1: de1(Math.abs(expDiff)) }) : t(" · {de1} Punkte weniger, als deine Wertung erwarten lässt", { de1: de1(Math.abs(expDiff)) }))
                 : expDiff !== null
                   ? t(" · genau so viele Punkte, wie deine Wertung erwarten lässt")
-                  : ""}
+                  : "" })}
             </>
           }
           aside={
@@ -435,7 +430,7 @@ export function InsightsView() {
         <section class="card tile span-12 facts-card">
           <div class="tile-head">
             <h3>{t("Das Wichtigste auf einen Blick")}</h3>
-            <span class="tile-sub">aus {plural(profile.analyzed_games, t("analysierten Partie"), t("analysierten Partien"))}</span>
+            <span class="tile-sub">{t("aus {n}", { n: plural(profile.analyzed_games, t("analysierten Partie"), t("analysierten Partien")) })}</span>
             <span class="spacer" />
             <button class="btn small" onClick={() => navigate({ view: "training" })}>
               

@@ -105,7 +105,14 @@ export function changeStudioLang(l: StudioLang): void {
 }
 
 const fill = (s: string, params?: Record<string, unknown>): string =>
-  params ? s.replace(/\{([A-Za-z0-9_]+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m)) : s;
+  params
+    ? s.replace(/\{([A-Za-z0-9_]+)\}/g, (m, k: string) => {
+        if (!(k in params)) return m;
+        const v = params[k];
+        // `cond && t(...)` passes false when the part is left out.
+        return v === null || v === undefined || v === false ? "" : String(v);
+      })
+    : s;
 
 /** Text in a given language; `de` is the German source text, `{name}` are filled from params. */
 export function tr(l: Lang, de: string, params?: Record<string, unknown>): string {
@@ -115,6 +122,24 @@ export function tr(l: Lang, de: string, params?: Record<string, unknown>): strin
 /** Text in the page's language. */
 export function t(de: string, params?: Record<string, unknown>): string {
   return tr(current, de, params);
+}
+
+/**
+ * Text with inline elements: like t(), but the placeholders may be JSX nodes
+ * (a bold number, a link). Returns the pieces for a JSX child list, so a whole
+ * sentence is translated at once instead of in word-order-dependent fragments.
+ */
+export function tj<T>(de: string, parts: Record<string, T | string | number | null | undefined>): (T | string)[] {
+  const text = current === "en" ? (dict?.[de] ?? de) : de;
+  const out: (T | string)[] = [];
+  for (const piece of text.split(/(\{[A-Za-z0-9_]+\})/)) {
+    const m = /^\{([A-Za-z0-9_]+)\}$/.exec(piece);
+    if (m && m[1] in parts) {
+      const v = parts[m[1]];
+      if (v !== null && v !== undefined && v !== "") out.push(typeof v === "number" ? String(v) : (v as T | string));
+    } else if (piece) out.push(piece);
+  }
+  return out;
 }
 
 /** Locale for dates and numbers. */

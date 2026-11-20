@@ -187,7 +187,7 @@ export function HomeView() {
       <header class="card-head">
         <div>
           <h3>{t("Was sich verändert hat")}</h3>
-          <p class="card-sub">{t("Deine Fähigkeiten ·")} {comparison.previous ? t("gegenüber dem Zeitraum davor") : t("kein Vergleichszeitraum")}</p>
+          <p class="card-sub">{t("Deine Fähigkeiten · {n}", { n: comparison.previous ? t("gegenüber dem Zeitraum davor") : t("kein Vergleichszeitraum") })}</p>
         </div>
       </header>
       {changeRows.length ? (

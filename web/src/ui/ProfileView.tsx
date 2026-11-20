@@ -56,9 +56,7 @@ export function ProfileView() {
         <div class="empty">
           <p>
             
-            {t("Keine Partien für")} {usernames?.join(", ")} gefunden
-            {filtersActive(filters) ? t(" (mit diesen Filtern)") : ""}.
-          </p>
+            {t("Keine Partien für {n} gefunden{n2}.", { n: usernames?.join(", "), n2: filtersActive(filters) ? t(" (mit diesen Filtern)") : "" })}</p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
             
             {t("Partien importieren")}
@@ -90,11 +88,9 @@ export function ProfileView() {
       </div>
       {rc && !profile.is_empty && (
         <Foot label={t("Womit wird hier verglichen?")}>
-          {rc.reference === "opponents"
+          {t("{n}Performance und Ø Gegner zählen nur Partien auf {sourceName} im {trSpeed}, damit keine Wertungen verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.", { n: rc.reference === "opponents"
             ? t("„Ø deiner Gegner“ ist, was deine Gegner in denselben {reference_games} analysierten Partien erreicht haben, mit derselben Engine gemessen; das ist genauer als jede feste Tabelle. ", { reference_games: rc.reference_games })
-            : t("„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. ")}
-          
-          {t("Performance und Ø Gegner zählen nur Partien auf")} {sourceName(rc.source)} im {trSpeed(rc.speed)}{t(", damit keine Wertungen verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.")}
+            : t("„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. "), sourceName: sourceName(rc.source), trSpeed: trSpeed(rc.speed) })}
         </Foot>
       )}
     </div>

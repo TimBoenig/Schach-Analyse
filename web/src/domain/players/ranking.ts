@@ -115,18 +115,18 @@ const MIN_ANALYZED = MIN_COMPARE_ANALYZED;
 const ACTIVITY_DAYS = 30;
 
 export const RANK_FACTORS: RankFactor[] = [
-  { key: "rating", label: t("Wertung"), group: "Ergebnisse", higher_is_better: true, hint: t("Letzte Wertung in der gemeinsamen Bedenkzeit. Nur zur Info: neue Konten haben noch keine aussagekräftige Wertung") },
-  { key: "expectation", label: t("Über Erwartung"), group: "Ergebnisse", higher_is_better: true, hint: t("Punkte über oder unter der Elo-Erwartung je Partie, in Prozentpunkten") },
-  { key: "accuracy", label: t("Genauigkeit"), group: "Spielqualität", higher_is_better: true, hint: t("Ø Genauigkeit der analysierten Partien") },
-  { key: "blunders", label: t("Patzer pro Partie"), group: "Spielqualität", higher_is_better: false, hint: t("Grobe Fehler je analysierter Partie, weniger ist besser") },
+  { key: "rating", label: t("Wertung"), group: "Ergebnisse", higher_is_better: true, hint: t("Letzte Wertung in der gemeinsamen Bedenkzeit. Nur zur Info: neue Konten haben noch keine aussagekräftige Wertung") }, // i18n: id
+  { key: "expectation", label: t("Über Erwartung"), group: "Ergebnisse", higher_is_better: true, hint: t("Punkte über oder unter der Elo-Erwartung je Partie, in Prozentpunkten") }, // i18n: id
+  { key: "accuracy", label: t("Genauigkeit"), group: "Spielqualität", higher_is_better: true, hint: t("Ø Genauigkeit der analysierten Partien") }, // i18n: id
+  { key: "blunders", label: t("Patzer pro Partie"), group: "Spielqualität", higher_is_better: false, hint: t("Grobe Fehler je analysierter Partie, weniger ist besser") }, // i18n: id
   ...SKILL_FACTORS.map((k) => ({
     key: k,
     label: SKILL_NAMES[k],
-    group: "Fähigkeiten" as const,
+    group: "Fähigkeiten" as const, // i18n: id
     higher_is_better: true,
     hint: t("Fähigkeitswert {0} (0–100), nur aus den eigenen Zügen", { 0: SKILL_NAMES[k] }),
   })),
-  { key: "activity", label: t("Partien ({ACTIVITY_DAYS} Tage)", { ACTIVITY_DAYS }), group: "Sonstiges", higher_is_better: true, hint: t("Gespielte Partien in den letzten {ACTIVITY_DAYS} Tagen (in der gewählten Bedenkzeit, ohne Bots)", { ACTIVITY_DAYS }) },
+  { key: "activity", label: t("Partien ({ACTIVITY_DAYS} Tage)", { ACTIVITY_DAYS }), group: "Sonstiges", higher_is_better: true, hint: t("Gespielte Partien in den letzten {ACTIVITY_DAYS} Tagen (in der gewählten Bedenkzeit, ohne Bots)", { ACTIVITY_DAYS }) }, // i18n: id
 ];
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -280,7 +280,7 @@ export function buildRanking(
   if (bots) notes.push(t("{plural} nicht mit: Bots haben keine vergleichbare Wertung.", { plural: plural(bots, t("Partie gegen einen Computer zählt"), t("Partien gegen Computer zählen")) }));
   const thin = rows.filter((r) => r.strength === null);
   if (thin.length) {
-    notes.push(t("Eine Spielstärke gibt es ab {MIN_RATED_GAMES} gewerteten Partien gegen Menschen im Zeitraum. Noch zu wenige: {1}.", { MIN_RATED_GAMES, 1: thin.map((r) => (r.is_me ? "du" : r.name)).join(", ") }));
+    notes.push(t("Eine Spielstärke gibt es ab {MIN_RATED_GAMES} gewerteten Partien gegen Menschen im Zeitraum. Noch zu wenige: {1}.", { MIN_RATED_GAMES, 1: thin.map((r) => (r.is_me ? t("du") : r.name)).join(", ") }));
   }
   const pools = new Set(ranked.flatMap((r) => Object.entries((r.strength as StrengthEstimate).columns).filter(([, w]) => w > 0.2).map(([c]) => c.slice(0, 2))));
   if (pools.size > 1) {

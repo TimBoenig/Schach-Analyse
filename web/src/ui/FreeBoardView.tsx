@@ -221,12 +221,12 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
             ) : (
               <p class="muted small" style={{ margin: 0 }}>
                 
-                {t("Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von")} {ENGINE_NAME}  {t("bewertet, mit konkreter Begründung.")}
+                {t("Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von {ENGINE_NAME} bewertet, mit konkreter Begründung.", { ENGINE_NAME })}
               </p>
             )}
             {live.busy && !live.lines.length ? (
               <p class="muted small" style={{ marginBottom: 0 }}>
-                <span class="dot-wait" /> <EngineWait>{ENGINE_NAME}  {t("rechnet …")}</EngineWait>
+                <span class="dot-wait" /> <EngineWait>{t("{ENGINE_NAME} rechnet …", { ENGINE_NAME })}</EngineWait>
               </p>
             ) : (
               <EngineLines fen={fen} lines={live.lines} label={t("Beste Fortsetzungen")} onPlay={playLine} max={3} />
@@ -236,7 +236,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
           <div class="card">
             <div class="tile-head">
               <h3>{t("Deine Variante")}</h3>
-              {sans.length > 0 && <span class="tile-sub">{sans.length}  {t("Halbzüge")}</span>}
+              {sans.length > 0 && <span class="tile-sub">{t("{length} Halbzüge", { length: sans.length })}</span>}
             </div>
             {sans.length ? (
               <LineMoves startFen={line.start} sans={sans} verdicts={verdicts} cursor={n} onPick={go} />

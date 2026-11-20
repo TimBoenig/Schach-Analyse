@@ -16,6 +16,7 @@ import {
   getWinProbability,
 } from "./math";
 import type { GameAnalysis, GameSummary, MoveData, PvLine, Side, SideSummary } from "./types";
+import { t } from "../i18n";
 
 export interface AnalysisSettings {
   depth: number;
@@ -285,7 +286,7 @@ export function classifyAndSummarize(
     if (br.is_book) {
       s[move.classification] -= 1;
       move.classification = "Book";
-      move.explanation = "Eröffnungstheorie.";
+      move.explanation = t("Eröffnungstheorie.");
       move.is_book_move = true;
       move.book_move_count = br.book_move_count;
       move.candidate_continuations = br.candidate_moves;

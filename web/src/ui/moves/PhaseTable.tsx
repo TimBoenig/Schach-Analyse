@@ -25,7 +25,7 @@ export function PhaseTable({ profile, t: tk }: { profile: PlayerProfile; t: Move
       <section class="card span-12 mv-phases">
         <div class="mv-ph mv-ph-head">
           <span>{t("Phase")}</span>
-          <span>{t("Genauigkeit")}{rc ? <small>  {t("· Strich:")} {typicalLabel(rc)}</small> : null}</span>
+          <span>{t("Genauigkeit")}{rc ? <small>  {t("· Strich: {typicalLabel}", { typicalLabel: typicalLabel(rc) })}</small> : null}</span>
           <span>{t("Zugarten")}</span>
           <span>{t("Grobe Fehler je 100 Züge")}</span>
           <span class="num">{t("Glanzzüge")}</span>
@@ -45,7 +45,7 @@ export function PhaseTable({ profile, t: tk }: { profile: PlayerProfile; t: Move
               </span>
               <span class="mv-ph-cell mv-ph-split" data-label={t("Zugarten")}>
                 <SplitBar parts={TALLY_CLASSES.map((k) => ({ key: k, label: classLabel(k), value: p.block.counts[k], color: CLASS_COLOR[k] ?? "var(--surface-3)" }))} height={12} />
-                <small class="tnum">{de(p.top_pct, 0)}  {t("% beste Züge")}</small>
+                <small class="tnum">{t("{n} % beste Züge", { n: de(p.top_pct, 0) })}</small>
               </span>
               <span class="mv-ph-cell" data-label={t("Grobe Fehler je 100 Züge")}>
                 <b class="tnum">{de(p.serious_per_100)}</b>
@@ -59,7 +59,7 @@ export function PhaseTable({ profile, t: tk }: { profile: PlayerProfile; t: Move
         })}
         <Foot>
           
-          {t("Die Genauigkeit einer Phase ist der Durchschnitt über deine analysierten Partien. Grobe Fehler sind Fehler, verpasste Chancen und Patzer je 100 deiner Züge in dieser Phase. Blasse Zeilen beruhen auf weniger als")} {MIN_BUCKET_MOVES}  {t("Zügen und sagen noch wenig.")}
+          {t("Die Genauigkeit einer Phase ist der Durchschnitt über deine analysierten Partien. Grobe Fehler sind Fehler, verpasste Chancen und Patzer je 100 deiner Züge in dieser Phase. Blasse Zeilen beruhen auf weniger als {MIN_BUCKET_MOVES} Zügen und sagen noch wenig.", { MIN_BUCKET_MOVES })}
         </Foot>
       </section>
     </>

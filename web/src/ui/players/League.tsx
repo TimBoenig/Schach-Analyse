@@ -76,13 +76,13 @@ import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
 import { formatOptionLabel } from "../useProfile";
 import { AnalyzeFriends, Avatar, de, formatFactor, half, pct0, PlayerFilters, plural, profileFor, RefreshAll, signed, toneOf, Who } from "./common";
-import { t } from "../../i18n";
+import { t, tj, lang } from "../../i18n";
 
 export const LEAGUE_SECTIONS: StatSection[] = [
   { id: "liga", title: t("Liga"), sub: t("Stand, Turnierchancen und dein Weg nach oben"), cards: [t("Liga-Spur"), t("Was wäre wenn"), t("Tabelle"), t("Turnier"), t("Überholen")] },
-  { id: "duelle", title: t("Duelle"), sub: "jeder gegen jeden", cards: [t("Kreuztabelle"), t("Auffällig"), t("Battle-Arena")] },
+  { id: "duelle", title: t("Duelle"), sub: t("jeder gegen jeden"), cards: [t("Kreuztabelle"), t("Auffällig"), t("Battle-Arena")] },
   { id: "staerken", title: t("Stärken"), sub: t("wer wo vorn liegt und wer mehr aus dem eigenen Spiel macht"), cards: [t("Stärken-Matrix"), t("Spielqualität gegen Ergebnis"), t("Spielertypen")] },
-  { id: "form", title: t("Form"), sub: "wer gerade besser spielt", cards: [t("Formkurve"), t("Formtabelle")] },
+  { id: "form", title: t("Form"), sub: t("wer gerade besser spielt"), cards: [t("Formkurve"), t("Formtabelle")] },
   { id: "rekorde", title: t("Rekorde"), sub: t("die Ruhmeshalle eurer Gruppe"), cards: [t("Ruhmeshalle")] },
 ];
 
@@ -204,11 +204,7 @@ function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s:
           <>
             <span>
               
-              {t("Damit wärst du auf")} <strong>{t("Platz")} {result.rank}</strong>
-              {result.rank !== me.rank && me.rank !== null ? ` statt ${me.rank}` : ""} mit <strong class="tnum">{t("Elo")} {eloLabel(result.value)}</strong>{" "}
-              <span class={`tnum ${delta >= 0 ? "pos" : "neg"}`}>({signed(delta, 0)})</span>
-              {result.passed.length ? t(", vor {passed}", { passed: result.passed.join(" und ") }) : ""}.
-            </span>
+              {tj("Damit wärst du auf {x}{n} mit {x2} {x3}{n2}.", { x: <strong>{t("Platz {rank}", { rank: result.rank })}</strong>, n: result.rank !== me.rank && me.rank !== null ? t(" statt {rank}", { rank: me.rank }) : "", x2: <strong class="tnum">{t("Elo {eloLabel}", { eloLabel: eloLabel(result.value) })}</strong>, x3: <span class={`tnum ${delta >= 0 ? "pos" : "neg"}`}>({signed(delta, 0)})</span>, n2: result.passed.length ? t(", vor {passed}", { passed: result.passed.join(t(" und ")) }) : "" })}</span>
             <button class="btn ghost small" onClick={() => onSim({})}>
               <IconReset />  {t("Zurück")}
             </button>
@@ -216,7 +212,7 @@ function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s:
         ) : (
           <span class="muted">
             
-            {t("Schieb die Regler und sieh live, wo du landest. Erwartet sind bei deiner Stärke etwa")} {de(base, base % 1 ? 1 : 0)}  {t("Punkte aus")} {PLAN_GAMES}  {t("Partien gegen deine üblichen Gegner; die anderen bleiben, wie sie sind.")}
+            {t("Schieb die Regler und sieh live, wo du landest. Erwartet sind bei deiner Stärke etwa {n} Punkte aus {PLAN_GAMES} Partien gegen deine üblichen Gegner; die anderen bleiben, wie sie sind.", { n: de(base, base % 1 ? 1 : 0), PLAN_GAMES })}
           </span>
         )}
       </div>
@@ -251,13 +247,11 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
             <IconTrophy />
           </span>
           <div>
-          <span class="lg-kicker">{t("Liga ·")} {plural(ranked.length, t("Spieler"), t("Spieler"))}</span>
+          <span class="lg-kicker">{t("Liga · {n}", { n: plural(ranked.length, t("Spieler"), t("Spieler")) })}</span>
           <h2 class="lg-hero-title">{title}</h2>
           <p class="lg-hero-sub">
             
-            {t("Spielstärke Elo")} {eloLabel(lead.value)} (95 %: {lead.elo_low}–{lead.elo_high})
-            {leader.odds ? t(" · zu {winPct} wirklich der Stärkste", { winPct: winPct(leader.odds.first) }) : ""}
-            {lw !== null ? t(" · gewinnt {winPct} der simulierten Turniere", { winPct: winPct(lw) }) : ""}
+            {t("Spielstärke Elo {eloLabel} (95 %: {elo_low}–{elo_high}){n}{n2}", { eloLabel: eloLabel(lead.value), elo_low: lead.elo_low, elo_high: lead.elo_high, n: leader.odds ? t(" · zu {winPct} wirklich der Stärkste", { winPct: winPct(leader.odds.first) }) : "", n2: lw !== null ? t(" · gewinnt {winPct} der simulierten Turniere", { winPct: winPct(lw) }) : "" })}
           </p>
           </div>
         </div>
@@ -265,10 +259,9 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
           <div class="lg-hero-me">
             <span class="lg-hero-place tnum">{me.rank}.</span>
             <span class="lg-hero-me-text">
-              <strong>{t("Dein Platz")}{me.odds && me.odds.low !== me.odds.high ? t(" (sicher: {placeRange})", { placeRange: placeRange(me) }) : ""}</strong>
+              <strong>{t("Dein Platz{n}", { n: me.odds && me.odds.low !== me.odds.high ? t(" (sicher: {placeRange})", { placeRange: placeRange(me) }) : "" })}</strong>
               <span class="faint small">
-                {above ? t("{0} hinter {name} (zu {winPct} wirklich stärker)", { 0: eloOf(strengthOf(above) as number) - eloOf(strengthOf(me) as number), name: above.name, winPct: winPct(pAbove as number) }) : t("niemand vor dir")}
-                {below ? t(" · {0} vor {name} (zu {winPct} sicher)", { 0: eloOf(strengthOf(me) as number) - eloOf(strengthOf(below) as number), name: below.name, winPct: winPct(pBelow as number) }) : ""}
+                {t("{n}{n2}", { n: above ? t("{0} hinter {name} (zu {winPct} wirklich stärker)", { 0: eloOf(strengthOf(above) as number) - eloOf(strengthOf(me) as number), name: above.name, winPct: winPct(pAbove as number) }) : t("niemand vor dir"), n2: below ? t(" · {0} vor {name} (zu {winPct} sicher)", { 0: eloOf(strengthOf(me) as number) - eloOf(strengthOf(below) as number), name: below.name, winPct: winPct(pBelow as number) }) : "" })}
               </span>
             </span>
           </div>
@@ -278,8 +271,7 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
       {me && (
         <>
           <button class={`lg-whatif-toggle${open || simValue ? " on" : ""}`} onClick={() => setOpen(!(open || simValue))} aria-expanded={open || Boolean(simValue)}>
-            <IconSpark />  {t("Was wäre wenn?")}
-            <span class="faint small">  {t("Ergebnisse und Fehler verschieben und den Platz live sehen")}</span>
+            <IconSpark />  {tj("Was wäre wenn?{x}", { x: <span class="faint small">  {t("Ergebnisse und Fehler verschieben und den Platz live sehen")}</span> })}
           </button>
           {(open || simValue) && <WhatIf me={me} sim={sim} onSim={onSim} ranking={ranking} />}
         </>
@@ -307,6 +299,14 @@ function rawTitle(label: string, key: string, cell: RankCell | undefined): strin
 }
 
 /** Where a player's strength comes from: results and move quality, each with its weight. */
+/** The verdict names "Du"/"You" like any player; fix the verb for the second person. */
+function verdictForYou(text: string): string {
+  // i18n: grammar
+  if (lang() === "en") return text.replace(/^You wins /, "You win ").replace(" You is ", " you are ");
+  // i18n: grammar
+  return text.replace(/^Du gewinnt /, "Du gewinnst ").replace(" liegt aber Du ", " liegst aber du ");
+}
+
 export function Breakdown({ row }: { row: RankRow }) {
   const s = row.strength;
   if (!s) return <p class="muted small">{t("Noch zu wenig gewertete Partien für eine Spielstärke.")}</p>;
@@ -349,7 +349,7 @@ export function Breakdown({ row }: { row: RankRow }) {
             <span class={`dot ${p.cls}`} />
             <span>{p.label}</span>
             <span class="faint small">{p.note}</span>
-            <span class="tnum small muted">{t("zählt")} {pct0(p.weight * 100)}</span>
+            <span class="tnum small muted">{t("zählt {n}", { n: pct0(p.weight * 100) })}</span>
             <strong class="tnum">
               {eloLabel(p.value)} <span class="faint small">±{Math.round(eloOf(p.value + 1.96 * p.se) - eloOf(p.value))}</span>
             </strong>
@@ -357,10 +357,9 @@ export function Breakdown({ row }: { row: RankRow }) {
         ))}
       </div>
       <p class="faint small" style={{ margin: "6px 0 0" }}>
-        {q
+        {t("{n}{n2}", { n: q
           ? t("Beide Werte sind Spielstärken auf derselben Elo-Skala aus denselben Gegnern. Je genauer ein Wert, desto mehr zählt er.")
-          : t("Zugqualität zählt ab 5 analysierten Partien mit gewertetem Gegner.")}
-        {row.bot_games ? t(" {plural} draußen.", { plural: plural(row.bot_games, t("Partie gegen einen Computer bleibt"), t("Partien gegen Computer bleiben")) }) : ""}
+          : t("Zugqualität zählt ab 5 analysierten Partien mit gewertetem Gegner."), n2: row.bot_games ? t(" {plural} draußen.", { plural: plural(row.bot_games, t("Partie gegen einen Computer bleibt"), t("Partien gegen Computer bleiben")) }) : "" })}
       </p>
     </div>
   );
@@ -390,7 +389,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
     <section class="card tile span-7 lg-table">
       <div class="tile-head">
         <h3>{t("Tabelle")}</h3>
-        <span class="tile-sub">{t("Spielstärke als Elo (")}{ELO_SCALE_LABEL}{t(") mit 95-%-Spanne ·")} {trFilter(ranking.period)}  {t("· antippen für die Herkunft")}</span>
+        <span class="tile-sub">{t("Spielstärke als Elo ({ELO_SCALE_LABEL}) mit 95-%-Spanne · {trFilter} · antippen für die Herkunft", { ELO_SCALE_LABEL, trFilter: trFilter(ranking.period) })}</span>
       </div>
       <ol class="lg-rows">
         {ranking.rows.map((r, i) => {
@@ -433,14 +432,12 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                 <div class="lg-row-detail">
                   <p class="faint small lg-row-basis">
                     
-                    {t("Grundlage:")} {plural(r.rated_games, t("gewertete Partie"), t("gewertete Partien"))}  {t("gegen Menschen,")} {r.analyzed} analysiert
-                    {r.strength ? t(" · 95 %: Elo {elo_low}–{elo_high}", { elo_low: r.strength.elo_low, elo_high: r.strength.elo_high }) : ""}
-                    {r.odds ? t(" · Platz {placeRange} in 90 % der möglichen Reihenfolgen, Platz 1 zu {winPct}", { placeRange: placeRange(r), winPct: winPct(r.odds.first) }) : ""}
+                    {t("Grundlage: {n} gegen Menschen, {analyzed} analysiert{n2}{n3}", { n: plural(r.rated_games, t("gewertete Partie"), t("gewertete Partien")), analyzed: r.analyzed, n2: r.strength ? t(" · 95 %: Elo {elo_low}–{elo_high}", { elo_low: r.strength.elo_low, elo_high: r.strength.elo_high }) : "", n3: r.odds ? t(" · Platz {placeRange} in 90 % der möglichen Reihenfolgen, Platz 1 zu {winPct}", { placeRange: placeRange(r), winPct: winPct(r.odds.first) }) : "" })}
                   </p>
                   <Breakdown row={r} />
                   {!r.is_me && (
                     <a class="btn small" href={toHash({ view: "players", playerId: r.id })}>
-                      <IconSwords />  {t("Du gegen")} {r.name}
+                      <IconSwords />  {t("Du gegen {name}", { name: r.name })}
                     </a>
                   )}
                 </div>
@@ -476,11 +473,11 @@ function TournamentCard({ t: tk, tones }: { t: Tournament | null; tones: Tones }
         <h3>
           <IconTrophy />  {t("Wer gewinnt euer Turnier?")}
         </h3>
-        <span class="tile-sub">{tk.runs.toLocaleString("de-DE")}-mal gespielt</span>
+        <span class="tile-sub">{t("{n}-mal gespielt", { n: tk.runs.toLocaleString("de-DE") })}</span>
       </div>
       <p class="small muted" style={{ marginTop: 0 }}>
         
-        {t("Jeder gegen jeden, Hin- und Rückrunde:")} {plural(tk.games_each, t("Partie"), t("Partien"))}  {t("pro Spieler.")}
+        {t("Jeder gegen jeden, Hin- und Rückrunde: {n} pro Spieler.", { n: plural(tk.games_each, t("Partie"), t("Partien")) })}
       </p>
       <div class="lg-cup-rows">
         {tk.rows.map((r, i) => (
@@ -495,14 +492,14 @@ function TournamentCard({ t: tk, tones }: { t: Tournament | null; tones: Tones }
             <strong class="tnum lg-cup-pct">{winPct(r.win)}</strong>
             <span class="faint small lg-cup-sub tnum">
               
-              {t("Podest")} {winPct(r.podium)} · Ø {de(r.expected, 1)} von {tk.games_each}
+              {t("Podest {n} · Ø {n2} von {games_each}", { n: winPct(r.podium), n2: de(r.expected, 1), games_each: tk.games_each })}
             </span>
           </div>
         ))}
       </div>
       <Foot>
         
-        {t("Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein.")} {pct0(tk.draw_rate * 100)}  {t("enden remis.")}
+        {t("Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein. {n} enden remis.", { n: pct0(tk.draw_rate * 100) })}
       </Foot>
     </section>
   );
@@ -531,7 +528,7 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) =>
               {plan.p_already !== null && plan.p_already >= 0.2 && (
                 <p class="small" style={{ marginTop: 0 }}>
                   
-                  {t("Der Abstand liegt im Rahmen der Unsicherheit: zu")} {winPct(plan.p_already)}  {t("bist du schon jetzt der Stärkere. Mehr Partien klären das.")}
+                  {t("Der Abstand liegt im Rahmen der Unsicherheit: zu {n} bist du schon jetzt der Stärkere. Mehr Partien klären das.", { n: winPct(plan.p_already) })}
                 </p>
               )}
               <div class="lg-levers">
@@ -573,10 +570,9 @@ function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) =>
           <h4>{ch ? t("Hinter dir: {name}", { name: ch.name }) : t("Hinter dir")}</h4>
           {ch ? (
             <p class="small">
-              <strong class="tnum">{ch.gap_elo}</strong>  {t("Elo-Punkte zurück, du bist zu")} {winPct(ch.p_ahead)}  {t("wirklich stärker.")}{" "}
-              {ch.points !== null
+              {tj("{gap_elo} Elo-Punkte zurück, du bist zu {n} wirklich stärker. {n2}", { gap_elo: <strong class="tnum">{ch.gap_elo}</strong>, n: winPct(ch.p_ahead), n2: ch.points !== null
                 ? t("Mit {half} aus {PLAN_GAMES} Partien wäre {name} an dir vorbei.", { half: half(ch.points), PLAN_GAMES, name: ch.name })
-                : t("Selbst mit {PLAN_GAMES} Siegen in Folge käme {name} nicht an dir vorbei.", { PLAN_GAMES, name: ch.name })}
+                : t("Selbst mit {PLAN_GAMES} Siegen in Folge käme {name} nicht an dir vorbei.", { PLAN_GAMES, name: ch.name }) })}
             </p>
           ) : (
             <p class="small muted">{t("Niemand: du bist Letzter. Von hier geht es nur nach oben.")}</p>
@@ -714,7 +710,7 @@ function HighlightsCard({ cross, tones }: { cross: Crosstable; tones: Tones }) {
   const vsName = (p: { name: string; is_me: boolean }) => (p.is_me ? "dich" : p.name);
   const lines = list.map((h) => {
     const c = h.cell;
-    const score = `${half(c.points)} aus ${c.games}`;
+    const score = t("{half} aus {games}", { half: half(c.points), games: c.games });
     switch (h.kind) {
       case "nemesis":
         return {
@@ -746,7 +742,7 @@ function HighlightsCard({ cross, tones }: { cross: Crosstable; tones: Tones }) {
           icon: <IconFlame />,
           title: t("Heißeste Serie"),
           who: h.a,
-          text: t("{0} die letzten {count} Partien gegen {vsName} gewonnen.", { 0: h.a.is_me ? t("Du hast") : `${h.a.name} hat`, count: c.streak?.count, vsName: vsName(h.b) }),
+          text: t("{0} die letzten {count} Partien gegen {vsName} gewonnen.", { 0: h.a.is_me ? t("Du hast") : t("{name} hat", { name: h.a.name }), count: c.streak?.count, vsName: vsName(h.b) }),
         };
     }
   });
@@ -754,7 +750,7 @@ function HighlightsCard({ cross, tones }: { cross: Crosstable; tones: Tones }) {
     <section class="card tile span-5 lg-highlights">
       <div class="tile-head">
         <h3>{t("Auffällig")}</h3>
-        <span class="tile-sub">ab {MIN_PAIR_GAMES}  {t("Partien je Paarung")}</span>
+        <span class="tile-sub">{t("ab {MIN_PAIR_GAMES} Partien je Paarung", { MIN_PAIR_GAMES })}</span>
       </div>
       {lines.length ? (
         <div class="lg-hl-list">
@@ -845,7 +841,7 @@ function BattleArena({
             <span class="faint">:</span>
             {battle.wins_b}
           </div>
-          <span class="faint small">{t("Runden")}{battle.draws ? t(" · {draws} offen", { draws: battle.draws }) : ""}</span>
+          <span class="faint small">{t("Runden{n}", { n: battle.draws ? t(" · {draws} offen", { draws: battle.draws }) : "" })}</span>
         </div>
         <div class={`lg-battle-side${battle.leader === "b" ? " win" : ""}`}>
           <Avatar name={bn} tone={tones[b]} size="xl" ring={battle.leader === "b"} />
@@ -862,7 +858,7 @@ function BattleArena({
           </span>
         </div>
       )}
-      <p class="battle-verdict">{battle.verdict.replace(/^Du gewinnt /, "Du gewinnst ").replace(" liegt aber Du ", " liegst aber du ")}</p>
+      <p class="battle-verdict">{verdictForYou(battle.verdict)}</p>
       <div class="lg-rounds">
         {battle.rounds.map((r, i) => {
           const pa = r.p_a === null ? null : r.p_a * 100;
@@ -891,8 +887,7 @@ function BattleArena({
                     <div class="battle-factor" key={f.key}>
                       <span class="tnum">{battleValue(f.key, f.a)}</span>
                       <span class="small muted">
-                        {label.get(f.key) ?? f.key}
-                        {f.p_a !== null ? t(" · {0} % für {an}", { 0: Math.round(f.p_a * 100), an }) : ""}
+                        {t("{n}{n2}", { n: label.get(f.key) ?? f.key, n2: f.p_a !== null ? t(" · {0} % für {an}", { 0: Math.round(f.p_a * 100), an }) : "" })}
                       </span>
                       <span class="tnum">{battleValue(f.key, f.b)}</span>
                     </div>
@@ -923,12 +918,11 @@ function GroupLine({ g, kind }: { g: GroupPoint; kind: "edge" | "learn" }) {
         {kind === "edge" ? (
           <>
             
-            {t("Du")} <strong class="tnum">{mine}</strong>{t(", am nächsten dran:")} {g.other_name} <span class="tnum">{other}</span>
+            {tj("Du {mine}, am nächsten dran: {other_name} {other}", { mine: <strong class="tnum">{mine}</strong>, other_name: g.other_name, other: <span class="tnum">{other}</span> })}
           </>
         ) : (
           <>
-            {g.other_name} <strong class="tnum">{other}</strong>{t(", du")} <span class="tnum">{mine}</span>{t(". Schau dir die Partien von")} {g.other_name} an.
-          </>
+            {tj("{other_name} {other}, du {mine}. Schau dir die Partien von {other_name2} an.", { other_name: g.other_name, other: <strong class="tnum">{other}</strong>, mine: <span class="tnum">{mine}</span>, other_name2: g.other_name })}</>
         )}
       </div>
     </button>
@@ -1112,8 +1106,7 @@ function QualityMapCard({ map, tones }: { map: QualityMap | null; tones: Tones }
       )}
       <Foot>
         
-        {t("Auf der Diagonale holt jemand genau die Punkte, die die Züge wert sind. Striche: ±1 Standardfehler. Ein Satz darunter erst, wenn der Abstand zur Diagonale zu 95 % kein Zufall ist; jeder wird dabei nur mit sich selbst verglichen.")}
-        {map.missing.length ? t(" Ohne beide Werte: {missing}.", { missing: map.missing.join(", ") }) : ""}
+        {t("Auf der Diagonale holt jemand genau die Punkte, die die Züge wert sind. Striche: ±1 Standardfehler. Ein Satz darunter erst, wenn der Abstand zur Diagonale zu 95 % kein Zufall ist; jeder wird dabei nur mit sich selbst verglichen.{n}", { n: map.missing.length ? t(" Ohne beide Werte: {missing}.", { missing: map.missing.join(", ") }) : "" })}
       </Foot>
     </section>
   );
@@ -1136,10 +1129,7 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
               <span>
                 <strong>{tk.title}</strong>
                 <span class="faint small">
-                  {r.name}
-                  {tk.area && tk.offset !== null ? t(" · {0} {signed} Elo über dem eigenen Schnitt", { 0: AREA_LABEL[tk.area], signed: signed(Math.round(tk.offset / 10) * 10, 0) }) : ""}
-                  {tk.weak ? t(" · Baustelle: {weak}", { weak: tk.weak }) : ""}
-                  {tk.practice === "fighter" ? t(" · holt mehr, als die Züge wert sind") : tk.practice === "unlucky" ? t(" · lässt Punkte liegen") : ""}
+                  {t("{name}{n}{n2}{n3}", { name: r.name, n: tk.area && tk.offset !== null ? t(" · {0} {signed} Elo über dem eigenen Schnitt", { 0: AREA_LABEL[tk.area], signed: signed(Math.round(tk.offset / 10) * 10, 0) }) : "", n2: tk.weak ? t(" · Baustelle: {weak}", { weak: tk.weak }) : "", n3: tk.practice === "fighter" ? t(" · holt mehr, als die Züge wert sind") : tk.practice === "unlucky" ? t(" · lässt Punkte liegen") : "" })}
                 </span>
               </span>
             </div>
@@ -1289,10 +1279,9 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
                 {r.trend === "up" ? `↑ ${signed(r.delta as number)}` : r.trend === "down" ? `↓ ${signed(r.delta as number)}` : r.trend === "flat" ? "stabil" : "offen"}
               </span>
               <span class="faint small lg-form-sub">
-                {r.streak && r.streak.count >= 3
+                {t("{n}{n2}", { n: r.streak && r.streak.count >= 3
                   ? t("{count} {1} in Folge", { count: r.streak.count, 1: r.streak.kind === "win" ? t("Siege") : r.streak.kind === "loss" ? t("Niederlagen") : t("Remis") })
-                  : `${plural(r.recent.games, t("Analyse"), t("Analysen"))} zuletzt`}
-                {rating ? t(" · Wertung {signed} ({1})", { signed: signed(rating.delta, 0), 1: SPEED_DE[rating.speed] ?? rating.speed }) : ""}
+                  : t("{n} zuletzt", { n: plural(r.recent.games, t("Analyse"), t("Analysen")) }), n2: rating ? t(" · Wertung {signed} ({1})", { signed: signed(rating.delta, 0), 1: SPEED_DE[rating.speed] ?? rating.speed }) : "" })}
               </span>
             </div>
           );
@@ -1300,7 +1289,7 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
       </div>
       <Foot>
         
-        {t("↑ und ↓ nur, wenn der Unterschied in der fairen Genauigkeit mit 95 % kein Zufall ist (je mindestens 10 analysierte Partien); sonst „stabil“, mit weniger Partien „offen“. Wertung: letzte")} {FORM_DAYS}  {t("Tage.")}
+        {t("↑ und ↓ nur, wenn der Unterschied in der fairen Genauigkeit mit 95 % kein Zufall ist (je mindestens 10 analysierte Partien); sonst „stabil“, mit weniger Partien „offen“. Wertung: letzte {FORM_DAYS} Tage.", { FORM_DAYS })}
       </Foot>
     </section>
   );
@@ -1374,8 +1363,7 @@ function HallOfFame({ records, tones }: { records: GroupRecord[]; tones: Tones }
       {open.length > 0 && (
         <p class="faint small" style={{ margin: "10px 0 0" }}>
           
-          {t("Noch offen:")} {open.map((r) => `${r.title} (${r.bar})`).join(" · ")}.
-        </p>
+          {t("Noch offen: {n}.", { n: open.map((r) => `${r.title} (${r.bar})`).join(" · ") })}</p>
       )}
     </section>
   );
@@ -1396,7 +1384,7 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
       </summary>
       <p class="small muted">
         
-        {t("Jeder bekommt eine Elo-Zahl, nur aus den eigenen Partien im Zeitraum. Sie liegt auf der")} {ELO_SCALE_LABEL}{t(": Wer dort Rapid spielt, kann sie direkt mit der eigenen Wertung vergleichen, Lichess-Wertungen werden umgerechnet. Anders als bei FIDE gibt es keine Untergrenze bei 1400, auch Einsteiger bekommen ihren eigenen Wert. Niemand wird an der Gruppe gemessen: kommt ein Freund dazu oder wird ausgeblendet, bleibt die Reihenfolge der anderen gleich.")}
+        {t("Jeder bekommt eine Elo-Zahl, nur aus den eigenen Partien im Zeitraum. Sie liegt auf der {ELO_SCALE_LABEL}: Wer dort Rapid spielt, kann sie direkt mit der eigenen Wertung vergleichen, Lichess-Wertungen werden umgerechnet. Anders als bei FIDE gibt es keine Untergrenze bei 1400, auch Einsteiger bekommen ihren eigenen Wert. Niemand wird an der Gruppe gemessen: kommt ein Freund dazu oder wird ausgeblendet, bleibt die Reihenfolge der anderen gleich.", { ELO_SCALE_LABEL })}
       </p>
       <div class="scoring">
         <div class="scoring-group">
@@ -1453,7 +1441,7 @@ function ScoringCard({ ranking }: { ranking: Ranking }) {
           </div>
           <div class="scoring-row">
             <span>{t("Zu wenig Daten")}</span>
-            <span class="faint small">{t("Eine Spielstärke gibt es ab")} {MIN_RATED_GAMES}  {t("gewerteten Partien gegen Menschen. Darunter steht „–“, statt eine Zahl zu erfinden.")}</span>
+            <span class="faint small">{t("Eine Spielstärke gibt es ab {MIN_RATED_GAMES} gewerteten Partien gegen Menschen. Darunter steht „–“, statt eine Zahl zu erfinden.", { MIN_RATED_GAMES })}</span>
           </div>
         </div>
       </div>
@@ -1605,8 +1593,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
           <summary>
             <IconFilter />
             <span class="filter-fold-text">
-              {[format !== "All Formats" || excludeBullet ? formatOptionLabel(format, excludeBullet) : t("Alle Partien"), trFilter(date)].join(" · ")}{" "}
-              · {friends.length + 1}  {t("Spieler")}
+              {t("{n} · {n2} Spieler", { n: [format !== "All Formats" || excludeBullet ? formatOptionLabel(format, excludeBullet) : t("Alle Partien"), trFilter(date)].join(" · "), n2: friends.length + 1 })}
             </span>
             <span class="filter-fold-hint">{t("Anpassen")}</span>
             <IconChevron />

@@ -256,7 +256,7 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
   if (!elo) {
     // Ratings from a game between the two are on the same platform by definition.
     const g = h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null && (!speed || x.speed === speed)) ?? h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null);
-    if (g) elo = { me: g.rating_a as number, them: g.rating_b as number, speed: trSpeed(g.speed), from: "letzte Partie" };
+    if (g) elo = { me: g.rating_a as number, them: g.rating_b as number, speed: trSpeed(g.speed), from: "letzte Partie" }; // i18n: id
   }
   if (quality === null && !h2h.games) return null;
   const eloP = elo ? expectedScore(elo.me, elo.them) : null;
@@ -272,7 +272,7 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
     elo_pct: eloP === null ? null : eloP * 100,
     quality_pct: f.start === null ? null : f.start * 100,
     h2h_games: h2h.games,
-    basis: t("Aus {parts}. Die Wertung zählt nicht mit.", { parts: parts.join(" und ") }),
+    basis: t("Aus {parts}. Die Wertung zählt nicht mit.", { parts: parts.join(t(" und ")) }),
   };
 }
 
@@ -295,15 +295,15 @@ export function buildMatchup(
     rows.push({ key, label, group, higher_is_better: higher, me: a?.value ?? null, them: b?.value ?? null, p_me: pMe, ...edgeOf(pMe) });
   };
   if (me) {
-    add("expectation", "Über Erwartung", "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them));
-    add("accuracy", "Genauigkeit", "Spielqualität", true, shifted(accuracyEstimate(me), adjust?.[0].accuracy ?? 0), shifted(accuracyEstimate(them), adjust?.[1].accuracy ?? 0));
-    add("blunders", "Patzer pro Partie", "Spielqualität", false, shifted(blunderEstimate(me), adjust?.[0].blunders ?? 0), shifted(blunderEstimate(them), adjust?.[1].blunders ?? 0));
+    add("expectation", t("Über Erwartung"), "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them)); // i18n: id
+    add("accuracy", t("Genauigkeit"), "Spielqualität", true, shifted(accuracyEstimate(me), adjust?.[0].accuracy ?? 0), shifted(accuracyEstimate(them), adjust?.[1].accuracy ?? 0)); // i18n: id
+    add("blunders", t("Patzer pro Partie"), "Spielqualität", false, shifted(blunderEstimate(me), adjust?.[0].blunders ?? 0), shifted(blunderEstimate(them), adjust?.[1].blunders ?? 0)); // i18n: id
     for (const k of SKILL_KEYS) {
       const ok = (p: PlayerProfile) => p.analyzed_games >= MIN_COMPARE_ANALYZED;
       const a = ok(me) ? me.skills.find((s) => s.key === k) : undefined;
       const b = ok(them) ? them.skills.find((s) => s.key === k) : undefined;
       const prior = skillPrior([a, b]);
-      add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior));
+      add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior)); // i18n: id
     }
   }
   const known = rows.filter((r) => r.p_me !== null);

@@ -23,7 +23,7 @@ export function Welcome() {
           {BRAND}
         </p>
         <CoachAvatar size={132} mood="wow" />
-        <h1>{t("Hi, ich bin")} {COACH_NAME}.</h1>
+        <h1>{t("Hi, ich bin {COACH_NAME}.", { COACH_NAME })}</h1>
         <p class="hm-welcome-lead">{t("Ich bin dein KI-Coach. In drei Schritten richten wir alles ein, danach führe ich dich durch die App.")}</p>
         <ol class="hm-welcome-steps">
           {STEPS.map((s, i) => (
@@ -38,8 +38,7 @@ export function Welcome() {
         </ol>
         <div class="hm-welcome-actions">
           <button class="btn primary big" onClick={() => openStage({ kind: "onboarding" })}>
-            <IconPlay />  {t("Mit")} {COACH_NAME} einrichten
-          </button>
+            <IconPlay />  {t("Mit {COACH_NAME} einrichten", { COACH_NAME })}</button>
           <button class="btn big" onClick={() => navigate({ view: "games", import: true })}>
             <IconUpload />  {t("Nur Partien importieren")}
           </button>

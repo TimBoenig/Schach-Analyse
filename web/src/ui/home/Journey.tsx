@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { nextMilestone, PACE_DAYS, ratingJourney } from "../../domain/profile";
 import { getSetting, setSetting } from "../../storage/db";
 import { IconPlay, IconReset, IconTrophy } from "../icons";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 export const GOAL_KEY = "goal.rating";
 const GOAL_STEP = 50;
@@ -44,17 +44,17 @@ function JourneyBar({ start, current, peak, goal }: { start: number; current: nu
       <div class="journey-bar-labels">
         <span>
           
-          {t("Start")} <strong class="tnum">{start}</strong>
+          {tj("Start {start}", { start: <strong class="tnum">{start}</strong> })}
         </span>
         {peak > current && (
           <span class="journey-bar-now">
             
-            {t("Bestwert")} <strong class="tnum">{peak}</strong>
+            {tj("Bestwert {peak}", { peak: <strong class="tnum">{peak}</strong> })}
           </span>
         )}
         <span>
           
-          {t("Ziel")} <strong class="tnum">{goal}</strong>
+          {tj("Ziel {goal}", { goal: <strong class="tnum">{goal}</strong> })}
         </span>
       </div>
     </div>
@@ -104,21 +104,20 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
       <p class="hm-journey-text" role="status">
         {j.reached ? (
           <>
-            <strong>{t("Ziel erreicht!")}</strong>  {t("Du stehst bei")} {j.current}{t(". Zeit für das nächste.")}
+            {tj("{x} Du stehst bei {current}. Zeit für das nächste.", { x: <strong>{t("Ziel erreicht!")}</strong>, current: j.current })}
           </>
         ) : (
           <>
             
-            {t("Noch")} <strong class="tnum">{left}  {t("Punkte")}</strong> bis {j.goal}.{" "}
+            {tj("Noch {x} bis {goal}.", { x: <strong class="tnum">{t("{left} Punkte", { left })}</strong>, goal: j.goal })}{" "}
             {j.eta_days !== null && pace !== null ? (
               <>
                 
-                {t("Zuletzt")} <span class="good tnum">+{de1(pace)}</span>  {t("pro Monat (")}{speed}{t(", letzte")} {PACE_DAYS}  {t("Tage). Bei dem Tempo in etwa")} <strong>{etaText(j.eta_days)}</strong>.
-              </>
+                {tj("Zuletzt {x} pro Monat ({speed}, letzte {PACE_DAYS} Tage). Bei dem Tempo in etwa {etaText}.", { x: <span class="good tnum">+{de1(pace)}</span>, speed, PACE_DAYS, etaText: <strong>{etaText(j.eta_days)}</strong> })}</>
             ) : pace !== null ? (
               <>
                 
-                {t("Deine Wertung")} {pace <= -3 ? t("fällt gerade") : t("bewegt sich gerade kaum")} (<span class={pace <= -3 ? "bad tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span>  {t("pro Monat).")}
+                {tj("Deine Wertung {n} ({x} pro Monat).", { n: pace <= -3 ? t("fällt gerade") : t("bewegt sich gerade kaum"), x: <span class={pace <= -3 ? "bad tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span> })}
               </>
             ) : (
               t("Für ein Tempo brauche ich ein paar gewertete Partien aus den letzten Wochen.")
@@ -128,7 +127,7 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
       </p>
       {lever && !j.reached && (
         <button class="btn small hm-lever" onClick={lever.go}>
-          <IconPlay />  {t("Größter Hebel:")} {lever.title}
+          <IconPlay />  {t("Größter Hebel: {title}", { title: lever.title })}
         </button>
       )}
     </div>

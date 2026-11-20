@@ -15,7 +15,7 @@ import type { TodayTraining } from "../training/useTraining";
 import { Stat } from "../viz/Bars";
 import { Delta } from "../viz/Range";
 import { Journey } from "./Journey";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
@@ -59,8 +59,7 @@ export function HomeHero({
           <span class="eyebrow">{t("Heute")}</span>
           <strong>{planned ? (finished ? t("Einheit geschafft") : t("{0} Aufgaben offen", { 0: planned - done })) : done ? t("{done} Aufgaben gelöst", { done }) : t("Noch nicht trainiert")}</strong>
           <span class="small muted">
-            {today?.streak ? t("{streak} {1} in Folge", { streak: today.streak, 1: today.streak === 1 ? t("Tag") : t("Tage") }) : t("Starte heute eine Serie")}
-            {today?.week.done ? t(" · diese Woche {correct} von {done} richtig", { correct: today.week.correct, done: today.week.done }) : ""}
+            {t("{n}{n2}", { n: today?.streak ? t("{streak} {1} in Folge", { streak: today.streak, 1: today.streak === 1 ? t("Tag") : t("Tage") }) : t("Starte heute eine Serie"), n2: today?.week.done ? t(" · diese Woche {correct} von {done} richtig", { correct: today.week.correct, done: today.week.done }) : "" })}
           </span>
         </div>
         <div class="hm-today-actions">
@@ -69,8 +68,7 @@ export function HomeHero({
           </button>
           {open > 0 && (
             <button class="btn" onClick={onAnalyse}>
-              {open} {open === 1 ? t("Partie") : t("Partien")} analysieren
-            </button>
+              {t("{open} {n} analysieren", { open, n: open === 1 ? t("Partie") : t("Partien") })}</button>
           )}
         </div>
       </div>
@@ -112,7 +110,7 @@ export function RatingCard({
   if (rc) {
     figure = (
       <>
-        <span class="eyebrow">{t("Wertung ·")} {trSpeed(rc.speed)}</span>
+        <span class="eyebrow">{t("Wertung · {trSpeed}", { trSpeed: trSpeed(rc.speed) })}</span>
         <div class="hm-rating-num">
           <strong class="tnum">
             <CountUp value={rc.rating} />
@@ -185,8 +183,7 @@ export function FormCard({ profile, kpis: all, label }: { profile: PlayerProfile
         <div>
           <h3>{t("Deine Form")}</h3>
           <p class="card-sub">
-            {last.length === 1 ? t("Letzte Partie") : t("Letzte {length} Partien", { length: last.length })}
-            {streak ? ` · ${streak}` : ""}  {t("· Kennzahlen")} {label}{t(", jeweils gegenüber dem Zeitraum davor")}
+            {t("{n}{n2} · Kennzahlen {label}, jeweils gegenüber dem Zeitraum davor", { n: last.length === 1 ? t("Letzte Partie") : t("Letzte {length} Partien", { length: last.length }), n2: streak ? ` · ${streak}` : "", label })}
           </p>
         </div>
         {last.length > 0 && (
@@ -210,8 +207,7 @@ export function FormCard({ profile, kpis: all, label }: { profile: PlayerProfile
               sub={
                 k.delta !== null ? (
                   <>
-                    <span class={`delta${d.zero ? "" : tone}`}>{d.text}</span> vorher{" "}
-                    {k.previous === null ? "–" : kpiFormat(k)(k.previous)}
+                    {tj("{text} vorher {n}", { text: <span class={`delta${d.zero ? "" : tone}`}>{d.text}</span>, n: k.previous === null ? "–" : kpiFormat(k)(k.previous) })}
                   </>
                 ) : (
                   t("kein Vergleich")

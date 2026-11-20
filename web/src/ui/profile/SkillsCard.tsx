@@ -12,7 +12,7 @@ import { Foot } from "../kit";
 import { navigate } from "../router";
 import { Level } from "../viz/Bars";
 import { Radar } from "../viz/Radar";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 /** Short axis names for the web; the full names stand in the table. */
 export const SKILL_SHORT: Record<string, string> = {
@@ -35,7 +35,7 @@ export function skillCategory(skill: string, pool: Exercise[]): Category | undef
 
 /** "1250", "unter 100", "über 3000". */
 function eloText(r: { rating: number; capped: number }): string {
-  return r.capped > 0 ? t("über {STRENGTH_MAX}", { STRENGTH_MAX }) : r.capped < 0 ? `unter ${STRENGTH_MIN}` : String(r.rating);
+  return r.capped > 0 ? t("über {STRENGTH_MAX}", { STRENGTH_MAX }) : r.capped < 0 ? t("unter {STRENGTH_MIN}", { STRENGTH_MIN }) : String(r.rating);
 }
 
 /** "18 % weniger Fehler" / "25 % mehr Fehler" / "etwa gleich viele Fehler". */
@@ -81,10 +81,9 @@ function Detail({ skill, strength, profile }: { skill: SkillScore; strength?: Sk
           <>
             {" "}
             
-            {t("Auf der festen Skala sind das")} <strong class="tnum">{Math.round(skill.score)}  {t("von 100")}</strong>  {t("Punkten (")}{skill.grade})
-            {typeof skill.typical === "number" ? (
+            {tj("Auf der festen Skala sind das {x} Punkten ({grade})", { x: <strong class="tnum">{t("{n} von 100", { n: Math.round(skill.score) })}</strong>, grade: skill.grade })}{typeof skill.typical === "number" ? (
               <>
-                , {skill.typical_from === "opponents" ? t("deine Gegner kommen in denselben Partien auf") : t("üblich für deine Wertung sind")} <strong class="tnum">{Math.round(skill.typical)}</strong>
+                {tj(", {n} {x}", { n: skill.typical_from === "opponents" ? t("deine Gegner kommen in denselben Partien auf") : t("üblich für deine Wertung sind"), x: <strong class="tnum">{Math.round(skill.typical)}</strong> })}
               </>
             ) : null}
             .
@@ -95,28 +94,24 @@ function Detail({ skill, strength, profile }: { skill: SkillScore; strength?: Sk
       {strength && (
         <p>
           
-          {t("Als Spielstärke gelesen: etwa")} <strong class="tnum">{t("Elo")} {eloText(strength)}</strong> <span class="tnum">(±{strength.margin})</span>
+          {tj("Als Spielstärke gelesen: etwa {x} {x2}", { x: <strong class="tnum">{t("Elo {eloText}", { eloText: eloText(strength) })}</strong>, x2: <span class="tnum">(±{strength.margin})</span> })}
           {gap !== null && Math.abs(gap) > strength.margin ? (
             <>
               
-              {t(", das sind")}{" "}
-              <span class={`tnum ${gap > 0 ? "good" : "bad"}`}>
-                {Math.abs(gap)}  {t("Punkte")} {gap > 0 ? t("über") : "unter"}
-              </span>{" "}
-              
-              {t("deiner eigenen Wertung")}
+              {tj(", das sind {x} deiner eigenen Wertung", { x: <span class={`tnum ${gap > 0 ? "good" : "bad"}`}>
+                {(gap > 0 ? t("{n} Punkte über", { n: Math.abs(gap) }) : t("{n} Punkte unter", { n: Math.abs(gap) }))}
+              </span> })}
             </>
           ) : gap !== null ? (
             t(", im Rahmen der Unsicherheit auf deinem Niveau")
           ) : null}
           
-          {t(". Du machst hier")} {ratioText(strength.error_ratio)}  {t("als deine Gegner in denselben")} {strength.games}  {t("Partien.")}
-          {!strength.reliable ? t(" Noch wenige Daten, der Wert kann sich deutlich bewegen.") : ""}
+          {t(". Du machst hier {ratioText} als deine Gegner in denselben {games} Partien.{n}", { ratioText: ratioText(strength.error_ratio), games: strength.games, n: !strength.reliable ? t(" Noch wenige Daten, der Wert kann sich deutlich bewegen.") : "" })}
         </p>
       )}
       {cat && (
         <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
-          <IconPlay /> {CATEGORIES[cat].label}  {t("üben")}
+          <IconPlay /> {t("{label} üben", { label: CATEGORIES[cat].label })}
         </button>
       )}
     </div>
@@ -151,7 +146,7 @@ export function SkillsCard({ profile }: { profile: PlayerProfile }) {
             {overall ? (
               <>
                 
-                {t("Nach Zugqualität spielst du insgesamt wie etwa")} <strong class="tnum">{t("Elo")} {eloText(overall)}</strong> (±{overall.margin}).{" "}
+                {tj("Nach Zugqualität spielst du insgesamt wie etwa {x} (±{margin}).", { x: <strong class="tnum">{t("Elo {eloText}", { eloText: eloText(overall) })}</strong>, margin: overall.margin })}{" "}
               </>
             ) : null}
             {top || bottom ? (
@@ -159,14 +154,13 @@ export function SkillsCard({ profile }: { profile: PlayerProfile }) {
                 {top ? (
                   <>
                     
-                    {t("Dein größtes Plus:")} <strong>{top.s.name}</strong>.{" "}
+                    {tj("Dein größtes Plus: {name}.", { name: <strong>{top.s.name}</strong> })}{" "}
                   </>
                 ) : null}
                 {bottom ? (
                   <>
                     
-                    {t("Am meisten Luft:")} <strong>{bottom.s.name}</strong>.
-                  </>
+                    {tj("Am meisten Luft: {name}.", { name: <strong>{bottom.s.name}</strong> })}</>
                 ) : null}
               </>
             ) : measured.length ? (
@@ -249,8 +243,7 @@ export function SkillsCard({ profile }: { profile: PlayerProfile }) {
       </div>
       <Foot>
         
-        {t("Jede Fähigkeit ist ein Wert von 0 bis 100 aus deinen analysierten Zügen, auf einer festen Skala für alle Spielstärken. Der Strich auf dem Balken ist der Vergleichswert")}{refLabel ? ` (${refLabel})` : ""}{t("; die Farbe zeigt, ob du darüber (grün) oder darunter (rot) liegst. Deshalb kann ein kurzer Balken grün sein: der Wert ist niedrig, aber besser als bei deinen Gegnern. Blasse Zeilen beruhen auf wenigen Daten: solche Werte gleicht die App zum Vergleichswert hin aus, statt sie auf 0 oder 100 springen zu lassen, und ± zeigt, wie genau ein Wert ist.")}
-        {hasElo ? t(" „≈ Elo“ schätzt aus deinen Fehlern im Vergleich zu denen deiner Gegner, wie stark dieser Teil deines Spiels ist ({ELO_SCALE_LABEL}).", { ELO_SCALE_LABEL }) : ""}
+        {t("Jede Fähigkeit ist ein Wert von 0 bis 100 aus deinen analysierten Zügen, auf einer festen Skala für alle Spielstärken. Der Strich auf dem Balken ist der Vergleichswert{n}; die Farbe zeigt, ob du darüber (grün) oder darunter (rot) liegst. Deshalb kann ein kurzer Balken grün sein: der Wert ist niedrig, aber besser als bei deinen Gegnern. Blasse Zeilen beruhen auf wenigen Daten: solche Werte gleicht die App zum Vergleichswert hin aus, statt sie auf 0 oder 100 springen zu lassen, und ± zeigt, wie genau ein Wert ist.{n2}", { n: refLabel ? ` (${refLabel})` : "", n2: hasElo ? t(" „≈ Elo“ schätzt aus deinen Fehlern im Vergleich zu denen deiner Gegner, wie stark dieser Teil deines Spiels ist ({ELO_SCALE_LABEL}).", { ELO_SCALE_LABEL }) : "" })}
       </Foot>
     </section>
   );

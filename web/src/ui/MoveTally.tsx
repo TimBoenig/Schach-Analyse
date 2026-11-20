@@ -110,10 +110,10 @@ export function VersusBars({ a, b, keys = TALLY_CLASSES }: { a: VersusSide; b: V
       })}
       <div class="vs-legend small">
         <span>
-          <span class="vs-key" /> {a.label}  {t("(oben, kräftig)")}
+          <span class="vs-key" /> {t("{label} (oben, kräftig)", { label: a.label })}
         </span>
         <span>
-          <span class="vs-key other" /> {b.label}  {t("(unten, blass)")}
+          <span class="vs-key other" /> {t("{label} (unten, blass)", { label: b.label })}
         </span>
       </div>
       <p class="faint small" style={{ margin: "2px 0 0" }}>

@@ -80,7 +80,7 @@ export function GamesSummary({ s, games, usernames, period }: { s: Summary; game
     <section class="card gl-summary">
       <header class="gl-summary-head">
         <div>
-          <span class="eyebrow">{t("Deine Partien ·")} {period}</span>
+          <span class="eyebrow">{t("Deine Partien · {period}", { period })}</span>
           <h2>{formHeadline(recent.map((x) => x.o))}</h2>
         </div>
         {recent.length > 0 && (
@@ -94,7 +94,7 @@ export function GamesSummary({ s, games, usernames, period }: { s: Summary; game
         )}
       </header>
       <div class="stat-row" style={{ "--cols": 4 }}>
-        <Stat label={t("Partien")} value={<CountUp value={s.games} />} sub={`${s.analyzed} davon analysiert`} />
+        <Stat label={t("Partien")} value={<CountUp value={s.games} />} sub={t("{analyzed} davon analysiert", { analyzed: s.analyzed })} />
         <Stat
           label={t("Punkte-Quote")}
           value={decided ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}
@@ -238,16 +238,16 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
           <span class="gl-state">
             {isCurrent ? (
               <>
-                <span class="pill accent">{t("läuft")} {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
+                <span class="pill accent">{t("läuft {n} %", { n: Math.round((queue!.done / Math.max(1, queue!.total)) * 100) })}</span>
                 <CancelButton id={g.id} label={t("Analyse abbrechen")} />
               </>
             ) : queue?.queued.includes(g.id) ? (
               <>
-                <span class="pill">wartet</span>
+                <span class="pill">{t("wartet")}</span>
                 <CancelButton id={g.id} label={t("Aus der Warteschlange nehmen")} />
               </>
             ) : st === "completed" ? (
-              <span class="pill">analysiert</span>
+              <span class="pill">{t("analysiert")}</span>
             ) : (
               <button
                 class="btn small"
@@ -295,7 +295,7 @@ export function GameRows({ games, all, usernames, queue }: { games: StoredGame[]
           <h3 class="gl-month-head">
             {m}
             <span class="faint">
-              {totals.get(m) ?? list.length} {(totals.get(m) ?? list.length) === 1 ? t("Partie") : t("Partien")}
+              {t("{n} {n2}", { n: totals.get(m) ?? list.length, n2: (totals.get(m) ?? list.length) === 1 ? t("Partie") : t("Partien") })}
             </span>
           </h3>
           <ul class="gl-rows">

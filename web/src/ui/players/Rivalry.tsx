@@ -11,7 +11,7 @@ import { formatDate, SPEED_DE } from "../labels";
 import { navigate } from "../router";
 import { Avatar, de, formatFactor, pct0, plural } from "./common";
 import { Foot } from "../kit";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 function ratingLine(p: PlayerProfile | null): string {
   const r = p?.rating;
@@ -66,8 +66,7 @@ export function FaceOff({
                 <span class={lead === "them" ? "on" : ""}>{h2h.losses}</span>
               </div>
               <span class="faint small">
-                {plural(h2h.games, t("Partie"), t("Partien"))}
-                {h2h.draws ? t(" · {draws} Remis", { draws: h2h.draws }) : ""}  {t("· du holst")} {pct0(h2h.score_pct)}
+                {t("{n}{n2} · du holst {n3}", { n: plural(h2h.games, t("Partie"), t("Partien")), n2: h2h.draws ? t(" · {draws} Remis", { draws: h2h.draws }) : "", n3: pct0(h2h.score_pct) })}
               </span>
             </>
           ) : (
@@ -105,21 +104,19 @@ export function FaceOff({
           <div class="rv-forecast-labels faint small">
             <span>{t("Du")}</span>
             <span>
-              wahrscheinlich {Math.round(p.low)}–{Math.round(p.high)} %
-            </span>
+              {t("wahrscheinlich {n}–{n2} %", { n: Math.round(p.low), n2: Math.round(p.high) })}</span>
             <span>{name}</span>
           </div>
           <Foot label={t("Woraus wird das berechnet?")}>
-            {p.basis}
-            {p.elo_pct !== null ? t(" Nach Wertung wären es {pct0}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.", { pct0: pct0(p.elo_pct) }) : ""}
+            {t("{basis}{n}", { basis: p.basis, n: p.elo_pct !== null ? t(" Nach Wertung wären es {pct0}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.", { pct0: pct0(p.elo_pct) }) : "" })}
           </Foot>
         </div>
       )}
       <div class="rv-hero-stats">
         <div>
-          <span class="kpi-label">{t("Bilanz von")} {name}</span>
+          <span class="kpi-label">{t("Bilanz von {name}", { name })}</span>
           <strong class="tnum">{pct0(them.overview.score_pct)}</strong>
-          <span class="faint small">aus {plural(them.total_games, t("Partie"), t("Partien"))}</span>
+          <span class="faint small">{t("aus {n}", { n: plural(them.total_games, t("Partie"), t("Partien")) })}</span>
         </div>
         <div title={fair ? t("nach Bedenkzeit bereinigt, wie im Vergleich darunter") : undefined}>
           <span class="kpi-label">{t("Genauigkeit")}</span>
@@ -129,7 +126,7 @@ export function FaceOff({
         <div>
           <span class="kpi-label">{t("Analysiert")}</span>
           <strong class="tnum">{them.analyzed_games}</strong>
-          <span class="faint small">von {plural(them.total_games, t("Partie"), t("Partien"))}</span>
+          <span class="faint small">{t("von {n}", { n: plural(them.total_games, t("Partie"), t("Partien")) })}</span>
         </div>
       </div>
     </section>
@@ -146,7 +143,7 @@ function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
   if (r.key === "rating") return { text: t("nur Info"), cls: "" };
   if (r.p_me === null) return { text: t("zu wenig Daten"), cls: "" };
   if (r.edge === "me") return { text: r.sure ? t("klar du") : t("eher du"), cls: "me" };
-  if (r.edge === "them") return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "them" };
+  if (r.edge === "them") return { text: r.sure ? t("klar {name}", { name }) : t("eher {name}", { name }), cls: "them" };
   return { text: "offen", cls: "" };
 }
 
@@ -186,13 +183,12 @@ export function TaleOfTape({ name, tone, matchup }: { name: string; tone: string
           })}
         </div>
       ) : (
-        <p class="muted small">{t("Analysiere Partien von dir und")} {name}  {t("(je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.")}</p>
+        <p class="muted small">{t("Analysiere Partien von dir und {name} (je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.", { name })}</p>
       )}
       {rows.length > 0 && (
         <Foot>
           
-          {t("Links du, rechts")} {name}{t(". Balken: Wahrscheinlichkeit, wer hier wirklich besser ist, „klar“ ab 95 %.")}{missing ? t(" {plural} ohne genug Daten.", { plural: plural(missing, t("Wert"), t("Werte")) }) : ""}
-          {matchup.notes.length ? ` ${matchup.notes.join(" ")}` : ""}
+          {t("Links du, rechts {name}. Balken: Wahrscheinlichkeit, wer hier wirklich besser ist, „klar“ ab 95 %.{n}{n2}", { name, n: missing ? t(" {plural} ohne genug Daten.", { plural: plural(missing, t("Wert"), t("Werte")) }) : "", n2: matchup.notes.length ? ` ${matchup.notes.join(" ")}` : "" })}
         </Foot>
       )}
     </section>
@@ -228,7 +224,7 @@ export function DuelStory({ name, duel }: { name: string; duel: DuelInsights }) 
     <section class="card tile span-7 rv-story">
       <div class="tile-head">
         <h3>{t("Euer Duell-Verlauf")}</h3>
-        <span class="tile-sub">{now === 0 ? "ausgeglichen" : now > 0 ? t("du {plural} vorn", { plural: plural(now, t("Sieg"), t("Siege")) }) : `${name} ${plural(-now, t("Sieg"), t("Siege"))} vorn`}</span>
+        <span class="tile-sub">{now === 0 ? t("ausgeglichen") : now > 0 ? t("du {plural} vorn", { plural: plural(now, t("Sieg"), t("Siege")) }) : t("{name} {n} vorn", { name, n: plural(-now, t("Sieg"), t("Siege")) })}</span>
       </div>
       <div ref={ref} class="rv-story-plot">
         <svg width={w} height={h} role="img" aria-label={t("Siege minus Niederlagen nach jeder Partie")}>
@@ -277,9 +273,7 @@ function DuelGameRow({ g, name }: { g: DuelGame; name: string }) {
           {g.opening && <span class="faint"> · {g.opening.split(":")[0]}</span>}
         </span>
         <span class="faint small">
-          {formatDate(g.date)}
-          {g.speed ? ` · ${SPEED_DE[g.speed] ?? g.speed}` : ""}
-          {g.decisive ? t(" · kippte im Zug {move} ({1})", { move: g.decisive.move, 1: PHASE_DE[g.decisive.phase] }) : ""}
+          {t("{formatDate}{n}{n2}", { formatDate: formatDate(g.date), n: g.speed ? ` · ${SPEED_DE[g.speed] ?? g.speed}` : "", n2: g.decisive ? t(" · kippte im Zug {move} ({1})", { move: g.decisive.move, 1: PHASE_DE[g.decisive.phase] }) : "" })}
         </span>
       </span>
       {g.my_acc !== null && (
@@ -312,7 +306,7 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
           <div class="rv-phase-head faint small">
             <span>{t("dein Patzer entschied")}</span>
             <span />
-            <span>{t("Patzer von")} {name}</span>
+            <span>{t("Patzer von {name}", { name })}</span>
           </div>
           {decisive.map((d) => (
             <div class="rv-phase" key={d.phase}>
@@ -339,21 +333,19 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
             <span class={`lg-tug-b ${tone}`} />
           </div>
           <span class="faint small tnum">
-            du {fe.me}× · {name} {fe.them}×
-          </span>
+            {t("du {me}× · {name} {them}×", { me: fe.me, name, them: fe.them })}</span>
         </div>
       )}
       {a.mine !== null && (
         <div class="rv-acc small">
           <span>
             
-            {t("Du:")} <strong class="tnum">{de(a.mine, 1)} %</strong> gegen {name}
-            {a.my_usual !== null ? <span class="faint">  {t("(sonst")} {de(a.my_usual, 1)} %)</span> : null}
+            {tj("Du: {x} gegen {name}", { x: <strong class="tnum">{de(a.mine, 1)} %</strong>, name })}
+            {a.my_usual !== null ? <span class="faint">  {t("(sonst {n} %)", { n: de(a.my_usual, 1) })}</span> : null}
           </span>
           {a.theirs !== null && (
             <span>
-              {name}: <strong class="tnum">{de(a.theirs, 1)} %</strong> gegen dich
-              {a.their_usual !== null ? <span class="faint">  {t("(sonst")} {de(a.their_usual, 1)} %)</span> : null}
+              {tj("{name}: {x} gegen dich", { name, x: <strong class="tnum">{de(a.theirs, 1)} %</strong> })}{a.their_usual !== null ? <span class="faint">  {t("(sonst {n} %)", { n: de(a.their_usual, 1) })}</span> : null}
             </span>
           )}
         </div>
@@ -384,9 +376,9 @@ function PreviewRow({ l, name, mine }: { l: PreviewLine; name: string; mine: "wh
       {l.name && <span class="small">{l.name}</span>}
       <span class="faint small">
         
-        {t("Du")} {l.mine ? `${pct0(l.mine.score_pct)} aus ${l.mine.games}` : t("noch nie")} · {name} {l.theirs ? `${pct0(l.theirs.score_pct)} aus ${l.theirs.games}` : t("noch nie")}
+        {t("Du {n} · {name} {n2}", { n: l.mine ? t("{n} aus {games}", { n: pct0(l.mine.score_pct), games: l.mine.games }) : t("noch nie"), name, n2: l.theirs ? t("{n} aus {games}", { n: pct0(l.theirs.score_pct), games: l.theirs.games }) : t("noch nie") })}
       </span>
-      {l.edge && <span class={`pill ${l.edge === "me" ? "win" : "loss"}`}>{l.edge === "me" ? t("liegt dir ({myMove})", { myMove }) : `liegt ${name}`}</span>}
+      {l.edge && <span class={`pill ${l.edge === "me" ? "win" : "loss"}`}>{l.edge === "me" ? t("liegt dir ({myMove})", { myMove }) : t("liegt {name}", { name })}</span>}
     </div>
   );
 }

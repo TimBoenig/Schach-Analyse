@@ -29,7 +29,7 @@ import { navigate } from "../router";
 import { Stat } from "../viz/Bars";
 import { dayLong, pct, plural, type StartSession, weekdayShort } from "./shared";
 import type { TrainingState } from "./useTraining";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 /** Why a part of the session is there: the plan's own reason for its block. */
 function partReason(key: string, blocks: PlanBlock[]): string {
@@ -62,7 +62,7 @@ function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }
     return (
       <section class="card span-12 td td-empty">
         <span class="eyebrow td-eyebrow">
-          <span class="orb-mini" aria-hidden="true" />  {t("Lucena ·")} {dayLong(tk.today)}
+          <span class="orb-mini" aria-hidden="true" />  {t("Lucena · {dayLong}", { dayLong: dayLong(tk.today) })}
         </span>
         <h2 class="td-title">{t("Für deinen Tagesplan brauche ich analysierte Partien.")}</h2>
         <p class="td-sub">
@@ -88,20 +88,17 @@ function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }
       <div class="td-main">
         <div class="td-text">
           <span class="eyebrow td-eyebrow">
-            <span class="orb-mini" aria-hidden="true" />  {t("Lucena ·")} {dayLong(tk.today)}
-            {open.length && lead ? ` · ${lead}` : ""}
+            <span class="orb-mini" aria-hidden="true" />  {t("Lucena · {dayLong}{n}", { dayLong: dayLong(tk.today), n: open.length && lead ? ` · ${lead}` : "" })}
           </span>
           <h2 class="td-title">{open.length ? topic : t("Für heute bist du fertig.")}</h2>
           <p class="td-sub">
             {open.length ? (
               <>
-                {done ? t("Noch {plural}", { plural: plural(open.length, t("Aufgabe"), t("Aufgaben")) }) : plural(open.length, t("Aufgabe"), t("Aufgaben"))}  {t("· etwa")} {estimateMinutes(open, tk.byId)}  {t("Minuten · alle aus deinen eigenen Partien")}
+                {t("{n} · etwa {estimateMinutes} Minuten · alle aus deinen eigenen Partien", { n: done ? t("Noch {plural}", { plural: plural(open.length, t("Aufgabe"), t("Aufgaben")) }) : plural(open.length, t("Aufgabe"), t("Aufgaben")), estimateMinutes: estimateMinutes(open, tk.byId) })}
               </>
             ) : (
               <>
-                {today ? t("{correct} von {done} auf Anhieb gelöst. ", { correct: today.correct, done: today.done }) : ""}
-                
-                {t("Morgen stelle ich dir eine neue Einheit zusammen. Wenn du weitermachen willst: In den Übungen wartet mehr.")}
+                {t("{n}Morgen stelle ich dir eine neue Einheit zusammen. Wenn du weitermachen willst: In den Übungen wartet mehr.", { n: today ? t("{correct} von {done} auf Anhieb gelöst. ", { correct: today.correct, done: today.done }) : "" })}
               </>
             )}
           </p>
@@ -126,7 +123,7 @@ function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }
             <strong class="tnum">
               <CountUp value={done} />
             </strong>
-            <small>von {total} erledigt</small>
+            <small>{t("von {total} erledigt", { total })}</small>
           </Ring>
         </div>
       </div>
@@ -138,7 +135,7 @@ function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }
             <div class="segmented" role="radiogroup" aria-label={t("Zeit pro Tag")}>
               {MINUTE_CHOICES.map((m) => (
                 <button key={m} role="radio" aria-checked={tk.prefs.minutes === m} class={tk.prefs.minutes === m ? "active" : ""} onClick={() => tk.setPrefs({ ...tk.prefs, minutes: m })}>
-                  {m}  {t("Min")}
+                  {t("{m} Min", { m })}
                 </button>
               ))}
             </div>
@@ -175,7 +172,7 @@ function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }
                 <span class="td-step-kind">{p.key === "main" ? t("Hauptthema") : p.key === "warmup" ? t("Aufwärmen") : t("Gemischt")}</span>
                 <strong class="td-step-title">{p.key === "warmup" ? p.sub : p.key === "mix" ? p.sub || p.title : p.title}</strong>
                 <span class="td-step-meta tnum">
-                  {d} von {plural(n, t("Aufgabe"), t("Aufgaben"))}  {t("· etwa")} {estimateMinutes(p.ids, tk.byId)}  {t("Min")}
+                  {t("{d} von {n} · etwa {estimateMinutes} Min", { d, n: plural(n, t("Aufgabe"), t("Aufgaben")), estimateMinutes: estimateMinutes(p.ids, tk.byId) })}
                 </span>
                 <span class="td-step-bar" aria-hidden="true">
                   <i style={{ width: `${(d / n) * 100}%` }} />
@@ -200,12 +197,9 @@ function WeekCard({ t: tk }: { t: TrainingState }) {
         <div>
           <h3>{t("Deine Woche")}</h3>
           <p class="card-sub">
-            <strong class="tnum">
-              {w.trained} von {w.target}
-            </strong>{" "}
-            
-            {t("Trainingstagen.")}{" "}
-            {w.missing === 0 ? t("Wochenziel erreicht.") : w.reachable ? t("Noch {plural} bis zum Wochenziel.", { plural: plural(w.missing, t("Tag"), t("Tage")) }) : t("Das Wochenziel ist diese Woche nicht mehr zu schaffen. Jede Einheit zählt trotzdem.")}
+            {tj("{x} Trainingstagen. {n}", { x: <strong class="tnum">
+              {t("{trained} von {target}", { trained: w.trained, target: w.target })}
+            </strong>, n: w.missing === 0 ? t("Wochenziel erreicht.") : w.reachable ? t("Noch {plural} bis zum Wochenziel.", { plural: plural(w.missing, t("Tag"), t("Tage")) }) : t("Das Wochenziel ist diese Woche nicht mehr zu schaffen. Jede Einheit zählt trotzdem.") })}
           </p>
         </div>
       </header>
@@ -291,7 +285,7 @@ function FocusCard({ t: tk }: { t: TrainingState }) {
                   <Examples refs={it.examples} />
                   {cat && (
                     <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
-                      <IconPlay /> {CATEGORIES[cat].label}  {t("üben")}
+                      <IconPlay /> {t("{label} üben", { label: CATEGORIES[cat].label })}
                     </button>
                   )}
                 </div>

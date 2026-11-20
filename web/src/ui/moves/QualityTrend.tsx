@@ -53,14 +53,14 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
               <p class="tr-figure">
                 <strong class="tnum">{de(span.top_pct, 0)} %</strong>
                 <span class="faint">
-                  {current.text} · {plural(span.moves, t("Zug"), t("Züge"))}
+                  {t("{text} · {n}", { text: current.text, n: plural(span.moves, t("Zug"), t("Züge")) })}
                 </span>
               </p>
             ) : (
               <p class="card-sub">{empty}</p>
             )}
           </div>
-          <span class="card-tag">soll steigen</span>
+          <span class="card-tag">{t("soll steigen")}</span>
         </header>
         <TrendChart points={points((m) => m.top_pct)} label={t("Anteil bester Züge")} color="var(--win)" dots format={(v) => `${Math.round(v)} %`} bounds={{ lo: 0, hi: 100, minSpan: 16 }} reference={reference(TOP_CLASSES)} />
         {span?.best_top && (
@@ -87,14 +87,14 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
               <p class="tr-figure">
                 <strong class="tnum">{de(span.serious_per_100)}</strong>
                 <span class="faint">
-                  {current.text} · {plural(span.games, t("Partie"), t("Partien"))}
+                  {t("{text} · {n}", { text: current.text, n: plural(span.games, t("Partie"), t("Partien")) })}
                 </span>
               </p>
             ) : (
               <p class="card-sub">{empty}</p>
             )}
           </div>
-          <span class="card-tag">soll fallen</span>
+          <span class="card-tag">{t("soll fallen")}</span>
         </header>
         <TrendChart points={points((m) => m.serious_per_100)} label={t("Grobe Fehler je 100 Züge")} color="var(--loss)" dots format={(v) => de(v)} bounds={{ lo: 0, minSpan: 4 }} reference={reference(SERIOUS_CLASSES)} />
         {span?.fewest_errors && (
@@ -116,7 +116,7 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
       <div class="span-12 mv-trend-foot">
         <Foot>
           
-          {t("Ein Punkt je Kalendermonat mit mindestens")} {MIN_TREND_MOVES}  {t("analysierten Zügen (etwa vier Partien); dünnere Monate würden nur Zacken beitragen. Die Säulen am unteren Rand zeigen, wie viele Züge hinter einem Monat stehen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer. Die gestrichelte Linie ist der Wert deiner Gegner über alle diese Partien.")}
+          {t("Ein Punkt je Kalendermonat mit mindestens {MIN_TREND_MOVES} analysierten Zügen (etwa vier Partien); dünnere Monate würden nur Zacken beitragen. Die Säulen am unteren Rand zeigen, wie viele Züge hinter einem Monat stehen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer. Die gestrichelte Linie ist der Wert deiner Gegner über alle diese Partien.", { MIN_TREND_MOVES })}
         </Foot>
       </div>
     </>

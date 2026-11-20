@@ -154,7 +154,7 @@ export function App() {
   // The hidden video studio fills the whole window, like the landing page.
   if (route.view === "studio")
     return (
-      <ErrorBoundary area="Das Videostudio">
+      <ErrorBoundary area={t("Das Videostudio")}>
         <StudioRoute />
       </ErrorBoundary>
     );
@@ -162,7 +162,7 @@ export function App() {
   // The social-media landing page stands alone, without sidebar or tab bar.
   if (route.view === "landing")
     return (
-      <ErrorBoundary area="Die Startseite">
+      <ErrorBoundary area={t("Die Startseite")}>
         <LandingView />
         <StageHost />
       </ErrorBoundary>
@@ -203,7 +203,7 @@ export function App() {
             <a href="#/rechtliches">{t("Impressum")}</a> · <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a>
           </footer>
         </main>
-        <ErrorBoundary area="Das Menü">
+        <ErrorBoundary area={t("Das Menü")}>
           {overlay === "palette" && <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} />}
           {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
         </ErrorBoundary>

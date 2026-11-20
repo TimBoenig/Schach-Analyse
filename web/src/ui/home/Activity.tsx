@@ -6,7 +6,7 @@ import { useMemo, useState } from "preact/hooks";
 
 import { activityCalendar, type CalendarDay, type DailyRow } from "../../domain/profile";
 import { Foot } from "../kit";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 const CAL_SPANS = [4, 8, 16] as const;
 const CAL_WEEKDAYS = [t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa"), t("So")];
@@ -39,12 +39,12 @@ export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: str
     <div class={`cal cal-w${weeks}`}>
       <div class="cal-top">
         <p class="cal-total">
-          <strong class="tnum">{total}</strong> {total === 1 ? t("Partie") : t("Partien")} an <strong class="tnum">{active}</strong> von {flat.length}  {t("Tagen")}
+          {tj("{total} {n} an {active} von {length} Tagen", { total: <strong class="tnum">{total}</strong>, n: total === 1 ? t("Partie") : t("Partien"), active: <strong class="tnum">{active}</strong>, length: flat.length })}
         </p>
         <div class="segmented small-seg" role="group" aria-label={t("Zeitraum der Aktivität")}>
           {CAL_SPANS.map((w) => (
             <button key={w} class={weeks === w ? "active" : ""} aria-pressed={weeks === w} onClick={() => setWeeks(w)}>
-              {w}  {t("Wo.")}
+              {t("{w} Wo.", { w })}
             </button>
           ))}
         </div>
@@ -88,23 +88,23 @@ export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: str
           dayText(shown)
         ) : (
           <span class="muted">
-            {lastPlayed ? t("Zuletzt {dayLong}", { dayLong: dayLong(lastPlayed.day) }) : t("Noch keine Partie in diesen Wochen")}
-            {busiest && busiest.games > 1 ? t(" · meiste: {games} am {dayLong}", { games: busiest.games, dayLong: dayLong(busiest.day) }) : ""}
+            {t("{n}{n2}", { n: lastPlayed ? t("Zuletzt {dayLong}", { dayLong: dayLong(lastPlayed.day) }) : t("Noch keine Partie in diesen Wochen"), n2: busiest && busiest.games > 1 ? t(" · meiste: {games} am {dayLong}", { games: busiest.games, dayLong: dayLong(busiest.day) }) : "" })}
           </span>
         )}
       </p>
       <div class="cal-key" aria-hidden="true">
         <span>
-          weniger <i class="l1" />
+          
+          {t("weniger")}{" "}<i class="l1" />
           <i class="l2" />
           <i class="l3" />
           <i class="l4" />  {t("mehr Partien")}
         </span>
         <span>
-          <i class="dot good" /> gut gepunktet <i class="dot bad" />  {t("schwacher Tag")}
+          <i class="dot good" /> {" "}{t("gut gepunktet")}{" "}<i class="dot bad" />  {t("schwacher Tag")}
         </span>
       </div>
-      <Foot>{t("Tippe einen Tag an.")} {note ?? t("Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien.")}</Foot>
+      <Foot>{t("Tippe einen Tag an. {n}", { n: note ?? t("Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien.") })}</Foot>
     </div>
   );
 }

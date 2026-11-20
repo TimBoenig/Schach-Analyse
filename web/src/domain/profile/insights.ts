@@ -395,7 +395,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     ) {
       facts.push([
         ((peak.per100 as number) / Math.max(rest, 0.1)) * 8,
-        t("Deine Fehler häufen sich zwischen Zug {0}: {de} schwere Fehler pro 100 Züge (sonst {de2}).", { 0: peak.label.replace("–", " und "), de: de(peak.per100 as number), de2: de(rest) }),
+        t("Deine Fehler häufen sich zwischen Zug {0}: {de} schwere Fehler pro 100 Züge (sonst {de2}).", { 0: peak.label.replace("–", t(" und ")), de: de(peak.per100 as number), de2: de(rest) }),
       ]);
     }
   }
@@ -410,7 +410,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
       const factor = (worst.per100 as number) / Math.max(rest, 0.1);
       facts.push([
         factor * 7,
-        t("Mit {0} patzt du {1} mit anderen Figuren.", { 0: PIECE_DATIVE[worst.piece], 1: factor >= 2 ? `${de(factor)}-mal so oft wie` : t("deutlich öfter als") }),
+        t("Mit {0} patzt du {1} mit anderen Figuren.", { 0: PIECE_DATIVE[worst.piece], 1: factor >= 2 ? t("{factor}-mal so oft wie", { factor: de(factor) }) : t("deutlich öfter als") }),
       ]);
     }
   }

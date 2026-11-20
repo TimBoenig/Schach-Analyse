@@ -23,7 +23,7 @@ import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
 import { PeriodSelect } from "./useProfile";
 import { ENGINE_NAME } from "../engine/info";
-import { t } from "../i18n";
+import { t, tj } from "../i18n";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
@@ -125,7 +125,7 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       {source !== "pgn" ? (
         <>
           <label class="field">
-            <span>{t("Benutzername auf")} {source === "chesscom" ? "Chess.com" : "Lichess"}</span>
+            <span>{t("Benutzername auf {n}", { n: source === "chesscom" ? "Chess.com" : "Lichess" })}</span>
             <input type="text" autocapitalize="off" autocorrect="off" value={user} onInput={(e) => setUser(e.currentTarget.value)} />
           </label>
           {source === "chesscom" ? (
@@ -192,11 +192,8 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       {error && <p class="error small">{error}</p>}
       {result && (
         <div class="notice" style={{ marginBottom: "12px" }}>
-          {result.imported === 1 ? t("1 neue Partie") : t("{imported} neue Partien", { imported: result.imported })} importiert
-          {result.already_known ? t(", {already_known} {1} schon vorhanden", { already_known: result.already_known, 1: result.already_known === 1 ? "war" : "waren" }) : ""}.
-          {result.skipped.length > 0 &&
-            t(" {0} in der App noch nicht unterstützt.", { 0: result.skipped.length === 1 ? t("1 Partie (Chess960 oder Variante) wird") : t("{length} Partien (Chess960 oder Varianten) werden", { length: result.skipped.length }) })}
-          {failedMonthsNote(result)}
+          {t("{n} importiert{n2}.{n3}{failedMonthsNote}", { n: result.imported === 1 ? t("1 neue Partie") : t("{imported} neue Partien", { imported: result.imported }), n2: result.already_known ? t(", {already_known} schon vorhanden", { already_known: result.already_known }) : "", n3: result.skipped.length > 0 &&
+            t(" {0} in der App noch nicht unterstützt.", { 0: result.skipped.length === 1 ? t("1 Partie (Chess960 oder Variante) wird") : t("{length} Partien (Chess960 oder Varianten) werden", { length: result.skipped.length }) }), failedMonthsNote: failedMonthsNote(result) })}
         </div>
       )}
       <div class="row" style={{ justifyContent: "flex-end" }}>
@@ -334,7 +331,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       setQuick({
         busy: false,
         text: result.imported
-          ? t("{imported} neue {1} von {name} geholt{3}.", { imported: result.imported, 1: result.imported === 1 ? t("Partie") : t("Partien"), name, 3: queued ? t(", {queued} {1} jetzt analysiert", { queued, 1: queued === 1 ? "wird" : "werden" }) : "" })
+          ? t("{imported} neue {1} von {name} geholt{3}.", { imported: result.imported, 1: result.imported === 1 ? t("Partie") : t("Partien"), name, 3: queued ? (queued === 1 ? t(", 1 wird jetzt analysiert") : t(", {queued} werden jetzt analysiert", { queued })) : "" })
           : t("Keine neuen Partien von {name} auf chess.com.{1}", { name, 1: result.failed_months ? "" : t(" Alles ist schon da.") }),
       });
       if (result.failed_months) setQuick((q) => q && { ...q, text: q.text + failedMonthsNote(result) });
@@ -352,13 +349,11 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <>
         {busy ? (
           <button class="btn" onClick={cancelAll}>
-            <IconStop />  {t("Stoppen (")}{remaining})
-          </button>
+            <IconStop />  {t("Stoppen ({remaining})", { remaining })}</button>
         ) : (
           open.length > 0 && (
             <button class="btn" onClick={() => void enqueue(open)} title={t("Die neuesten Partien zuerst")}>
-              <IconPlay />  {t("Alle analysieren (")}{open.length})
-            </button>
+              <IconPlay />  {t("Alle analysieren ({length})", { length: open.length })}</button>
           )
         )}
         <button
@@ -392,11 +387,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <div class="notice gl-fresh" role="status">
           <span class="orb-mini" aria-hidden="true" />
           <span>
-            <strong>
-              {justImported.length} {justImported.length === 1 ? t("neue Partie ist") : t("neue Partien sind")} da.
-            </strong>{" "}
-            
-            {t("Soll ich sie gleich analysieren? Danach siehst du zu jedem Zug, wie gut er war.")}
+            {tj("{x} Soll ich sie gleich analysieren? Danach siehst du zu jedem Zug, wie gut er war.", { x: <strong>
+              {t("{length} {n} da.", { length: justImported.length, n: justImported.length === 1 ? t("neue Partie ist") : t("neue Partien sind") })}</strong> })}
           </span>
           <button
             class="btn primary small"
@@ -417,8 +409,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
               <strong>{t("Analyse läuft")}</strong>
               <span class="muted">
                 {" "}
-                · {queue.current ? t("{done}/{total} Züge · ", { done: queue.done, total: queue.total }) : ""}noch {remaining}{" "}
-                {remaining === 1 ? t("Partie") : t("Partien")}
+                {t("· {n}noch {remaining} {n2}", { n: queue.current ? t("{done}/{total} Züge · ", { done: queue.done, total: queue.total }) : "", remaining, n2: remaining === 1 ? t("Partie") : t("Partien") })}
               </span>
             </span>
             {queue.current && (
@@ -456,7 +447,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           {othersCount > 0 && (
             <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label={t("Spieler")}>
               <option value="mine">{t("Meine Partien")}</option>
-              <option value="all">{t("Auch andere Spieler (")}{othersCount})</option>
+              <option value="all">{t("Auch andere Spieler ({othersCount})", { othersCount })}</option>
             </select>
           )}
           {speeds.length > 1 && (
@@ -473,8 +464,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             <label class="check-chip" title={t("Bullet-Partien in der Liste und in der Zusammenfassung ausblenden")}>
               <input type="checkbox" checked={hideBullet} onChange={(e) => setHideBullet(e.currentTarget.checked)} />
               
-              {t("Bullet ausblenden (")}{bulletCount})
-            </label>
+              {t("Bullet ausblenden ({bulletCount})", { bulletCount })}</label>
           )}
           <PeriodSelect value={period} onChange={setPeriod} />
           <input
@@ -498,7 +488,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <div class="empty">
           <CoachAvatar size={96} />
           <h3>{t("Zeig mir deine Partien!")}</h3>
-          <p>{t("Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit")} {ENGINE_NAME}.</p>
+          <p>{t("Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit {ENGINE_NAME}.", { ENGINE_NAME })}</p>
           <button class="btn primary big" onClick={() => setShowImport(true)}>
             <IconPlus />  {t("Partien importieren")}
           </button>
@@ -508,8 +498,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <p>{t("Keine Partie passt zu diesen Filtern.")}</p>
           {hiddenOlder > 0 && (
             <button class="btn" onClick={() => setPeriod("All Time")}>
-              {hiddenOlder}  {t("ältere")} {hiddenOlder === 1 ? t("Partie") : t("Partien")} zeigen
-            </button>
+              {t("{hiddenOlder} ältere {n} zeigen", { hiddenOlder, n: hiddenOlder === 1 ? t("Partie") : t("Partien") })}</button>
           )}
         </div>
       ) : (
@@ -518,12 +507,11 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           {filtered.length > limit && (
             <button class="btn" onClick={() => setLimit((l) => l + 60)}>
               
-              {t("Weitere")} {Math.min(60, filtered.length - limit)} anzeigen
-            </button>
+              {t("Weitere {n} anzeigen", { n: Math.min(60, filtered.length - limit) })}</button>
           )}
           {filtered.length <= limit && hiddenOlder > 0 && (
             <p class="faint small" style={{ textAlign: "center" }}>
-              {trFilter(period)}. {hiddenOlder}  {t("ältere")} {hiddenOlder === 1 ? t("Partie ist") : t("Partien sind")} ausgeblendet.{" "}
+              {t("{trFilter}. {hiddenOlder} ältere {n} ausgeblendet.", { trFilter: trFilter(period), hiddenOlder, n: hiddenOlder === 1 ? t("Partie ist") : t("Partien sind") })}{" "}
               <button class="link-btn" onClick={() => setPeriod("All Time")}>
                 
                 {t("Alle zeigen")}

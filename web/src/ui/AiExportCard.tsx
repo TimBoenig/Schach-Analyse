@@ -68,9 +68,7 @@ export function AiExportCard() {
         ))}
       </div>
       <p class="small faint" style={{ margin: "0 0 12px" }}>
-        {AI_EXPORT_LIMITS[detail].label} {DETAIL_HINT[detail]}{t(": kritische Momente der neuesten")} {AI_EXPORT_LIMITS[detail].moments}{" "}
-        
-        {t("analysierten Partien,")} {AI_EXPORT_LIMITS[detail].annotated}  {t("davon Zug für Zug kommentiert.")}
+        {t("{label} {n}: kritische Momente der neuesten {moments} analysierten Partien, {annotated} davon Zug für Zug kommentiert.", { label: AI_EXPORT_LIMITS[detail].label, n: DETAIL_HINT[detail], moments: AI_EXPORT_LIMITS[detail].moments, annotated: AI_EXPORT_LIMITS[detail].annotated })}
       </p>
       <div class="row">
         <button class="btn primary" disabled={busy} onClick={() => void run()}>

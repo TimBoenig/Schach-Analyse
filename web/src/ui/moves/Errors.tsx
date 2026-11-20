@@ -10,7 +10,7 @@ import { IconReset } from "../icons";
 import { Foot, WhatIfSlider } from "../kit";
 import { Level } from "../viz/Bars";
 import { de, plural } from "./shared";
-import { t } from "../../i18n";
+import { t, tj } from "../../i18n";
 
 type LensKey = "number" | "piece" | "situation";
 
@@ -62,7 +62,7 @@ function LensCard({ d }: { d: DeepInsights }) {
                 <Level value={per100} max={max} tone={high?.bucket === b ? "bad" : low?.bucket === b ? "good" : "quiet"} faint={thin} />
                 <b class="tnum">{de(per100)}</b>
                 <small class="tnum">
-                  {b.errors} in {plural(b.moves, t("Zug"), t("Zügen"))}
+                  {t("{errors} in {n}", { errors: b.errors, n: plural(b.moves, t("Zug"), t("Zügen")) })}
                 </small>
               </div>
             );
@@ -75,20 +75,19 @@ function LensCard({ d }: { d: DeepInsights }) {
         <p class="mv-lens-say">
           {high ? (
             <>
-              <b class="bad">{t("Klar am meisten")}</b> {lens.name(high.bucket.label)}: {de(high.per_100)}  {t("je 100 Züge, sonst")} {de(high.rest_per_100)}.{" "}
+              {tj("{x} {n}: {n2} je 100 Züge, sonst {n3}.", { x: <b class="bad">{t("Klar am meisten")}</b>, n: lens.name(high.bucket.label), n2: de(high.per_100), n3: de(high.rest_per_100) })}{" "}
             </>
           ) : null}
           {low ? (
             <>
-              <b class="good">{t("Klar am wenigsten")}</b> {lens.name(low.bucket.label)}: {de(low.per_100)}{t(", sonst")} {de(low.rest_per_100)}.
-            </>
+              {tj("{x} {n}: {n2}, sonst {n3}.", { x: <b class="good">{t("Klar am wenigsten")}</b>, n: lens.name(low.bucket.label), n2: de(low.per_100), n3: de(low.rest_per_100) })}</>
           ) : null}
           {!high && !low ? t("Hier hebt sich nichts klar ab: die Unterschiede zwischen den Zeilen könnten Zufall sein.") : null}
         </p>
       )}
       <Foot>
         
-        {t("Grobe Fehler sind Fehler, verpasste Chancen und Patzer.")} {lens.note}  {t("Farbig wird eine Zeile nur, wenn ihr Abstand zu allen anderen zusammen kein Zufall sein kann; blasse Zeilen beruhen auf weniger als")} {MIN_BUCKET_MOVES}  {t("Zügen.")}
+        {t("Grobe Fehler sind Fehler, verpasste Chancen und Patzer. {note} Farbig wird eine Zeile nur, wenn ihr Abstand zu allen anderen zusammen kein Zufall sein kann; blasse Zeilen beruhen auf weniger als {MIN_BUCKET_MOVES} Zügen.", { note: lens.note, MIN_BUCKET_MOVES })}
       </Foot>
     </section>
   );
@@ -148,7 +147,7 @@ function CostCard({ facts }: { facts: GameFact[] }) {
         </div>
         {cost.clear && (
           <span class="card-tag tnum">
-            −{de(cost.clean.score_pct - cost.dirty.score_pct, 0)}  {t("Prozentpunkte")}
+            {t("−{n} Prozentpunkte", { n: de(cost.clean.score_pct - cost.dirty.score_pct, 0) })}
           </span>
         )}
       </header>
@@ -185,14 +184,10 @@ function CostCard({ facts }: { facts: GameFact[] }) {
               <>
                 <p>
                   
-                  {t("Bleiben")} <strong>{de(value * 100, 0)} %</strong> statt {de(base * 100, 0)}  {t("% deiner Partien ohne Patzer, holst du aus 100 Partien")}{" "}
-                  <strong class="tnum">{de(then)}  {t("Punkte")}</strong> statt {de(now)}{" "}
-                  <span class={`tnum ${delta >= 0 ? "good" : "bad"}`}>
+                  {tj("Bleiben {x} statt {n} % deiner Partien ohne Patzer, holst du aus 100 Partien {x2} statt {n2} {x3}, wenn beide Arten von Partien so ausgehen wie bisher.", { x: <strong>{de(value * 100, 0)} %</strong>, n: de(base * 100, 0), x2: <strong class="tnum">{t("{n} Punkte", { n: de(then) })}</strong>, n2: de(now), x3: <span class={`tnum ${delta >= 0 ? "good" : "bad"}`}>
                     ({delta >= 0 ? "+" : "−"}
                     {de(Math.abs(delta))})
-                  </span>
-                  
-                  {t(", wenn beide Arten von Partien so ausgehen wie bisher.")}
+                  </span> })}
                 </p>
                 <button class="btn ghost small" onClick={() => setShare(null)}>
                   <IconReset />  {t("Zurück")}
@@ -200,8 +195,7 @@ function CostCard({ facts }: { facts: GameFact[] }) {
               </>
             ) : (
               <p>
-                <strong>{de(base * 100, 0)} %</strong>  {t("deiner analysierten Partien bleiben ohne Patzer.")}{" "}
-                {cost.clear ? t("Schieb den Regler und sieh, was mehr saubere Partien bringen würden.") : t("Der Abstand zwischen beiden Gruppen ist noch nicht belastbar; mit mehr analysierten Partien wird er es.")}
+                {tj("{x} deiner analysierten Partien bleiben ohne Patzer. {n}", { x: <strong>{de(base * 100, 0)} %</strong>, n: cost.clear ? t("Schieb den Regler und sieh, was mehr saubere Partien bringen würden.") : t("Der Abstand zwischen beiden Gruppen ist noch nicht belastbar; mit mehr analysierten Partien wird er es.") })}
               </p>
             )}
           </div>
