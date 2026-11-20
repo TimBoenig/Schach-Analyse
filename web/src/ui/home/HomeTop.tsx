@@ -197,10 +197,10 @@ export function FormCard({ profile, kpis: all, label }: { profile: PlayerProfile
       </header>
       <div class="stat-row many" style={{ "--cols": kpis.length }} aria-label={`Kennzahlen ${label}`}>
         {kpis.map((k) => {
-          const t = trendOf(k);
+          const tk = trendOf(k);
           const d = deltaText(k);
           // A falling blunder rate is the good direction, so the chip follows the verdict, not the sign.
-          const tone = k.key === "games" || t === "flat" ? "" : t === "up" ? " up" : " down";
+          const tone = k.key === "games" || tk === "flat" ? "" : tk === "up" ? " up" : " down";
           return (
             <Stat
               key={k.key}

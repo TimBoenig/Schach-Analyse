@@ -25,7 +25,7 @@ export function useEntrance(): boolean {
 // ---------- counting numbers ----------
 
 const COUNT_MS = 900;
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
+const easeOut = (tk: number) => 1 - (1 - tk) ** 3;
 
 /**
  * A number that runs to its value: from zero when it first appears, from the
@@ -44,11 +44,11 @@ export function CountUp({ value, format = (v) => String(Math.round(v)), class: c
     const t0 = performance.now();
     let raf = 0;
     const tick = (now: number) => {
-      const t = Math.min(1, (now - t0) / COUNT_MS);
-      const v = start + (value - start) * easeOut(t);
+      const tk = Math.min(1, (now - t0) / COUNT_MS);
+      const v = start + (value - start) * easeOut(tk);
       from.current = v;
       setShown(v);
-      if (t < 1) raf = requestAnimationFrame(tick);
+      if (tk < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
@@ -245,13 +245,13 @@ export function ScaleTrack({
   return (
     <div class="lg-track" ref={ref} style={{ height: `${Math.max(1, lanes.length) * LANE + 34}px` }}>
       <div class="lg-track-line" aria-hidden="true">
-        {ticks.map((t, i) => {
+        {ticks.map((tk, i) => {
           // A marker on the line hides the number behind it; leave the number
           // out instead of letting it peek out half covered ("120" for 1200).
-          const covered = placed.some((p) => p.lane === 0 && (Math.abs(p.x - pct(t)) * w) / 100 < TICK_CLEAR);
+          const covered = placed.some((p) => p.lane === 0 && (Math.abs(p.x - pct(tk)) * w) / 100 < TICK_CLEAR);
           return (
-            <span key={t} class={`lg-track-tick${i % 2 ? " minor" : ""}`} style={{ left: `${pct(t)}%` }}>
-              {!covered && <span class="faint">{t}</span>}
+            <span key={tk} class={`lg-track-tick${i % 2 ? " minor" : ""}`} style={{ left: `${pct(tk)}%` }}>
+              {!covered && <span class="faint">{tk}</span>}
             </span>
           );
         })}

@@ -309,8 +309,8 @@ function pickFacts(facts: Fact[], color: "white" | "black" | null): string[] {
   return facts
     .filter((f) => color === null || f[2] === null || f[2] === color)
     .sort((a, b) => b[0] - a[0])
-    .map(([, t]) => t)
-    .filter((t, i, all) => all.indexOf(t) === i)
+    .map(([, tk]) => tk)
+    .filter((tk, i, all) => all.indexOf(tk) === i)
     .slice(0, 6);
 }
 

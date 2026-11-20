@@ -279,8 +279,8 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
                 tree={tree}
                 cursor={cursor}
                 keyMove={answers.kind !== "opening"}
-                onChange={(t, c) => {
-                  setTree(t);
+                onChange={(tk, c) => {
+                  setTree(tk);
                   setCursor(c);
                 }}
               />

@@ -50,9 +50,9 @@ function sourceLine(e: Exercise): string {
   return "";
 }
 
-function Summary({ t, rows, start }: { t: TrainingState; rows: CategoryOverview[]; start: StartSession }) {
+function Summary({ t: tk, rows, start }: { t: TrainingState; rows: CategoryOverview[]; start: StartSession }) {
   const totals = poolTotals(rows);
-  const due = dueExercises(t.pool, t.progress, t.today);
+  const due = dueExercises(tk.pool, tk.progress, tk.today);
   return (
     <section class="card span-12 tx-sum">
       <Stat label="Übungen" value={<CountUp value={totals.total} />} sub="aus deinen Partien, deinen Eröffnungen und den Grundlagen">
@@ -100,13 +100,13 @@ function AreaList({ rows, selected, onSelect }: { rows: CategoryOverview[]; sele
   );
 }
 
-function AreaDetail({ t, row, start }: { t: TrainingState; row: CategoryOverview; start: StartSession }) {
+function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOverview; start: StartSession }) {
   const c = row.category;
   const info = CATEGORIES[c];
   const [all, setAll] = useState(false);
   // Library lines have their own picker; listing all of them here would bury the player's own lines.
-  const items = t.pool.filter((e) => e.category === c && !(e.kind === "repertoire" && e.library));
-  const order = pickSession(items, t.progress, t.today, items.length);
+  const items = tk.pool.filter((e) => e.category === c && !(e.kind === "repertoire" && e.library));
+  const order = pickSession(items, tk.progress, tk.today, items.length);
   const byId = new Map(items.map((e) => [e.id, e]));
   const set = order.slice(0, SESSION_SIZE);
   const playouts = items.filter((e) => e.kind === "playout").length;
@@ -130,7 +130,7 @@ function AreaDetail({ t, row, start }: { t: TrainingState; row: CategoryOverview
       </header>
 
       {c === "repertoire" ? (
-        <OpeningPick t={t} start={start} />
+        <OpeningPick t={tk} start={start} />
       ) : row.total === 0 ? (
         <p class="tn-none">Noch keine passenden Stellungen. Sie kommen dazu, sobald mehr Partien analysiert sind.</p>
       ) : (
@@ -152,7 +152,7 @@ function AreaDetail({ t, row, start }: { t: TrainingState; row: CategoryOverview
             </div>
             <button class="btn primary big" onClick={() => start({ title: info.label, ids: set })}>
               <IconPlay /> {c === "basics" ? "Alle der Reihe nach" : `${plural(set.length, "Aufgabe", "Aufgaben")} üben`}
-              <small class="tnum">ca. {estimateMinutes(set, t.byId)} Min</small>
+              <small class="tnum">ca. {estimateMinutes(set, tk.byId)} Min</small>
             </button>
           </div>
           <div class="tx-list">
@@ -165,7 +165,7 @@ function AreaDetail({ t, row, start }: { t: TrainingState; row: CategoryOverview
                     {e.title}
                     {line && <small>{line}</small>}
                   </span>
-                  <StateTag state={exerciseState(t.progress[e.id], t.today)} />
+                  <StateTag state={exerciseState(tk.progress[e.id], tk.today)} />
                   <IconChevron />
                 </button>
               );
@@ -188,8 +188,8 @@ function AreaDetail({ t, row, start }: { t: TrainingState; row: CategoryOverview
   );
 }
 
-export function LibraryPage({ t, start, initial }: { t: TrainingState; start: StartSession; initial?: string }) {
-  const rows = categoryOverview(t.pool, t.progress, t.today);
+export function LibraryPage({ t: tk, start, initial }: { t: TrainingState; start: StartSession; initial?: string }) {
+  const rows = categoryOverview(tk.pool, tk.progress, tk.today);
   const [picked, setPicked] = useState<Category | null>(null);
   const narrow = useNarrow();
   const selected = picked ?? startCategory(rows, initial);
@@ -201,9 +201,9 @@ export function LibraryPage({ t, start, initial }: { t: TrainingState; start: St
   };
   return (
     <div class="dash tn">
-      <Summary t={t} rows={rows} start={start} />
+      <Summary t={tk} rows={rows} start={start} />
       <AreaList rows={rows} selected={selected} onSelect={select} />
-      <AreaDetail t={t} row={row} start={start} />
+      <AreaDetail t={tk} row={row} start={start} />
     </div>
   );
 }

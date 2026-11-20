@@ -187,8 +187,8 @@ function gameTitle(it: GameItem): string {
   const opp = opponentOf(it);
   const oppElo = ratingOf(mine(it, g.black_elo, g.white_elo));
   const ownElo = ratingOf(mine(it, g.white_elo, g.black_elo));
-  const t = terminationOf(it);
-  const term = t ? ` (${t})` : "";
+  const tk = terminationOf(it);
+  const term = tk ? ` (${tk})` : "";
   return `${it.nr} · ${dateOf(it)} · ${trSpeed(g.speed_category) || "?"}${g.time_control ? ` ${g.time_control}` : ""} · ${trColor(it.color)}${ownElo ? ` (${ownElo})` : ""} gegen ${opp || "?"}${oppElo ? ` (${oppElo})` : ""} · ${resultWord(it)}${term}`;
 }
 
@@ -326,7 +326,7 @@ function breakdownSection(p: PlayerProfile): string {
   const parts = ["## 5. Aufschlüsselung", "", "**Nach Farbe**", "", table(head, rows("color")), "", "**Nach Bedenkzeit**", "", table(head, rows("speed")), "", "**Nach Gegnerstärke**", "", table(head, rows("opponent"))];
   const d = p.deep;
   if (d?.game_types?.length) {
-    parts.push("", "**Nach Partieverlauf**", "", table(["Partietyp", "Beschreibung", "Partien", "Anteil", "Punkte", "Genauigkeit"], d.game_types.map((t) => [t.label, t.description, t.games, pct(t.share), pct(t.score_pct), pct1(t.accuracy)])));
+    parts.push("", "**Nach Partieverlauf**", "", table(["Partietyp", "Beschreibung", "Partien", "Anteil", "Punkte", "Genauigkeit"], d.game_types.map((tk) => [tk.label, tk.description, tk.games, pct(tk.share), pct(tk.score_pct), pct1(tk.accuracy)])));
   }
   return parts.join("\n");
 }
@@ -345,9 +345,9 @@ function phaseSection(p: PlayerProfile): string {
     num(time[ph]?.avg_time) ? `${de(time[ph].avg_time as number)} s` : "–",
   ]);
   const tally = p.moves?.phases ?? [];
-  const tallyRows = tally.map((t) => {
-    const serious = (t.counts.Mistake ?? 0) + (t.counts.Miss ?? 0) + (t.counts.Blunder ?? 0);
-    return [t.label, t.games, t.moves, t.moves ? de((serious / t.moves) * 100) : "–", t.counts.Inaccuracy ?? 0, t.counts.Mistake ?? 0, t.counts.Miss ?? 0, t.counts.Blunder ?? 0];
+  const tallyRows = tally.map((tk) => {
+    const serious = (tk.counts.Mistake ?? 0) + (tk.counts.Miss ?? 0) + (tk.counts.Blunder ?? 0);
+    return [tk.label, tk.games, tk.moves, tk.moves ? de((serious / tk.moves) * 100) : "–", tk.counts.Inaccuracy ?? 0, tk.counts.Mistake ?? 0, tk.counts.Miss ?? 0, tk.counts.Blunder ?? 0];
   });
   return [
     "## 6. Phasen",
@@ -358,10 +358,10 @@ function phaseSection(p: PlayerProfile): string {
 }
 
 function moveQualitySection(p: PlayerProfile): string {
-  const t = p.moves;
-  if (!t) return "## 7. Zugqualität\n\n_Noch keine analysierten Partien._";
-  const opp = t.opponents;
-  const rows = t.classes.map((c) => [
+  const tk = p.moves;
+  if (!tk) return "## 7. Zugqualität\n\n_Noch keine analysierten Partien._";
+  const opp = tk.opponents;
+  const rows = tk.classes.map((c) => [
     trClassification(c.key),
     c.count,
     de(c.per_game, 2),
@@ -369,17 +369,17 @@ function moveQualitySection(p: PlayerProfile): string {
     c.games_with,
     opp && opp.moves ? de(((opp.counts[c.key] ?? 0) / opp.moves) * 100) : "–",
   ]);
-  const r = t.records;
+  const r = tk.records;
   return [
     "## 7. Zugqualität",
     "",
-    `${t.games} analysierte Partien, ${t.moves} eigene Züge${opp ? `, ${opp.moves} Züge der Gegner` : ""}.`,
+    `${tk.games} analysierte Partien, ${tk.moves} eigene Züge${opp ? `, ${opp.moves} Züge der Gegner` : ""}.`,
     "",
     table(["Klasse", "Anzahl", "Je Partie", "Je 100 Züge", "Partien mit", "Gegner je 100 Züge"], rows),
     "",
     bullets([
       `Partien ohne Patzer: ${r.blunder_free_games}; längste Serie ohne Patzer: ${r.longest_blunder_free}; aktuelle Serie: ${r.current_blunder_free}.`,
-      ...t.findings.map((f) => `${f.title}: ${f.text}`),
+      ...tk.findings.map((f) => `${f.title}: ${f.text}`),
     ]),
   ].join("\n");
 }
@@ -432,7 +432,7 @@ function insightsSection(p: PlayerProfile, nrOf: (id: string) => string): string
     "**Wiederkehrende Muster**",
     p.patterns.length ? bullets(p.patterns.map((x) => `${x.title} (Schwere: ${x.severity}): ${x.text}${refs(x.examples)}`)) : "_Keine._",
     p.training_plan.length
-      ? `\n**Trainingsvorschläge der App**\n${bullets(p.training_plan.map((t) => `${t.title}: ${t.reason}${t.steps.length ? ` Schritte: ${t.steps.join(" ")}` : ""}${refs(t.examples)}`))}`
+      ? `\n**Trainingsvorschläge der App**\n${bullets(p.training_plan.map((tk) => `${tk.title}: ${tk.reason}${tk.steps.length ? ` Schritte: ${tk.steps.join(" ")}` : ""}${refs(tk.examples)}`))}`
       : "",
   ].join("\n");
 }
@@ -587,12 +587,12 @@ function trainingSection(input: AiExportInput, p: PlayerProfile): string {
   const progress = get<ProgressMap>("training.progress", {});
   const log = get<TrainingLog>("training.log", {});
   if (!Object.keys(progress).length && !Object.keys(log).length) return "## 15. Training in der App\n\n_Noch keine Übungen gemacht._";
-  const t = summarizeTraining(p.exercises, progress, log, input.today);
-  const cats = t.categories.filter((c) => c.total > 0 || c.attempts > 0);
+  const tk = summarizeTraining(p.exercises, progress, log, input.today);
+  const cats = tk.categories.filter((c) => c.total > 0 || c.attempts > 0);
   return [
     "## 15. Training in der App",
     "",
-    `Serie: ${t.streak} Tage am Stück. Letzte 7 Tage: ${t.week.done} Übungen, davon ${t.week.correct} gelöst.`,
+    `Serie: ${tk.streak} Tage am Stück. Letzte 7 Tage: ${tk.week.done} Übungen, davon ${tk.week.correct} gelöst.`,
     "",
     table(["Übungsart", "Verfügbar", "Versuche", "Gelöst", "Quote", "Sicher beherrscht"], cats.map((c) => [CATEGORIES[c.category].label, c.total, c.attempts, c.solved, c.rate !== null ? pct(c.rate) : "–", c.mastered])),
   ].join("\n");

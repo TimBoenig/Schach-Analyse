@@ -302,18 +302,18 @@ export interface AiImport {
 
 /** Finds the JSON in an AI answer: code fences, text around it, comments, trailing commas, curly quotes. */
 export function extractJson(text: string): unknown {
-  let t = text.trim();
-  const fence = t.match(/```(?:json|JSON)?\s*([\s\S]*?)```/);
-  if (fence) t = fence[1];
-  const a = t.indexOf("{");
-  const b = t.lastIndexOf("}");
+  let tk = text.trim();
+  const fence = tk.match(/```(?:json|JSON)?\s*([\s\S]*?)```/);
+  if (fence) tk = fence[1];
+  const a = tk.indexOf("{");
+  const b = tk.lastIndexOf("}");
   if (a < 0 || b <= a) throw new Error("Kein JSON gefunden");
-  t = t.slice(a, b + 1);
+  tk = tk.slice(a, b + 1);
   const attempts = [
-    t,
-    t.replace(/^\s*\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1"),
+    tk,
+    tk.replace(/^\s*\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1"),
     // Curly quotes as JSON quotes break only when the AI used them instead of ".
-    t.replace(/^\s*\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1").replace(/[“”„]/g, '"'),
+    tk.replace(/^\s*\/\/.*$/gm, "").replace(/,\s*([}\]])/g, "$1").replace(/[“”„]/g, '"'),
   ];
   let last: unknown;
   for (const x of attempts) {
@@ -515,7 +515,7 @@ export function importAiScript(input: string): AiImport {
   if (!scenes.length) return { project: null, errors: errors.length ? errors : ["Keine lesbare Szene gefunden."], warnings, stats: null };
 
   // ---- look and video options
-  const theme = (Object.keys(THEMES) as ThemeId[]).find((t) => t === word(field(root, "look", "theme", "stil"))) ?? "nova";
+  const theme = (Object.keys(THEMES) as ThemeId[]).find((tk) => tk === word(field(root, "look", "theme", "stil"))) ?? "nova";
   const envWord = word(field(root, "umgebung", "environment", "hintergrund"));
   const environment = ENVS[envWord] ?? "podium";
   if (envWord && !ENVS[envWord]) warnings.push(`Umgebung „${String(field(root, "umgebung", "environment"))}“ kenne ich nicht, ich nehme ${ENV_LABEL[environment]}.`);
@@ -648,7 +648,7 @@ export function toAiScript(project: StudioProject): string {
 /** The speaker's lines with their time in the video, to read along while recording the voice-over. */
 export function speechSheet(project: StudioProject): string {
   const tl = compile(project);
-  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const fmt = (tk: number) => `${Math.floor(tk / 60)}:${String(Math.floor(tk % 60)).padStart(2, "0")}`;
   return tl.scenes
     .map((c, i) => {
       const say = c.scene.speech.trim() || c.scene.text.replace(/\*/g, "").replace(/\s*\|\s*/g, " ").trim();

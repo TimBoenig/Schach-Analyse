@@ -178,7 +178,7 @@ export class TacticsState {
   phase_move_counts = phaseRecord(() => 0);
   pieces_hung_by_type: Record<string, number> = Object.fromEntries(PIECE_NAMES_ORDERED.map((n) => [n, 0]));
   captured_by_piece: Record<string, number> = Object.fromEntries(PIECE_NAMES_ORDERED.map((n) => [n, 0]));
-  tactical_themes: Record<string, number> = Object.fromEntries(TACTICAL_THEMES.map((t) => [t, 0]));
+  tactical_themes: Record<string, number> = Object.fromEntries(TACTICAL_THEMES.map((tk) => [tk, 0]));
 
   brilliancies: Detail[] = [];
   hung_pieces_details: Detail[] = [];

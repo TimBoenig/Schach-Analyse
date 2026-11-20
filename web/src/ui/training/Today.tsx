@@ -37,20 +37,20 @@ function partReason(key: string, blocks: PlanBlock[]): string {
   return "Gemischte Aufgaben sind im Moment schwerer, bleiben aber besser hängen: In der Partie sagt dir auch niemand, welche Art Stellung kommt.";
 }
 
-function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
-  const plan = t.plan!;
+function SessionCard({ t: tk, start }: { t: TrainingState; start: StartSession }) {
+  const plan = tk.plan!;
   const [tune, setTune] = useState(false);
   // Plans saved before openings became the player's choice may still list drills.
-  const assigned = (id: string) => t.byId.has(id) && t.byId.get(id)!.kind !== "repertoire";
+  const assigned = (id: string) => tk.byId.has(id) && tk.byId.get(id)!.kind !== "repertoire";
   const blocks = plan.blocks.map((b) => ({ ...b, exercise_ids: b.exercise_ids.filter(assigned) })).filter((b) => b.exercise_ids.length > 0);
-  const isOpen = (id: string) => t.byId.has(id) && t.progress[id]?.last !== t.today;
+  const isOpen = (id: string) => tk.byId.has(id) && tk.progress[id]?.last !== tk.today;
   // Warm-up, main theme, then the rest mixed: see sessionParts.
   const openParts = sessionParts(blocks, isOpen);
-  const allParts = sessionParts(blocks, (id) => t.byId.has(id));
+  const allParts = sessionParts(blocks, (id) => tk.byId.has(id));
   const open = openParts.flatMap((p) => p.ids);
   const total = allParts.reduce((s, p) => s + p.ids.length, 0);
   const done = total - open.length;
-  const today = t.log[t.today];
+  const today = tk.log[tk.today];
   const firstOpen = allParts.findIndex((p) => p.ids.some(isOpen));
   // "Heute im Fokus: A und B": the lead goes into the small line, the topic is the headline.
   const cut = plan.headline.indexOf(": ");
@@ -61,7 +61,7 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
     return (
       <section class="card span-12 td td-empty">
         <span class="eyebrow td-eyebrow">
-          <span class="orb-mini" aria-hidden="true" /> Lucena · {dayLong(t.today)}
+          <span class="orb-mini" aria-hidden="true" /> Lucena · {dayLong(tk.today)}
         </span>
         <h2 class="td-title">Für deinen Tagesplan brauche ich analysierte Partien.</h2>
         <p class="td-sub">
@@ -85,14 +85,14 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
       <div class="td-main">
         <div class="td-text">
           <span class="eyebrow td-eyebrow">
-            <span class="orb-mini" aria-hidden="true" /> Lucena · {dayLong(t.today)}
+            <span class="orb-mini" aria-hidden="true" /> Lucena · {dayLong(tk.today)}
             {open.length && lead ? ` · ${lead}` : ""}
           </span>
           <h2 class="td-title">{open.length ? topic : "Für heute bist du fertig."}</h2>
           <p class="td-sub">
             {open.length ? (
               <>
-                {done ? `Noch ${plural(open.length, "Aufgabe", "Aufgaben")}` : plural(open.length, "Aufgabe", "Aufgaben")} · etwa {estimateMinutes(open, t.byId)} Minuten · alle aus deinen
+                {done ? `Noch ${plural(open.length, "Aufgabe", "Aufgaben")}` : plural(open.length, "Aufgabe", "Aufgaben")} · etwa {estimateMinutes(open, tk.byId)} Minuten · alle aus deinen
                 eigenen Partien
               </>
             ) : (
@@ -133,7 +133,7 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
             <span class="eyebrow">Zeit pro Tag</span>
             <div class="segmented" role="radiogroup" aria-label="Zeit pro Tag">
               {MINUTE_CHOICES.map((m) => (
-                <button key={m} role="radio" aria-checked={t.prefs.minutes === m} class={t.prefs.minutes === m ? "active" : ""} onClick={() => t.setPrefs({ ...t.prefs, minutes: m })}>
+                <button key={m} role="radio" aria-checked={tk.prefs.minutes === m} class={tk.prefs.minutes === m ? "active" : ""} onClick={() => tk.setPrefs({ ...tk.prefs, minutes: m })}>
                   {m} Min
                 </button>
               ))}
@@ -141,7 +141,7 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
           </div>
           <label class="td-tune-field">
             <span class="eyebrow">Schwerpunkt</span>
-            <select value={t.prefs.focus} onChange={(e) => t.setPrefs({ ...t.prefs, focus: e.currentTarget.value as Category | "auto" })}>
+            <select value={tk.prefs.focus} onChange={(e) => tk.setPrefs({ ...tk.prefs, focus: e.currentTarget.value as Category | "auto" })}>
               <option value="auto">Automatisch aus deinen Partien</option>
               {CATEGORY_ORDER.filter((c) => c !== "repertoire").map((c) => (
                 <option key={c} value={c}>
@@ -150,7 +150,7 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
               ))}
             </select>
           </label>
-          <button class="btn ghost td-rebuild" onClick={t.rebuild} title="Stellt die Einheit mit anderen Aufgaben neu zusammen">
+          <button class="btn ghost td-rebuild" onClick={tk.rebuild} title="Stellt die Einheit mit anderen Aufgaben neu zusammen">
             <IconSync /> Andere Aufgaben
           </button>
         </div>
@@ -171,7 +171,7 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
                 <span class="td-step-kind">{p.key === "main" ? "Hauptthema" : p.key === "warmup" ? "Aufwärmen" : "Gemischt"}</span>
                 <strong class="td-step-title">{p.key === "warmup" ? p.sub : p.key === "mix" ? p.sub || p.title : p.title}</strong>
                 <span class="td-step-meta tnum">
-                  {d} von {plural(n, "Aufgabe", "Aufgaben")} · etwa {estimateMinutes(p.ids, t.byId)} Min
+                  {d} von {plural(n, "Aufgabe", "Aufgaben")} · etwa {estimateMinutes(p.ids, tk.byId)} Min
                 </span>
                 <span class="td-step-bar" aria-hidden="true">
                   <i style={{ width: `${(d / n) * 100}%` }} />
@@ -187,9 +187,9 @@ function SessionCard({ t, start }: { t: TrainingState; start: StartSession }) {
 }
 
 /** The week at a glance: theme per day, which days were trained, and the weekly target. */
-function WeekCard({ t }: { t: TrainingState }) {
-  if (!t.week) return null;
-  const w = weekView(t.week, t.log, t.today);
+function WeekCard({ t: tk }: { t: TrainingState }) {
+  if (!tk.week) return null;
+  const w = weekView(tk.week, tk.log, tk.today);
   return (
     <section class="card span-8 tw">
       <header class="card-head">
@@ -224,11 +224,11 @@ function WeekCard({ t }: { t: TrainingState }) {
   );
 }
 
-function RhythmCard({ t, start }: { t: TrainingState; start: StartSession }) {
-  const days = streak(t.log, t.today);
-  const totals = logTotals(t.log);
-  const week = summarizeTraining([], {}, t.log, t.today).week;
-  const due = dueExercises(t.pool, t.progress, t.today);
+function RhythmCard({ t: tk, start }: { t: TrainingState; start: StartSession }) {
+  const days = streak(tk.log, tk.today);
+  const totals = logTotals(tk.log);
+  const week = summarizeTraining([], {}, tk.log, tk.today).week;
+  const due = dueExercises(tk.pool, tk.progress, tk.today);
   return (
     <section class="card span-4 tn-rhythm">
       <Stat label="Serie" value={<CountUp value={days} />} sub={totals.longest > days ? `${days === 1 ? "Tag" : "Tage"} in Folge · längste Serie ${totals.longest}` : `${days === 1 ? "Tag" : "Tage"} in Folge`} />
@@ -249,11 +249,11 @@ function RhythmCard({ t, start }: { t: TrainingState; start: StartSession }) {
 }
 
 /** The longer-term priorities from the profile, each with its steps and examples from the player's own games. */
-function FocusCard({ t }: { t: TrainingState }) {
-  const items = t.profile?.training_plan ?? [];
+function FocusCard({ t: tk }: { t: TrainingState }) {
+  const items = tk.profile?.training_plan ?? [];
   const [open, setOpen] = useState<string | null>(items[0]?.title ?? null);
   if (!items.length) return null;
-  const pool = t.profile?.exercises ?? [];
+  const pool = tk.profile?.exercises ?? [];
   return (
     <section class="card span-7 tf">
       <header class="card-head">
@@ -338,16 +338,16 @@ function OpeningsLink() {
   );
 }
 
-export function TodayPage({ t, start }: { t: TrainingState; start: StartSession }) {
-  if (!t.plan) return null;
-  const hasFocus = Boolean(t.profile?.training_plan.length);
+export function TodayPage({ t: tk, start }: { t: TrainingState; start: StartSession }) {
+  if (!tk.plan) return null;
+  const hasFocus = Boolean(tk.profile?.training_plan.length);
   return (
     <div class="dash tn">
-      <SessionCard t={t} start={start} />
-      <WeekCard t={t} />
-      <RhythmCard t={t} start={start} />
-      <FocusCard t={t} />
-      <TipsCard tips={t.plan.tips} wide={!hasFocus} />
+      <SessionCard t={tk} start={start} />
+      <WeekCard t={tk} />
+      <RhythmCard t={tk} start={start} />
+      <FocusCard t={tk} />
+      <TipsCard tips={tk.plan.tips} wide={!hasFocus} />
       <OpeningsLink />
     </div>
   );

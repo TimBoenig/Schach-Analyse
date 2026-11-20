@@ -43,17 +43,17 @@ export function ratingJourney(series: [number, number][], goal: number | null, n
   const peak = Math.max(...series.map(([, r]) => r));
   const target = goal && goal > 0 ? goal : nextMilestone(current);
 
-  const recent = series.filter(([t]) => t >= now - PACE_DAYS * DAY);
+  const recent = series.filter(([tk]) => tk >= now - PACE_DAYS * DAY);
   let perMonth: number | null = null;
   if (recent.length >= PACE_MIN_GAMES && recent[recent.length - 1][0] - recent[0][0] >= PACE_MIN_DAYS * DAY) {
     const n = recent.length;
-    const mt = recent.reduce((s, [t]) => s + t, 0) / n;
+    const mt = recent.reduce((s, [tk]) => s + tk, 0) / n;
     const mr = recent.reduce((s, [, r]) => s + r, 0) / n;
     let num = 0;
     let den = 0;
-    for (const [t, r] of recent) {
-      num += (t - mt) * (r - mr);
-      den += (t - mt) ** 2;
+    for (const [tk, r] of recent) {
+      num += (tk - mt) * (r - mr);
+      den += (tk - mt) ** 2;
     }
     perMonth = den > 0 ? (num / den) * 30 * DAY : null;
   }

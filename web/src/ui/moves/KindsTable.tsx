@@ -49,16 +49,16 @@ function Row({ r, games, max, onPick }: { r: KindRow; games: number; max: number
   );
 }
 
-export function KindsTable({ t, onShine }: { t: MoveTally; onShine: () => void }) {
-  const rows = kindRows(t);
+export function KindsTable({ t: tk, onShine }: { t: MoveTally; onShine: () => void }) {
+  const rows = kindRows(tk);
   return (
     <section class="card span-8 mv-kinds">
       <header class="card-head">
         <div>
           <h3>Alle Zugarten</h3>
-          <p class="card-sub">{t.opponents ? "Du und deine Gegner in denselben Partien, je 100 Züge." : "Jede Bewertung, gezählt über alle analysierten Partien."}</p>
+          <p class="card-sub">{tk.opponents ? "Du und deine Gegner in denselben Partien, je 100 Züge." : "Jede Bewertung, gezählt über alle analysierten Partien."}</p>
         </div>
-        {t.opponents && (
+        {tk.opponents && (
           <span class="mv-key">
             <span>
               <i class="mv-key-bar" /> Du
@@ -81,7 +81,7 @@ export function KindsTable({ t, onShine }: { t: MoveTally; onShine: () => void }
         </div>
         {KIND_GROUPS.map((g) => {
           const mine = rows.filter((r) => r.group === g.key);
-          const n = sumOf(t.counts, g.classes);
+          const n = sumOf(tk.counts, g.classes);
           // One scale per group: next to a best-move share of 35 a brilliant rate of 0,7 would be no bar at all.
           const max = Math.max(...mine.flatMap((r) => [r.per_100, r.opp_per_100 ?? 0]), 0.01) * 1.08;
           return (
@@ -89,11 +89,11 @@ export function KindsTable({ t, onShine }: { t: MoveTally; onShine: () => void }
               <div class="mv-block-head">
                 <span>{g.label}</span>
                 <span class="tnum">
-                  {plural(n, "Zug", "Züge")} · {de((n / (t.moves || 1)) * 100)} %
+                  {plural(n, "Zug", "Züge")} · {de((n / (tk.moves || 1)) * 100)} %
                 </span>
               </div>
               {mine.map((r) => (
-                <Row key={r.key} r={r} games={t.games} max={max} onPick={g.key === "shine" && r.count ? onShine : undefined} />
+                <Row key={r.key} r={r} games={tk.games} max={max} onPick={g.key === "shine" && r.count ? onShine : undefined} />
               ))}
             </div>
           );
@@ -101,8 +101,8 @@ export function KindsTable({ t, onShine }: { t: MoveTally; onShine: () => void }
       </div>
 
       <Foot label="Wie lese ich die Tabelle?">
-        Der Balken ist deine Rate je 100 Züge{t.opponents ? ", der Strich die deiner Gegner in denselben Partien" : ""}. Jede der drei Gruppen hat ihren eigenen Maßstab, sonst wären seltene Züge
-        unsichtbar. {t.opponents ? "„besser“ oder „schwächer“ steht nur da, wenn der Unterschied bei so vielen Zügen kein Zufall mehr sein kann; „gleichauf“ heißt, dass er es sein könnte. " : ""}
+        Der Balken ist deine Rate je 100 Züge{tk.opponents ? ", der Strich die deiner Gegner in denselben Partien" : ""}. Jede der drei Gruppen hat ihren eigenen Maßstab, sonst wären seltene Züge
+        unsichtbar. {tk.opponents ? "„besser“ oder „schwächer“ steht nur da, wenn der Unterschied bei so vielen Zügen kein Zufall mehr sein kann; „gleichauf“ heißt, dass er es sein könnte. " : ""}
         Exzellente, gute und Buchzüge bekommen kein Urteil: mehr davon kann genauso gut heißen, dass beste Züge fehlen.
       </Foot>
     </section>

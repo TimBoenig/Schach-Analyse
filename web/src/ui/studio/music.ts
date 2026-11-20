@@ -54,14 +54,14 @@ export function synthLoop(id: Exclude<MusicId, "none" | "file">, rate: number): 
   const third = g.minor ? 3 : 4;
   let seed = 11;
   for (let i = 0; i < n; i++) {
-    const t = i / rate;
+    const tk = i / rate;
     const b = Math.floor(i / bar);
     const inBar = (i - b * bar) / bar;
     const root = g.roots[b];
     // Pad: soft triad that swells in and out within each bar, so the loop seam is silent.
     const swell = Math.sin(Math.PI * inBar) ** 2;
     let v = 0;
-    for (const iv of [0, third, 7]) v += osc(g.wave === "saw" ? "triangle" : g.wave, hz(root + iv) * t);
+    for (const iv of [0, third, 7]) v += osc(g.wave === "saw" ? "triangle" : g.wave, hz(root + iv) * tk);
     v *= (g.pad / 3) * swell;
     // Bass on the beats.
     const s = Math.floor(i / step) % 16;

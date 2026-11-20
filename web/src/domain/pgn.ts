@@ -507,8 +507,8 @@ function exportGame(game: RawGame): string {
   const lines: string[] = [];
   let current = "";
   let forceMoveNumber = true;
-  const writeToken = (t: string) => {
-    current += t;
+  const writeToken = (tk: string) => {
+    current += tk;
   };
   const writeLine = (l = "") => {
     if (current) lines.push(current.trimEnd());
@@ -581,8 +581,8 @@ export function parseClk(comment: string | null | undefined): [string | null, nu
 
 /** python float() for the restricted inputs a TimeControl header carries. */
 function pyFloat(text: string): number | null {
-  const t = text.trim();
-  return /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t) ? Number(t) : null;
+  const tk = text.trim();
+  return /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(tk) ? Number(tk) : null;
 }
 
 function initialClockSeconds(timeControl: string | undefined): number | null {

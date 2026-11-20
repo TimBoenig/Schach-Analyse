@@ -114,18 +114,18 @@ function accuracyOf(fs: GameFeatures[]): number | null {
 /** Score and accuracy per game type; a game can belong to several types. */
 export function gameTypes(feats: GameFeatures[]): GameTypeStat[] {
   const analyzed = feats.filter((f) => f.analyzed && f.score !== null);
-  return TYPES.map((t) => {
-    const group = analyzed.filter(t.test);
+  return TYPES.map((tk) => {
+    const group = analyzed.filter(tk.test);
     return {
-      key: t.key,
-      label: t.label,
-      description: t.description,
+      key: tk.key,
+      label: tk.label,
+      description: tk.description,
       games: group.length,
       share: analyzed.length ? pyRound((group.length / analyzed.length) * 100, 0) : 0,
       ...scoreOf(group),
       accuracy: accuracyOf(group),
     };
-  }).filter((t) => t.games > 0);
+  }).filter((tk) => tk.games > 0);
 }
 
 /** Score and accuracy per time control. */
@@ -296,7 +296,7 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     });
   }
 
-  const solid = types.filter((t) => t.games >= MIN_TYPE_GAMES && t.score_pct !== null);
+  const solid = types.filter((tk) => tk.games >= MIN_TYPE_GAMES && tk.score_pct !== null);
   if (solid.length >= 2) {
     const best = solid.reduce((a, b) => ((b.score_pct as number) > (a.score_pct as number) ? b : a));
     const worst = solid.reduce((a, b) => ((b.score_pct as number) < (a.score_pct as number) ? b : a));
@@ -333,11 +333,11 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     }
   }
 
-  const t = precision.turnarounds;
-  if (t.winning >= MIN_SITUATIONS && t.lost_from_winning / t.winning >= 0.2 && shareAtLeast(t.lost_from_winning, t.winning, 0.1)) {
+  const tk = precision.turnarounds;
+  if (tk.winning >= MIN_SITUATIONS && tk.lost_from_winning / tk.winning >= 0.2 && shareAtLeast(tk.lost_from_winning, tk.winning, 0.1)) {
     out.push({
       title: "Nächster Schritt",
-      text: `Sichere gewonnene Stellungen ab: ${t.lost_from_winning} von ${t.winning} hast du noch verloren. Frage dich vor jedem Zug, was dein Gegner droht, statt sofort weiter anzugreifen.`,
+      text: `Sichere gewonnene Stellungen ab: ${tk.lost_from_winning} von ${tk.winning} hast du noch verloren. Frage dich vor jedem Zug, was dein Gegner droht, statt sofort weiter anzugreifen.`,
       tone: "neutral",
     });
   } else if (precision.spread.games >= MIN_GROUP_GAMES * 2 && precision.spread.stdev !== null && precision.spread.stdev >= 12) {

@@ -124,10 +124,10 @@ function clockAt(moves: MoveData[], idx: number, side: Side): number | null {
 
 function formatClock(s: number | null): string {
   if (s === null || !Number.isFinite(s)) return "";
-  const t = Math.max(0, Math.round(s));
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  const sec = String(t % 60).padStart(2, "0");
+  const tk = Math.max(0, Math.round(s));
+  const h = Math.floor(tk / 3600);
+  const m = Math.floor((tk % 3600) / 60);
+  const sec = String(tk % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 }
 
@@ -608,7 +608,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       else if (e.key === "n") jumpError(1);
       else if (e.key === "N" || e.key === "p") jumpError(-1);
       else if (e.key === "a") setShowArrows((v) => !v);
-      else if (e.key === "b" && review) setTab((t) => (t === "report" ? "moves" : "report"));
+      else if (e.key === "b" && review) setTab((tk) => (tk === "report" ? "moves" : "report"));
       else return;
       e.preventDefault();
     };

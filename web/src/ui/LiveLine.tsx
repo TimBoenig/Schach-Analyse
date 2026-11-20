@@ -6,8 +6,8 @@ import { EngineWait } from "./EngineWait";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
-  const t = Math.round(s);
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  const tk = Math.round(s);
+  return `${Math.floor(tk / 60)}:${String(tk % 60).padStart(2, "0")}`;
 }
 
 /** Winning chance before/after a move from the mover's view, plus the time it took. */

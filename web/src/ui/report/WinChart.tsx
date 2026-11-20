@@ -66,9 +66,9 @@ export function WinChart({
             {Math.round(v * 100)}
           </text>
         ))}
-        {ticks.map((t) => (
-          <text key={t} class="wc-axis" x={x(t)} y={height - 6} text-anchor="middle">
-            {t / 2}
+        {ticks.map((tk) => (
+          <text key={tk} class="wc-axis" x={x(tk)} y={height - 6} text-anchor="middle">
+            {tk / 2}
           </text>
         ))}
         <path class="wc-area up" d={area} clip-path={`url(#${id}-up)`} />

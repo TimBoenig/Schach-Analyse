@@ -10,12 +10,12 @@ export function usePositionLines(fen: string | null, multiPv = 2): { lines: PvLi
     if (!fen) return;
     let alive = true;
     // Short delay so stepping through a line quickly doesn't queue a search per move.
-    const t = window.setTimeout(() => {
+    const tk = window.setTimeout(() => {
       void positionLines(fen, multiPv).then((lines) => alive && setState({ fen, lines }));
     }, 200);
     return () => {
       alive = false;
-      window.clearTimeout(t);
+      window.clearTimeout(tk);
     };
   }, [fen, multiPv]);
   const current = fen !== null && state.fen === fen;

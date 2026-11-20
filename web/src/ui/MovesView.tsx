@@ -19,10 +19,10 @@ import { FilterBar, filtersActive, useAllTimeProfile, useProfile } from "./usePr
 export function MovesView() {
   const { profile, games, usernames, loading, error, filters, setFilters, excludeBullet } = useProfile({ page: "moves" });
   const full = useAllTimeProfile(games, usernames, filters, excludeBullet);
-  const t = profile?.moves ?? null;
-  usePageGuide("moves", Boolean(t));
+  const tk = profile?.moves ?? null;
+  usePageGuide("moves", Boolean(tk));
 
-  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} actions={t ? <GuideButton id="moves" /> : undefined} />;
+  const header = <PageHeader toolbar={<FilterBar filters={filters} onChange={setFilters} />} actions={tk ? <GuideButton id="moves" /> : undefined} />;
 
   if (usernames && !usernames.length) {
     return (
@@ -52,7 +52,7 @@ export function MovesView() {
       </div>
     );
   }
-  if (!profile || !t) {
+  if (!profile || !tk) {
     return (
       <div>
         {header}
@@ -79,16 +79,16 @@ export function MovesView() {
       {header}
       <SectionJump sections={STAT_SECTIONS.moves} />
       <div class="dash mv">
-        <MovesSummary t={t} onShine={toShine} />
-        <KindsTable t={t} onShine={toShine} />
+        <MovesSummary t={tk} onShine={toShine} />
+        <KindsTable t={tk} onShine={toShine} />
         <div class="span-4 mv-side">
-          <FindingsCard t={t} />
+          <FindingsCard t={tk} />
           {profile.deep && <PunishCard punish={profile.deep.punish} />}
         </div>
         <QualityTrend full={full.profile} loading={full.loading} />
-        <PhaseTable profile={profile} t={t} />
+        <PhaseTable profile={profile} t={tk} />
         <ErrorSection deep={profile.deep} facts={profile.facts} />
-        <ShineSection t={t} />
+        <ShineSection t={tk} />
       </div>
     </div>
   );

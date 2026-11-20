@@ -178,7 +178,7 @@ const emptyPair = (): Pair => ({ u: { errors: 0, units: 0 }, o: { errors: 0, uni
  */
 function gameTallies(g: RawGame, color: "white" | "black"): GameTallies | null {
   if (parseSummary(g.summary_json)?.analysis_status !== "completed") return null;
-  const t: GameTallies = { all: emptyPair(), opening: emptyPair(), middlegame: emptyPair(), endgame: emptyPair(), tactics: emptyPair(), safety: emptyPair() };
+  const tk: GameTallies = { all: emptyPair(), opening: emptyPair(), middlegame: emptyPair(), endgame: emptyPair(), tactics: emptyPair(), safety: emptyPair() };
   let lastDrop = 0;
   parseMoves(g.moves_json).forEach((m, idx) => {
     // Side to move from the position; the ply (0 = White's first move) when it is missing.
@@ -191,22 +191,22 @@ function gameTallies(g: RawGame, color: "white" | "black"): GameTallies | null {
     const side = (whiteMoved ? "white" : "black") === color ? "u" : "o";
     // A chance to punish: the other side just gave away OPPONENT_ERROR_THRESHOLD or more.
     if (lastDrop >= OPPONENT_ERROR_THRESHOLD && m.classification) {
-      t.tactics[side].units += 1;
-      if (drop >= PUNISH_KEEP_THRESHOLD) t.tactics[side].errors += 1;
+      tk.tactics[side].units += 1;
+      if (drop >= PUNISH_KEEP_THRESHOLD) tk.tactics[side].errors += 1;
     }
     lastDrop = drop;
     if (m.is_book_move || !m.classification) return;
-    t.all[side].errors += drop * 100;
-    t.all[side].units += 1;
-    t.safety[side].units += 1;
-    if (m.classification === "Blunder") t.safety[side].errors += 1;
+    tk.all[side].errors += drop * 100;
+    tk.all[side].units += 1;
+    tk.safety[side].units += 1;
+    if (m.classification === "Blunder") tk.safety[side].errors += 1;
     if (!m.fen_before) return;
-    const area = t[classifyFenPhase(m.fen_before, idx) as Area];
+    const area = tk[classifyFenPhase(m.fen_before, idx) as Area];
     if (!area) return;
     area[side].errors += drop * 100;
     area[side].units += 1;
   });
-  return t.all.u.units || t.all.o.units ? t : null;
+  return tk.all.u.units || tk.all.o.units ? tk : null;
 }
 
 /** Maximum-likelihood rating under the Elo curve with a normal prior; returns value and information. */
@@ -293,8 +293,8 @@ export function playerStrength(games: RawGame[], usernames: string[], { format =
     const opp = toLichessBlitz(raw, source, speed);
     const col = ratingColumn(source, speed);
     sample.push({ opp, score: outcome === "win" ? 1 : outcome === "draw" ? 0.5 : 0, col, at: parsePlayedAt(g) ?? 0 });
-    const t = gameTallies(g, color);
-    if (t) quality.push({ t, opp, col });
+    const tk = gameTallies(g, color);
+    if (tk) quality.push({ t: tk, opp, col });
   }
   const report: StrengthReport = { estimate: null, rated_games: sample.length, bot_games: bots, unrated_games: unrated };
   if (sample.length < MIN_RATED_GAMES) return report;
@@ -361,14 +361,14 @@ const STAND_OUT_Z = 1.645;
  */
 function areaStrengths(games: GameTallies[], overall: { value: number; se: number }): AreaStrength[] {
   const all = tallyRatio(
-    games.map((t) => t.all),
+    games.map((tk) => tk.all),
     QUALITY_PRIOR,
   );
   if (!all) return [];
   const out: AreaStrength[] = [];
   for (const key of AREAS) {
     const r = tallyRatio(
-      games.map((t) => t[key]),
+      games.map((tk) => tk[key]),
       AREA_PRIOR[key],
     );
     if (!r) continue;
@@ -414,9 +414,9 @@ export function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let tk = Math.imul(a ^ (a >>> 15), 1 | a);
+    tk = (tk + Math.imul(tk ^ (tk >>> 7), 61 | tk)) ^ tk;
+    return ((tk ^ (tk >>> 14)) >>> 0) / 4294967296;
   };
 }
 

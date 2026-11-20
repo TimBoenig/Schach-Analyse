@@ -74,7 +74,7 @@ export function usePageGuide(id: GuideId, ready: boolean): void {
     if (!ready || wasSeen(seenId(id)) || currentShow() || !autoFree()) return;
     let alive = true;
     // A moment to see the page first; the guide then explains what is there.
-    const t = window.setTimeout(() => {
+    const tk = window.setTimeout(() => {
       // Read on another device? The synced settings may know by now.
       void hydrateSeen().then(() => {
         if (!alive || currentShow() || wasSeen(seenId(id)) || !takeAuto()) return;
@@ -83,7 +83,7 @@ export function usePageGuide(id: GuideId, ready: boolean): void {
     }, 700);
     return () => {
       alive = false;
-      window.clearTimeout(t);
+      window.clearTimeout(tk);
     };
   }, [id, ready]);
 }

@@ -101,10 +101,10 @@ function rng(seed: string): () => number {
   let a = (h ^ (h >>> 13)) >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let tk = a;
+    tk = Math.imul(tk ^ (tk >>> 15), tk | 1);
+    tk ^= tk + Math.imul(tk ^ (tk >>> 7), tk | 61);
+    return ((tk ^ (tk >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -157,11 +157,11 @@ function minutesOf(pool: Map<string, Exercise>, ids: string[]): number {
 }
 
 function daysBetween(a: string, b: string): number {
-  const t = (s: string) => {
+  const tk = (s: string) => {
     const [y, m, d] = s.replace(/\./g, "-").split("-").map(Number);
     return new Date(y, (m || 1) - 1, d || 1).getTime();
   };
-  const diff = Math.round((t(b) - t(a)) / 86400000);
+  const diff = Math.round((tk(b) - tk(a)) / 86400000);
   return Number.isFinite(diff) ? Math.max(0, diff) : 365;
 }
 

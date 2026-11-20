@@ -58,13 +58,13 @@ function scoreRows(buckets: (ScoreBucket | ScoreStat)[], overall: number): BarRo
 const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(digits).replace(".", ",")}`;
 
 function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
-  return types.map((t) => ({
-    label: t.label,
-    value: t.score_pct,
+  return types.map((tk) => ({
+    label: tk.label,
+    value: tk.score_pct,
     reference: overall,
-    valueText: t.score_pct !== null ? `${Math.round(t.score_pct)} %` : "–",
-    note: `${plural(t.games, "Partie", "Partien")}${pm(t.margin)}${t.accuracy !== null ? ` · Genauigkeit ${Math.round(t.accuracy)} %` : ""}${t.description ? ` · ${t.description}` : ""}`,
-    faint: t.games < MIN_GAMES,
+    valueText: tk.score_pct !== null ? `${Math.round(tk.score_pct)} %` : "–",
+    note: `${plural(tk.games, "Partie", "Partien")}${pm(tk.margin)}${tk.accuracy !== null ? ` · Genauigkeit ${Math.round(tk.accuracy)} %` : ""}${tk.description ? ` · ${tk.description}` : ""}`,
+    faint: tk.games < MIN_GAMES,
   }));
 }
 
@@ -164,7 +164,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     }));
   const curve = p.curve.map((c) => ({ label: String(c.move), value: c.avg_wp, detail: `Zug ${c.move} · ${plural(c.games, "Partie", "Partien")}` }));
   const s = p.spread;
-  const t = p.turnarounds;
+  const tk = p.turnarounds;
   const resultRows: BarRow[] = s.by_result
     .filter((r) => r.games > 0)
     .map((r) => ({
@@ -219,31 +219,31 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     ),
     turnarounds: (
       <Tile title="Wendepunkte" sub="ab 75 % Gewinnchance" span={6}>
-        {t.winning > 0 && (
+        {tk.winning > 0 && (
           <>
-            <h4>Aus {plural(t.winning, "gewonnener Stellung", "gewonnenen Stellungen")}</h4>
+            <h4>Aus {plural(tk.winning, "gewonnener Stellung", "gewonnenen Stellungen")}</h4>
             <StackBar
               segments={[
-                { label: "Gewonnen", value: t.converted, color: "var(--win)" },
-                { label: "Remis", value: t.drawn_from_winning, color: "var(--draw)" },
-                { label: "Verloren", value: t.lost_from_winning, color: "var(--loss)" },
+                { label: "Gewonnen", value: tk.converted, color: "var(--win)" },
+                { label: "Remis", value: tk.drawn_from_winning, color: "var(--draw)" },
+                { label: "Verloren", value: tk.lost_from_winning, color: "var(--loss)" },
               ]}
             />
           </>
         )}
-        {t.losing > 0 && (
+        {tk.losing > 0 && (
           <>
-            <h4>Aus {plural(t.losing, "verlorener Stellung", "verlorenen Stellungen")}</h4>
+            <h4>Aus {plural(tk.losing, "verlorener Stellung", "verlorenen Stellungen")}</h4>
             <StackBar
               segments={[
-                { label: "Noch gewonnen", value: t.won_from_losing, color: "var(--win)" },
-                { label: "Gerettet (Remis)", value: t.saved - t.won_from_losing, color: "var(--draw)" },
-                { label: "Verloren", value: t.losing - t.saved, color: "var(--loss)" },
+                { label: "Noch gewonnen", value: tk.won_from_losing, color: "var(--win)" },
+                { label: "Gerettet (Remis)", value: tk.saved - tk.won_from_losing, color: "var(--draw)" },
+                { label: "Verloren", value: tk.losing - tk.saved, color: "var(--loss)" },
               ]}
             />
           </>
         )}
-        {!t.winning && !t.losing && <p class="muted small">Noch keine klar entschiedenen Stellungen.</p>}
+        {!tk.winning && !tk.losing && <p class="muted small">Noch keine klar entschiedenen Stellungen.</p>}
       </Tile>
     ),
     length: (

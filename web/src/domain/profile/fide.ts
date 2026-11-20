@@ -67,8 +67,8 @@ function fideLine(ccBlitz: number): number {
     const rows = TABLE.filter((r) => r[3] !== null).map((r) => [r[0], r[3] as number] as const);
     return interpolate(rows, ccBlitz);
   }
-  const t = (ccBlitz - TABLE[0][0]) / (SURVEY_LOW - TABLE[0][0]);
-  return FIDE_FLOOR + t * (fideLow - FIDE_FLOOR);
+  const tk = (ccBlitz - TABLE[0][0]) / (SURVEY_LOW - TABLE[0][0]);
+  return FIDE_FLOOR + tk * (fideLow - FIDE_FLOOR);
 }
 
 /** Piecewise-linear lookup in increasing [x, y] pairs; the end segments carry on outside. */

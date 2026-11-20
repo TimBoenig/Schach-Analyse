@@ -191,7 +191,7 @@ function accuracySpread(analyzed: GameFeatures[]): AccuracySpread {
 }
 
 function turnarounds(analyzed: GameFeatures[]): Turnarounds {
-  const t: Turnarounds = { winning: 0, converted: 0, drawn_from_winning: 0, lost_from_winning: 0, losing: 0, saved: 0, won_from_losing: 0 };
+  const tk: Turnarounds = { winning: 0, converted: 0, drawn_from_winning: 0, lost_from_winning: 0, losing: 0, saved: 0, won_from_losing: 0 };
   for (const f of analyzed) {
     const score = f.score;
     if (score === null || !f.moves.length) continue;
@@ -199,18 +199,18 @@ function turnarounds(analyzed: GameFeatures[]): Turnarounds {
     // blunder counts even if the player throws it away with the very next move.
     const wps = f.moves.filter((m) => m.classification).flatMap((m) => [m.wp_before, m.wp_after]);
     if (wps.some((wp) => wp >= CLEAR_EDGE)) {
-      t.winning += 1;
-      if (score === 1) t.converted += 1;
-      else if (score === 0.5) t.drawn_from_winning += 1;
-      else t.lost_from_winning += 1;
+      tk.winning += 1;
+      if (score === 1) tk.converted += 1;
+      else if (score === 0.5) tk.drawn_from_winning += 1;
+      else tk.lost_from_winning += 1;
     }
     if (wps.some((wp) => wp <= 1 - CLEAR_EDGE)) {
-      t.losing += 1;
-      if (score > 0) t.saved += 1;
-      if (score === 1) t.won_from_losing += 1;
+      tk.losing += 1;
+      if (score > 0) tk.saved += 1;
+      if (score === 1) tk.won_from_losing += 1;
     }
   }
-  return t;
+  return tk;
 }
 
 function findings(p: Omit<PrecisionStats, "facts">): [number, string][] {
@@ -241,18 +241,18 @@ function findings(p: Omit<PrecisionStats, "facts">): [number, string][] {
   }
 
   // Thrown wins in percent of all winning positions.
-  const t = p.turnarounds;
-  if (t.winning >= MIN_SITUATIONS) {
-    const lostShare = (t.lost_from_winning / t.winning) * 100;
+  const tk = p.turnarounds;
+  if (tk.winning >= MIN_SITUATIONS) {
+    const lostShare = (tk.lost_from_winning / tk.winning) * 100;
     // Everybody throws away a won position now and then; only a share that is
     // high (20 %) and, with confidence, above 10 % is worth a remark.
-    if (lostShare >= 20 && shareAtLeast(t.lost_from_winning, t.winning, 0.1)) {
-      facts.push([lostShare / 2, `Aus ${t.winning} klar gewonnenen Stellungen hast du ${t.lost_from_winning} noch verloren (${de(lostShare)} %).`]);
+    if (lostShare >= 20 && shareAtLeast(tk.lost_from_winning, tk.winning, 0.1)) {
+      facts.push([lostShare / 2, `Aus ${tk.winning} klar gewonnenen Stellungen hast du ${tk.lost_from_winning} noch verloren (${de(lostShare)} %).`]);
     }
   }
-  if (t.losing >= MIN_SITUATIONS) {
-    const savedShare = (t.saved / t.losing) * 100;
-    if (savedShare >= 35 && shareAtLeast(t.saved, t.losing, 0.2)) facts.push([savedShare / 4, `Du gibst nicht auf: ${de(savedShare)} % deiner klar verlorenen Stellungen hast du noch gerettet.`]);
+  if (tk.losing >= MIN_SITUATIONS) {
+    const savedShare = (tk.saved / tk.losing) * 100;
+    if (savedShare >= 35 && shareAtLeast(tk.saved, tk.losing, 0.2)) facts.push([savedShare / 4, `Du gibst nicht auf: ${de(savedShare)} % deiner klar verlorenen Stellungen hast du noch gerettet.`]);
   }
 
   // Consistency: a wide spread means the level depends on the day.

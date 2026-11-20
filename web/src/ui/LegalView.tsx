@@ -223,18 +223,18 @@ const TABS: [LegalTab, string, () => JSX.Element][] = [
 ];
 
 export function LegalView({ tab }: { tab: LegalTab }) {
-  const Body = (TABS.find(([t]) => t === tab) ?? TABS[0])[2];
+  const Body = (TABS.find(([tk]) => tk === tab) ?? TABS[0])[2];
   return (
     <div>
       <PageHeader />
       <div class="segmented" role="tablist" style={{ marginBottom: "14px" }}>
-        {TABS.map(([t, label]) => (
+        {TABS.map(([tk, label]) => (
           <button
-            key={t}
+            key={tk}
             role="tab"
-            aria-selected={t === tab}
-            class={t === tab ? "active" : ""}
-            onClick={() => navigate({ view: "legal", tab: t }, true)}
+            aria-selected={tk === tab}
+            class={tk === tab ? "active" : ""}
+            onClick={() => navigate({ view: "legal", tab: tk }, true)}
           >
             {label}
           </button>

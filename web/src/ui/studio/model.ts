@@ -309,10 +309,10 @@ export function moveTokens(text: string): string[] {
     .replace(/\{[^}]*\}/g, " ")
     .replace(/\([^)]*\)/g, " ")
     .split(/\s+/)
-    .map((t) => t.replace(/^\d+(\.+|…)/, "").replace(/^…/, "").replace(/[!?]+$/g, "").trim())
-    .filter((t) => t && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(t))
-    .map((t) =>
-      t
+    .map((tk) => tk.replace(/^\d+(\.+|…)/, "").replace(/^…/, "").replace(/[!?]+$/g, "").trim())
+    .filter((tk) => tk && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tk))
+    .map((tk) =>
+      tk
         .replace(/^0-0-0/, "O-O-O")
         .replace(/^0-0/, "O-O")
         .replace(/^[SLTDK](?=[a-h1-8x])/, (p) => TO_ENGLISH[p])

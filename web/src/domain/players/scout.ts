@@ -508,7 +508,7 @@ export function buildScoutReport(name: string, them: PlayerProfile, me: PlayerPr
   const as_black = blackPicks(name, them, me);
   const { plan, cautions } = skillTips(name, them, me);
   plan.push(...resultTips(name, them));
-  for (const t of [openingTip("white", as_white), openingTip("black", as_black)]) if (t) plan.push(t);
+  for (const tk of [openingTip("white", as_white), openingTip("black", as_black)]) if (tk) plan.push(tk);
   plan.sort((a, b) => b.weight - a.weight);
   cautions.sort((a, b) => b.weight - a.weight);
 

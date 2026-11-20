@@ -658,8 +658,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
       return;
     }
     if (isUserPly(ply)) return;
-    const t = window.setTimeout(() => setPly((p) => p + 1), DRILL_REPLY_MS);
-    return () => window.clearTimeout(t);
+    const tk = window.setTimeout(() => setPly((p) => p + 1), DRILL_REPLY_MS);
+    return () => window.clearTimeout(tk);
   }, [ply, done, learning]);
 
   const startTest = () => {

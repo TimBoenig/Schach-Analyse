@@ -27,7 +27,7 @@ export interface RecordJob {
   fps: number;
   duration: number;
   /** Paints the frame for video second t. */
-  paint: (t: number) => void;
+  paint: (tk: number) => void;
   audio?: MediaStream | null;
   /** Called once when the clock starts, to start sounds in sync. */
   onStart?: () => void;
@@ -58,12 +58,12 @@ export async function recordVideo(job: RecordJob): Promise<{ blob: Blob; type: V
     const start = performance.now();
     job.onStart?.();
     const tick = () => {
-      const t = (performance.now() - start) / 1000;
+      const tk = (performance.now() - start) / 1000;
       if (job.isCancelled?.()) return resolve();
-      job.paint(Math.min(t, job.duration));
-      job.onProgress?.(Math.min(1, t / job.duration));
+      job.paint(Math.min(tk, job.duration));
+      job.onProgress?.(Math.min(1, tk / job.duration));
       // A short still at the end so players do not cut the last frame.
-      if (t >= job.duration + 0.4) return resolve();
+      if (tk >= job.duration + 0.4) return resolve();
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);

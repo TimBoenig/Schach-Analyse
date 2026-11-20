@@ -14,7 +14,7 @@ import { TrendChart, type TrendPoint } from "../viz/TrendChart";
 
 const DAY = 86400;
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
-const dateText = (t: number) => new Date(t * 1000).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
+const dateText = (tk: number) => new Date(tk * 1000).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
 
 interface Trends {
@@ -27,8 +27,8 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
   // Rating lines and daily accuracy over every game; null while the worker still builds them.
   const trends = useMemo((): Trends | null => {
     if (full.loading) return null;
-    const t = (full.profile?.trends ?? {}) as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
-    return { ratings: t.ratings ?? {}, daily: t.daily ?? [] };
+    const tk = (full.profile?.trends ?? {}) as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
+    return { ratings: tk.ratings ?? {}, daily: tk.daily ?? [] };
   }, [full]);
   const [pool, setPool] = useState<string | null>(null);
   const [range, setRange] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
   // Both charts share one span, measured over everything the section holds.
   const spanDays = useMemo(() => {
     if (!trends) return 0;
-    const times = [...Object.values(trends.ratings).flatMap((s) => s.map(([t]) => t)), ...trends.daily.map((d) => dayStart(d.day))];
+    const times = [...Object.values(trends.ratings).flatMap((s) => s.map(([tk]) => tk)), ...trends.daily.map((d) => dayStart(d.day))];
     return times.length ? (Math.max(...times) - Math.min(...times)) / DAY : 0;
   }, [trends]);
   const choices = rangeChoices(spanDays);

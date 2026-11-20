@@ -56,5 +56,5 @@ export function settlePeriod(preferred: string, enough: (start: number | null, p
  * only "All Time" counts).
  */
 export function settleByCount(preferred: string, times: (number | null)[], min = MIN_PERIOD_GAMES, now = Date.now() / 1000): string {
-  return settlePeriod(preferred, (start) => (start === null ? times.length : times.filter((t) => t !== null && t >= start).length) >= min, now);
+  return settlePeriod(preferred, (start) => (start === null ? times.length : times.filter((tk) => tk !== null && tk >= start).length) >= min, now);
 }

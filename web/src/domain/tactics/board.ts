@@ -234,9 +234,9 @@ export class Board {
       let f = squareFile(sq) + df;
       let r = squareRank(sq) + dr;
       while (onBoard(f, r)) {
-        const t = square(f, r);
-        out.add(t);
-        if (this.squares[t]) break;
+        const tk = square(f, r);
+        out.add(tk);
+        if (this.squares[tk]) break;
         f += df;
         r += dr;
       }
@@ -413,8 +413,8 @@ export class Board {
   }
 
   isCapture(m: Move): boolean {
-    const t = this.squares[m.to];
-    return (t !== null && t.color !== this.turn) || this.isEnPassant(m);
+    const tk = this.squares[m.to];
+    return (tk !== null && tk.color !== this.turn) || this.isEnPassant(m);
   }
 
   private isCastling(m: Move): boolean {
@@ -504,22 +504,22 @@ export class Board {
           const two = sq + 2 * dr;
           if (squareRank(sq) === startRank && !this.squares[two]) add(sq, two);
         }
-        for (const t of this.attacks(sq)) {
-          const tp = this.squares[t];
+        for (const tk of this.attacks(sq)) {
+          const tp = this.squares[tk];
           if (tp) {
-            if (tp.color !== us) add(sq, t);
-          } else if (t === this.epSquare) {
+            if (tp.color !== us) add(sq, tk);
+          } else if (tk === this.epSquare) {
             // python-chess only generates en passant when an enemy pawn sits
             // directly behind the (empty) en-passant square.
-            const victim = this.squares[square(squareFile(t), squareRank(sq))];
-            if (victim && victim.type === PAWN && victim.color !== us) add(sq, t);
+            const victim = this.squares[square(squareFile(tk), squareRank(sq))];
+            if (victim && victim.type === PAWN && victim.color !== us) add(sq, tk);
           }
         }
         continue;
       }
-      for (const t of this.attacks(sq)) {
-        const tp = this.squares[t];
-        if (!tp || tp.color !== us) add(sq, t);
+      for (const tk of this.attacks(sq)) {
+        const tp = this.squares[tk];
+        if (!tp || tp.color !== us) add(sq, tk);
       }
       if (p.type === KING) {
         const rights = this.cleanCastling();

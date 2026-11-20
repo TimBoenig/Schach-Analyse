@@ -12,20 +12,20 @@ import { de, PHASE_SHORT, plural } from "./shared";
 
 const HIGHLIGHTS_SHOWN = 8;
 
-function Records({ t }: { t: MoveTally }) {
-  const r = t.records;
+function Records({ t: tk }: { t: MoveTally }) {
+  const r = tk.records;
   return (
     <section class="card span-12 mv-records">
-      <Stat label="Partien mit Brillanz" value={r.games_with_brilliant} sub={`von ${plural(t.games, "Partie", "Partien")}`} />
+      <Stat label="Partien mit Brillanz" value={r.games_with_brilliant} sub={`von ${plural(tk.games, "Partie", "Partien")}`} />
       <Stat label="Meiste Brillanz in einer Partie" value={r.most_brilliant} sub={r.most_brilliant === 1 ? "brillanter Zug" : "brillante Züge"} />
-      <Stat label="Partien ohne Patzer" value={r.blunder_free_games} sub={`${Math.round((r.blunder_free_games / t.games) * 100)} % deiner Partien`} />
+      <Stat label="Partien ohne Patzer" value={r.blunder_free_games} sub={`${Math.round((r.blunder_free_games / tk.games) * 100)} % deiner Partien`} />
       <Stat label="Längste Serie ohne Patzer" value={r.longest_blunder_free} sub={r.longest_blunder_free === 1 ? "Partie am Stück" : "Partien am Stück"} />
       <Stat label="Aktuelle Serie ohne Patzer" value={r.current_blunder_free} sub={r.current_blunder_free === 1 ? "Partie" : "Partien"} tone={r.current_blunder_free > 0 && r.current_blunder_free === r.longest_blunder_free ? "good" : undefined} />
     </section>
   );
 }
 
-export function ShineSection({ t }: { t: MoveTally }) {
+export function ShineSection({ t: tk }: { t: MoveTally }) {
   const [all, setAll] = useState(false);
   return (
     <>
@@ -35,7 +35,7 @@ export function ShineSection({ t }: { t: MoveTally }) {
           <p>Deine besten Momente zum Nachspielen.</p>
         </div>
       </div>
-      <Records t={t} />
+      <Records t={tk} />
 
       <section class="card span-7 mv-shine">
         <header class="card-head">
@@ -43,11 +43,11 @@ export function ShineSection({ t }: { t: MoveTally }) {
             <h3>Deine Glanzzüge</h3>
             <p class="card-sub">Brillant und großartig, die neuesten zuerst.</p>
           </div>
-          {t.highlights.length > 0 && <span class="card-tag tnum">{t.highlights.length}</span>}
+          {tk.highlights.length > 0 && <span class="card-tag tnum">{tk.highlights.length}</span>}
         </header>
-        {t.highlights.length ? (
+        {tk.highlights.length ? (
           <div class="mv-list">
-            {t.highlights.slice(0, all ? undefined : HIGHLIGHTS_SHOWN).map((m) => (
+            {tk.highlights.slice(0, all ? undefined : HIGHLIGHTS_SHOWN).map((m) => (
               <button key={`${m.game_id}-${m.ply_index}`} class="tn-row" onClick={() => navigate({ view: "analysis", gameId: m.game_id, ply: m.ply_index + 1 })}>
                 <ClassBadge c={m.classification} size={22} />
                 <span class="tn-row-title">
@@ -61,9 +61,9 @@ export function ShineSection({ t }: { t: MoveTally }) {
                 <IconChevron />
               </button>
             ))}
-            {t.highlights.length > HIGHLIGHTS_SHOWN && (
+            {tk.highlights.length > HIGHLIGHTS_SHOWN && (
               <button class="btn small ghost tx-more" onClick={() => setAll((v) => !v)}>
-                {all ? "Weniger zeigen" : `Alle ${t.highlights.length} zeigen`}
+                {all ? "Weniger zeigen" : `Alle ${tk.highlights.length} zeigen`}
               </button>
             )}
           </div>
@@ -79,9 +79,9 @@ export function ShineSection({ t }: { t: MoveTally }) {
             <p class="card-sub">Die Partien mit den meisten Glanzzügen.</p>
           </div>
         </header>
-        {t.top_games.length ? (
+        {tk.top_games.length ? (
           <div class="mv-list">
-            {t.top_games.map((g) => (
+            {tk.top_games.map((g) => (
               <button key={g.game_id} class="tn-row" onClick={() => navigate({ view: "analysis", gameId: g.game_id, ply: g.first_ply !== undefined ? g.first_ply + 1 : undefined })}>
                 <span class="mv-badges">
                   {g.brilliant > 0 && (

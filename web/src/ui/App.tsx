@@ -115,7 +115,7 @@ export function App() {
   // Stored games are put right first (rating pool, double records, opening
   // names) so repair and analysis never write the same game at once.
   useEffect(() => {
-    const t = window.setTimeout(
+    const tk = window.setTimeout(
       () =>
         void repairGames()
           .catch(() => null)
@@ -126,7 +126,7 @@ export function App() {
           .catch(() => undefined),
       2500,
     );
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(tk);
   }, []);
 
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.

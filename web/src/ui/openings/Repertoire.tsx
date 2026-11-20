@@ -145,7 +145,7 @@ export function RepertoireMap({
       break;
     }
   }
-  const ticks = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter((t) => t <= maxGames * 1.25);
+  const ticks = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter((tk) => tk <= maxGames * 1.25);
   const active = hover ?? selected;
 
   return (
@@ -166,9 +166,9 @@ export function RepertoireMap({
             <title>Dein Schnitt {Math.round(average)} %</title>
           </line>
         )}
-        {ticks.map((t) => (
-          <text key={t} x={x(t)} y={h - 10} text-anchor="middle" class="chart-axis">
-            {t}
+        {ticks.map((tk) => (
+          <text key={tk} x={x(tk)} y={h - 10} text-anchor="middle" class="chart-axis">
+            {tk}
           </text>
         ))}
         {QUADRANTS.map((q) => (

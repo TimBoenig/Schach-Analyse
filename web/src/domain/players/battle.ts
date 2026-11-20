@@ -109,7 +109,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
   const rb = ranking.rows.find((r) => r.id === bId);
   if (!ra || !rb || ra === rb) return null;
   const higher = new Map(ranking.factors.map((f) => [f.key, f.higher_is_better]));
-  const total = BATTLE_ROUNDS.reduce((s, r) => s + r.factors.reduce((t, k) => t + (FACTOR_WEIGHTS[k] ?? 0), 0), 0);
+  const total = BATTLE_ROUNDS.reduce((s, r) => s + r.factors.reduce((tk, k) => tk + (FACTOR_WEIGHTS[k] ?? 0), 0), 0);
 
   const rounds: BattleRound[] = BATTLE_ROUNDS.map((def) => {
     const factors: BattleFactor[] = def.factors.map((key) => {
@@ -132,7 +132,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
     const p = wsum ? psum / wsum : null;
     const margin = p === null ? null : marginOf(p);
     const winner: BattleRound["winner"] = p === null ? null : margin === null ? "draw" : p > 0.5 ? "a" : "b";
-    const weight = (def.factors.reduce((t, k) => t + (FACTOR_WEIGHTS[k] ?? 0), 0) / total) * 100;
+    const weight = (def.factors.reduce((tk, k) => tk + (FACTOR_WEIGHTS[k] ?? 0), 0) / total) * 100;
     return { key: def.key, label: def.label, weight, p_a: p, winner, margin, factors };
   });
 

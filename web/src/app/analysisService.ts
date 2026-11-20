@@ -363,7 +363,7 @@ export function cancelGame(id: string): void {
 let wakeLock: { release: () => Promise<void> } | null = null;
 
 async function holdWakeLock(on: boolean): Promise<void> {
-  const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
+  const nav = navigator as Navigator & { wakeLock?: { request: (tk: "screen") => Promise<{ release: () => Promise<void> }> } };
   try {
     if (on && !wakeLock && nav.wakeLock && document.visibilityState === "visible") wakeLock = await nav.wakeLock.request("screen");
     if (!on && wakeLock) {

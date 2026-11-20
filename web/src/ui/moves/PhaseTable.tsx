@@ -7,8 +7,8 @@ import { CLASS_COLOR, classLabel } from "../labels";
 import { Level, SplitBar } from "../viz/Bars";
 import { de, plural } from "./shared";
 
-export function PhaseTable({ profile, t }: { profile: PlayerProfile; t: MoveTally }) {
-  const rows = phaseQuality(t);
+export function PhaseTable({ profile, t: tk }: { profile: PlayerProfile; t: MoveTally }) {
+  const rows = phaseQuality(tk);
   const rc = profile.rating;
   const accuracy = (profile.overview.phase_accuracy ?? {}) as Record<string, number>;
   const errorMax = Math.max(...rows.map((p) => p.serious_per_100), 1) * 1.15;

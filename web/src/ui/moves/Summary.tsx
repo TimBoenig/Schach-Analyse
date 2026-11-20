@@ -8,10 +8,10 @@ import { SplitBar, Stat } from "../viz/Bars";
 import { de, plural } from "./shared";
 
 /** Lucena's one sentence on the tally. */
-function lead(t: MoveTally, topPct: number): string {
-  const b = t.counts.Brilliant;
-  const g = t.counts.Great;
-  if (b) return `${plural(b, "brillanter Zug", "brillante Züge")} und ${plural(g, "großartiger", "großartige")} in ${plural(t.games, "Partie", "Partien")}. Sie stehen unten noch einmal zum Nachspielen.`;
+function lead(tk: MoveTally, topPct: number): string {
+  const b = tk.counts.Brilliant;
+  const g = tk.counts.Great;
+  if (b) return `${plural(b, "brillanter Zug", "brillante Züge")} und ${plural(g, "großartiger", "großartige")} in ${plural(tk.games, "Partie", "Partien")}. Sie stehen unten noch einmal zum Nachspielen.`;
   if (g) return `Noch kein brillanter Zug, aber schon ${plural(g, "großartiger Fund", "großartige Funde")}. Brillant wird ein Zug, wenn du dafür sauber Material opferst.`;
   return `${Math.round(topPct)} % deiner Züge sind schon der beste Zug. Der erste Glanzzug kommt bestimmt.`;
 }
@@ -24,31 +24,31 @@ function Versus({ theirs, verdict }: { theirs: string; verdict: -1 | 0 | 1 }) {
   );
 }
 
-export function MovesSummary({ t, onShine }: { t: MoveTally; onShine: () => void }) {
-  const s = tallySummary(t);
+export function MovesSummary({ t: tk, onShine }: { t: MoveTally; onShine: () => void }) {
+  const s = tallySummary(tk);
   const o = s.opponents;
-  const parts = TALLY_CLASSES.map((k) => ({ key: k, label: classLabel(k), value: t.counts[k], color: CLASS_COLOR[k] ?? "var(--surface-3)" }));
+  const parts = TALLY_CLASSES.map((k) => ({ key: k, label: classLabel(k), value: tk.counts[k], color: CLASS_COLOR[k] ?? "var(--surface-3)" }));
   return (
     <section class="card span-12 mv-sum" id="s-bilanz">
       <div class="mv-sum-head">
         <span class="eyebrow">
-          {plural(t.moves, "Zug", "Züge")} aus {plural(t.games, "analysierter Partie", "analysierten Partien")}
+          {plural(tk.moves, "Zug", "Züge")} aus {plural(tk.games, "analysierter Partie", "analysierten Partien")}
         </span>
         <h2 class="mv-title">
           <CountUp value={s.top_pct} /> von 100 Zügen sind <span>der beste Zug</span>
         </h2>
-        <p class="mv-sub">{lead(t, s.top_pct)}</p>
+        <p class="mv-sub">{lead(tk, s.top_pct)}</p>
       </div>
 
       <div class="mv-dist">
         <SplitBar parts={parts} height={14} />
         <div class="mv-groups">
           {KIND_GROUPS.map((g) => {
-            const n = sumOf(t.counts, g.classes);
+            const n = sumOf(tk.counts, g.classes);
             return (
               <div key={g.key} class={`mv-group g-${g.key}`}>
                 <span class="mv-group-name">{g.label}</span>
-                <strong class="tnum">{de((n / (t.moves || 1)) * 100, n / (t.moves || 1) < 0.1 ? 1 : 0)} %</strong>
+                <strong class="tnum">{de((n / (tk.moves || 1)) * 100, n / (tk.moves || 1) < 0.1 ? 1 : 0)} %</strong>
                 <span class="tnum">{plural(n, "Zug", "Züge")}</span>
               </div>
             );
@@ -74,9 +74,9 @@ export function MovesSummary({ t, onShine }: { t: MoveTally; onShine: () => void
         <Stat
           label="Patzer pro Partie"
           value={<CountUp value={s.blunders_per_game} format={(v) => de(v, 2)} />}
-          sub={`${plural(t.counts.Blunder, "Patzer", "Patzer")} · ${plural(t.records.blunder_free_games, "Partie", "Partien")} ganz ohne`}
+          sub={`${plural(tk.counts.Blunder, "Patzer", "Patzer")} · ${plural(tk.records.blunder_free_games, "Partie", "Partien")} ganz ohne`}
         />
-        <Stat label="Glanzzüge" value={<CountUp value={s.shine} />} sub={`${t.counts.Brilliant} brillant · ${t.counts.Great} großartig`}>
+        <Stat label="Glanzzüge" value={<CountUp value={s.shine} />} sub={`${tk.counts.Brilliant} brillant · ${tk.counts.Great} großartig`}>
           {s.shine > 0 && (
             <button class="link-btn mv-jump" onClick={onShine}>
               Ansehen <IconChevron />

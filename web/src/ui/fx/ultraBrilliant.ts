@@ -80,7 +80,7 @@ const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
 const easeOut = (p: number) => 1 - Math.pow(1 - Math.min(1, Math.max(0, p)), 3);
 /** 0 → 1 → 0 envelope: rises until `a`, holds, falls from `b` to `c`. */
-const envelope = (t: number, a: number, b: number, c: number) => (t < a ? t / a : t < b ? 1 : Math.max(0, 1 - (t - b) / (c - b)));
+const envelope = (tk: number, a: number, b: number, c: number) => (tk < a ? tk / a : tk < b ? 1 : Math.max(0, 1 - (tk - b) / (c - b)));
 
 /** Short synthesized fanfare: impact, rising arpeggio, held chord. */
 function fanfare(): () => void {
@@ -319,9 +319,9 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
   ];
   let next = 0;
 
-  const drawRays = (t: number) => {
+  const drawRays = (tk: number) => {
     if (!ctx) return;
-    const a = envelope(t, 0.5, 3.3, HOLD + FADE);
+    const a = envelope(tk, 0.5, 3.3, HOLD + FADE);
     if (a <= 0) return;
     const R = reach * 1.15;
     for (const [n, speed, color, strength, fill] of [
@@ -330,7 +330,7 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     ] as [number, number, Rgb, number, number][]) {
       ctx.save();
       ctx.translate(o.x, o.y);
-      ctx.rotate(t * speed);
+      ctx.rotate(tk * speed);
       const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
       g.addColorStop(0, rgba(color, strength * a));
       g.addColorStop(0.55, rgba(color, strength * 0.25 * a));
@@ -348,11 +348,11 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     }
   };
 
-  const drawPillar = (t: number) => {
+  const drawPillar = (tk: number) => {
     if (!ctx) return;
-    const a = envelope(t, 0.06, 0.5, 1.7);
+    const a = envelope(tk, 0.06, 0.5, 1.7);
     if (a <= 0) return;
-    const w = (40 + 150 * (1 - easeOut(t / 1.2))) * s;
+    const w = (40 + 150 * (1 - easeOut(tk / 1.2))) * s;
     const g = ctx.createLinearGradient(o.x - w, 0, o.x + w, 0);
     g.addColorStop(0, rgba(TEAL, 0));
     g.addColorStop(0.35, rgba(TEAL, 0.55 * a));
@@ -370,10 +370,10 @@ export function playUltraBrilliant(o: UltraOptions): () => void {
     ctx.fillRect(o.x - 170 * s, o.y - 170 * s, 340 * s, 340 * s);
   };
 
-  const drawWaves = (t: number) => {
+  const drawWaves = (tk: number) => {
     if (!ctx) return;
     for (const w of waves) {
-      const p = (t - w.at) / w.dur;
+      const p = (tk - w.at) / w.dur;
       if (p <= 0 || p >= 1) continue;
       ctx.beginPath();
       ctx.arc(w.x, w.y, easeOut(p) * reach, 0, Math.PI * 2);

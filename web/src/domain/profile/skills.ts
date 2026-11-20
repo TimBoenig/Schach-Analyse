@@ -55,8 +55,8 @@ export const RELIABLE_MARGIN = 18;
 /** Linear map of value onto 0..100 where `weak`->0 and `strong`->100 (either direction). */
 export function scale(value: number, weak: number, strong: number): number {
   if (strong === weak) return 50;
-  const t = (value - weak) / (strong - weak);
-  return pyRound(Math.max(0, Math.min(1, t)) * 100, 1);
+  const tk = (value - weak) / (strong - weak);
+  return pyRound(Math.max(0, Math.min(1, tk)) * 100, 1);
 }
 
 export function gradeFor(score: number): string {

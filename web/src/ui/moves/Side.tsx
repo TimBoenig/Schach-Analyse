@@ -6,7 +6,7 @@ import { Ring } from "../charts";
 import { IconPlay } from "../icons";
 import { navigate } from "../router";
 
-export function FindingsCard({ t }: { t: MoveTally }) {
+export function FindingsCard({ t: tk }: { t: MoveTally }) {
   return (
     <section class="card mv-find">
       <header class="card-head">
@@ -15,9 +15,9 @@ export function FindingsCard({ t }: { t: MoveTally }) {
           <p class="card-sub">Nur was viele Züge klar belegen.</p>
         </div>
       </header>
-      {t.findings.length ? (
+      {tk.findings.length ? (
         <ul class="fd-list">
-          {t.findings.map((f) => (
+          {tk.findings.map((f) => (
             <li class={`fd-item ${f.tone}`} key={f.key}>
               <span class="fd-mark" aria-hidden="true" />
               <div>

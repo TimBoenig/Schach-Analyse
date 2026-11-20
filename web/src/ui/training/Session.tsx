@@ -30,11 +30,11 @@ function useFocusMode(): void {
   }, []);
 }
 
-export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onExit: () => void }) {
+export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: TrainingState; onExit: () => void }) {
   useFocusMode();
   const parts = useMemo(() => spec.parts ?? [{ key: "all", title: spec.title, sub: "", ids: spec.ids }], [spec]);
   const exercises = useMemo(
-    () => parts.flatMap((p) => p.ids.map((id) => ({ ex: t.byId.get(id), part: p.key }))).filter((x): x is { ex: Exercise; part: string } => Boolean(x.ex)),
+    () => parts.flatMap((p) => p.ids.map((id) => ({ ex: tk.byId.get(id), part: p.key }))).filter((x): x is { ex: Exercise; part: string } => Boolean(x.ex)),
     [spec],
   );
   const [index, setIndex] = useState(0);
@@ -48,9 +48,9 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
 
   if (!ex) {
     const r = sessionResult(parts, results);
-    const days = streak(t.log, t.today);
+    const days = streak(tk.log, tk.today);
     const say = r.verdict === "none" ? "Hier gibt es gerade nichts zu tun." : r.verdict === "perfect" ? "Perfekt. Alles auf Anhieb gelöst." : r.verdict === "good" ? "Geschafft. Das war eine starke Einheit." : "Geschafft. Genau dafür üben wir.";
-    const titles = r.missed.map((id) => t.byId.get(id)?.title).filter((s): s is string => Boolean(s));
+    const titles = r.missed.map((id) => tk.byId.get(id)?.title).filter((s): s is string => Boolean(s));
     return (
       <Stage
         kicker="Lucena · Training"
@@ -181,7 +181,7 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
   const props = {
     onResult: (ok: boolean) => {
       setResults((r) => ({ ...r, [ex.id]: ok }));
-      t.record(ex, ok);
+      tk.record(ex, ok);
     },
     onNext: () => {
       const nxt = exercises[index + 1];
@@ -214,7 +214,7 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
       </header>
       <div class="ts-track" role="progressbar" aria-valuemin={0} aria-valuemax={exercises.length} aria-valuenow={index} aria-label="Fortschritt der Einheit">
         {parts.map((p) => {
-          const ids = p.ids.filter((id) => t.byId.has(id));
+          const ids = p.ids.filter((id) => tk.byId.has(id));
           if (!ids.length) return null;
           return (
             <div key={p.key} class={`ts-part${p.key === cur.part ? " on" : ""}`} style={{ flexGrow: ids.length }}>
@@ -230,7 +230,7 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
       </div>
       <div class="ts-run">
         {ex.kind === "puzzle" && <PuzzleRunner key={ex.id} ex={ex} {...props} />}
-        {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} learn={needsLearning(ex, t.progress[ex.id])} {...props} />}
+        {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} learn={needsLearning(ex, tk.progress[ex.id])} {...props} />}
         {ex.kind === "playout" && <PlayoutRunner key={ex.id} ex={ex} {...props} />}
       </div>
     </div>

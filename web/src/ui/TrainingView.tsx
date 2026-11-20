@@ -20,18 +20,18 @@ const GUIDE: Record<TrainingTab, GuideId> = { heute: "training", uebungen: "exer
 const GAME_PREFIX = "partie-";
 
 export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; category?: string }) {
-  const t = useTraining();
+  const tk = useTraining();
   const [session, setSession] = useState<SessionSpec | null>(null);
   const [autoStarted, setAutoStarted] = useState(false);
-  const ready = !t.loading && !t.error && Boolean(t.usernames?.length) && !session;
+  const ready = !tk.loading && !tk.error && Boolean(tk.usernames?.length) && !session;
   usePageGuide(GUIDE[tab], ready);
 
   // "Fehler üben" in a game report: the exercises made from that game, in move order.
   const fromGame = category?.startsWith(GAME_PREFIX) ? category.slice(GAME_PREFIX.length) : null;
   const [noGameExercises, setNoGameExercises] = useState(false);
-  if (!autoStarted && !t.loading && fromGame) {
+  if (!autoStarted && !tk.loading && fromGame) {
     setAutoStarted(true);
-    const ids = gameExercises(t.pool, fromGame);
+    const ids = gameExercises(tk.pool, fromGame);
     if (ids.length) setSession({ title: "Fehler aus dieser Partie", ids });
     else setNoGameExercises(true);
   }
@@ -39,25 +39,25 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
   // A link from the statistics ("Blunder-Check üben") starts that area at once.
   // Openings are the exception: they are the player's own choice, so the link
   // only opens the picker.
-  if (!autoStarted && !t.loading && category && category in CATEGORIES && t.pool.length) {
+  if (!autoStarted && !tk.loading && category && category in CATEGORIES && tk.pool.length) {
     setAutoStarted(true);
     if (category !== "repertoire") {
       const ids = pickSession(
-        t.pool.filter((e) => e.category === category),
-        t.progress,
-        t.today,
+        tk.pool.filter((e) => e.category === category),
+        tk.progress,
+        tk.today,
       );
       if (ids.length) setSession({ title: CATEGORIES[category as Category].label, ids });
     }
   }
 
   if (session) {
-    return <Session spec={session} t={t} onExit={() => setSession(null)} />;
+    return <Session spec={session} t={tk} onExit={() => setSession(null)} />;
   }
 
   const header = <PageHeader actions={ready ? <GuideButton id={GUIDE[tab]} /> : undefined} />;
 
-  if (t.loading) {
+  if (tk.loading) {
     return (
       <div>
         {header}
@@ -69,7 +69,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
       </div>
     );
   }
-  if (t.usernames && !t.usernames.length) {
+  if (tk.usernames && !tk.usernames.length) {
     return (
       <div>
         {header}
@@ -77,11 +77,11 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
       </div>
     );
   }
-  if (t.error) {
+  if (tk.error) {
     return (
       <div>
         {header}
-        <p class="error">{t.error}</p>
+        <p class="error">{tk.error}</p>
       </div>
     );
   }
@@ -89,7 +89,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
   return (
     <div>
       {header}
-      {t.profile?.is_empty && tab !== "heute" && (
+      {tk.profile?.is_empty && tab !== "heute" && (
         <div class="card notice tn-notice">
           <span>Noch keine Partie analysiert: Endspiel-Grundlagen und Eröffnungen kannst du schon üben. Aufgaben aus deinen Fehlern kommen dazu, sobald Partien analysiert sind.</span>
           <button class="btn small" onClick={() => navigate({ view: "games" })}>
@@ -105,9 +105,9 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
           </button>
         </div>
       )}
-      {tab === "heute" && <TodayPage t={t} start={setSession} />}
-      {tab === "uebungen" && <LibraryPage t={t} start={setSession} initial={category} />}
-      {tab === "fortschritt" && <ProgressPage t={t} />}
+      {tab === "heute" && <TodayPage t={tk} start={setSession} />}
+      {tab === "uebungen" && <LibraryPage t={tk} start={setSession} initial={category} />}
+      {tab === "fortschritt" && <ProgressPage t={tk} />}
     </div>
   );
 }

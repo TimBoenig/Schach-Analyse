@@ -266,9 +266,9 @@ function lineName(first: string, reply: string, profiles: PlayerProfile[]): stri
 
 function edgeOf(mine: PreviewLine["mine"], theirs: PreviewLine["theirs"]): PreviewLine["edge"] {
   const m = mine ? scoreDeviation(mine, 50, Z_ONE, MIN_LINE_GAMES) : 0;
-  const t = theirs ? scoreDeviation(theirs, 50, Z_ONE, MIN_LINE_GAMES) : 0;
-  const forMe = m > 0 || t < 0;
-  const forThem = m < 0 || t > 0;
+  const tk = theirs ? scoreDeviation(theirs, 50, Z_ONE, MIN_LINE_GAMES) : 0;
+  const forMe = m > 0 || tk < 0;
+  const forThem = m < 0 || tk > 0;
   return forMe && !forThem ? "me" : forThem && !forMe ? "them" : null;
 }
 
@@ -293,8 +293,8 @@ function preview(
       const mine = mineOf(f.san, r.san);
       const theirs = theirsOf(f.san, r.san);
       const m = mine ? { games: mine.games, score_pct: mine.score_pct } : null;
-      const t = theirs ? { games: theirs.games, score_pct: theirs.score_pct } : null;
-      out.push({ first: f.san, reply: r.san, chance, name: lineName(f.san, r.san, profiles), mine: m, theirs: t, edge: edgeOf(m, t) });
+      const tk = theirs ? { games: theirs.games, score_pct: theirs.score_pct } : null;
+      out.push({ first: f.san, reply: r.san, chance, name: lineName(f.san, r.san, profiles), mine: m, theirs: tk, edge: edgeOf(m, tk) });
     }
   }
   return out.sort((a, b) => b.chance - a.chance).slice(0, limit);

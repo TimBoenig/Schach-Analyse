@@ -300,16 +300,16 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
           </ol>
         )}
         <ul class="fd-list">
-          {review.negatives.slice(0, 2).map((t) => (
-            <li class="fd-item neg" key={t}>
+          {review.negatives.slice(0, 2).map((tk) => (
+            <li class="fd-item neg" key={tk}>
               <span class="fd-mark" aria-hidden="true" />
-              <div>{t}</div>
+              <div>{tk}</div>
             </li>
           ))}
-          {review.positives.slice(1, 3).map((t) => (
-            <li class="fd-item pos" key={t}>
+          {review.positives.slice(1, 3).map((tk) => (
+            <li class="fd-item pos" key={tk}>
               <span class="fd-mark" aria-hidden="true" />
-              <div>{t}</div>
+              <div>{tk}</div>
             </li>
           ))}
         </ul>

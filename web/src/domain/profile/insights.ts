@@ -488,5 +488,5 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   }
 
   facts.push(...d.precision.facts);
-  return facts.sort((a, b) => b[0] - a[0]).map(([, t]) => t);
+  return facts.sort((a, b) => b[0] - a[0]).map(([, tk]) => tk);
 }

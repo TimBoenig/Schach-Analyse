@@ -120,9 +120,9 @@ export function screenToBoard(viewProj: Mat4, sx: number, sy: number): { x: numb
   const b = unproject(1);
   const dy = b[1] - a[1];
   if (Math.abs(dy) < 1e-9) return null;
-  const t = -a[1] / dy;
-  if (t < 0) return null;
-  return { x: a[0] + (b[0] - a[0]) * t, z: a[2] + (b[2] - a[2]) * t };
+  const tk = -a[1] / dy;
+  if (tk < 0) return null;
+  return { x: a[0] + (b[0] - a[0]) * tk, z: a[2] + (b[2] - a[2]) * tk };
 }
 
 export const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];

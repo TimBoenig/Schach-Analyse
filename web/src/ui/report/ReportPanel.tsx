@@ -247,18 +247,18 @@ export function ReportPanel({
         </header>
         <div class="fd-cols rp-cols">
           <ul class="fd-list">
-            {review.positives.map((t) => (
-              <li class="fd-item pos" key={t}>
+            {review.positives.map((tk) => (
+              <li class="fd-item pos" key={tk}>
                 <span class="fd-mark" aria-hidden="true" />
-                <div>{t}</div>
+                <div>{tk}</div>
               </li>
             ))}
           </ul>
           <ul class="fd-list">
-            {review.negatives.map((t) => (
-              <li class="fd-item neg" key={t}>
+            {review.negatives.map((tk) => (
+              <li class="fd-item neg" key={tk}>
                 <span class="fd-mark" aria-hidden="true" />
-                <div>{t}</div>
+                <div>{tk}</div>
               </li>
             ))}
           </ul>

@@ -54,25 +54,25 @@ export function dayStart(day: string): number {
  * has been quiet for a year still shows its last active months.
  */
 export function ratingHistory(series: RatingSeries, rangeDays: number | null): RatingHistory | null {
-  const sorted = [...series].filter(([t, r]) => t > 0 && r > 0).sort((a, b) => a[0] - b[0]);
+  const sorted = [...series].filter(([tk, r]) => tk > 0 && r > 0).sort((a, b) => a[0] - b[0]);
   if (!sorted.length) return null;
   const end = sorted[sorted.length - 1][0];
   const from = rangeDays ? dayStart(localDay(end - rangeDays * DAY)) : -Infinity;
   const points: RatingPoint[] = [];
   let peak: { t: number; value: number } | null = null;
   let low: { t: number; value: number } | null = null;
-  for (const [t, value] of sorted) {
-    if (t < from) continue;
-    if (!peak || value > peak.value) peak = { t, value };
-    if (!low || value < low.value) low = { t, value };
-    const day = localDay(t);
+  for (const [tk, value] of sorted) {
+    if (tk < from) continue;
+    if (!peak || value > peak.value) peak = { t: tk, value };
+    if (!low || value < low.value) low = { t: tk, value };
+    const day = localDay(tk);
     const prev = points[points.length - 1];
     if (prev && prev.day === day) {
-      prev.t = t;
+      prev.t = tk;
       prev.value = value;
       prev.games++;
     } else {
-      points.push({ t, value, day, games: 1 });
+      points.push({ t: tk, value, day, games: 1 });
     }
   }
   if (!points.length || !peak || !low) return null;

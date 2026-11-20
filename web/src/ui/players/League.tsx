@@ -232,7 +232,7 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
   const leader = ranked[0];
   const lead = leader.strength as StrengthEstimate;
   const title = leader.is_me ? "Du führst die Liga an" : `${leader.name} führt die Liga an`;
-  const win = (id: string) => tournament?.rows.find((t) => t.id === id)?.win ?? null;
+  const win = (id: string) => tournament?.rows.find((tk) => tk.id === id)?.win ?? null;
   const i = me ? ranked.indexOf(me) : -1;
   const above = i > 0 ? ranked[i - 1] : null;
   const below = me && i < ranked.length - 1 ? ranked[i + 1] : null;
@@ -390,7 +390,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
       <ol class="lg-rows">
         {ranking.rows.map((r, i) => {
           const isOpen = open === r.id;
-          const t = types[r.id];
+          const tk = types[r.id];
           return (
             <li key={r.id} class={`lg-row${r.is_me ? " me" : ""}${isOpen ? " open" : ""}`} style={{ "--i": i } as Record<string, number>}>
               <button class="lg-row-main" onClick={() => setOpen(isOpen ? null : r.id)} aria-expanded={isOpen}>
@@ -403,7 +403,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                   <span class="faint small">
                     {r.strength === null
                       ? `zu wenig Partien (${r.rated_games}/${MIN_RATED_GAMES})`
-                      : `${r.odds && r.odds.low !== r.odds.high ? `Platz ${placeRange(r)} möglich` : "Platz sicher"}${t && t.title !== "Noch offen" ? ` · ${t.title}` : ""}`}
+                      : `${r.odds && r.odds.low !== r.odds.high ? `Platz ${placeRange(r)} möglich` : "Platz sicher"}${tk && tk.title !== "Noch offen" ? ` · ${tk.title}` : ""}`}
                   </span>
                 </span>
                 <span class="lg-row-stats">
@@ -450,9 +450,9 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
   );
 }
 
-function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
+function TournamentCard({ t: tk, tones }: { t: Tournament | null; tones: Tones }) {
   const on = useEntrance();
-  if (!t) {
+  if (!tk) {
     return (
       <section class="card tile span-5 lg-cup">
         <div class="tile-head">
@@ -462,20 +462,20 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
       </section>
     );
   }
-  const max = Math.max(...t.rows.map((r) => r.win), 0.0001);
+  const max = Math.max(...tk.rows.map((r) => r.win), 0.0001);
   return (
     <section class="card tile span-5 lg-cup">
       <div class="tile-head">
         <h3>
           <IconTrophy /> Wer gewinnt euer Turnier?
         </h3>
-        <span class="tile-sub">{t.runs.toLocaleString("de-DE")}-mal gespielt</span>
+        <span class="tile-sub">{tk.runs.toLocaleString("de-DE")}-mal gespielt</span>
       </div>
       <p class="small muted" style={{ marginTop: 0 }}>
-        Jeder gegen jeden, Hin- und Rückrunde: {plural(t.games_each, "Partie", "Partien")} pro Spieler.
+        Jeder gegen jeden, Hin- und Rückrunde: {plural(tk.games_each, "Partie", "Partien")} pro Spieler.
       </p>
       <div class="lg-cup-rows">
-        {t.rows.map((r, i) => (
+        {tk.rows.map((r, i) => (
           <div class={`lg-cup-row${r.is_me ? " me" : ""}`} key={r.id}>
             <span class="lg-cup-name">
               <Avatar name={r.name} tone={tones[r.id]} size="sm" />
@@ -486,13 +486,13 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
             </span>
             <strong class="tnum lg-cup-pct">{winPct(r.win)}</strong>
             <span class="faint small lg-cup-sub tnum">
-              Podest {winPct(r.podium)} · Ø {de(r.expected, 1)} von {t.games_each}
+              Podest {winPct(r.podium)} · Ø {de(r.expected, 1)} von {tk.games_each}
             </span>
           </div>
         ))}
       </div>
       <Foot>
-        Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein. {pct0(t.draw_rate * 100)} enden remis.
+        Jeder Durchgang zieht zuerst eure wahre Stärke aus der Unsicherheit und würfelt dann jede Partie nach der Elo-Formel aus; eure direkten Partien gehen gedämpft ein. {pct0(tk.draw_rate * 100)} enden remis.
       </Foot>
     </section>
   );
@@ -502,19 +502,19 @@ function TournamentCard({ t, tones }: { t: Tournament | null; tones: Tones }) {
 
 function ClimbCard({ plan, onTry }: { plan: ClimbPlan | null; onTry: (s: Sim) => void }) {
   if (!plan || plan.rank === null) return null;
-  const t = plan.target;
+  const tk = plan.target;
   const ch = plan.chaser;
   return (
     <section class="card tile span-12 lg-climb">
       <div class="tile-head">
         <h3>
-          <IconRise /> {t ? `So überholst du ${t.name}` : "Du stehst ganz oben"}
+          <IconRise /> {tk ? `So überholst du ${tk.name}` : "Du stehst ganz oben"}
         </h3>
-        <span class="tile-sub">{t ? `${plan.gap_elo} Elo-Punkte bis Platz ${t.rank}` : "jetzt heißt es: verteidigen"}</span>
+        <span class="tile-sub">{tk ? `${plan.gap_elo} Elo-Punkte bis Platz ${tk.rank}` : "jetzt heißt es: verteidigen"}</span>
       </div>
       <div class="lg-climb-grid">
         <div>
-          {!t ? (
+          {!tk ? (
             <p class="small muted">Niemand liegt vor dir. Rechts siehst du, wer am nächsten dran ist.</p>
           ) : (
             <>
@@ -1106,18 +1106,18 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
       </div>
       <div class="lg-type-list">
         {ranking.rows.map((r) => {
-          const t = types[r.id];
-          if (!t) return null;
+          const tk = types[r.id];
+          if (!tk) return null;
           return (
             <div class="lg-type" key={r.id}>
               <Avatar name={r.name} tone={tones[r.id]} />
               <span>
-                <strong>{t.title}</strong>
+                <strong>{tk.title}</strong>
                 <span class="faint small">
                   {r.name}
-                  {t.area && t.offset !== null ? ` · ${AREA_LABEL[t.area]} ${signed(Math.round(t.offset / 10) * 10, 0)} Elo über dem eigenen Schnitt` : ""}
-                  {t.weak ? ` · Baustelle: ${t.weak}` : ""}
-                  {t.practice === "fighter" ? " · holt mehr, als die Züge wert sind" : t.practice === "unlucky" ? " · lässt Punkte liegen" : ""}
+                  {tk.area && tk.offset !== null ? ` · ${AREA_LABEL[tk.area]} ${signed(Math.round(tk.offset / 10) * 10, 0)} Elo über dem eigenen Schnitt` : ""}
+                  {tk.weak ? ` · Baustelle: ${tk.weak}` : ""}
+                  {tk.practice === "fighter" ? " · holt mehr, als die Züge wert sind" : tk.practice === "unlucky" ? " · lässt Punkte liegen" : ""}
                 </span>
               </span>
             </div>
@@ -1133,7 +1133,7 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
 
 // ---------- form ----------
 
-const SHORT_DATE = (t: number) => new Date(t * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+const SHORT_DATE = (tk: number) => new Date(tk * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
 
 /** Spans the form curve offers, in weeks. */
 const FORM_SPANS: [string, number][] = [

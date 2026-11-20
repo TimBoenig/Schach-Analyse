@@ -85,7 +85,7 @@ export function TrendChart({ points, format = (v) => String(Math.round(v)), heig
   const t1 = points[points.length - 1].t;
   const values = points.map((p) => p.value);
   const scale = valueScale(reference ? [...values, reference.value] : values, 4, bounds);
-  const x = (t: number) => PAD.left + (t1 > t0 ? (t - t0) / (t1 - t0) : 0.5) * innerW;
+  const x = (tk: number) => PAD.left + (t1 > t0 ? (tk - t0) / (t1 - t0) : 0.5) * innerW;
   const y = (v: number) => PAD.top + (1 - (v - scale.min) / (scale.max - scale.min)) * innerH;
   const xs = points.map((p) => x(p.t));
   const ys = points.map((p) => y(p.value));

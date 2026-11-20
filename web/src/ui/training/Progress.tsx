@@ -42,10 +42,10 @@ const MONTH_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "S
 
 const comma = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
-function Summary({ t }: { t: TrainingState }) {
-  const totals = logTotals(t.log);
-  const run = streak(t.log, t.today);
-  const pool = poolTotals(categoryOverview(t.pool, t.progress, t.today));
+function Summary({ t: tk }: { t: TrainingState }) {
+  const totals = logTotals(tk.log);
+  const run = streak(tk.log, tk.today);
+  const pool = poolTotals(categoryOverview(tk.pool, tk.progress, tk.today));
   return (
     <section class="card span-12 tx-sum tp-sum">
       <Stat label="Serie" value={<CountUp value={run} />} sub={`${run === 1 ? "Tag" : "Tage"} in Folge${totals.longest > run ? ` · längste ${totals.longest}` : ""}`} />
@@ -70,8 +70,8 @@ function Summary({ t }: { t: TrainingState }) {
 }
 
 /** The training calendar: one square per day, darker with more exercises. */
-function CalendarCard({ t }: { t: TrainingState }) {
-  const a = activity(t.log, t.today, CALENDAR_WEEKS);
+function CalendarCard({ t: tk }: { t: TrainingState }) {
+  const a = activity(tk.log, tk.today, CALENDAR_WEEKS);
   const [hover, setHover] = useState<ActivityDay | null>(null);
   const shown = hover ?? a.best;
   // A month name stands over the first week that starts in it.
@@ -108,7 +108,7 @@ function CalendarCard({ t }: { t: TrainingState }) {
               return (
                 <i
                   key={day.date}
-                  class={`tp-cell l${day.level}${day.future ? " future" : ""}${day.date === t.today ? " today" : ""}`}
+                  class={`tp-cell l${day.level}${day.future ? " future" : ""}${day.date === tk.today ? " today" : ""}`}
                   title={day.future ? "" : `${dayShort(day.date)}: ${day.done ? `${day.correct} von ${day.done} auf Anhieb` : "kein Training"}`}
                   onPointerEnter={() => setHover(day.future ? null : day)}
                 />
@@ -140,9 +140,9 @@ function CalendarCard({ t }: { t: TrainingState }) {
 }
 
 /** Weekly solve rate over two months plus an honest verdict on the last two weeks. */
-function RateCard({ t }: { t: TrainingState }) {
-  const weeks = weeklyRates(t.log, t.today, RATE_WEEKS);
-  const { overall } = trainingTrends(t.log, t.today);
+function RateCard({ t: tk }: { t: TrainingState }) {
+  const weeks = weeklyRates(tk.log, tk.today, RATE_WEEKS);
+  const { overall } = trainingTrends(tk.log, tk.today);
   const points: TrendPoint[] = weeks
     .filter((w) => w.rate !== null)
     .map((w) => ({
@@ -178,8 +178,8 @@ function RateCard({ t }: { t: TrainingState }) {
 }
 
 /** How much of what was practised is still there days later (solve rate on repetitions). */
-function RetentionCard({ t }: { t: TrainingState }) {
-  const r = retention(t.log, t.today);
+function RetentionCard({ t: tk }: { t: TrainingState }) {
+  const r = retention(tk.log, tk.today);
   const rate = r.done ? (r.solved / r.done) * 100 : 0;
   return (
     <section class="card span-6 tp-keep">
@@ -231,8 +231,8 @@ function transferText(row: TransferRow): string {
 }
 
 /** Before/after training in real games, only with enough data and a significant difference. */
-function TransferCard({ t }: { t: TrainingState }) {
-  const report = transferReport(t.profile?.error_series ?? [], trainingStart(Object.keys(t.log).filter((d) => t.log[d].done)));
+function TransferCard({ t: tk }: { t: TrainingState }) {
+  const report = transferReport(tk.profile?.error_series ?? [], trainingStart(Object.keys(tk.log).filter((d) => tk.log[d].done)));
   const fmt = (row: TransferRow, v: number | null) => (v === null ? "–" : row.metric === "accuracy" ? `${comma(v)} %` : comma(v));
   return (
     <section class="card span-6 tp-transfer">
@@ -284,10 +284,10 @@ function TransferCard({ t }: { t: TrainingState }) {
 
 const TREND_TEXT: Record<Direction, string> = { up: "besser", down: "schlechter", flat: "stabil", unknown: "" };
 
-function AreasCard({ t }: { t: TrainingState }) {
-  const rows = categoryOverview(t.pool, t.progress, t.today);
+function AreasCard({ t: tk }: { t: TrainingState }) {
+  const rows = categoryOverview(tk.pool, tk.progress, tk.today);
   const by = new Map(rows.map((r) => [r.category, r]));
-  const trends = trainingTrends(t.log, t.today).byCategory;
+  const trends = trainingTrends(tk.log, tk.today).byCategory;
   const order = LIBRARY_GROUPS.flatMap((g) => g.categories).filter((c) => (by.get(c)?.total ?? 0) > 0);
   return (
     <section class="card span-12 tp-areas">
@@ -358,9 +358,9 @@ function AreasCard({ t }: { t: TrainingState }) {
 }
 
 /** Each repertoire line and how far up the repetition ladder it is. */
-function OpeningsCard({ t }: { t: TrainingState }) {
+function OpeningsCard({ t: tk }: { t: TrainingState }) {
   // Library lines appear once they were practised; untouched ones would only be noise.
-  const rows = openingProgress(t.pool, t.progress, t.today).filter((r) => !r.id.startsWith("lib:") || r.attempts > 0);
+  const rows = openingProgress(tk.pool, tk.progress, tk.today).filter((r) => !r.id.startsWith("lib:") || r.attempts > 0);
   const [all, setAll] = useState(false);
   if (!rows.length) return null;
   const shown = all ? rows : rows.slice(0, OPENING_ROWS);
@@ -411,8 +411,8 @@ function OpeningsCard({ t }: { t: TrainingState }) {
   );
 }
 
-export function ProgressPage({ t }: { t: TrainingState }) {
-  const started = logTotals(t.log).done > 0;
+export function ProgressPage({ t: tk }: { t: TrainingState }) {
+  const started = logTotals(tk.log).done > 0;
   if (!started) {
     return (
       <div class="dash tn">
@@ -428,19 +428,19 @@ export function ProgressPage({ t }: { t: TrainingState }) {
             </button>
           </div>
         </section>
-        <AreasCard t={t} />
+        <AreasCard t={tk} />
       </div>
     );
   }
   return (
     <div class="dash tn">
-      <Summary t={t} />
-      <CalendarCard t={t} />
-      <RateCard t={t} />
-      <RetentionCard t={t} />
-      <TransferCard t={t} />
-      <AreasCard t={t} />
-      <OpeningsCard t={t} />
+      <Summary t={tk} />
+      <CalendarCard t={tk} />
+      <RateCard t={tk} />
+      <RetentionCard t={tk} />
+      <TransferCard t={tk} />
+      <AreasCard t={tk} />
+      <OpeningsCard t={tk} />
     </div>
   );
 }

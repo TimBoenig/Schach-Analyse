@@ -36,19 +36,19 @@ export interface KindRow {
 const per100 = (n: number, moves: number) => (moves ? (n / moves) * 100 : 0);
 
 /** Every kind of move, best to worst, with the comparison against the opponents. */
-export function kindRows(t: MoveTally): KindRow[] {
-  const o = t.opponents;
+export function kindRows(tk: MoveTally): KindRow[] {
+  const o = tk.opponents;
   return TALLY_CLASSES.map((key) => {
-    const c = t.classes.find((x) => x.key === key)!;
+    const c = tk.classes.find((x) => x.key === key)!;
     const group = KIND_GROUPS.find((g) => g.classes.includes(key))!.key;
     const more = MORE_IS_BETTER.includes(key);
     const judged = o !== null && (more || FEWER_IS_BETTER.includes(key));
     let verdict: KindRow["verdict"] = null;
     if (judged) {
-      const mine = per100(c.count, t.moves);
+      const mine = per100(c.count, tk.moves);
       const theirs = per100(o.counts[key], o.moves);
       // Seven rows are compared at once, so the bar is the one for multiple comparisons.
-      verdict = ratesDiffer(c.count, t.moves, o.counts[key], o.moves, Z_MULTI) ? (mine > theirs === more ? 1 : -1) : 0;
+      verdict = ratesDiffer(c.count, tk.moves, o.counts[key], o.moves, Z_MULTI) ? (mine > theirs === more ? 1 : -1) : 0;
     }
     return { key, group, count: c.count, per_100: c.per_100, per_game: c.per_game, games_with: c.games_with, opp_per_100: o ? per100(o.counts[key], o.moves) : null, verdict };
   });
@@ -66,22 +66,22 @@ export interface TallySummary {
   opponents: { top_pct: number; serious_per_100: number; top_verdict: -1 | 0 | 1; serious_verdict: -1 | 0 | 1 } | null;
 }
 
-export function tallySummary(t: MoveTally): TallySummary {
-  const o = t.opponents;
-  const top = sumOf(t.counts, TOP_CLASSES);
-  const serious = sumOf(t.counts, SERIOUS_CLASSES);
+export function tallySummary(tk: MoveTally): TallySummary {
+  const o = tk.opponents;
+  const top = sumOf(tk.counts, TOP_CLASSES);
+  const serious = sumOf(tk.counts, SERIOUS_CLASSES);
   let opponents: TallySummary["opponents"] = null;
   if (o) {
     const oTop = sumOf(o.counts, TOP_CLASSES);
     const oSerious = sumOf(o.counts, SERIOUS_CLASSES);
-    const side = (mine: number, theirs: number, more: boolean) => (ratesDiffer(mine, t.moves, theirs, o.moves, Z_MULTI) ? (mine / t.moves > theirs / o.moves === more ? 1 : -1) : 0);
+    const side = (mine: number, theirs: number, more: boolean) => (ratesDiffer(mine, tk.moves, theirs, o.moves, Z_MULTI) ? (mine / tk.moves > theirs / o.moves === more ? 1 : -1) : 0);
     opponents = { top_pct: per100(oTop, o.moves), serious_per_100: per100(oSerious, o.moves), top_verdict: side(top, oTop, true), serious_verdict: side(serious, oSerious, false) };
   }
   return {
-    top_pct: per100(top, t.moves),
-    serious_per_100: per100(serious, t.moves),
-    blunders_per_game: t.games ? t.counts.Blunder / t.games : 0,
-    shine: t.counts.Brilliant + t.counts.Great,
+    top_pct: per100(top, tk.moves),
+    serious_per_100: per100(serious, tk.moves),
+    blunders_per_game: tk.games ? tk.counts.Blunder / tk.games : 0,
+    shine: tk.counts.Brilliant + tk.counts.Great,
     opponents,
   };
 }
@@ -99,8 +99,8 @@ export interface PhaseQuality {
 }
 
 /** Opening, middlegame and endgame side by side; phases without a move are left out. */
-export function phaseQuality(t: MoveTally): PhaseQuality[] {
-  return t.phases
+export function phaseQuality(tk: MoveTally): PhaseQuality[] {
+  return tk.phases
     .filter((p) => p.moves > 0)
     .map((p) => ({
       key: p.key,

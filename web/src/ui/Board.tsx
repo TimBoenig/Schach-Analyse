@@ -375,17 +375,17 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       onPointerCancel={cancelPick}
       onContextMenu={(e) => annotate && e.preventDefault()}
       onTouchStart={(e) => {
-        const t = e.touches[0];
-        const sq = t ? squareAt(t.clientX, t.clientY) : null;
-        swipeStart.current = t && !(sq && placement.has(sq)) ? { x: t.clientX, y: t.clientY } : null;
+        const tk = e.touches[0];
+        const sq = tk ? squareAt(tk.clientX, tk.clientY) : null;
+        swipeStart.current = tk && !(sq && placement.has(sq)) ? { x: tk.clientX, y: tk.clientY } : null;
       }}
       onTouchEnd={(e) => {
         const s = swipeStart.current;
-        const t = e.changedTouches[0];
+        const tk = e.changedTouches[0];
         swipeStart.current = null;
-        if (!s || !t || !onSwipe) return;
-        const dx = t.clientX - s.x;
-        const dy = t.clientY - s.y;
+        if (!s || !tk || !onSwipe) return;
+        const dx = tk.clientX - s.x;
+        const dy = tk.clientY - s.y;
         if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? "left" : "right");
       }}
     >

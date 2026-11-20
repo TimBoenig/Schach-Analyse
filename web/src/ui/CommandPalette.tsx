@@ -39,11 +39,11 @@ const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 
 /** Fuzzy-ish match: every word of the query appears somewhere in the text. */
 function matches(text: string, query: string): boolean {
-  const t = norm(text);
+  const tk = norm(text);
   return norm(query)
     .split(/\s+/)
     .filter(Boolean)
-    .every((w) => t.includes(w));
+    .every((w) => tk.includes(w));
 }
 
 export function CommandPalette({

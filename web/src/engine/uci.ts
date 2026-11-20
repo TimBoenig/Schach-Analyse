@@ -37,16 +37,16 @@ export function parseInfoLine(line: string): (PvLine & { multipv: number }) | nu
   let pv: string[] = [];
   let bound = false;
   for (let i = 1; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t === "depth") depth = Number(tokens[++i]);
-    else if (t === "multipv") multipv = Number(tokens[++i]);
-    else if (t === "score") {
+    const tk = tokens[i];
+    if (tk === "depth") depth = Number(tokens[++i]);
+    else if (tk === "multipv") multipv = Number(tokens[++i]);
+    else if (tk === "score") {
       const kind = tokens[++i];
       const value = Number(tokens[++i]);
       if (kind === "cp") cp = value;
       else if (kind === "mate") mate = value;
       if (tokens[i + 1] === "lowerbound" || tokens[i + 1] === "upperbound") bound = true;
-    } else if (t === "pv") {
+    } else if (tk === "pv") {
       pv = tokens.slice(i + 1);
       break;
     }

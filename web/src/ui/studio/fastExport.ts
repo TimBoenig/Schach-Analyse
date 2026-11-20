@@ -14,7 +14,7 @@ export interface FastJob {
   canvas: HTMLCanvasElement;
   fps: number;
   duration: number;
-  paint: (t: number) => void;
+  paint: (tk: number) => void;
   timeline: Timeline;
   mix: AudioMix | null;
   onProgress?: (k: number) => void;

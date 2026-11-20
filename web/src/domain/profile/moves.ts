@@ -291,43 +291,43 @@ export function buildMoveTally(feats: GameFeatures[]): MoveTally | null {
 }
 
 /** Evidence-checked sentences about the tally (empty when nothing is clear). */
-function tallyFindings(t: MoveTally, perGame: { f: GameFeatures; c: Counts }[]): TallyFinding[] {
+function tallyFindings(tk: MoveTally, perGame: { f: GameFeatures; c: Counts }[]): TallyFinding[] {
   const out: TallyFinding[] = [];
 
   // 1. Against the opponents of the same games.
-  if (t.opponents) {
-    const o = t.opponents;
-    const mine = sumOf(t.counts, SERIOUS_CLASSES);
+  if (tk.opponents) {
+    const o = tk.opponents;
+    const mine = sumOf(tk.counts, SERIOUS_CLASSES);
     const theirs = sumOf(o.counts, SERIOUS_CLASSES);
-    if (ratesDiffer(mine, t.moves, theirs, o.moves)) {
-      const fewer = per100(mine, t.moves) < per100(theirs, o.moves);
+    if (ratesDiffer(mine, tk.moves, theirs, o.moves)) {
+      const fewer = per100(mine, tk.moves) < per100(theirs, o.moves);
       out.push({
         key: "vs_opp_errors",
         title: fewer ? "Weniger grobe Fehler als die Gegner" : "Mehr grobe Fehler als die Gegner",
-        text: `Du machst ${de1(per100(mine, t.moves))} Fehler, Patzer und verpasste Chancen pro 100 Züge, die Gegner ${de1(per100(theirs, o.moves))}.`,
+        text: `Du machst ${de1(per100(mine, tk.moves))} Fehler, Patzer und verpasste Chancen pro 100 Züge, die Gegner ${de1(per100(theirs, o.moves))}.`,
         tone: fewer ? "pos" : "neg",
       });
     }
-    const myTop = sumOf(t.counts, TOP_CLASSES);
+    const myTop = sumOf(tk.counts, TOP_CLASSES);
     const theirTop = sumOf(o.counts, TOP_CLASSES);
-    if (ratesDiffer(myTop, t.moves, theirTop, o.moves)) {
-      const more = per100(myTop, t.moves) > per100(theirTop, o.moves);
+    if (ratesDiffer(myTop, tk.moves, theirTop, o.moves)) {
+      const more = per100(myTop, tk.moves) > per100(theirTop, o.moves);
       out.push({
         key: "vs_opp_top",
         title: more ? "Öfter den besten Zug als die Gegner" : "Seltener den besten Zug als die Gegner",
-        text: `${Math.round(per100(myTop, t.moves))} % deiner Züge sind brillant, großartig oder der beste Zug, bei den Gegnern ${Math.round(per100(theirTop, o.moves))} %.`,
+        text: `${Math.round(per100(myTop, tk.moves))} % deiner Züge sind brillant, großartig oder der beste Zug, bei den Gegnern ${Math.round(per100(theirTop, o.moves))} %.`,
         tone: more ? "pos" : "neg",
       });
     }
   }
 
   // 2. The phase with clearly the most serious errors; picking the worst of three needs Z_MULTI.
-  const rated = t.phases.filter((p) => p.moves);
+  const rated = tk.phases.filter((p) => p.moves);
   const rate = (p: TallyBlock) => per100(sumOf(p.counts, SERIOUS_CLASSES), p.moves);
   const worst = [...rated].sort((a, b) => rate(b) - rate(a))[0];
   if (worst && rated.length >= 2) {
-    const restMoves = t.moves - worst.moves;
-    const restErr = sumOf(t.counts, SERIOUS_CLASSES) - sumOf(worst.counts, SERIOUS_CLASSES);
+    const restMoves = tk.moves - worst.moves;
+    const restErr = sumOf(tk.counts, SERIOUS_CLASSES) - sumOf(worst.counts, SERIOUS_CLASSES);
     if (ratesDiffer(sumOf(worst.counts, SERIOUS_CLASSES), worst.moves, restErr, restMoves, Z_MULTI)) {
       out.push({
         key: "phase_errors",

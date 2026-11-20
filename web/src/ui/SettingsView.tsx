@@ -29,7 +29,7 @@ function AboutCard() {
   const taps = useRef<number[]>([]);
   const tap = () => {
     const now = Date.now();
-    taps.current = [...taps.current.filter((t) => now - t < 3000), now];
+    taps.current = [...taps.current.filter((tk) => now - tk < 3000), now];
     if (!unlocked && taps.current.length >= UNLOCK_TAPS) {
       taps.current = [];
       setStudioUnlocked(true);
@@ -153,24 +153,24 @@ function AppearanceCard() {
       </div>
       <div class="board-themes">
         {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((k) => {
-          const t = BOARD_THEMES[k];
+          const tk = BOARD_THEMES[k];
           return (
             <button
               key={k}
               class={`board-theme${board === k ? " active" : ""}`}
-              aria-label={`Brettfarben ${t.label}`}
+              aria-label={`Brettfarben ${tk.label}`}
               onClick={() => {
                 setBoard(k);
                 void setBoardTheme(k);
               }}
             >
               <span class="swatch">
-                <span style={{ background: t.light }} />
-                <span style={{ background: t.dark }} />
-                <span style={{ background: t.dark }} />
-                <span style={{ background: t.light }} />
+                <span style={{ background: tk.light }} />
+                <span style={{ background: tk.dark }} />
+                <span style={{ background: tk.dark }} />
+                <span style={{ background: tk.light }} />
               </span>
-              {t.label}
+              {tk.label}
             </button>
           );
         })}

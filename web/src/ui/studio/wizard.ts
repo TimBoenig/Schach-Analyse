@@ -472,9 +472,9 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
       const ms = v.moves.map((s) => played.move(s));
       const walk = new Chess(vf);
       const texts = v.moves.slice(0, 3).map((san, k) => {
-        const t = explainMove(walk.fen(), san, v.from + k);
+        const tk = explainMove(walk.fen(), san, v.from + k);
         walk.move(san);
-        return t;
+        return tk;
       });
       const last = texts[texts.length - 1];
       scenes.push(
@@ -483,7 +483,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           moves: movesLabel(ms, vf),
           label: `Variante ${vi + 1}`,
           title: `Und wenn ${movesLabel(ms.slice(0, 1), vf).replace(/^\d+(\.|…) /, "")}?`,
-          text: texts.map((t) => t.text).join(" | "),
+          text: texts.map((tk) => tk.text).join(" | "),
           arrows: last?.arrows ?? [],
           marks: last?.marks ?? [],
           camera: "corner",
@@ -538,7 +538,7 @@ export function sentences(script: string): string[] {
 /** Moves a sentence mentions (e4, Sf3, Lb5, O-O …), in English SAN without check marks. */
 function mentions(sentence: string): string[] {
   const found = sentence.match(/\b(?:[KDTLSQRBN]?[a-h]?[1-8]?x?[a-h][1-8](?:=[DTLSQRBN])?|0-0(?:-0)?|O-O(?:-O)?)/g) ?? [];
-  return moveTokens(found.join(" ")).map((t) => t.replace(/[+#]/g, ""));
+  return moveTokens(found.join(" ")).map((tk) => tk.replace(/[+#]/g, ""));
 }
 
 const WORDS_PER_SECOND = 2.6;
@@ -556,7 +556,7 @@ export function distributeScript(project: StudioProject, script: string): Studio
   const scenes = project.scenes.map((s) => ({ ...s }));
   const content = scenes.map((s, i) => ({ s, i })).filter(({ s }) => s.card !== "outro");
   if (!content.length) return project;
-  const moveSets = content.map(({ s }) => new Set(moveTokens(s.moves).map((t) => t.replace(/[+#]/g, ""))));
+  const moveSets = content.map(({ s }) => new Set(moveTokens(s.moves).map((tk) => tk.replace(/[+#]/g, ""))));
   // Anchor: index into `content` for sentences that name a move, scanning forward only.
   const anchors: number[] = [];
   let cursor = 0;
@@ -582,8 +582,8 @@ export function distributeScript(project: StudioProject, script: string): Studio
     const hi = n < list.length ? anchors[n] : content.length - 1;
     const span = n - p;
     const pos = (i - p) / span;
-    const t = Math.round(lo + (hi - lo) * pos);
-    target.push(Math.max(lo, Math.min(hi, Math.max(t, target[target.length - 1] ?? 0))));
+    const tk = Math.round(lo + (hi - lo) * pos);
+    target.push(Math.max(lo, Math.min(hi, Math.max(tk, target[target.length - 1] ?? 0))));
   }
   const buckets = content.map(() => [] as string[]);
   // A closing call to action ("Folge für Teil 2") belongs on the closing card.
@@ -619,12 +619,12 @@ export function variationScene(fen: string, moves: string[], index: number): Sce
   const ms = moves.map((s) => chess.move(s));
   const walk = new Chess(fen);
   const texts = moves.map((san, k) => {
-    const t = explainMove(walk.fen(), san, k);
+    const tk = explainMove(walk.fen(), san, k);
     walk.move(san);
-    return t;
+    return tk;
   });
   const last = texts[texts.length - 1];
-  return scene({ fen, moves: movesLabel(ms, fen), label: `Variante ${index}`, title: `Und wenn ${germanSan(moves[0] ?? "")}?`, text: texts.map((t) => t.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
+  return scene({ fen, moves: movesLabel(ms, fen), label: `Variante ${index}`, title: `Und wenn ${germanSan(moves[0] ?? "")}?`, text: texts.map((tk) => tk.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
 }
 
 /** Explanation and arrows for the moves of an existing scene ("Auto" button in the editor). */

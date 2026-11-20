@@ -484,7 +484,7 @@ const RANGES: [string, number][] = [
 export const DEFAULT_RANGE_DAYS = 92;
 
 export function rangeOptions(points: Point[]): [string, number][] {
-  const ts = points.map((p) => p.t).filter((t): t is number => typeof t === "number");
+  const ts = points.map((p) => p.t).filter((tk): tk is number => typeof tk === "number");
   if (ts.length < 3) return [];
   const span = (Math.max(...ts) - Math.min(...ts)) / 86400;
   return RANGES.filter(([, days]) => days < span);
@@ -620,11 +620,11 @@ export function AreaChart({
             <stop offset="100%" stop-color="var(--series, var(--accent))" stop-opacity="0" />
           </linearGradient>
         </defs>
-        {ticks.map((t) => (
-          <g key={t}>
-            <line class="grid-line" x1={padL} x2={W - padR} y1={y(t)} y2={y(t)} />
-            <text x={padL - 6} y={y(t) + 4} text-anchor="end">
-              {format(t)}
+        {ticks.map((tk) => (
+          <g key={tk}>
+            <line class="grid-line" x1={padL} x2={W - padR} y1={y(tk)} y2={y(tk)} />
+            <text x={padL - 6} y={y(tk) + 4} text-anchor="end">
+              {format(tk)}
             </text>
           </g>
         ))}

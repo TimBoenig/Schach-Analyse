@@ -272,8 +272,8 @@ const SECTIONS: [string, boolean, string][] = [
 
 /** Summary strip on top of the player list: who you track and how you fare against them. */
 function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]; onAdd: () => void; players: TrackedPlayer[]; games: StoredGame[] }) {
-  const t = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
-  const n = t.w + t.d + t.l;
+  const tk = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
+  const n = tk.w + tk.d + tk.l;
   const friends = cards.filter((c) => c.player.friend).length;
   return (
     <section class="card players-hero">
@@ -287,7 +287,7 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
           <span class="faint small">Freunde</span>
         </div>
         <div>
-          <span class="players-hero-num tnum">{n ? pct0(((t.w + t.d / 2) / n) * 100) : "–"}</span>
+          <span class="players-hero-num tnum">{n ? pct0(((tk.w + tk.d / 2) / n) * 100) : "–"}</span>
           <span class="faint small">{n ? `deine Punkte aus ${plural(n, "Direktpartie", "Direktpartien")}` : "noch keine Direktpartie"}</span>
         </div>
       </div>
@@ -486,14 +486,14 @@ const KIND_CLASS: Record<string, string> = {
 function TipList({ tips, numbered }: { tips: ScoutTip[]; numbered?: boolean }) {
   return (
     <div class="plan">
-      {tips.map((t, i) => (
-        <div class={`plan-item${numbered ? "" : " no-num"}`} key={t.key}>
+      {tips.map((tk, i) => (
+        <div class={`plan-item${numbered ? "" : " no-num"}`} key={tk.key}>
           {numbered && <div class="plan-num">{i + 1}</div>}
-          <span class={`pill ${KIND_CLASS[t.kind] ?? ""}`}>{t.kind}</span>
+          <span class={`pill ${KIND_CLASS[tk.kind] ?? ""}`}>{tk.kind}</span>
           <div class="t" style={{ marginTop: "6px" }}>
-            {t.title}
+            {tk.title}
           </div>
-          <div class="small muted">{t.text}</div>
+          <div class="small muted">{tk.text}</div>
         </div>
       ))}
     </div>
@@ -960,7 +960,7 @@ function FriendDetails({
 }) {
   const [speed, setSpeed] = useState<string | null>(null);
   const daily = useMemo(() => dailyActivity(games, names), [games, names.join("|")]);
-  const t = them.moves;
+  const tk = them.moves;
   const m = mine?.moves ?? null;
 
   const ratingSeries = (them.trends.ratings ?? {}) as Record<string, [number, number][]>;
@@ -988,9 +988,9 @@ function FriendDetails({
             <h3>{name} und du</h3>
             <span class="tile-sub">Zugbewertungen im Vergleich</span>
           </div>
-          {t && m ? (
+          {tk && m ? (
             <VersusBars
-              a={{ label: name, moves: t.moves, counts: t.counts }}
+              a={{ label: name, moves: tk.moves, counts: tk.counts }}
               b={{ label: "Du", moves: m.moves, counts: m.counts }}
               keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
             />
@@ -1018,10 +1018,10 @@ function FriendDetails({
       <section class="card tile span-6">
         <div class="tile-head">
           <h3>Zugbilanz von {name}</h3>
-          <span class="tile-sub">{t ? `aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}` : ""}</span>
+          <span class="tile-sub">{tk ? `aus ${plural(tk.games, "analysierten Partie", "analysierten Partien")}` : ""}</span>
         </div>
-        {t ? (
-          <ClassTiles tally={t} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
+        {tk ? (
+          <ClassTiles tally={tk} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
         ) : (
           <p class="muted small">Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.</p>
         )}

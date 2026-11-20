@@ -282,14 +282,14 @@ export function areaTable(ranking: Ranking): { cells: Record<string, Partial<Rec
     const have = ranking.rows.filter((r) => cells[r.id][area]);
     if (have.length < 2) continue;
     const top = have.reduce((a, b) => ((cells[b.id][area] as AreaCell).value > (cells[a.id][area] as AreaCell).value ? b : a));
-    const t = cells[top.id][area] as AreaCell;
+    const tk = cells[top.id][area] as AreaCell;
     // The players' own strength errors are shared by all their areas but differ between players, so they stay in.
     const p = Math.min(
       ...have
         .filter((r) => r !== top)
         .map((r) => {
           const o = cells[r.id][area] as AreaCell;
-          return normalCdf((t.value - o.value) / Math.hypot(t.se, o.se));
+          return normalCdf((tk.value - o.value) / Math.hypot(tk.se, o.se));
         }),
     );
     if (p >= 0.8) leaders.push({ area, id: top.id, name: top.name, p });

@@ -173,7 +173,7 @@ export function StudioView() {
       const parts: Blob[] = [];
       recorder.ondataavailable = (e) => e.data.size && parts.push(e.data);
       recorder.onstop = () => {
-        mic.getTracks().forEach((t) => t.stop());
+        mic.getTracks().forEach((tk) => tk.stop());
         setVoiceRec(null);
         if (parts.length) void storeClip("voice", new Blob(parts, { type: recorder.mimeType || "audio/webm" }));
       };
@@ -230,11 +230,11 @@ export function StudioView() {
   const view = { w: Math.max(50, Math.floor(W * fit)), h: Math.max(50, Math.floor(H * fit)) };
   const previewScale = Math.min(1, (Math.min(window.devicePixelRatio || 1, 2) * view.w) / W);
 
-  const paint = (t: number) => {
+  const paint = (tk: number) => {
     const stage = stageRef.current;
     if (!stage || exp?.phase === "recording") return;
     stage.setSize(Math.round(W * previewScale), Math.round(H * previewScale));
-    stage.paint(timeline, project, t, { safeZones: safe, hover: tool !== "none" && hover ? { square: hover, from: pending ?? undefined } : null });
+    stage.paint(timeline, project, tk, { safeZones: safe, hover: tool !== "none" && hover ? { square: hover, from: pending ?? undefined } : null });
   };
 
   useEffect(() => {
@@ -252,16 +252,16 @@ export function StudioView() {
       audio().schedule(timeline, playRef.current.from, mix());
     }
     const loop = () => {
-      const t = playRef.current.from + (performance.now() - playRef.current.start) / 1000;
-      if (t >= timeline.total) {
+      const tk = playRef.current.from + (performance.now() - playRef.current.start) / 1000;
+      if (tk >= timeline.total) {
         setTime(timeline.total);
         setPlaying(false);
         voiceRec?.stop();
         paint(timeline.total);
         return;
       }
-      paint(t);
-      setTime(t);
+      paint(tk);
+      setTime(tk);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -409,7 +409,7 @@ export function StudioView() {
           canvas: out,
           fps: project.video.fps,
           duration: timeline.total,
-          paint: (t) => stage.paint(timeline, project, t),
+          paint: (tk) => stage.paint(timeline, project, tk),
           timeline,
           mix: audioMix,
           onProgress: progress,
@@ -432,7 +432,7 @@ export function StudioView() {
         canvas: out,
         fps: project.video.fps,
         duration: timeline.total,
-        paint: (t) => stage.paint(timeline, project, t),
+        paint: (tk) => stage.paint(timeline, project, tk),
         audio: sounds.stream.stream,
         onStart: () => sounds.schedule(timeline, 0, audioMix),
         onProgress: progress,
@@ -649,9 +649,9 @@ export function StudioView() {
 
       <aside class="studio-panel">
         <div class="studio-tabs" role="tablist">
-          {(["szene", "stil", "video"] as Tab[]).map((t) => (
-            <button key={t} role="tab" aria-selected={tab === t} class={tab === t ? "on" : ""} onClick={() => setTab(t)}>
-              {t === "szene" ? `Szene ${sel + 1}` : t === "stil" ? "Stil" : "Video"}
+          {(["szene", "stil", "video"] as Tab[]).map((tk) => (
+            <button key={tk} role="tab" aria-selected={tab === tk} class={tab === tk ? "on" : ""} onClick={() => setTab(tk)}>
+              {tk === "szene" ? `Szene ${sel + 1}` : tk === "stil" ? "Stil" : "Video"}
             </button>
           ))}
         </div>
@@ -666,10 +666,10 @@ export function StudioView() {
               tool={tool}
               tone={tone}
               style={project.style}
-              onTool={(t) => {
-                setTool(t);
+              onTool={(tk) => {
+                setTool(tk);
                 setPending(null);
-                if (t !== "none") setTime(showcase(timeline, sel));
+                if (tk !== "none") setTime(showcase(timeline, sel));
               }}
               onTone={setTone}
               onChange={updateScene}
@@ -865,13 +865,13 @@ function Slider({ label, value, min, max, step, unit, onChange }: { label: strin
   );
 }
 
-function ToneChips({ value, style, onChange }: { value: Tone; style: StudioStyle; onChange: (t: Tone) => void }) {
+function ToneChips({ value, style, onChange }: { value: Tone; style: StudioStyle; onChange: (tk: Tone) => void }) {
   return (
     <div class="studio-tones">
-      {(Object.keys(TONE_LABEL) as Tone[]).map((t) => (
-        <button key={t} class={t === value ? "on" : ""} onClick={() => onChange(t)} title={TONE_LABEL[t]} style={{ "--tone": toneColor(t, style) }}>
+      {(Object.keys(TONE_LABEL) as Tone[]).map((tk) => (
+        <button key={tk} class={tk === value ? "on" : ""} onClick={() => onChange(tk)} title={TONE_LABEL[tk]} style={{ "--tone": toneColor(tk, style) }}>
           <span />
-          {TONE_LABEL[t]}
+          {TONE_LABEL[tk]}
         </button>
       ))}
     </div>
@@ -905,8 +905,8 @@ function SceneEditor({
   tool: Tool;
   tone: Tone;
   style: StudioStyle;
-  onTool: (t: Tool) => void;
-  onTone: (t: Tone) => void;
+  onTool: (tk: Tool) => void;
+  onTone: (tk: Tone) => void;
   onChange: (patch: Partial<Scene>) => void;
 }) {
   const [fenOpen, setFenOpen] = useState(Boolean(scene.fen));
@@ -1085,15 +1085,15 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
       <Field label="Look">
         <div class="studio-themes">
           {(Object.keys(THEMES) as ThemeId[]).map((id) => {
-            const t = THEMES[id];
+            const tk = THEMES[id];
             return (
               <button key={id} class={style.theme === id ? "on" : ""} onClick={() => onChange(styleFromTheme(id, { reflection: style.reflection, coords: style.coords, titleFont: style.titleFont, pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment, view: style.view }))}>
-                <span class="studio-swatch" style={{ background: `linear-gradient(135deg, ${t.bgTop}, ${t.bgBottom})` }}>
-                  <i style={{ background: t.light }} />
-                  <i style={{ background: t.dark }} />
-                  <i style={{ background: t.accent }} />
+                <span class="studio-swatch" style={{ background: `linear-gradient(135deg, ${tk.bgTop}, ${tk.bgBottom})` }}>
+                  <i style={{ background: tk.light }} />
+                  <i style={{ background: tk.dark }} />
+                  <i style={{ background: tk.accent }} />
                 </span>
-                {t.label}
+                {tk.label}
               </button>
             );
           })}
@@ -1302,10 +1302,10 @@ function NewDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (p: S
       <div class="studio-modal-card wide">
         <h3>Neues Video</h3>
         <div class="studio-templates">
-          {TEMPLATES.map((t) => (
-            <button key={t.id} onClick={() => onCreate(t.make())}>
-              <b>{t.label}</b>
-              <span>{t.hint}</span>
+          {TEMPLATES.map((tk) => (
+            <button key={tk.id} onClick={() => onCreate(tk.make())}>
+              <b>{tk.label}</b>
+              <span>{tk.hint}</span>
             </button>
           ))}
         </div>
@@ -1378,8 +1378,8 @@ function SceneBoard({ fen, moves, onClose, onApply }: { fen: string; moves: stri
             tree={tree}
             cursor={cursor}
             allowFen={false}
-            onChange={(t, c) => {
-              setTree(t);
+            onChange={(tk, c) => {
+              setTree(tk);
               setCursor(c);
             }}
           />

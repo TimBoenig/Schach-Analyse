@@ -42,12 +42,12 @@ export class StudioStage {
       }),
       // The site's own 2D pieces: the flat board and the move symbols (figurines) in texts.
       ...(["w", "b"] as const).flatMap((c) =>
-        (["p", "n", "b", "r", "q", "k"] as const).map((t) => {
+        (["p", "n", "b", "r", "q", "k"] as const).map((tk) => {
           const img = new Image();
-          img.src = `${import.meta.env.BASE_URL}pieces/${pieceKey(c, t)}.svg`;
+          img.src = `${import.meta.env.BASE_URL}pieces/${pieceKey(c, tk)}.svg`;
           return img
             .decode()
-            .then(() => (this.assets.pieces[pieceKey(c, t)] = img))
+            .then(() => (this.assets.pieces[pieceKey(c, tk)] = img))
             .catch(() => undefined);
         }),
       ),
@@ -84,15 +84,15 @@ export class StudioStage {
     return this.lastView === "2d" && this.flat ? this.flat.squareAt(sx, sy) : this.renderer.squareAt(sx, sy);
   }
 
-  paint(timeline: Timeline, project: StudioProject, t: number, opts: ComposeOptions = {}): Frame | null {
-    const frame = frameAt(timeline, project, t);
+  paint(timeline: Timeline, project: StudioProject, tk: number, opts: ComposeOptions = {}): Frame | null {
+    const frame = frameAt(timeline, project, tk);
     if (!frame) return null;
     if (!project.video.lastMove) frame.lastMove = null;
     this.ensureOrb(project.video.lucena);
     if (this.orb) {
       this.orb.setMood(frame.mood);
       // Video time, not wall time: the fast export paints frames quicker than real time.
-      this.orb.tick(t * 1000);
+      this.orb.tick(tk * 1000);
     }
     this.lastView = project.style.view;
     if (project.style.view === "2d") {

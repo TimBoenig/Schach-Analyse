@@ -123,13 +123,13 @@ const BENEFITS = [
 function BenefitList({ done }: { done?: boolean }) {
   return (
     <ul class={`benefit-list${done ? " done" : ""}`}>
-      {BENEFITS.map(([t, d]) => (
-        <li key={t}>
+      {BENEFITS.map(([tk, d]) => (
+        <li key={tk}>
           <span class="benefit-tick" aria-hidden="true">
             ✓
           </span>
           <div>
-            <strong>{t}</strong>
+            <strong>{tk}</strong>
             <span class="small muted">{d}</span>
           </div>
         </li>
@@ -294,9 +294,9 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
           <span class="tile-sub">{counts ? `${counts.analysed} analysiert` : " "}</span>
         </div>
         <ul class="synced-list">
-          {SYNCED.map(([t, d]) => (
-            <li key={t}>
-              <strong>{t}</strong>
+          {SYNCED.map(([tk, d]) => (
+            <li key={tk}>
+              <strong>{tk}</strong>
               <span class="small muted">{d}</span>
             </li>
           ))}
@@ -406,8 +406,8 @@ function MailSent({ pending, onBack }: { pending: NonNullable<Pending>; onBack: 
   const [msg, setMsg] = useState<Msg>(null);
   useEffect(() => {
     if (wait <= 0) return;
-    const t = window.setTimeout(() => setWait((w) => w - 1), 1000);
-    return () => window.clearTimeout(t);
+    const tk = window.setTimeout(() => setWait((w) => w - 1), 1000);
+    return () => window.clearTimeout(tk);
   }, [wait]);
   const title =
     pending.kind === "confirm" ? "Bestätige deine E-Mail" : pending.kind === "link" ? "Dein Anmeldelink ist unterwegs" : "Link zum Zurücksetzen ist unterwegs";

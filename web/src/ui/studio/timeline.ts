@@ -233,7 +233,7 @@ export function compile(project: StudioProject): Timeline {
   const sounds: Timeline["sounds"] = [];
   let board: PieceState[] = piecesOf(positions[0]?.before ?? project.startFen, next);
   let prevFen = positions[0]?.before ?? project.startFen;
-  let t = 0;
+  let tk = 0;
 
   project.scenes.forEach((s, index) => {
     const pos = positions[index];
@@ -340,9 +340,9 @@ export function compile(project: StudioProject): Timeline {
       }
       threats = [...new Set(threats)].slice(0, 6);
     }
-    if (mate) sounds.push({ t: t + fxAt + 0.85, kind: "boom" });
-    if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: t + Math.max(0, fxAt - 0.15), kind: "whoosh" });
-    if (s.effects.includes("confetti")) sounds.push({ t: t + fxAt, kind: "sparkle" });
+    if (mate) sounds.push({ t: tk + fxAt + 0.85, kind: "boom" });
+    if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: tk + Math.max(0, fxAt - 0.15), kind: "whoosh" });
+    if (s.effects.includes("confetti")) sounds.push({ t: tk + fxAt, kind: "sparkle" });
     // Each poll answer that is a legal move here gets its own coloured arrow.
     const poll: CompiledScene["poll"] = [];
     if (s.card === "poll") {
@@ -353,16 +353,16 @@ export function compile(project: StudioProject): Timeline {
         if (mv) poll.push({ from: mv.from, to: mv.to, colour: POLL_COLOURS[k % POLL_COLOURS.length], letter: m ? m[1].toUpperCase() : String.fromCharCode(65 + k) });
       });
     }
-    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
-    t += dur;
+    scenes.push({ scene: s, start: tk, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
+    tk += dur;
     prevFen = pos.after;
   });
-  return { scenes, total: t, sounds, flip: project.video.perspective === "black" };
+  return { scenes, total: tk, sounds, flip: project.video.perspective === "black" };
 }
 
-export function sceneAt(timeline: Timeline, t: number): number {
+export function sceneAt(timeline: Timeline, tk: number): number {
   const list = timeline.scenes;
-  for (let i = list.length - 1; i >= 0; i--) if (t >= list[i].start) return i;
+  for (let i = list.length - 1; i >= 0; i--) if (tk >= list[i].start) return i;
   return 0;
 }
 
@@ -464,9 +464,9 @@ export function cameraAt(timeline: Timeline, index: number, local: number, intro
 const arrowKey = (a: { from: string; to: string; tone: Tone }) => `${a.from}${a.to}${a.tone}`;
 const markKey = (m: StudioMark) => `${m.square}${m.tone}`;
 
-export function frameAt(timeline: Timeline, project: StudioProject, t: number): Frame | null {
+export function frameAt(timeline: Timeline, project: StudioProject, tk: number): Frame | null {
   if (!timeline.scenes.length) return null;
-  const time = Math.max(0, Math.min(t, Math.max(0, timeline.total - 1e-4)));
+  const time = Math.max(0, Math.min(tk, Math.max(0, timeline.total - 1e-4)));
   const index = sceneAt(timeline, time);
   const c = timeline.scenes[index];
   const prev = timeline.scenes[index - 1];

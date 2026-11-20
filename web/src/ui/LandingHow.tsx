@@ -38,8 +38,8 @@ function Demo() {
   const [ply, setPly] = useState(reduced() ? DEMO_LINE.length : 0);
   useEffect(() => {
     if (reduced()) return;
-    const t = window.setTimeout(() => setPly((p) => (p >= DEMO_LINE.length ? 0 : p + 1)), ply === 0 ? 900 : ply >= DEMO_LINE.length ? 4200 : 2100);
-    return () => window.clearTimeout(t);
+    const tk = window.setTimeout(() => setPly((p) => (p >= DEMO_LINE.length ? 0 : p + 1)), ply === 0 ? 900 : ply >= DEMO_LINE.length ? 4200 : 2100);
+    return () => window.clearTimeout(tk);
   }, [ply]);
 
   const { fen, last } = useMemo(() => {

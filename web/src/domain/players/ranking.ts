@@ -304,7 +304,7 @@ export function comparisonPeriod(games: RawGame[], members: string[][], format: 
       .map(([g]) => extractGameTimestamp(g)),
   );
   const need = Math.min(2, members.length);
-  return settlePeriod(preferred, (start) => times.filter((ts) => (start === null ? ts.length : ts.filter((t) => t !== null && t >= start).length) >= MIN_RATED_GAMES).length >= need, now);
+  return settlePeriod(preferred, (start) => times.filter((ts) => (start === null ? ts.length : ts.filter((tk) => tk !== null && tk >= start).length) >= MIN_RATED_GAMES).length >= need, now);
 }
 
 /**
@@ -319,6 +319,6 @@ function depthGapNote(depths: (number | null)[], inputs: RankInput[]): string | 
   const deep = known.reduce((a, b) => (b.d > a.d ? b : a));
   const flat = known.reduce((a, b) => (b.d < a.d ? b : a));
   if (deep.d - flat.d < DEPTH_GAP) return null;
-  const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+  const cap = (tk: string) => tk.charAt(0).toUpperCase() + tk.slice(1);
   return `${cap(flat.name)} Partien sind flacher analysiert (Tiefe ${Math.round(flat.d)}) als ${deep.name} (Tiefe ${Math.round(deep.d)}). Genauigkeit und Patzer vergleichen nur bei gleicher Tiefe ganz fair: stelle in den Einstellungen dieselbe Analysetiefe für dich und deine Freunde ein und lass die Partien neu analysieren.`;
 }

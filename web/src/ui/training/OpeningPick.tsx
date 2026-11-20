@@ -12,8 +12,8 @@ import type { TrainingState } from "./useTraining";
 type Source = "own" | "library";
 type Side = "white" | "black";
 
-export function OpeningPick({ t, start }: { t: TrainingState; start: StartSession }) {
-  const drills = t.pool.filter((e): e is RepertoireExercise => e.kind === "repertoire");
+export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSession }) {
+  const drills = tk.pool.filter((e): e is RepertoireExercise => e.kind === "repertoire");
   const own = drills.filter((d) => !d.library);
   const [source, setSource] = useState<Source>(own.length ? "own" : "library");
   const [color, setColor] = useState<Side>(own.some((d) => d.color === "white") || !own.length ? "white" : "black");
@@ -55,7 +55,7 @@ export function OpeningPick({ t, start }: { t: TrainingState; start: StartSessio
         ) : (
           <div class="op-rows" role="listbox" aria-label="Eröffnung wählen">
             {shown.map((d) => {
-              const p = t.progress[d.id];
+              const p = tk.progress[d.id];
               return (
                 <button key={d.id} role="option" aria-selected={chosen?.id === d.id} class={`op-row${chosen?.id === d.id ? " on" : ""}`} onClick={() => setPicked(d.id)}>
                   <span class="op-name">
@@ -66,7 +66,7 @@ export function OpeningPick({ t, start }: { t: TrainingState; start: StartSessio
                     </small>
                   </span>
                   <Ladder box={p?.box ?? 0} />
-                  <StateTag state={exerciseState(p, t.today)} />
+                  <StateTag state={exerciseState(p, tk.today)} />
                 </button>
               );
             })}
@@ -98,7 +98,7 @@ export function OpeningPick({ t, start }: { t: TrainingState; start: StartSessio
       <div class="op-lib">
         {openings.map((o) => {
           const ids = o.lines.map((_, i) => `lib:${o.key}:${i}`).filter((id) => lib.has(id));
-          const sure = ids.filter((id) => isMastered(t.progress[id])).length;
+          const sure = ids.filter((id) => isMastered(tk.progress[id])).length;
           return (
             <article key={o.key} class="op-card">
               <header>
@@ -110,7 +110,7 @@ export function OpeningPick({ t, start }: { t: TrainingState; start: StartSessio
                 {ids.map((id, i) => (
                   <button key={id} class="tn-row" onClick={() => start({ title: `${o.name}: ${o.lines[i].name}`, ids: [id] })}>
                     <span class="tn-row-title">{o.lines[i].name}</span>
-                    <StateTag state={exerciseState(t.progress[id], t.today)} />
+                    <StateTag state={exerciseState(tk.progress[id], tk.today)} />
                   </button>
                 ))}
               </div>

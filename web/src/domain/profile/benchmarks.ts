@@ -50,8 +50,8 @@ export function benchmark(key: BenchmarkKey, rating: number): number {
   if (rating <= ANCHORS[0]) return row[0];
   for (let i = 1; i < ANCHORS.length; i++) {
     if (rating <= ANCHORS[i]) {
-      const t = (rating - ANCHORS[i - 1]) / (ANCHORS[i] - ANCHORS[i - 1]);
-      return row[i - 1] + t * (row[i] - row[i - 1]);
+      const tk = (rating - ANCHORS[i - 1]) / (ANCHORS[i] - ANCHORS[i - 1]);
+      return row[i - 1] + tk * (row[i] - row[i - 1]);
     }
   }
   return row[row.length - 1];
@@ -291,7 +291,7 @@ export function withTypical(skills: SkillScore[], rating: number | null, referen
     if (useOpp && OPPONENT_REFERENCE_SKILLS.has(s.key) && reference.skills[s.key] !== undefined) {
       return { ...s, typical: reference.skills[s.key], typical_from: "opponents" };
     }
-    const t = table ? (table[s.key] ?? null) : null;
-    return { ...s, typical: t, typical_from: t === null ? null : "table" };
+    const tk = table ? (table[s.key] ?? null) : null;
+    return { ...s, typical: tk, typical_from: tk === null ? null : "table" };
   });
 }

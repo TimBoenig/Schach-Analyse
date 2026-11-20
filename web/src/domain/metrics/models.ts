@@ -63,8 +63,8 @@ export interface GameMeta {
   opening: string;
 }
 
-const needsTacticsRecompute = (t: Record<string, any> | null): boolean =>
-  !t || !("phase_move_counts" in t) || !("clock_metrics" in t) || !("hung_pieces_details" in t);
+const needsTacticsRecompute = (tk: Record<string, any> | null): boolean =>
+  !tk || !("phase_move_counts" in tk) || !("clock_metrics" in tk) || !("hung_pieces_details" in tk);
 
 /** Parsed, strongly-typed representation of a single game for statistical analysis. */
 export class GameRecord {
