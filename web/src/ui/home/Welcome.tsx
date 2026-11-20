@@ -6,11 +6,12 @@ import { CoachAvatar, COACH_NAME } from "../Coach";
 import { IconPlay, IconUpload } from "../icons";
 import { navigate } from "../router";
 import { openStage } from "../stage/store";
+import { t } from "../../i18n";
 
 const STEPS = [
-  { title: "Wie heißt du?", text: "Dein Name auf chess.com oder Lichess, damit ich deine Partien erkenne." },
-  { title: "Deine Partien", text: "Ich hole sie mit einem Klick oder du lädst eine PGN-Datei." },
-  { title: "Dein Plan", text: "Ich analysiere alles auf deinem Gerät und zeige dir, woran du arbeiten solltest." },
+  { title: t("Wie heißt du?"), text: t("Dein Name auf chess.com oder Lichess, damit ich deine Partien erkenne.") },
+  { title: t("Deine Partien"), text: t("Ich hole sie mit einem Klick oder du lädst eine PGN-Datei.") },
+  { title: t("Dein Plan"), text: t("Ich analysiere alles auf deinem Gerät und zeige dir, woran du arbeiten solltest.") },
 ];
 
 export function Welcome() {
@@ -22,8 +23,8 @@ export function Welcome() {
           {BRAND}
         </p>
         <CoachAvatar size={132} mood="wow" />
-        <h1>Hi, ich bin {COACH_NAME}.</h1>
-        <p class="hm-welcome-lead">Ich bin dein KI-Coach. In drei Schritten richten wir alles ein, danach führe ich dich durch die App.</p>
+        <h1>{t("Hi, ich bin")} {COACH_NAME}.</h1>
+        <p class="hm-welcome-lead">{t("Ich bin dein KI-Coach. In drei Schritten richten wir alles ein, danach führe ich dich durch die App.")}</p>
         <ol class="hm-welcome-steps">
           {STEPS.map((s, i) => (
             <li key={s.title}>
@@ -37,17 +38,19 @@ export function Welcome() {
         </ol>
         <div class="hm-welcome-actions">
           <button class="btn primary big" onClick={() => openStage({ kind: "onboarding" })}>
-            <IconPlay /> Mit {COACH_NAME} einrichten
+            <IconPlay />  {t("Mit")} {COACH_NAME} einrichten
           </button>
           <button class="btn big" onClick={() => navigate({ view: "games", import: true })}>
-            <IconUpload /> Nur Partien importieren
+            <IconUpload />  {t("Nur Partien importieren")}
           </button>
         </div>
         {syncAvailable() && (
           <p class="small muted">
-            Schon ein Konto?{" "}
+            
+            {t("Schon ein Konto?")}{" "}
             <button class="link-btn" onClick={() => navigate({ view: "account" })}>
-              Anmelden und alles zurückholen
+              
+              {t("Anmelden und alles zurückholen")}
             </button>
           </p>
         )}

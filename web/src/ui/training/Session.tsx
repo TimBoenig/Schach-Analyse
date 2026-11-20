@@ -11,6 +11,7 @@ import { Stage } from "../stage/Stage";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./Runners";
 import { plural, type SessionSpec } from "./shared";
 import type { TrainingState } from "./useTraining";
+import { t } from "../../i18n";
 
 /**
  * Lines the player does not know yet start in learn mode with the book moves
@@ -49,27 +50,28 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
   if (!ex) {
     const r = sessionResult(parts, results);
     const days = streak(tk.log, tk.today);
-    const say = r.verdict === "none" ? "Hier gibt es gerade nichts zu tun." : r.verdict === "perfect" ? "Perfekt. Alles auf Anhieb gelöst." : r.verdict === "good" ? "Geschafft. Das war eine starke Einheit." : "Geschafft. Genau dafür üben wir.";
+    const say = r.verdict === "none" ? t("Hier gibt es gerade nichts zu tun.") : r.verdict === "perfect" ? t("Perfekt. Alles auf Anhieb gelöst.") : r.verdict === "good" ? t("Geschafft. Das war eine starke Einheit.") : t("Geschafft. Genau dafür üben wir.");
     const titles = r.missed.map((id) => tk.byId.get(id)?.title).filter((s): s is string => Boolean(s));
     return (
       <Stage
-        kicker="Lucena · Training"
+        kicker={t("Lucena · Training")}
         mood={r.verdict === "perfect" || r.verdict === "good" ? "wow" : r.verdict === "mixed" ? "happy" : "think"}
         layout={r.done ? "split" : "center"}
         say={say}
         sub={
           r.done ? (
             <p>
-              Du hast <strong>{r.solved} von {plural(r.done, "Aufgabe", "Aufgaben")}</strong> auf Anhieb gelöst.{" "}
-              {r.missed.length ? "Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen." : "Ich frage sie in größeren Abständen wieder ab."}
+              
+              {t("Du hast")} <strong>{r.solved} von {plural(r.done, t("Aufgabe"), t("Aufgaben"))}</strong>  {t("auf Anhieb gelöst.")}{" "}
+              {r.missed.length ? t("Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen.") : t("Ich frage sie in größeren Abständen wieder ab.")}
             </p>
           ) : (
-            <p>Alle Aufgaben dieser Auswahl sind für heute erledigt.</p>
+            <p>{t("Alle Aufgaben dieser Auswahl sind für heute erledigt.")}</p>
           )
         }
         onNext={onExit}
         onClose={onExit}
-        closeLabel="Schließen"
+        closeLabel={t("Schließen")}
         actions={
           <>
             {r.done > 0 && (
@@ -80,11 +82,13 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
                   navigate({ view: "training", tab: "fortschritt" });
                 }}
               >
-                Fortschritt ansehen
+                
+                {t("Fortschritt ansehen")}
               </button>
             )}
             <button class="btn primary" onClick={onExit}>
-              Zur Übersicht
+              
+              {t("Zur Übersicht")}
             </button>
           </>
         }
@@ -96,7 +100,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
                 <b>
                   <CountUp value={r.solved} />
                 </b>
-                <span>auf Anhieb gelöst</span>
+                <span>{t("auf Anhieb gelöst")}</span>
               </div>
               <div class={`stage-stat${r.missed.length ? " bad" : ""}`}>
                 <b>
@@ -108,7 +112,7 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
                 <b>
                   <CountUp value={days} />
                 </b>
-                <span>{days === 1 ? "Tag in Folge" : "Tage in Folge"}</span>
+                <span>{days === 1 ? t("Tag in Folge") : t("Tage in Folge")}</span>
               </div>
             </div>
             {staged && (
@@ -131,8 +135,9 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
             )}
             {titles.length > 0 && (
               <p class="stage-note">
-                Morgen wieder dabei: {titles.slice(0, 4).join(", ")}
-                {titles.length > 4 ? ` und ${titles.length - 4} weitere` : ""}.
+                
+                {t("Morgen wieder dabei:")} {titles.slice(0, 4).join(", ")}
+                {titles.length > 4 ? t(" und {0} weitere", { 0: titles.length - 4 }) : ""}.
               </p>
             )}
           </>
@@ -149,29 +154,29 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
     const resume = () => setPause(null);
     return (
       <Stage
-        kicker={`Lucena · Teil ${parts.indexOf(p) + 1} von ${parts.length}`}
+        kicker={t("Lucena · Teil {0} von {length}", { 0: parts.indexOf(p) + 1, length: parts.length })}
         mood="happy"
         layout="center"
         steps={parts.length}
         step={parts.indexOf(p)}
-        say={`Weiter mit: ${p.title}`}
+        say={t("Weiter mit: {title}", { title: p.title })}
         sub={
           <p>
             {before && prevIds.length ? (
               <>
-                {before.title}: <strong>{prevOk} von {prevIds.length}</strong> auf Anhieb.{" "}
+                {before.title}: <strong>{prevOk} von {prevIds.length}</strong>  {t("auf Anhieb.")}{" "}
               </>
             ) : null}
             {p.sub ? `${p.sub}, ` : ""}
-            {plural(p.ids.length, "Aufgabe", "Aufgaben")}.
+            {plural(p.ids.length, t("Aufgabe"), t("Aufgaben"))}.
           </p>
         }
         onNext={resume}
         onClose={resume}
-        closeLabel="Weiter"
+        closeLabel={t("Weiter")}
         actions={
           <button class="btn primary" onClick={resume}>
-            <IconPlay /> Weiter
+            <IconPlay />  {t("Weiter")}
           </button>
         }
       />
@@ -189,30 +194,31 @@ export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: Trainin
       setIndex((i) => i + 1);
       window.scrollTo(0, 0);
     },
-    nextLabel: index + 1 < exercises.length ? "Nächste Aufgabe" : "Fertig",
+    nextLabel: index + 1 < exercises.length ? t("Nächste Aufgabe") : t("Fertig"),
   };
   const part = parts[partIndex];
 
   return (
     <div class="ts">
       <header class="ts-bar">
-        <button class="btn ghost small ts-exit" onClick={onExit} title="Einheit beenden. Was du gelöst hast, bleibt gespeichert.">
-          <IconClose /> <span>Beenden</span>
+        <button class="btn ghost small ts-exit" onClick={onExit} title={t("Einheit beenden. Was du gelöst hast, bleibt gespeichert.")}>
+          <IconClose /> <span>{t("Beenden")}</span>
         </button>
         <div class="ts-title">
           <strong>{spec.title}</strong>
           {staged && part && (
             <span>
-              Teil {partIndex + 1} von {parts.length} <IconChevron /> {part.title}
+              
+              {t("Teil")} {partIndex + 1} von {parts.length} <IconChevron /> {part.title}
             </span>
           )}
         </div>
-        <span class="ts-count tnum" aria-label={`Aufgabe ${index + 1} von ${exercises.length}`}>
+        <span class="ts-count tnum" aria-label={t("Aufgabe {0} von {length}", { 0: index + 1, length: exercises.length })}>
           {index + 1}
           <small> / {exercises.length}</small>
         </span>
       </header>
-      <div class="ts-track" role="progressbar" aria-valuemin={0} aria-valuemax={exercises.length} aria-valuenow={index} aria-label="Fortschritt der Einheit">
+      <div class="ts-track" role="progressbar" aria-valuemin={0} aria-valuemax={exercises.length} aria-valuenow={index} aria-label={t("Fortschritt der Einheit")}>
         {parts.map((p) => {
           const ids = p.ids.filter((id) => tk.byId.has(id));
           if (!ids.length) return null;

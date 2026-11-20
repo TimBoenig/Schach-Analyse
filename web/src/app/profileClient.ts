@@ -3,6 +3,7 @@ import type { ExportInput, FullExport } from "../domain/export";
 import type { PlayerProfile } from "../domain/profile";
 import type { StoredGame } from "../domain/types";
 import type { ProfileRequest } from "./profile.worker";
+import { t } from "../i18n";
 
 let worker: Worker | null = null;
 let seq = 0;
@@ -70,7 +71,7 @@ function runInWorker<T>(msg: object): Promise<T> {
       if (!p) return;
       pending.delete(e.data.id);
       if (e.data.result !== undefined) p.resolve(e.data.result);
-      else p.reject(new Error(e.data.error ?? "Profil konnte nicht berechnet werden."));
+      else p.reject(new Error(e.data.error ?? t("Profil konnte nicht berechnet werden.")));
     };
     // A crashed worker (out of memory, say) loses the games it held: start over.
     worker.onerror = (e) => {
@@ -79,7 +80,7 @@ function runInWorker<T>(msg: object): Promise<T> {
       worker = null;
       sent.clear();
       cache.clear();
-      for (const p of pending.values()) p.reject(new Error("Profil konnte nicht berechnet werden."));
+      for (const p of pending.values()) p.reject(new Error(t("Profil konnte nicht berechnet werden.")));
       pending.clear();
     };
   }

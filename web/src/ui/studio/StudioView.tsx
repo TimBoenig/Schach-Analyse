@@ -65,6 +65,7 @@ import { Chess } from "chess.js";
 import { StudioStage } from "./stage";
 import { currentId, loadProjects, saveProjects, setCurrentId } from "./store";
 import { compile, type Timeline } from "./timeline";
+import { t } from "../../i18n";
 
 type Tab = "szene" | "stil" | "video";
 type Tool = "none" | "arrow" | "mark";
@@ -158,7 +159,7 @@ export function StudioView() {
       setVideo(kind === "voice" ? { voice: true } : { music: "file", musicName: name });
       setAudioError("");
     } catch {
-      setAudioError(kind === "voice" ? "Die Aufnahme ließ sich nicht speichern." : "Diese Datei kann der Browser nicht abspielen. Nimm MP3, M4A, WAV oder OGG.");
+      setAudioError(kind === "voice" ? t("Die Aufnahme ließ sich nicht speichern.") : t("Diese Datei kann der Browser nicht abspielen. Nimm MP3, M4A, WAV oder OGG."));
     }
   };
   const removeVoice = () => {
@@ -183,7 +184,7 @@ export function StudioView() {
       recorder.start();
       setPlaying(true);
     } catch {
-      setAudioError("Kein Zugriff aufs Mikrofon. Erlaub es in der Adressleiste und versuch es nochmal.");
+      setAudioError(t("Kein Zugriff aufs Mikrofon. Erlaub es in der Adressleiste und versuch es nochmal."));
     }
   };
 
@@ -211,7 +212,7 @@ export function StudioView() {
       void stage.load().then(() => setReady(true));
       return () => stage.destroy();
     } catch (e) {
-      setGlError(e instanceof Error ? e.message : "WebGL fehlt");
+      setGlError(e instanceof Error ? e.message : t("WebGL fehlt"));
     }
   }, []);
   useEffect(() => () => soundsRef.current?.close(), []);
@@ -380,7 +381,7 @@ export function StudioView() {
       const p = normalizeProject(JSON.parse(await file.text()));
       openProject({ ...p, id: newId("p"), updatedAt: Date.now() });
     } catch {
-      window.alert?.("Die Datei ist kein lesbares Studio-Projekt.");
+      window.alert?.(t("Die Datei ist kein lesbares Studio-Projekt."));
     }
   };
 
@@ -427,7 +428,7 @@ export function StudioView() {
     }
     sounds.speakers(false);
     try {
-      if (!sounds.stream) throw new Error("Ton fehlt");
+      if (!sounds.stream) throw new Error(t("Ton fehlt"));
       const { blob, type } = await recordVideo({
         canvas: out,
         fps: project.video.fps,
@@ -459,59 +460,65 @@ export function StudioView() {
   return (
     <div class="studio">
       <header class="studio-top">
-        <button class="studio-back" onClick={() => navigate({ view: "settings" })} title="Zurück zu den Einstellungen">
+        <button class="studio-back" onClick={() => navigate({ view: "settings" })} title={t("Zurück zu den Einstellungen")}>
           ←
         </button>
         <div class="studio-brand">
           <img src="/icons/logo.svg" alt="" width={28} height={28} />
           <span>
-            {BRAND} <b>Studio</b>
+            {BRAND} <b>{t("Studio")}</b>
           </span>
         </div>
-        <select class="studio-projects" value={project.id} onChange={(e) => setProjectId(e.currentTarget.value)} aria-label="Projekt wählen">
+        <select class="studio-projects" value={project.id} onChange={(e) => setProjectId(e.currentTarget.value)} aria-label={t("Projekt wählen")}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
             </option>
           ))}
         </select>
-        <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label="Name des Videos" />
+        <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label={t("Name des Videos")} />
         <div class="studio-top-actions">
-          <button class="btn ghost studio-ai-btn" onClick={() => setDialog("ai")} title="Prompt für ChatGPT, Claude oder Gemini holen und das fertige Skript übernehmen">
-            ✦ Mit KI
+          <button class="btn ghost studio-ai-btn" onClick={() => setDialog("ai")} title={t("Prompt für ChatGPT, Claude oder Gemini holen und das fertige Skript übernehmen")}>
+            
+            {t("✦ Mit KI")}
           </button>
-          <button class="btn ghost" onClick={() => setDialog("script")} title="Skript einfügen und auf die Szenen verteilen">
-            Skript
+          <button class="btn ghost" onClick={() => setDialog("script")} title={t("Skript einfügen und auf die Szenen verteilen")}>
+            
+            {t("Skript")}
           </button>
           <button class="btn ghost" onClick={() => setDialog("new")}>
-            + Neues Video
+            
+            {t("+ Neues Video")}
           </button>
           <details class="studio-more">
-            <summary class="btn ghost" aria-label="Weitere Aktionen">
+            <summary class="btn ghost" aria-label={t("Weitere Aktionen")}>
               ⋯
             </summary>
             <div class="studio-menu">
-              <button onClick={() => openProject({ ...structuredClone(project), id: newId("p"), name: `${project.name} (Kopie)`, updatedAt: Date.now() })}>Duplizieren</button>
-              <button onClick={exportJson}>Als Datei sichern</button>
-              <button onClick={() => download(new Blob([speechSheet(project)], { type: "text/plain" }), `${FILE_PREFIX}-sprechtext-${slug(project.name)}.txt`)}>Sprechtext mit Zeiten</button>
+              <button onClick={() => openProject({ ...structuredClone(project), id: newId("p"), name: t("{name} (Kopie)", { name: project.name }), updatedAt: Date.now() })}>{t("Duplizieren")}</button>
+              <button onClick={exportJson}>{t("Als Datei sichern")}</button>
+              <button onClick={() => download(new Blob([speechSheet(project)], { type: "text/plain" }), `${FILE_PREFIX}-sprechtext-${slug(project.name)}.txt`)}>{t("Sprechtext mit Zeiten")}</button>
               <label>
-                Datei öffnen…
+                
+                {t("Datei öffnen…")}
                 <input type="file" accept="application/json,.json" hidden onChange={(e) => e.currentTarget.files?.[0] && void importJson(e.currentTarget.files[0])} />
               </label>
               <button class="danger" onClick={removeProject}>
-                Projekt löschen
+                
+                {t("Projekt löschen")}
               </button>
             </div>
           </details>
           <button class="btn primary studio-export" onClick={() => void startExport()} disabled={!type || !ready}>
-            Video exportieren
+            
+            {t("Video exportieren")}
           </button>
         </div>
       </header>
 
       <aside class="studio-scenes">
         <div class="studio-col-head">
-          <span>Szenen</span>
+          <span>{t("Szenen")}</span>
           <span class="faint">{fmtTime(timeline.total)}</span>
         </div>
         <ol>
@@ -523,7 +530,7 @@ export function StudioView() {
                 <button class="studio-scene-main" onClick={() => selectScene(i)}>
                   <span class="studio-scene-no">{i + 1}</span>
                   <span class="studio-scene-body">
-                    <span class="studio-scene-title">{s.title || (s.card !== "none" ? CARD_LABEL[s.card] : "Ohne Titel")}</span>
+                    <span class="studio-scene-title">{s.title || (s.card !== "none" ? CARD_LABEL[s.card] : t("Ohne Titel"))}</span>
                     <span class="studio-scene-meta">
                       {s.card !== "none" && <em>{CARD_LABEL[s.card]}</em>}
                       {s.moves.trim() ? <code>{s.moves.trim()}</code> : null}
@@ -533,16 +540,16 @@ export function StudioView() {
                 </button>
                 {i === sel && (
                   <span class="studio-scene-tools">
-                    <button onClick={() => moveScene(i, -1)} disabled={i === 0} title="Nach oben">
+                    <button onClick={() => moveScene(i, -1)} disabled={i === 0} title={t("Nach oben")}>
                       ↑
                     </button>
-                    <button onClick={() => moveScene(i, 1)} disabled={i === project.scenes.length - 1} title="Nach unten">
+                    <button onClick={() => moveScene(i, 1)} disabled={i === project.scenes.length - 1} title={t("Nach unten")}>
                       ↓
                     </button>
-                    <button onClick={() => duplicateScene(i)} title="Duplizieren">
+                    <button onClick={() => duplicateScene(i)} title={t("Duplizieren")}>
                       ⧉
                     </button>
-                    <button onClick={() => removeScene(i)} disabled={project.scenes.length <= 1} title="Löschen">
+                    <button onClick={() => removeScene(i)} disabled={project.scenes.length <= 1} title={t("Löschen")}>
                       ✕
                     </button>
                   </span>
@@ -552,14 +559,15 @@ export function StudioView() {
           })}
         </ol>
         <button class="btn studio-add" onClick={addScene}>
-          + Szene
+          
+          {t("+ Szene")}
         </button>
       </aside>
 
       <main class="studio-stage">
         <div class="studio-canvas-wrap" ref={wrapRef}>
           {glError ? (
-            <p class="studio-gl-error">3D geht auf diesem Gerät nicht: {glError}</p>
+            <p class="studio-gl-error">{t("3D geht auf diesem Gerät nicht:")} {glError}</p>
           ) : (
             <canvas
               ref={canvasRef}
@@ -572,21 +580,21 @@ export function StudioView() {
           )}
           {voiceRec && (
             <div class="studio-prompter">
-              <span class="rec">● Aufnahme</span>
+              <span class="rec">{t("● Aufnahme")}</span>
               <p>{timeline.scenes[sel]?.scene.speech || timeline.scenes[sel]?.scene.text || "…"}</p>
               {timeline.scenes[sel + 1]?.scene.speech && <p class="next">{timeline.scenes[sel + 1].scene.speech}</p>}
-              <button onClick={voiceRec.stop}>Stopp</button>
+              <button onClick={voiceRec.stop}>{t("Stopp")}</button>
             </div>
           )}
           {tool !== "none" && (
             <div class="studio-tool-hint">
-              {tool === "arrow" ? (pending ? `Pfeil von ${pending}: jetzt das Zielfeld anklicken` : "Startfeld des Pfeils anklicken") : "Felder anklicken zum Markieren"}
-              <button onClick={() => (setTool("none"), setPending(null))}>Fertig</button>
+              {tool === "arrow" ? (pending ? t("Pfeil von {pending}: jetzt das Zielfeld anklicken", { pending }) : t("Startfeld des Pfeils anklicken")) : t("Felder anklicken zum Markieren")}
+              <button onClick={() => (setTool("none"), setPending(null))}>{t("Fertig")}</button>
             </div>
           )}
         </div>
         <div class="studio-transport">
-          <button class="studio-play" onClick={() => setPlaying(!playing)} aria-label={playing ? "Pause" : "Abspielen"}>
+          <button class="studio-play" onClick={() => setPlaying(!playing)} aria-label={playing ? t("Pause") : t("Abspielen")}>
             {playing ? "❚❚" : "▶"}
           </button>
           <div class="studio-scrub">
@@ -597,7 +605,7 @@ export function StudioView() {
                   class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""}`}
                   style={{ flexGrow: c.dur }}
                   onClick={() => selectScene(i)}
-                  title={`Szene ${i + 1}`}
+                  title={t("Szene {0}", { 0: i + 1 })}
                 />
               ))}
             </div>
@@ -611,13 +619,13 @@ export function StudioView() {
                 setPlaying(false);
                 setTime(Number(e.currentTarget.value));
               }}
-              aria-label="Zeit"
+              aria-label={t("Zeit")}
             />
           </div>
           <span class="studio-time">
             {fmtTime(time)} / {fmtTime(timeline.total)}
           </span>
-          <div class="studio-speed" title="Tempo des ganzen Videos">
+          <div class="studio-speed" title={t("Tempo des ganzen Videos")}>
             {[0.75, 1, 1.25, 1.5].map((sp) => (
               <button key={sp} class={Math.abs(project.video.speed - sp) < 0.01 ? "on" : ""} onClick={() => setVideo({ speed: sp })}>
                 {String(sp).replace(".", ",")}×
@@ -632,17 +640,17 @@ export function StudioView() {
               if (v) update((p) => fitLength(p, v));
               e.currentTarget.value = "";
             }}
-            aria-label="Auf Länge kürzen"
+            aria-label={t("Auf Länge kürzen")}
           >
-            <option value="">Länge …</option>
+            <option value="">{t("Länge …")}</option>
             {[15, 30, 45, 60, 90].map((n) => (
               <option key={n} value={n}>
                 auf {n} s anpassen
               </option>
             ))}
           </select>
-          <label class="studio-safe" title="Zeigt, wo die App ihre Knöpfe hinlegt (nicht im Video)">
-            <input type="checkbox" checked={safe} onChange={() => setSafe(!safe)} /> Sichere Zone
+          <label class="studio-safe" title={t("Zeigt, wo die App ihre Knöpfe hinlegt (nicht im Video)")}>
+            <input type="checkbox" checked={safe} onChange={() => setSafe(!safe)} />  {t("Sichere Zone")}
           </label>
         </div>
       </main>
@@ -651,7 +659,7 @@ export function StudioView() {
         <div class="studio-tabs" role="tablist">
           {(["szene", "stil", "video"] as Tab[]).map((tk) => (
             <button key={tk} role="tab" aria-selected={tab === tk} class={tab === tk ? "on" : ""} onClick={() => setTab(tk)}>
-              {tk === "szene" ? `Szene ${sel + 1}` : tk === "stil" ? "Stil" : "Video"}
+              {tk === "szene" ? t("Szene {0}", { 0: sel + 1 }) : tk === "stil" ? t("Stil") : t("Video")}
             </button>
           ))}
         </div>
@@ -697,7 +705,7 @@ export function StudioView() {
           )}
           {tab === "video" && <VideoEditor project={project} type={type?.ext ?? null} onVideo={setVideo} onStyle={setStyle} onStart={(fen) => update((p) => ({ ...p, startFen: fen }))} />}
         </div>
-        {saveError && <p class="studio-warn">Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.</p>}
+        {saveError && <p class="studio-warn">{t("Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.")}</p>}
       </aside>
 
       {dialog === "new" && <Assistant onClose={() => setDialog(null)} onCreate={openProject} onTemplates={() => setDialog("templates")} onAi={() => setDialog("ai")} />}
@@ -744,7 +752,7 @@ export function StudioView() {
               list[sel] = { ...list[sel], moves: movesLabel(ms, tree.startFen) };
               // After the variations the next scene jumps back to the main line.
               const next = list[sel + 1];
-              if (extra.length && next && !next.fen) list[sel + 1] = { ...next, fen: played.fen(), label: next.label || "Zurück zur Hauptvariante" };
+              if (extra.length && next && !next.fen) list[sel + 1] = { ...next, fen: played.fen(), label: next.label || t("Zurück zur Hauptvariante") };
               list.splice(sel + 1, 0, ...extra);
               return { ...p, scenes: list };
             });
@@ -757,40 +765,44 @@ export function StudioView() {
           <div class="studio-modal-card">
             {exp.phase === "recording" && (
               <>
-                <h3>Video wird aufgenommen …</h3>
-                <p class="muted">Das Video wird so schnell erstellt, wie dein Gerät es schafft (in alten Browsern in Echtzeit, {fmtTime(timeline.total)}). Lass diesen Tab bitte im Vordergrund.</p>
+                <h3>{t("Video wird aufgenommen …")}</h3>
+                <p class="muted">{t("Das Video wird so schnell erstellt, wie dein Gerät es schafft (in alten Browsern in Echtzeit,")} {fmtTime(timeline.total)}{t("). Lass diesen Tab bitte im Vordergrund.")}</p>
                 <div class="studio-bar">
                   <span style={{ width: `${Math.round(exp.progress * 100)}%` }} />
                 </div>
                 <button class="btn ghost" onClick={() => (cancelRef.current = true)}>
-                  Abbrechen
+                  
+                  {t("Abbrechen")}
                 </button>
               </>
             )}
             {exp.phase === "done" && exp.url && (
               <>
-                <h3>Fertig!</h3>
+                <h3>{t("Fertig!")}</h3>
                 <video src={exp.url} controls autoplay loop playsInline class={`studio-result f${project.video.format.replace(":", "x")}`} />
                 <p class="small muted">
-                  {W}×{H}, {project.video.fps} fps, {exp.ext?.toUpperCase()}, {((exp.blob?.size ?? 0) / 1e6).toFixed(1)} MB
-                  {exp.ext === "webm" ? " · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren." : ""}
+                  {W}×{H}, {project.video.fps}  {t("fps,")} {exp.ext?.toUpperCase()}, {((exp.blob?.size ?? 0) / 1e6).toFixed(1)} MB
+                  {exp.ext === "webm" ? t(" · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren.") : ""}
                 </p>
                 <div class="studio-modal-actions">
                   <button class="btn primary" onClick={() => exp.blob && download(exp.blob, `${FILE_PREFIX}-${slug(project.name)}.${exp.ext}`)}>
-                    Herunterladen
+                    
+                    {t("Herunterladen")}
                   </button>
                   <button class="btn ghost" onClick={closeExport}>
-                    Schließen
+                    
+                    {t("Schließen")}
                   </button>
                 </div>
               </>
             )}
             {exp.phase === "error" && (
               <>
-                <h3>Export fehlgeschlagen</h3>
+                <h3>{t("Export fehlgeschlagen")}</h3>
                 <p class="muted">{exp.error}</p>
                 <button class="btn ghost" onClick={closeExport}>
-                  Schließen
+                  
+                  {t("Schließen")}
                 </button>
               </>
             )}
@@ -803,7 +815,7 @@ export function StudioView() {
 
 function confirmDelete(): boolean {
   try {
-    return window.confirm("Dieses Video-Projekt wirklich löschen?");
+    return window.confirm(t("Dieses Video-Projekt wirklich löschen?"));
   } catch {
     return true;
   }
@@ -913,33 +925,35 @@ function SceneEditor({
   useEffect(() => setFenOpen(Boolean(scene.fen)), [scene.id]);
   return (
     <div class="studio-form">
-      <Field label="Karte über dem Brett">
+      <Field label={t("Karte über dem Brett")}>
         <Seg<Card> value={scene.card} options={(Object.keys(CARD_LABEL) as Card[]).map((c) => [c, CARD_LABEL[c]])} onChange={(card) => onChange({ card, countdown: (card === "question" || card === "poll") && !scene.countdown ? 3 : scene.countdown })} />
       </Field>
-      {(scene.card === "question" || scene.card === "poll") && <Slider label="Countdown" value={scene.countdown} min={0} max={10} step={1} unit=" s" onChange={(countdown) => onChange({ countdown })} />}
+      {(scene.card === "question" || scene.card === "poll") && <Slider label={t("Countdown")} value={scene.countdown} min={0} max={10} step={1} unit=" s" onChange={(countdown) => onChange({ countdown })} />}
       <Field
-        label="Züge in dieser Szene"
-        hint={error ? <span class="bad">„{error}“ ist hier kein gültiger Zug.</span> : "Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug."}
+        label={t("Züge in dieser Szene")}
+        hint={error ? <span class="bad">„{error}{t("“ ist hier kein gültiger Zug.")}</span> : t("Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug.")}
       >
-        <input class={error ? "invalid" : ""} value={scene.moves} onInput={(e) => onChange({ moves: e.currentTarget.value })} placeholder="z. B. 3. Lb5" spellcheck={false} />
+        <input class={error ? "invalid" : ""} value={scene.moves} onInput={(e) => onChange({ moves: e.currentTarget.value })} placeholder={t("z. B. 3. Lb5")} spellcheck={false} />
       </Field>
       <div class="studio-quick">
-        <button onClick={onBoard}>♞ Auf dem Brett vorspielen</button>
-        <button onClick={onAuto} disabled={!scene.moves.trim()} title="Untertitel, Pfeile und Markierungen aus den Zügen">
-          ✦ Automatisch erklären
+        <button onClick={onBoard}>{t("♞ Auf dem Brett vorspielen")}</button>
+        <button onClick={onAuto} disabled={!scene.moves.trim()} title={t("Untertitel, Pfeile und Markierungen aus den Zügen")}>
+          
+          {t("✦ Automatisch erklären")}
         </button>
       </div>
       {fenOpen ? (
-        <Field label="Vorher zu dieser Stellung springen (FEN)" hint={scene.fen && !validFen(scene.fen) ? <span class="bad">Diese FEN ist ungültig.</span> : "Für „Was wäre wenn“: die Figuren blenden zur neuen Stellung über."}>
+        <Field label={t("Vorher zu dieser Stellung springen (FEN)")} hint={scene.fen && !validFen(scene.fen) ? <span class="bad">{t("Diese FEN ist ungültig.")}</span> : t("Für „Was wäre wenn“: die Figuren blenden zur neuen Stellung über.")}>
           <input value={scene.fen} onInput={(e) => onChange({ fen: e.currentTarget.value })} placeholder={START_FEN} spellcheck={false} />
         </Field>
       ) : (
         <button class="studio-link" onClick={() => setFenOpen(true)}>
-          + Zu einer anderen Stellung springen
+          
+          {t("+ Zu einer anderen Stellung springen")}
         </button>
       )}
       {scene.card === "poll" && (
-        <Field label="Antworten der Umfrage" hint="z. B. „A) Lb5“. Die Zuschauer stimmen in den Kommentaren ab.">
+        <Field label={t("Antworten der Umfrage")} hint={t("z. B. „A) Lb5“. Die Zuschauer stimmen in den Kommentaren ab.")}>
           {[0, 1, 2].map((i) => (
             <input
               key={i}
@@ -953,22 +967,22 @@ function SceneEditor({
           ))}
         </Field>
       )}
-      <Field label="Kleine Zeile über der Überschrift" hint="z. B. „Variante 2“ oder „Teil 1“.">
+      <Field label={t("Kleine Zeile über der Überschrift")} hint={t("z. B. „Variante 2“ oder „Teil 1“.")}>
         <input value={scene.label} onInput={(e) => onChange({ label: e.currentTarget.value })} maxLength={40} />
       </Field>
-      <Field label="Überschrift">
+      <Field label={t("Überschrift")}>
         <input value={scene.title} onInput={(e) => onChange({ title: e.currentTarget.value })} maxLength={120} />
       </Field>
-      <Field label="Untertitel" hint="*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.">
+      <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
-      <Slider label="Dauer" value={scene.duration} min={1} max={15} step={0.1} unit=" s" onChange={(duration) => onChange({ duration })} />
-      {effective > scene.duration + 0.05 && <p class="studio-hint">Die Szene braucht {effective.toFixed(1)} s (Züge, Effekte oder Sprechtext), so lange läuft sie.</p>}
-      <Field label="Sprechtext" hint="Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.">
-        <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder="Optional" />
+      <Slider label={t("Dauer")} value={scene.duration} min={1} max={15} step={0.1} unit=" s" onChange={(duration) => onChange({ duration })} />
+      {effective > scene.duration + 0.05 && <p class="studio-hint">{t("Die Szene braucht")} {effective.toFixed(1)}  {t("s (Züge, Effekte oder Sprechtext), so lange läuft sie.")}</p>}
+      <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
+        <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
       </Field>
 
-      <h4 class="studio-sub">Effekte</h4>
+      <h4 class="studio-sub">{t("Effekte")}</h4>
       <div class="studio-fx">
         {(Object.keys(EFFECT_LABEL) as Effect[]).map((fx) => {
           const on = scene.effects.includes(fx);
@@ -981,7 +995,7 @@ function SceneEditor({
         })}
       </div>
       {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
-      <Field label="Bewertung des Zugs" hint={scene.badge ? `${BADGE_LABEL[scene.badge]}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.` : "Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs."}>
+      <Field label={t("Bewertung des Zugs")} hint={scene.badge ? t("{0}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.", { 0: BADGE_LABEL[scene.badge] }) : t("Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.")}>
         <div class="studio-badges">
           {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
             <button key={b || "none"} class={scene.badge === b ? "on" : ""} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]} aria-label={BADGE_LABEL[b]}>
@@ -990,10 +1004,10 @@ function SceneEditor({
           ))}
         </div>
       </Field>
-      <Slider label="Zugtempo dieser Szene" value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
+      <Slider label={t("Zugtempo dieser Szene")} value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
 
-      <h4 class="studio-sub">Kamera</h4>
-      <p class="studio-hint">Immer aus Sicht von {perspective === "black" ? "Schwarz" : "Weiß"}, änderbar unter „Video“.</p>
+      <h4 class="studio-sub">{t("Kamera")}</h4>
+      <p class="studio-hint">{t("Immer aus Sicht von")} {perspective === "black" ? t("Schwarz") : t("Weiß")}{t(", änderbar unter „Video“.")}</p>
       <div class="studio-cams">
         {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
           <button key={c} class={scene.camera === c ? "on" : ""} onClick={() => onChange({ camera: c })}>
@@ -1003,19 +1017,21 @@ function SceneEditor({
         ))}
       </div>
       <details class="studio-fine">
-        <summary>Feinschliff der Kamera</summary>
-      <Slider label="Zoom" value={scene.zoom} min={0.45} max={1.6} step={0.05} unit="×" onChange={(zoom) => onChange({ zoom })} />
-      <Slider label="Kamerafahrt (Drehung)" value={scene.orbit} min={-30} max={30} step={1} unit="°/s" onChange={(orbit) => onChange({ orbit })} />
+        <summary>{t("Feinschliff der Kamera")}</summary>
+      <Slider label={t("Zoom")} value={scene.zoom} min={0.45} max={1.6} step={0.05} unit="×" onChange={(zoom) => onChange({ zoom })} />
+      <Slider label={t("Kamerafahrt (Drehung)")} value={scene.orbit} min={-30} max={30} step={1} unit="°/s" onChange={(orbit) => onChange({ orbit })} />
       </details>
-      <Toggle label="Auf den Zug zoomen" checked={scene.focus} onChange={(focus) => onChange({ focus })} />
+      <Toggle label={t("Auf den Zug zoomen")} checked={scene.focus} onChange={(focus) => onChange({ focus })} />
 
-      <h4 class="studio-sub">Pfeile und Felder</h4>
+      <h4 class="studio-sub">{t("Pfeile und Felder")}</h4>
       <div class="studio-draw">
         <button class={tool === "arrow" ? "on" : ""} onClick={() => onTool(tool === "arrow" ? "none" : "arrow")}>
-          ↗ Pfeil zeichnen
+          
+          {t("↗ Pfeil zeichnen")}
         </button>
         <button class={tool === "mark" ? "on" : ""} onClick={() => onTool(tool === "mark" ? "none" : "mark")}>
-          ▣ Feld markieren
+          
+          {t("▣ Feld markieren")}
         </button>
       </div>
       <ToneChips value={tone} style={style} onChange={onTone} />
@@ -1024,8 +1040,9 @@ function SceneEditor({
           {scene.arrows.map((a, i) => (
             <li key={`a${i}`}>
               <span class="dot" style={{ background: toneColor(a.tone, style) }} />
-              Pfeil {a.from} → {a.to}
-              <button onClick={() => onChange({ arrows: scene.arrows.filter((_, k) => k !== i) })} aria-label="Pfeil löschen">
+              
+              {t("Pfeil")} {a.from} → {a.to}
+              <button onClick={() => onChange({ arrows: scene.arrows.filter((_, k) => k !== i) })} aria-label={t("Pfeil löschen")}>
                 ✕
               </button>
             </li>
@@ -1033,8 +1050,9 @@ function SceneEditor({
           {scene.marks.map((m, i) => (
             <li key={`m${i}`}>
               <span class="dot sq" style={{ background: toneColor(m.tone, style) }} />
-              Feld {m.square}
-              <button onClick={() => onChange({ marks: scene.marks.filter((_, k) => k !== i) })} aria-label="Markierung löschen">
+              
+              {t("Feld")} {m.square}
+              <button onClick={() => onChange({ marks: scene.marks.filter((_, k) => k !== i) })} aria-label={t("Markierung löschen")}>
                 ✕
               </button>
             </li>
@@ -1042,7 +1060,7 @@ function SceneEditor({
         </ul>
       )}
       {lucena && (
-        <Field label="Lucenas Stimmung">
+        <Field label={t("Lucenas Stimmung")}>
           <Seg<Mood> value={scene.mood} options={(Object.keys(MOOD_LABEL) as Mood[]).map((m) => [m, MOOD_LABEL[m]])} onChange={(mood) => onChange({ mood })} />
         </Field>
       )}
@@ -1079,10 +1097,10 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
   );
   return (
     <div class="studio-form">
-      <Field label="Brett" hint={style.view === "2d" ? "Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos." : style.view === "billboard" ? "3D-Brett mit Kamerafahrten, die Figuren sind flache Aufsteller, die sich immer zur Kamera drehen." : "Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts."}>
+      <Field label={t("Brett")} hint={style.view === "2d" ? t("Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos.") : style.view === "billboard" ? t("3D-Brett mit Kamerafahrten, die Figuren sind flache Aufsteller, die sich immer zur Kamera drehen.") : t("Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts.")}>
         <Seg<BoardView> value={style.view} options={VIEWS.map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange({ view })} />
       </Field>
-      <Field label="Look">
+      <Field label={t("Look")}>
         <div class="studio-themes">
           {(Object.keys(THEMES) as ThemeId[]).map((id) => {
             const tk = THEMES[id];
@@ -1099,7 +1117,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           })}
         </div>
       </Field>
-      {isBoard3d(style.view) && <Field label="Wo das Brett steht">
+      {isBoard3d(style.view) && <Field label={t("Wo das Brett steht")}>
         <div class="studio-envs">
           {(Object.keys(ENV_LABEL) as Environment[]).map((e) => (
             <button key={e} class={style.environment === e ? "on" : ""} onClick={() => onChange({ environment: e })}>
@@ -1109,41 +1127,41 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
           ))}
         </div>
       </Field>}
-      <h4 class="studio-sub">Farben</h4>
+      <h4 class="studio-sub">{t("Farben")}</h4>
       <div class="studio-colours">
-        {colour("Helle Felder", "light")}
-        {colour("Dunkle Felder", "dark")}
-        {colour("Rahmen", "frame")}
-        {style.view === "3d" && colour("Weiße Figuren", "whitePiece")}
-        {style.view === "3d" && colour("Schwarze Figuren", "blackPiece")}
-        {colour("Akzent", "accent")}
-        {colour("Hintergrund oben", "bgTop")}
-        {colour("Hintergrund unten", "bgBottom")}
+        {colour(t("Helle Felder"), "light")}
+        {colour(t("Dunkle Felder"), "dark")}
+        {colour(t("Rahmen"), "frame")}
+        {style.view === "3d" && colour(t("Weiße Figuren"), "whitePiece")}
+        {style.view === "3d" && colour(t("Schwarze Figuren"), "blackPiece")}
+        {colour(t("Akzent"), "accent")}
+        {colour(t("Hintergrund oben"), "bgTop")}
+        {colour(t("Hintergrund unten"), "bgBottom")}
       </div>
-      {style.view === "3d" && <Field label="Figuren">
+      {style.view === "3d" && <Field label={t("Figuren")}>
         <Seg<Material>
           value={style.material}
           options={(Object.keys(MATERIAL_LABEL) as Material[]).map((m) => [m, MATERIAL_LABEL[m]] as [Material, string])}
           onChange={(material) => onChange({ material })}
         />
       </Field>}
-      <Field label="Schrift der Überschriften">
+      <Field label={t("Schrift der Überschriften")}>
         <Seg<"sans" | "serif">
           value={style.titleFont}
           options={[
-            ["sans", "Modern"],
-            ["serif", "Elegant"],
+            ["sans", t("Modern")],
+            ["serif", t("Elegant")],
           ]}
           onChange={(titleFont) => onChange({ titleFont })}
         />
       </Field>
-      <Field label="Untertitel">
+      <Field label={t("Untertitel")}>
         <Seg<CaptionStyle> value={style.captionStyle} options={(Object.keys(CAPTION_LABEL) as CaptionStyle[]).map((c) => [c, CAPTION_LABEL[c]] as [CaptionStyle, string])} onChange={(captionStyle) => onChange({ captionStyle })} />
       </Field>
-      <Slider label="Textgröße" value={style.textScale} min={0.8} max={1.3} step={0.05} unit="×" onChange={(textScale) => onChange({ textScale })} />
-      {style.view === "3d" && <Toggle label="Heller Rand an den Figuren (besser zu unterscheiden)" checked={style.pieceRim} onChange={(pieceRim) => onChange({ pieceRim })} />}
-      {style.view === "3d" && <Toggle label="Spiegelung im Brett" checked={style.reflection} onChange={(reflection) => onChange({ reflection })} />}
-      <Toggle label="Koordinaten am Rand" checked={style.coords} onChange={(coords) => onChange({ coords })} />
+      <Slider label={t("Textgröße")} value={style.textScale} min={0.8} max={1.3} step={0.05} unit="×" onChange={(textScale) => onChange({ textScale })} />
+      {style.view === "3d" && <Toggle label={t("Heller Rand an den Figuren (besser zu unterscheiden)")} checked={style.pieceRim} onChange={(pieceRim) => onChange({ pieceRim })} />}
+      {style.view === "3d" && <Toggle label={t("Spiegelung im Brett")} checked={style.reflection} onChange={(reflection) => onChange({ reflection })} />}
+      <Toggle label={t("Koordinaten am Rand")} checked={style.coords} onChange={(coords) => onChange({ coords })} />
     </div>
   );
 }
@@ -1154,17 +1172,17 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
   const v = project.video;
   return (
     <div class="studio-form">
-      <Field label="Sicht aufs Brett" hint="Gilt für alle Szenen: die Kameras drehen sich mit, so bleibt die Seite im ganzen Video gleich.">
+      <Field label={t("Sicht aufs Brett")} hint={t("Gilt für alle Szenen: die Kameras drehen sich mit, so bleibt die Seite im ganzen Video gleich.")}>
         <Seg<Side>
           value={v.perspective}
           options={[
-            ["white", "Weiß unten"],
-            ["black", "Schwarz unten"],
+            ["white", t("Weiß unten")],
+            ["black", t("Schwarz unten")],
           ]}
           onChange={(perspective) => onVideo({ perspective })}
         />
       </Field>
-      <Field label="Plattform" hint="Bestimmt die sichere Zone in der Vorschau und bei YouTube das Querformat.">
+      <Field label={t("Plattform")} hint={t("Bestimmt die sichere Zone in der Vorschau und bei YouTube das Querformat.")}>
         <select
           class="studio-select"
           value={v.platform}
@@ -1184,46 +1202,47 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
           ))}
         </select>
       </Field>
-      <Field label="Format">
+      <Field label={t("Format")}>
         <Seg<Format>
           value={v.format}
           options={[
-            ["9:16", "9:16 TikTok/Reels"],
+            ["9:16", t("9:16 TikTok/Reels")],
             ["1:1", "1:1"],
-            ["16:9", "16:9 YouTube"],
+            ["16:9", t("16:9 YouTube")],
           ]}
           onChange={(format) => onVideo({ format })}
         />
       </Field>
-      <Field label="Bilder pro Sekunde">
+      <Field label={t("Bilder pro Sekunde")}>
         <Seg<30 | 60>
           value={v.fps}
           options={[
             [30, "30"],
-            [60, "60 (flüssiger)"],
+            [60, t("60 (flüssiger)")],
           ]}
           onChange={(fps) => onVideo({ fps })}
         />
       </Field>
-      <Slider label="Tempo des ganzen Videos" value={v.speed} min={0.5} max={2.5} step={0.05} unit="×" onChange={(speed) => onVideo({ speed })} />
-      <Slider label="Tempo nur der Figuren" value={v.tempo} min={0.4} max={2.5} step={0.05} unit="×" onChange={(tempo) => onVideo({ tempo })} />
-      <h4 class="studio-sub">Im Bild</h4>
-      <Toggle label={`Logo und Name ${BRAND}`} checked={v.brand} onChange={(brand) => onVideo({ brand })} />
-      <Toggle label="Webadresse" checked={v.watermark} onChange={(watermark) => onVideo({ watermark })} />
-      <Toggle label="Lucena spricht die Untertitel" checked={v.lucena} onChange={(lucena) => onVideo({ lucena })} />
-      <Toggle label="Zug-Anzeige (z. B. 3. Lb5)" checked={v.movePill} onChange={(movePill) => onVideo({ movePill })} />
-      {v.movePill && <Toggle label="Zug in Worten darunter („Weiß: Läufer von f1 nach b5“)" checked={v.plainMoves} onChange={(plainMoves) => onVideo({ plainMoves })} />}
-      <Toggle label="Notation in Titeln und Untertiteln ausschreiben („Sf3“ wird „Springer f3“)" checked={v.spellMoves} onChange={(spellMoves) => onVideo({ spellMoves })} />
-      <Toggle label="Felder aus dem Untertitel leuchten auf" checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
-      <Toggle label="Letzten Zug hervorheben" checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
-      <Toggle label="Fortschrittsbalken" checked={v.progress} onChange={(progress) => onVideo({ progress })} />
-      {v.format === "16:9" && <Toggle label="Lernvideo: Brett links, Erklärung und Züge rechts" checked={v.lesson} onChange={(lesson) => onVideo({ lesson })} />}
-      <Toggle label="Kamerafahrt zum Start" checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
-      <Field label="Startstellung (FEN)" hint={!validFen(project.startFen) ? <span class="bad">Ungültig, es gilt die Grundstellung.</span> : "Für Rätsel oder Endspiele; leer = Grundstellung."}>
-        <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder="Grundstellung" onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
+      <Slider label={t("Tempo des ganzen Videos")} value={v.speed} min={0.5} max={2.5} step={0.05} unit="×" onChange={(speed) => onVideo({ speed })} />
+      <Slider label={t("Tempo nur der Figuren")} value={v.tempo} min={0.4} max={2.5} step={0.05} unit="×" onChange={(tempo) => onVideo({ tempo })} />
+      <h4 class="studio-sub">{t("Im Bild")}</h4>
+      <Toggle label={t("Logo und Name {BRAND}", { BRAND })} checked={v.brand} onChange={(brand) => onVideo({ brand })} />
+      <Toggle label={t("Webadresse")} checked={v.watermark} onChange={(watermark) => onVideo({ watermark })} />
+      <Toggle label={t("Lucena spricht die Untertitel")} checked={v.lucena} onChange={(lucena) => onVideo({ lucena })} />
+      <Toggle label={t("Zug-Anzeige (z. B. 3. Lb5)")} checked={v.movePill} onChange={(movePill) => onVideo({ movePill })} />
+      {v.movePill && <Toggle label={t("Zug in Worten darunter („Weiß: Läufer von f1 nach b5“)")} checked={v.plainMoves} onChange={(plainMoves) => onVideo({ plainMoves })} />}
+      <Toggle label={t("Notation in Titeln und Untertiteln ausschreiben („Sf3“ wird „Springer f3“)")} checked={v.spellMoves} onChange={(spellMoves) => onVideo({ spellMoves })} />
+      <Toggle label={t("Felder aus dem Untertitel leuchten auf")} checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
+      <Toggle label={t("Letzten Zug hervorheben")} checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
+      <Toggle label={t("Fortschrittsbalken")} checked={v.progress} onChange={(progress) => onVideo({ progress })} />
+      {v.format === "16:9" && <Toggle label={t("Lernvideo: Brett links, Erklärung und Züge rechts")} checked={v.lesson} onChange={(lesson) => onVideo({ lesson })} />}
+      <Toggle label={t("Kamerafahrt zum Start")} checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
+      <Field label={t("Startstellung (FEN)")} hint={!validFen(project.startFen) ? <span class="bad">{t("Ungültig, es gilt die Grundstellung.")}</span> : t("Für Rätsel oder Endspiele; leer = Grundstellung.")}>
+        <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder={t("Grundstellung")} onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
       </Field>
       <p class="studio-hint">
-        Export als {type ? type.toUpperCase() : "– (Browser kann nicht aufnehmen)"}. Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.
+        
+        {t("Export als")} {type ? type.toUpperCase() : t("– (Browser kann nicht aufnehmen)")}{t(". Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.")}
       </p>
     </div>
   );
@@ -1245,7 +1264,7 @@ function SoundPanel(p: {
   const v = p.video;
   return (
     <div class="studio-form studio-sound">
-      <h4 class="studio-sub">Musik</h4>
+      <h4 class="studio-sub">{t("Musik")}</h4>
       <div class="studio-speed wrap">
         {(Object.keys(MUSIC_LABEL) as MusicId[])
           .filter((m) => m !== "file" || v.musicName)
@@ -1255,36 +1274,39 @@ function SoundPanel(p: {
             </button>
           ))}
         <label class="btn ghost small">
-          Eigene Musik …
+          
+          {t("Eigene Musik …")}
           <input type="file" accept="audio/*" hidden onChange={(e) => e.currentTarget.files?.[0] && p.onMusicFile(e.currentTarget.files[0])} />
         </label>
       </div>
-      {v.music !== "none" && <Slider label="Lautstärke Musik" value={v.musicVolume} min={0} max={1} step={0.05} unit="" onChange={(musicVolume) => p.onVideo({ musicVolume })} />}
-      <p class="studio-hint">Lo-fi, Spannung und Episch macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).</p>
+      {v.music !== "none" && <Slider label={t("Lautstärke Musik")} value={v.musicVolume} min={0} max={1} step={0.05} unit="" onChange={(musicVolume) => p.onVideo({ musicVolume })} />}
+      <p class="studio-hint">{t("Lo-fi, Spannung und Episch macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).")}</p>
 
-      <h4 class="studio-sub">Deine Stimme</h4>
+      <h4 class="studio-sub">{t("Deine Stimme")}</h4>
       <div class="studio-voice">
         <button class={`btn ${p.recording ? "danger" : "primary"}`} onClick={p.onRecord}>
-          {p.recording ? "■ Aufnahme stoppen" : p.hasVoice ? "● Neu einsprechen" : "● Einsprechen"}
+          {p.recording ? t("■ Aufnahme stoppen") : p.hasVoice ? t("● Neu einsprechen") : t("● Einsprechen")}
         </button>
         <label class="btn ghost">
-          Datei …
+          
+          {t("Datei …")}
           <input type="file" accept="audio/*" hidden onChange={(e) => e.currentTarget.files?.[0] && p.onVoiceFile(e.currentTarget.files[0])} />
         </label>
         {p.hasVoice && !p.recording && (
           <button class="btn ghost" onClick={p.onRemoveVoice}>
-            Löschen
+            
+            {t("Löschen")}
           </button>
         )}
       </div>
       {p.hasVoice && (
         <>
-          <Toggle label="Stimme im Video" checked={v.voice} onChange={(voice) => p.onVideo({ voice })} />
-          <Slider label="Lautstärke Stimme" value={v.voiceVolume} min={0} max={1.5} step={0.05} unit="" onChange={(voiceVolume) => p.onVideo({ voiceVolume })} />
+          <Toggle label={t("Stimme im Video")} checked={v.voice} onChange={(voice) => p.onVideo({ voice })} />
+          <Slider label={t("Lautstärke Stimme")} value={v.voiceVolume} min={0} max={1.5} step={0.05} unit="" onChange={(voiceVolume) => p.onVideo({ voiceVolume })} />
         </>
       )}
-      <p class="studio-hint">Das Video läuft von vorn, über dem Bild steht dein Sprechtext. Kopfhörer helfen. Die Musik wird leiser, solange deine Stimme läuft.</p>
-      <Toggle label="Effekt-Töne (Matt, Zoom, Konfetti)" checked={v.sound} onChange={(sound) => p.onVideo({ sound })} />
+      <p class="studio-hint">{t("Das Video läuft von vorn, über dem Bild steht dein Sprechtext. Kopfhörer helfen. Die Musik wird leiser, solange deine Stimme läuft.")}</p>
+      <Toggle label={t("Effekt-Töne (Matt, Zoom, Konfetti)")} checked={v.sound} onChange={(sound) => p.onVideo({ sound })} />
       {p.error && <p class="studio-warn">{p.error}</p>}
     </div>
   );
@@ -1293,14 +1315,14 @@ function SoundPanel(p: {
 // ---------- new project ----------
 
 function NewDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (p: StudioProject) => void }) {
-  const [name, setName] = useState("Die Italienische Partie");
-  const [moves, setMoves] = useState("1. e4 e5 2. Sf3 Sc6 3. Lc4 Lc5");
+  const [name, setName] = useState(t("Die Italienische Partie"));
+  const [moves, setMoves] = useState(t("1. e4 e5 2. Sf3 Sc6 3. Lc4 Lc5"));
   const [pairs, setPairs] = useState(true);
   const built = useMemo(() => fromMoves(name, moves, START_FEN, pairs), [name, moves, pairs]);
   return (
     <div class="studio-modal" role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div class="studio-modal-card wide">
-        <h3>Neues Video</h3>
+        <h3>{t("Neues Video")}</h3>
         <div class="studio-templates">
           {TEMPLATES.map((tk) => (
             <button key={tk.id} onClick={() => onCreate(tk.make())}>
@@ -1309,22 +1331,24 @@ function NewDialog({ onClose, onCreate }: { onClose: () => void; onCreate: (p: S
             </button>
           ))}
         </div>
-        <h4 class="studio-sub">Oder aus einer Zugliste</h4>
+        <h4 class="studio-sub">{t("Oder aus einer Zugliste")}</h4>
         <div class="studio-form">
-          <Field label="Titel">
+          <Field label={t("Titel")}>
             <input value={name} onInput={(e) => setName(e.currentTarget.value)} />
           </Field>
-          <Field label="Züge (PGN)" hint={built.error ? <span class="bad">Ab „{built.error}“ geht es nicht weiter.</span> : `${built.project.scenes.length - 2} Szenen mit Platzhaltertexten.`}>
+          <Field label={t("Züge (PGN)")} hint={built.error ? <span class="bad">{t("Ab „")}{built.error}{t("“ geht es nicht weiter.")}</span> : t("{0} Szenen mit Platzhaltertexten.", { 0: built.project.scenes.length - 2 })}>
             <textarea rows={3} value={moves} onInput={(e) => setMoves(e.currentTarget.value)} spellcheck={false} />
           </Field>
-          <Toggle label="Weiß- und Schwarzzug in einer Szene" checked={pairs} onChange={setPairs} />
+          <Toggle label={t("Weiß- und Schwarzzug in einer Szene")} checked={pairs} onChange={setPairs} />
         </div>
         <div class="studio-modal-actions">
           <button class="btn primary" onClick={() => onCreate(built.project)}>
-            Erstellen
+            
+            {t("Erstellen")}
           </button>
           <button class="btn ghost" onClick={onClose}>
-            Abbrechen
+            
+            {t("Abbrechen")}
           </button>
         </div>
       </div>
@@ -1338,22 +1362,25 @@ function ScriptDialog({ onClose, onApply }: { onClose: () => void; onApply: (tex
   return (
     <div class="studio-modal" role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div class="studio-modal-card wide">
-        <h3>Skript auf die Szenen verteilen</h3>
+        <h3>{t("Skript auf die Szenen verteilen")}</h3>
         <p class="muted small">
-          Sätze, die einen Zug nennen (z. B. „Mit Lb5 …“), landen bei der Szene mit diesem Zug. Die anderen verteilen sich der Reihe nach dazwischen, ein Aufruf wie „Folge für mehr“ kommt in den
-          Abspann. Jede Szene bekommt genug Zeit zum Mitlesen.
+          
+          {t("Sätze, die einen Zug nennen (z. B. „Mit Lb5 …“), landen bei der Szene mit diesem Zug. Die anderen verteilen sich der Reihe nach dazwischen, ein Aufruf wie „Folge für mehr“ kommt in den Abspann. Jede Szene bekommt genug Zeit zum Mitlesen.")}
         </p>
-        <textarea class="wz-script" rows={10} value={text} onInput={(e) => setText(e.currentTarget.value)} placeholder="Dein Skript …" />
+        <textarea class="wz-script" rows={10} value={text} onInput={(e) => setText(e.currentTarget.value)} placeholder={t("Dein Skript …")} />
         <div class="studio-modal-actions">
           <button class="btn primary" disabled={!text.trim()} onClick={() => onApply(text)}>
-            Verteilen
+            
+            {t("Verteilen")}
           </button>
           <label class="btn ghost">
-            Textdatei …
+            
+            {t("Textdatei …")}
             <input type="file" accept=".txt,.md,text/plain" hidden onChange={(e) => e.currentTarget.files?.[0] && void readFile(e.currentTarget.files[0])} />
           </label>
           <button class="btn ghost" onClick={onClose}>
-            Abbrechen
+            
+            {t("Abbrechen")}
           </button>
         </div>
       </div>
@@ -1368,8 +1395,8 @@ function SceneBoard({ fen, moves, onClose, onApply }: { fen: string; moves: stri
     <div class="studio-modal" role="dialog" aria-modal="true">
       <div class="studio-modal-card wizard">
         <header class="wz-head">
-          <h3>Züge dieser Szene vorspielen</h3>
-          <button class="wz-close" onClick={onClose} aria-label="Schließen">
+          <h3>{t("Züge dieser Szene vorspielen")}</h3>
+          <button class="wz-close" onClick={onClose} aria-label={t("Schließen")}>
             ✕
           </button>
         </header>
@@ -1385,9 +1412,10 @@ function SceneBoard({ fen, moves, onClose, onApply }: { fen: string; moves: stri
           />
         </div>
         <footer class="wz-foot">
-          <span class="wz-summary">{tree.variations.length ? `${tree.variations.length} Variante(n) werden als eigene Szenen eingefügt` : "Andere Züge nach dem Zurückgehen werden Varianten"}</span>
+          <span class="wz-summary">{tree.variations.length ? t("{length} Variante(n) werden als eigene Szenen eingefügt", { length: tree.variations.length }) : t("Andere Züge nach dem Zurückgehen werden Varianten")}</span>
           <button class="btn primary" onClick={() => onApply(tree)}>
-            Übernehmen
+            
+            {t("Übernehmen")}
           </button>
         </footer>
       </div>

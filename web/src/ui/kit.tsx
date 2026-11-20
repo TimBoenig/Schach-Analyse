@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { useWidth } from "./charts";
 import { IconInfo } from "./icons";
 import { balanceText, splitProof } from "./labels";
+import { t } from "../i18n";
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -95,7 +96,7 @@ export function Hero({
  * How a card measures: closed by default, one tap away. Pages state the
  * finding; the method only has to be there for whoever asks.
  */
-export function Foot({ children, label = "Wie wird das gemessen?" }: { children: ComponentChildren; label?: string }) {
+export function Foot({ children, label = t("Wie wird das gemessen?") }: { children: ComponentChildren; label?: string }) {
   return (
     <details class="foot">
       <summary>

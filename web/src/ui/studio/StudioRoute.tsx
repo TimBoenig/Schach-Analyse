@@ -5,6 +5,7 @@ import { useEffect, useState } from "preact/hooks";
 
 import { navigate } from "../router";
 import { studioUnlocked } from "./access";
+import { t } from "../../i18n";
 
 let chunk: Promise<FunctionComponent> | null = null;
 const load = () => (chunk ??= Promise.all([import("./StudioView"), import("./studio.css")]).then(([m]) => m.StudioView));
@@ -23,6 +24,6 @@ export function StudioRoute() {
       .catch(() => setFailed(true));
   }, [unlocked]);
   if (!unlocked) return null;
-  if (failed) return <p style={{ padding: "40px" }}>Das Studio konnte nicht geladen werden. Bist du offline?</p>;
-  return View ? <View /> : <div class="studio-loading">Studio wird geladen …</div>;
+  if (failed) return <p style={{ padding: "40px" }}>{t("Das Studio konnte nicht geladen werden. Bist du offline?")}</p>;
+  return View ? <View /> : <div class="studio-loading">{t("Studio wird geladen …")}</div>;
 }

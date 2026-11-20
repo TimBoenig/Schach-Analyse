@@ -38,6 +38,7 @@ import {
   toCloudGame,
   type CloudGame,
 } from "./compact";
+import { t } from "../i18n";
 
 type Kind = "game" | "setting";
 
@@ -129,7 +130,7 @@ export function hasAuthCallback(): boolean {
 }
 
 function translateLinkError(msg: string): string {
-  if (/expired|invalid/i.test(msg)) return "Der Link ist abgelaufen oder wurde schon benutzt. Fordere bitte einen neuen an.";
+  if (/expired|invalid/i.test(msg)) return t("Der Link ist abgelaufen oder wurde schon benutzt. Fordere bitte einen neuen an.");
   return msg;
 }
 
@@ -358,19 +359,19 @@ export function syncNow(opts: SyncOptions = {}): Promise<SyncReport> {
 }
 
 function describeFailed(n: number): string {
-  return `${n === 1 ? "Ein Eintrag" : `${n} Einträge`} konnte${n === 1 ? "" : "n"} gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.`;
+  return t("{0} konnte{1} gerade nicht abgeglichen werden. Der nächste Versuch läuft automatisch, nichts geht verloren.", { 0: n === 1 ? t("Ein Eintrag") : t("{n} Einträge", { n }), 1: n === 1 ? "" : "n" });
 }
 
 /** German message for a failed round; a paused or unreachable server is the usual cause. */
 export function describeSyncError(e: unknown): string {
   const msg = messageOf(e);
-  if (typeof navigator !== "undefined" && navigator.onLine === false) return "Offline. Der Abgleich läuft weiter, sobald du wieder Internet hast.";
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return t("Offline. Der Abgleich läuft weiter, sobald du wieder Internet hast.");
   if (/failed to fetch|network|load failed|timeout|503|504|522|540/i.test(msg)) {
-    return "Der Sync-Server antwortet nicht. Deine Daten bleiben sicher auf diesem Gerät und werden später abgeglichen.";
+    return t("Der Sync-Server antwortet nicht. Deine Daten bleiben sicher auf diesem Gerät und werden später abgeglichen.");
   }
-  if (/402|quota|exceed/i.test(msg)) return "Der Sync-Server hat sein Datenkontingent aufgebraucht. Deine Daten bleiben auf diesem Gerät; der Abgleich läuft später weiter.";
-  if (/jwt|token|session/i.test(msg)) return "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.";
-  return `Abgleich fehlgeschlagen: ${msg}`;
+  if (/402|quota|exceed/i.test(msg)) return t("Der Sync-Server hat sein Datenkontingent aufgebraucht. Deine Daten bleiben auf diesem Gerät; der Abgleich läuft später weiter.");
+  if (/jwt|token|session/i.test(msg)) return t("Die Anmeldung ist abgelaufen. Bitte melde dich neu an.");
+  return t("Abgleich fehlgeschlagen: {msg}", { msg });
 }
 
 // ---- one round ----
@@ -603,7 +604,7 @@ export async function syncWith(sb: SupabaseClient, userId: string, opts: SyncOpt
 
 async function requireClient(): Promise<SupabaseClient> {
   const sb = await supabase();
-  if (!sb) throw new Error("In dieser Version ist kein Sync-Server hinterlegt.");
+  if (!sb) throw new Error(t("In dieser Version ist kein Sync-Server hinterlegt."));
   return sb;
 }
 
@@ -615,9 +616,9 @@ function accountUrl(): string {
 export const MIN_PASSWORD = 8;
 
 export function passwordProblem(password: string): string | null {
-  if (password.length < MIN_PASSWORD) return `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`;
+  if (password.length < MIN_PASSWORD) return t("Das Passwort braucht mindestens {MIN_PASSWORD} Zeichen.", { MIN_PASSWORD });
   if (!/[a-zA-ZäöüÄÖÜß]/.test(password) || !/[^a-zA-ZäöüÄÖÜß]/.test(password)) {
-    return "Nimm Buchstaben und mindestens eine Zahl oder ein Sonderzeichen.";
+    return t("Nimm Buchstaben und mindestens eine Zahl oder ein Sonderzeichen.");
   }
   return null;
 }
@@ -667,7 +668,7 @@ export async function signOut(): Promise<void> {
 export async function deleteCloudData(): Promise<void> {
   const sb = await requireClient();
   const user = await currentUser();
-  if (!user) throw new Error("Nicht angemeldet.");
+  if (!user) throw new Error(t("Nicht angemeldet."));
   const { error } = await sb.from("sync_records").delete().eq("user_id", user.id);
   if (error) throw new Error(describeSyncError(error));
   await putSettingRecords(
@@ -780,16 +781,16 @@ export async function onAuthEvent(cb: (event: AuthChangeEvent) => void): Promise
 }
 
 function translateAuthError(msg: string): string {
-  if (/invalid login/i.test(msg)) return "E-Mail oder Passwort ist falsch.";
-  if (/not confirmed/i.test(msg)) return "Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Bestätigungsmail.";
-  if (/already registered|already been registered/i.test(msg)) return "Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.";
-  if (/email rate limit/i.test(msg)) return "Gerade wurden zu viele E-Mails verschickt. Bitte versuche es in einer Stunde noch einmal oder melde dich mit Passwort an.";
-  if (/rate limit|too many|security purposes/i.test(msg)) return "Zu viele Versuche. Bitte warte kurz und probiere es dann noch einmal.";
-  if (/signups not allowed|signup.*disabled/i.test(msg)) return "Neue Konten sind gerade nicht möglich. Bitte versuche es später noch einmal.";
-  if (/invalid.*email|email.*invalid/i.test(msg)) return "Diese E-Mail-Adresse ist ungültig.";
-  if (/same password|different from the old/i.test(msg)) return "Das neue Passwort muss sich vom alten unterscheiden.";
-  if (/failed to fetch|network|load failed/i.test(msg)) return "Keine Verbindung zum Sync-Server. Bitte prüfe deine Internetverbindung.";
-  if (/weak|pwned|leaked/i.test(msg)) return "Dieses Passwort ist zu unsicher oder schon in Datenlecks aufgetaucht. Bitte wähle ein anderes.";
-  if (/password/i.test(msg)) return `Das Passwort braucht mindestens ${MIN_PASSWORD} Zeichen.`;
+  if (/invalid login/i.test(msg)) return t("E-Mail oder Passwort ist falsch.");
+  if (/not confirmed/i.test(msg)) return t("Bitte bestätige zuerst deine E-Mail-Adresse über den Link in der Bestätigungsmail.");
+  if (/already registered|already been registered/i.test(msg)) return t("Für diese E-Mail gibt es schon ein Konto. Bitte melde dich an.");
+  if (/email rate limit/i.test(msg)) return t("Gerade wurden zu viele E-Mails verschickt. Bitte versuche es in einer Stunde noch einmal oder melde dich mit Passwort an.");
+  if (/rate limit|too many|security purposes/i.test(msg)) return t("Zu viele Versuche. Bitte warte kurz und probiere es dann noch einmal.");
+  if (/signups not allowed|signup.*disabled/i.test(msg)) return t("Neue Konten sind gerade nicht möglich. Bitte versuche es später noch einmal.");
+  if (/invalid.*email|email.*invalid/i.test(msg)) return t("Diese E-Mail-Adresse ist ungültig.");
+  if (/same password|different from the old/i.test(msg)) return t("Das neue Passwort muss sich vom alten unterscheiden.");
+  if (/failed to fetch|network|load failed/i.test(msg)) return t("Keine Verbindung zum Sync-Server. Bitte prüfe deine Internetverbindung.");
+  if (/weak|pwned|leaked/i.test(msg)) return t("Dieses Passwort ist zu unsicher oder schon in Datenlecks aufgetaucht. Bitte wähle ein anderes.");
+  if (/password/i.test(msg)) return t("Das Passwort braucht mindestens {MIN_PASSWORD} Zeichen.", { MIN_PASSWORD });
   return msg;
 }

@@ -4,6 +4,7 @@
 // drawn imperatively on its own layer so no page layout can clip it.
 import { badgeFor } from "../labels";
 import "./ultra.css";
+import { t } from "../../i18n";
 
 export interface UltraOptions {
   /** Viewport position of the square the move landed on. */
@@ -22,14 +23,14 @@ const HOLD = 4.3;
 const FADE = 0.6;
 
 const QUIPS = [
-  "Lucena fällt gerade vom Stuhl.",
-  "Die Schachgöttin höchstpersönlich applaudiert.",
-  "Dieser Zug gehört in ein Museum.",
-  "Bitte einrahmen und an die Wand hängen.",
-  "Das Brett bittet um ein Autogramm.",
-  "Irgendwo weint ein Springer vor Glück.",
-  "Opfer angenommen. Applaus auch.",
-  "So spielt man, wenn niemand hinschaut. Nur eben mit Zuschauern.",
+  t("Lucena fällt gerade vom Stuhl."),
+  t("Die Schachgöttin höchstpersönlich applaudiert."),
+  t("Dieser Zug gehört in ein Museum."),
+  t("Bitte einrahmen und an die Wand hängen."),
+  t("Das Brett bittet um ein Autogramm."),
+  t("Irgendwo weint ein Springer vor Glück."),
+  t("Opfer angenommen. Applaus auch."),
+  t("So spielt man, wenn niemand hinschaut. Nur eben mit Zuschauern."),
 ];
 
 type Rgb = [number, number, number];
@@ -133,7 +134,7 @@ function buildTitle(san: string | undefined): HTMLElement {
   badge.append(halo, img);
   const word = document.createElement("div");
   word.className = "ultra-word";
-  [..."BRILLANT!!"].forEach((ch, k) => {
+  [...t("BRILLANT!!")].forEach((ch, k) => {
     const s = document.createElement("span");
     s.textContent = ch;
     if (ch === "!") s.className = "ultra-bang";

@@ -21,6 +21,7 @@ import {
   Z_MULTI,
 } from "./evidence";
 import { buildPrecision, type PrecisionStats, wilsonMargin } from "./precision";
+import { t } from "../../i18n";
 
 export interface ScoreBucket {
   key: string;
@@ -97,21 +98,21 @@ const MIN_MOVES = MIN_BUCKET_MOVES;
 const FILES = "abcdefgh";
 
 const PIECES: [string, string][] = [
-  ["P", "Bauer"],
-  ["N", "Springer"],
-  ["B", "Läufer"],
-  ["R", "Turm"],
-  ["Q", "Dame"],
-  ["K", "König"],
+  ["P", t("Bauer")],
+  ["N", t("Springer")],
+  ["B", t("Läufer")],
+  ["R", t("Turm")],
+  ["Q", t("Dame")],
+  ["K", t("König")],
 ];
 
 const PIECE_DATIVE: Record<string, string> = {
-  P: "dem Bauern",
-  N: "dem Springer",
-  B: "dem Läufer",
-  R: "dem Turm",
-  Q: "der Dame",
-  K: "dem König",
+  P: t("dem Bauern"),
+  N: t("dem Springer"),
+  B: t("dem Läufer"),
+  R: t("dem Turm"),
+  Q: t("der Dame"),
+  K: t("dem König"),
 };
 
 const MOVE_RANGES: [number, number, string][] = [
@@ -123,29 +124,29 @@ const MOVE_RANGES: [number, number, string][] = [
 ];
 
 const DAYTIMES: [string, string, (h: number) => boolean][] = [
-  ["morning", "Morgens (5–11 Uhr)", (h) => h >= 5 && h < 11],
-  ["midday", "Mittags (11–17 Uhr)", (h) => h >= 11 && h < 17],
-  ["evening", "Abends (17–22 Uhr)", (h) => h >= 17 && h < 22],
-  ["night", "Nachts (22–5 Uhr)", (h) => h >= 22 || h < 5],
+  ["morning", t("Morgens (5–11 Uhr)"), (h) => h >= 5 && h < 11],
+  ["midday", t("Mittags (11–17 Uhr)"), (h) => h >= 11 && h < 17],
+  ["evening", t("Abends (17–22 Uhr)"), (h) => h >= 17 && h < 22],
+  ["night", t("Nachts (22–5 Uhr)"), (h) => h >= 22 || h < 5],
 ];
 
 const SITUATIONS: [string, (wp: number) => boolean][] = [
-  ["Klar besser (ab 70 %)", (wp) => wp >= 0.7],
-  ["Ausgeglichen", (wp) => wp > 0.3 && wp < 0.7],
-  ["Klar schlechter (bis 30 %)", (wp) => wp <= 0.3],
+  [t("Klar besser (ab 70 %)"), (wp) => wp >= 0.7],
+  [t("Ausgeglichen"), (wp) => wp > 0.3 && wp < 0.7],
+  [t("Klar schlechter (bis 30 %)"), (wp) => wp <= 0.3],
 ];
 
 const THINK_TIMES: [string, (s: number) => boolean][] = [
-  ["unter 3 s", (s) => s < 3],
+  [t("unter 3 s"), (s) => s < 3],
   ["3–10 s", (s) => s >= 3 && s < 10],
   ["10–30 s", (s) => s >= 10 && s < 30],
-  ["über 30 s", (s) => s >= 30],
+  [t("über 30 s"), (s) => s >= 30],
 ];
 
 // The first moves after theory are where players without a plan go wrong.
 const AFTER_BOOK_MOVES = 5;
 
-const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const WEEKDAYS = [t("So"), t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa")];
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 /** German decimal formatting (comma) for sentences. */
@@ -249,12 +250,12 @@ export function buildDeepInsights(
     });
   }
   const afterResult = [
-    scoreBucket("win", "Nach einem Sieg", after.win),
-    scoreBucket("draw", "Nach einem Remis", after.draw),
-    scoreBucket("loss", "Nach einer Niederlage", after.loss),
-    scoreBucket("loss2", "Nach zwei Niederlagen", after.loss2),
+    scoreBucket("win", t("Nach einem Sieg"), after.win),
+    scoreBucket("draw", t("Nach einem Remis"), after.draw),
+    scoreBucket("loss", t("Nach einer Niederlage"), after.loss),
+    scoreBucket("loss2", t("Nach zwei Niederlagen"), after.loss2),
   ];
-  const bySessionGame = ["1. Partie", "2. Partie", "3. Partie", "4. und später"].map((label, i) =>
+  const bySessionGame = [t("1. Partie"), t("2. Partie"), t("3. Partie"), t("4. und später")].map((label, i) =>
     scoreBucket(String(i + 1), label, bySession[i]),
   );
 
@@ -263,13 +264,13 @@ export function buildDeepInsights(
   const byThink = THINK_TIMES.map(([label, test]) => moveBucket(label, clocked.filter((m) => test(m.time_spent as number))));
   const outOfBook = moves.filter((m) => m.moves_since_book >= 0);
   const afterBook = [
-    moveBucket(`Erste ${AFTER_BOOK_MOVES} Züge nach der Theorie`, outOfBook.filter((m) => m.moves_since_book < AFTER_BOOK_MOVES)),
-    moveBucket("Danach", outOfBook.filter((m) => m.moves_since_book >= AFTER_BOOK_MOVES)),
+    moveBucket(t("Erste {AFTER_BOOK_MOVES} Züge nach der Theorie", { AFTER_BOOK_MOVES }), outOfBook.filter((m) => m.moves_since_book < AFTER_BOOK_MOVES)),
+    moveBucket(t("Danach"), outOfBook.filter((m) => m.moves_since_book >= AFTER_BOOK_MOVES)),
   ];
   const withClock = moves.filter((m) => m.time_left !== null);
   const timeTrouble = [
-    moveBucket("Genug Zeit", withClock.filter((m) => !m.in_time_trouble)),
-    moveBucket("Zeitnot", withClock.filter((m) => m.in_time_trouble)),
+    moveBucket(t("Genug Zeit"), withClock.filter((m) => !m.in_time_trouble)),
+    moveBucket(t("Zeitnot"), withClock.filter((m) => m.in_time_trouble)),
   ];
   const chances = analyzed.reduce((s, f) => s + f.punish_chances, 0);
   const punished = analyzed.reduce((s, f) => s + f.punished, 0);
@@ -336,7 +337,7 @@ const movesOf = (bs: MoveBucket[]) => bs.reduce((s, b) => s + b.moves, 0);
 
 function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   const facts: [number, string][] = [];
-  const all = scoreBucket("all", "Alle Partien", feats);
+  const all = scoreBucket("all", t("Alle Partien"), feats);
   const overall = all.score_pct;
 
   // Tilt: clearly worse right after a loss than in the other games.
@@ -347,10 +348,10 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     if (gap >= 10 && z <= -Z95) {
       facts.push([
         gap,
-        `Nach einer Niederlage holst du nur ${afterLoss.score_pct.toFixed(0)} % der Punkte (sonst ${overall.toFixed(0)} %). Eine kurze Pause vor der nächsten Partie lohnt sich.`,
+        t("Nach einer Niederlage holst du nur {score_pct} % der Punkte (sonst {overall} %). Eine kurze Pause vor der nächsten Partie lohnt sich.", { score_pct: afterLoss.score_pct.toFixed(0), overall: overall.toFixed(0) }),
       ]);
     } else if (gap <= -5 && z >= Z95) {
-      facts.push([5, `Niederlagen werfen dich nicht aus der Bahn: Direkt danach holst du sogar ${afterLoss.score_pct.toFixed(0)} %.`]);
+      facts.push([5, t("Niederlagen werfen dich nicht aus der Bahn: Direkt danach holst du sogar {score_pct} %.", { score_pct: afterLoss.score_pct.toFixed(0) })]);
     }
   }
 
@@ -362,7 +363,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     if (drop >= 12 && bucketsDiffer(first, late)) {
       facts.push([
         drop,
-        `Ab der 4. Partie am Stück sinkt deine Punktequote von ${first.score_pct.toFixed(0)} % auf ${late.score_pct.toFixed(0)} %. Lange Serien kosten dich Punkte.`,
+        t("Ab der 4. Partie am Stück sinkt deine Punktequote von {score_pct} % auf {score_pct2} %. Lange Serien kosten dich Punkte.", { score_pct: first.score_pct.toFixed(0), score_pct2: late.score_pct.toFixed(0) }),
       ]);
     }
   }
@@ -376,7 +377,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     if (gap >= 12 && bucketsDiffer(best, worst, slots.length > 2 ? Z_MULTI : Z95)) {
       facts.push([
         gap * 0.8,
-        `${best.label.split(" ")[0]} spielst du am besten (${(best.score_pct as number).toFixed(0)} %), ${worst.label.split(" ")[0].toLowerCase()} am schwächsten (${(worst.score_pct as number).toFixed(0)} %).`,
+        t("{0} spielst du am besten ({1} %), {2} am schwächsten ({3} %).", { 0: best.label.split(" ")[0], 1: (best.score_pct as number).toFixed(0), 2: worst.label.split(" ")[0].toLowerCase(), 3: (worst.score_pct as number).toFixed(0) }),
       ]);
     }
   }
@@ -394,7 +395,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     ) {
       facts.push([
         ((peak.per100 as number) / Math.max(rest, 0.1)) * 8,
-        `Deine Fehler häufen sich zwischen Zug ${peak.label.replace("–", " und ")}: ${de(peak.per100 as number)} schwere Fehler pro 100 Züge (sonst ${de(rest)}).`,
+        t("Deine Fehler häufen sich zwischen Zug {0}: {de} schwere Fehler pro 100 Züge (sonst {de2}).", { 0: peak.label.replace("–", " und "), de: de(peak.per100 as number), de2: de(rest) }),
       ]);
     }
   }
@@ -409,7 +410,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
       const factor = (worst.per100 as number) / Math.max(rest, 0.1);
       facts.push([
         factor * 7,
-        `Mit ${PIECE_DATIVE[worst.piece]} patzt du ${factor >= 2 ? `${de(factor)}-mal so oft wie` : "deutlich öfter als"} mit anderen Figuren.`,
+        t("Mit {0} patzt du {1} mit anderen Figuren.", { 0: PIECE_DATIVE[worst.piece], 1: factor >= 2 ? `${de(factor)}-mal so oft wie` : t("deutlich öfter als") }),
       ]);
     }
   }
@@ -419,7 +420,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   // confidence, at least 4 % (2.5 times an even share of 1/64).
   const top = d.hot_squares[0];
   if (top && d.error_total >= MIN_ERRORS * 2 && top.count / d.error_total >= 0.08 && shareAtLeast(top.count, d.error_total, 0.04)) {
-    facts.push([top.count, `Auf ${top.square} landen auffällig viele deiner Fehler (${top.count} von ${d.error_total}).`]);
+    facts.push([top.count, t("Auf {square} landen auffällig viele deiner Fehler ({count} von {error_total}).", { square: top.square, count: top.count, error_total: d.error_total })]);
   }
 
   // Thinking time: quick moves clearly more error-prone than considered ones.
@@ -430,7 +431,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     if (fast.per100 >= rest * 1.5 && ratesDiffer(fast.errors, fast.moves, errorsOf(slow), movesOf(slow))) {
       facts.push([
         (fast.per100 / Math.max(rest, 0.1)) * 6,
-        `Schnelle Züge (unter 3 Sekunden) gehen bei dir ${de(fast.per100 / Math.max(rest, 0.1))}-mal so oft schief wie überlegte: ${de(fast.per100)} gegenüber ${de(rest)} schweren Fehlern pro 100 Züge.`,
+        t("Schnelle Züge (unter 3 Sekunden) gehen bei dir {de}-mal so oft schief wie überlegte: {de2} gegenüber {de3} schweren Fehlern pro 100 Züge.", { de: de(fast.per100 / Math.max(rest, 0.1)), de2: de(fast.per100), de3: de(rest) }),
       ]);
     }
   }
@@ -445,7 +446,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   ) {
     facts.push([
       (trouble.per100 / Math.max(calm.per100, 0.1)) * 5,
-      `In Zeitnot machst du ${de(trouble.per100)} schwere Fehler pro 100 Züge, mit genug Zeit nur ${de(calm.per100)}.`,
+      t("In Zeitnot machst du {de} schwere Fehler pro 100 Züge, mit genug Zeit nur {de2}.", { de: de(trouble.per100), de2: de(calm.per100) }),
     ]);
   }
 
@@ -459,7 +460,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   ) {
     facts.push([
       (early.per100 / Math.max(later.per100, 0.1)) * 5,
-      `Direkt nach der Theorie wird es gefährlich: In den ersten ${AFTER_BOOK_MOVES} Zügen danach patzt du ${de(early.per100)}-mal pro 100 Züge, später ${de(later.per100)}-mal.`,
+      t("Direkt nach der Theorie wird es gefährlich: In den ersten {AFTER_BOOK_MOVES} Zügen danach patzt du {de}-mal pro 100 Züge, später {de2}-mal.", { AFTER_BOOK_MOVES, de: de(early.per100), de2: de(later.per100) }),
     ]);
   }
 
@@ -471,10 +472,10 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
     const rest = (errorsOf(others) / Math.max(1, movesOf(others))) * 100;
     if ((worst.per100 as number) >= rest * 1.4 && ratesDiffer(worst.errors, worst.moves, errorsOf(others), movesOf(others), Z_MULTI)) {
       const where =
-        worst === d.by_situation[0] ? "wenn du klar besser stehst" : worst === d.by_situation[1] ? "in ausgeglichenen Stellungen" : "wenn du schlechter stehst";
+        worst === d.by_situation[0] ? t("wenn du klar besser stehst") : worst === d.by_situation[1] ? t("in ausgeglichenen Stellungen") : t("wenn du schlechter stehst");
       facts.push([
         ((worst.per100 as number) / Math.max(rest, 0.1)) * 5,
-        `Die meisten Fehler pro Zug machst du ${where} (${de(worst.per100 as number)} je 100 Züge).`,
+        t("Die meisten Fehler pro Zug machst du {where} ({de} je 100 Züge).", { where, de: de(worst.per100 as number) }),
       ]);
     }
   }
@@ -483,7 +484,7 @@ function headlineFacts(d: DeepInsights, feats: GameFeatures[]): string[] {
   if (d.punish.chances >= MIN_ERRORS && d.punish.rate !== null && shareBelow(d.punish.punished, d.punish.chances, 0.5)) {
     facts.push([
       (50 - d.punish.rate) / 3,
-      `Nur ${Math.round(d.punish.rate)} % der Fehler deiner Gegner bestrafst du (${d.punish.punished} von ${d.punish.chances}). Hier liegen leichte Punkte.`,
+      t("Nur {0} % der Fehler deiner Gegner bestrafst du ({punished} von {chances}). Hier liegen leichte Punkte.", { 0: Math.round(d.punish.rate), punished: d.punish.punished, chances: d.punish.chances }),
     ]);
   }
 

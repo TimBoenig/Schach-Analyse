@@ -7,6 +7,7 @@ import { type SkippedGame, parsePgnTextDetailed } from "../domain/pgn";
 import type { GameAnalysis, GameSummary } from "../domain/types";
 import { getArchiveGames, getArchiveUrls } from "./chesscom";
 import { LichessAPI } from "./lichess";
+import { t } from "../i18n";
 
 export interface ImportResult {
   found: number;
@@ -25,11 +26,11 @@ export interface ImportResult {
  */
 export function unreachableMessage(site: "chesscom" | "lichess", username: string, status: number | null): string {
   const label = site === "chesscom" ? "chess.com" : "Lichess";
-  if (status === 404) return `Auf ${label} gibt es keinen Spieler „${username}“. Prüfe die Schreibweise des Namens.`;
-  if (status === 410) return `Das Konto „${username}“ auf ${label} ist geschlossen.`;
-  if (status === 429) return `${label} bremst gerade zu viele Anfragen. Warte eine Minute und versuche es dann noch einmal.`;
-  if (status !== null && status >= 500) return `${label} hat gerade Probleme (Fehler ${status}). Versuche es später noch einmal.`;
-  return `${label} ist gerade nicht erreichbar. Prüfe deine Internetverbindung und versuche es noch einmal.`;
+  if (status === 404) return t("Auf {label} gibt es keinen Spieler „{username}“. Prüfe die Schreibweise des Namens.", { label, username });
+  if (status === 410) return t("Das Konto „{username}“ auf {label} ist geschlossen.", { username, label });
+  if (status === 429) return t("{label} bremst gerade zu viele Anfragen. Warte eine Minute und versuche es dann noch einmal.", { label });
+  if (status !== null && status >= 500) return t("{label} hat gerade Probleme (Fehler {status}). Versuche es später noch einmal.", { label, status });
+  return t("{label} ist gerade nicht erreichbar. Prüfe deine Internetverbindung und versuche es noch einmal.", { label });
 }
 
 export interface ImportBatch {
@@ -115,7 +116,7 @@ export async function importChesscomGames(
       if (signal?.aborted) break;
       const url = archives[i];
       const month = url.replace(/\/+$/, "").split("/").slice(-2).join("/");
-      onProgress?.(i + 1, archives.length, `Lade Partien ${month} …`);
+      onProgress?.(i + 1, archives.length, t("Lade Partien {month} …", { month }));
       let monthFailed = false;
       const games = await getArchiveGames(url, { signal, onFail: () => (monthFailed = true) });
       // One month failing keeps the others; the result says what is missing.
@@ -144,11 +145,11 @@ export async function importLichessGames(
 ): Promise<ImportBatch> {
   const { onProgress, onBatch, signal, token } = options;
   try {
-    onProgress?.(1, 1, `Lade Partien von ${username} …`);
+    onProgress?.(1, 1, t("Lade Partien von {username} …", { username }));
     let failure: number | null | undefined;
     const games = await new LichessAPI({ token }).getUserGames(username, maxGames, {
       signal,
-      onCount: (n) => onProgress?.(n, maxGames ?? 0, `Lade Partien von ${username} … ${n}`),
+      onCount: (n) => onProgress?.(n, maxGames ?? 0, t("Lade Partien von {username} … {n}", { username, n })),
       onFail: (s) => (failure = s),
     });
     if (failure !== undefined) throw new Error(unreachableMessage("lichess", username.trim(), failure));

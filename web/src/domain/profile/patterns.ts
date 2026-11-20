@@ -11,6 +11,7 @@ import type { GameRef, Pattern } from "./models";
 import { expectedScore } from "./benchmarks";
 import { MIN_ERRORS, MIN_GROUP_GAMES, meansDiffer, ratesDiffer, scoreDeviation, scoresDiffer, shareAtLeast, shareBelow } from "./evidence";
 import { avg, fmtDe } from "./num";
+import { t } from "../../i18n";
 
 export const MAX_EXAMPLES = 8;
 // Two games belong to the same session when they start less than 90 minutes apart.
@@ -25,7 +26,7 @@ function ref(f: GameFeatures, m: MoveEvent | null = null, detail = ""): GameRef 
   const opp = f.rec.opp_name;
   const when = f.date || "";
   if (m === null) {
-    return { game_id: f.game_id, ply_index: -1, label: `gegen ${opp} (${when})`, detail };
+    return { game_id: f.game_id, ply_index: -1, label: t("gegen {opp} ({when})", { opp, when }), detail };
   }
   return {
     game_id: f.game_id,
@@ -85,10 +86,10 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "errors_when_winning",
-          "Fehler in Gewinnstellungen",
-          `${fmtDe(share * 100, 0)} % deiner Fehler und Patzer passieren, wenn du bereits ` +
-            "klar besser stehst. Typisch: zu schnelles Spiel oder Sorglosigkeit, sobald " +
-            "die Partie 'gewonnen' scheint.",
+          t("Fehler in Gewinnstellungen"),
+          t("{fmtDe} % deiner Fehler und Patzer passieren, wenn du bereits ", { fmtDe: fmtDe(share * 100, 0) }) +
+            t("klar besser stehst. Typisch: zu schnelles Spiel oder Sorglosigkeit, sobald ") +
+            t("die Partie 'gewonnen' scheint."),
           severity(share, 0.35, 0.2),
           share,
           examples(analyzed, (m) => m.is_serious_error && m.wp_before >= 0.7),
@@ -105,9 +106,9 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "errors_under_pressure",
-          "Einbruch unter Druck",
-          `${fmtDe(share * 100, 0)} % deiner schweren Fehler entstehen in schlechteren ` +
-            "Stellungen. Statt zäh zu verteidigen, folgt oft der nächste Fehler.",
+          t("Einbruch unter Druck"),
+          t("{fmtDe} % deiner schweren Fehler entstehen in schlechteren ", { fmtDe: fmtDe(share * 100, 0) }) +
+            t("Stellungen. Statt zäh zu verteidigen, folgt oft der nächste Fehler."),
           severity(share, 0.45, 0.3),
           share,
           examples(analyzed, (m) => m.is_serious_error && m.wp_before <= 0.3),
@@ -125,10 +126,10 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "missed_punish",
-          "Gegnerfehler nicht bestraft",
-          `Nach einem Fehler deines Gegners findest du nur in ${fmtDe(rate * 100, 0)} % der ` +
-            "Fälle die Widerlegung. Frage dich nach jedem gegnerischen Zug: " +
-            "'Was hat sich verändert, was hängt jetzt?'",
+          t("Gegnerfehler nicht bestraft"),
+          t("Nach einem Fehler deines Gegners findest du nur in {fmtDe} % der ", { fmtDe: fmtDe(rate * 100, 0) }) +
+            t("Fälle die Widerlegung. Frage dich nach jedem gegnerischen Zug: ") +
+            t("'Was hat sich verändert, was hängt jetzt?'"),
           severity(1 - rate, 0.55, 0.4),
           rate,
           examples(analyzed, (m) => m.after_opponent_error && m.wp_drop >= 0.1),
@@ -138,9 +139,9 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "punisher",
-          "Gegnerfehler werden bestraft",
-          `Du nutzt ${fmtDe(rate * 100, 0)} % der gegnerischen Fehler direkt aus – ` +
-            "ein starkes taktisches Auge.",
+          t("Gegnerfehler werden bestraft"),
+          t("Du nutzt {fmtDe} % der gegnerischen Fehler direkt aus – ", { fmtDe: fmtDe(rate * 100, 0) }) +
+            t("ein starkes taktisches Auge."),
           "positiv",
           rate,
         ),
@@ -157,10 +158,10 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "hasty_errors",
-          "Schnellschüsse",
-          `${fmtDe(share * 100, 0)} % deiner schweren Fehler hast du in unter 3 Sekunden ` +
-            "gespielt – obwohl du nicht in Zeitnot warst. Ein kurzer Sicherheitscheck " +
-            "vor dem Ziehen würde viele davon verhindern.",
+          t("Schnellschüsse"),
+          t("{fmtDe} % deiner schweren Fehler hast du in unter 3 Sekunden ", { fmtDe: fmtDe(share * 100, 0) }) +
+            t("gespielt – obwohl du nicht in Zeitnot warst. Ein kurzer Sicherheitscheck ") +
+            t("vor dem Ziehen würde viele davon verhindern."),
           severity(share, 0.5, 0.35),
           share,
           examples(
@@ -181,9 +182,9 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "time_trouble_errors",
-          "Fehler in Zeitnot",
-          `${fmtDe(shareT * 100, 0)} % deiner schweren Fehler passieren in Zeitnot. ` +
-            "Du verbrauchst zu viel Zeit in früheren Phasen der Partie.",
+          t("Fehler in Zeitnot"),
+          t("{fmtDe} % deiner schweren Fehler passieren in Zeitnot. ", { fmtDe: fmtDe(shareT * 100, 0) }) +
+            t("Du verbrauchst zu viel Zeit in früheren Phasen der Partie."),
           severity(shareT, 0.45, 0.3),
           shareT,
           examples(analyzed, (m) => m.is_serious_error && m.in_time_trouble),
@@ -203,10 +204,10 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
       patterns.push(
         pattern(
           "post_book_errors",
-          "Fehler direkt nach der Theorie",
-          `In ${fmtDe(shareGames * 100, 0)} % deiner Partien folgt ein schwerer Fehler ` +
-            "innerhalb von 4 Zügen nach Verlassen der Eröffnungstheorie. Lerne nicht nur " +
-            "Züge, sondern die typischen Pläne deiner Eröffnungen.",
+          t("Fehler direkt nach der Theorie"),
+          t("In {fmtDe} % deiner Partien folgt ein schwerer Fehler ", { fmtDe: fmtDe(shareGames * 100, 0) }) +
+            t("innerhalb von 4 Zügen nach Verlassen der Eröffnungstheorie. Lerne nicht nur ") +
+            t("Züge, sondern die typischen Pläne deiner Eröffnungen."),
           severity(shareGames, 0.35, 0.2),
           shareGames,
           examples(
@@ -248,12 +249,12 @@ export function detectPatterns(feats: GameFeatures[]): Pattern[] {
         patterns.push(
           pattern(
             `phase_${worst}`,
-            `Fehlerhäufung ${trPhaseIn(worst)}`,
+            t("Fehlerhäufung {trPhaseIn}", { trPhaseIn: trPhaseIn(worst) }),
             // Python's str.capitalize() would also lowercase the rest ("Im mittelspiel");
             // only the first letter is raised here so the German noun stays capitalized.
-            `${upperFirst(trPhaseIn(worst))} machst du ${fmtDe(rw * 100, 1)} ` +
-              `schwere Fehler pro 100 Züge – ${fmtDe(rw / rb, 1)}× so viele ` +
-              `wie ${trPhaseIn(best)}.`,
+            t("{upperFirst} machst du {fmtDe} ", { upperFirst: upperFirst(trPhaseIn(worst)), fmtDe: fmtDe(rw * 100, 1) }) +
+              t("schwere Fehler pro 100 Züge – {fmtDe}× so viele ", { fmtDe: fmtDe(rw / rb, 1) }) +
+              t("wie {trPhaseIn}.", { trPhaseIn: trPhaseIn(best) }),
             "mittel",
             rw,
             examples(analyzed, (m) => m.is_serious_error && m.phase === worst),
@@ -309,7 +310,7 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
           game_id: f.game_id,
           ply_index: Math.max(0, Math.trunc(Number(h.ply ?? 1)) - 1),
           label: `${h.san ?? ""} gegen ${f.rec.opp_name}`,
-          detail: `${trPiece(piece)} eingestellt · ${f.date}`,
+          detail: t("{trPiece} eingestellt · {date}", { trPiece: trPiece(piece), date: f.date }),
         });
         break;
       }
@@ -319,9 +320,9 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
   return [
     pattern(
       "hung_piece_type",
-      `Häufig eingestellt: ${trPiece(piece)}`,
-      `${fmtDe(share * 100, 0)} % deiner eingestellten Figuren sind ${trPiece(piece, true)} ` +
-        `(${cnt} von ${total}). Prüfe vor jedem Zug besonders, ob diese Figur gedeckt ist.`,
+      t("Häufig eingestellt: {trPiece}", { trPiece: trPiece(piece) }),
+      t("{fmtDe} % deiner eingestellten Figuren sind {trPiece} ", { fmtDe: fmtDe(share * 100, 0), trPiece: trPiece(piece, true) }) +
+        t("({cnt} von {total}). Prüfe vor jedem Zug besonders, ob diese Figur gedeckt ist.", { cnt, total }),
       severity(share, 0.5, 0.35),
       share,
       exampleRefs,
@@ -375,10 +376,10 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
       out.push(
         pattern(
           "tilt",
-          "Tilt nach Niederlagen",
-          `Direkt nach einer Niederlage holst du nur ${fmtDe(tilt * 100, 0)} % der Punkte ` +
-            `(sonst ${fmtDe(base * 100, 0)} %). Nach einer Niederlage lohnt sich eine Pause, ` +
-            "statt sofort die nächste Partie zu starten.",
+          t("Tilt nach Niederlagen"),
+          t("Direkt nach einer Niederlage holst du nur {fmtDe} % der Punkte ", { fmtDe: fmtDe(tilt * 100, 0) }) +
+            t("(sonst {fmtDe} %). Nach einer Niederlage lohnt sich eine Pause, ", { fmtDe: fmtDe(base * 100, 0) }) +
+            t("statt sofort die nächste Partie zu starten."),
           base - tilt >= 0.15 ? "hoch" : "mittel",
           base - tilt,
         ),
@@ -387,9 +388,9 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
       out.push(
         pattern(
           "resilient",
-          "Mental stabil nach Niederlagen",
-          `Nach einer Niederlage spielst du sogar besser (${fmtDe(tilt * 100, 0)} % der ` +
-            `Punkte gegenüber ${fmtDe(base * 100, 0)} % im Schnitt).`,
+          t("Mental stabil nach Niederlagen"),
+          t("Nach einer Niederlage spielst du sogar besser ({fmtDe} % der ", { fmtDe: fmtDe(tilt * 100, 0) }) +
+            t("Punkte gegenüber {fmtDe} % im Schnitt).", { fmtDe: fmtDe(base * 100, 0) }),
           "positiv",
           tilt - base,
         ),
@@ -406,9 +407,9 @@ function sessionPatterns(feats: GameFeatures[]): Pattern[] {
       out.push(
         pattern(
           "fatigue",
-          "Nachlassen in langen Sessions",
-          "Ab der 4. Partie einer Session sinkt deine Genauigkeit um " +
-            `${fmtDe(drop, 1)} Prozentpunkte. Begrenze Sessions auf 3 Partien.`,
+          t("Nachlassen in langen Sessions"),
+          t("Ab der 4. Partie einer Session sinkt deine Genauigkeit um ") +
+            t("{fmtDe} Prozentpunkte. Begrenze Sessions auf 3 Partien.", { fmtDe: fmtDe(drop, 1) }),
           "mittel",
           drop,
         ),
@@ -437,10 +438,10 @@ function opponentStrengthPattern(feats: GameFeatures[]): Pattern[] {
       return [
         pattern(
           "weaker_opponents",
-          "Punktverluste gegen schwächere Gegner",
-          "Gegen Gegner mit mindestens 100 Punkten weniger holst du nur " +
-            `${fmtDe(score * 100, 0)} % der Punkte (erwartet wären ${fmtDe(exp * 100, 0)} %). ` +
-            "Unterschätze niemanden – spiele auch hier jeden Zug mit voller Sorgfalt.",
+          t("Punktverluste gegen schwächere Gegner"),
+          t("Gegen Gegner mit mindestens 100 Punkten weniger holst du nur ") +
+            t("{fmtDe} % der Punkte (erwartet wären {fmtDe2} %). ", { fmtDe: fmtDe(score * 100, 0), fmtDe2: fmtDe(exp * 100, 0) }) +
+            t("Unterschätze niemanden – spiele auch hier jeden Zug mit voller Sorgfalt."),
           "mittel",
           exp - score,
         ),
@@ -463,10 +464,10 @@ function castlingPattern(feats: GameFeatures[]): Pattern[] {
       return [
         pattern(
           "king_safety",
-          "Ohne Rochade schlechtere Ergebnisse",
-          `In Partien ohne Rochade holst du ${fmtDe(lateScore * 100, 0)} % der Punkte, ` +
-            `mit früher Rochade ${fmtDe(okScore * 100, 0)} %. Bring deinen König früher in ` +
-            "Sicherheit.",
+          t("Ohne Rochade schlechtere Ergebnisse"),
+          t("In Partien ohne Rochade holst du {fmtDe} % der Punkte, ", { fmtDe: fmtDe(lateScore * 100, 0) }) +
+            t("mit früher Rochade {fmtDe} %. Bring deinen König früher in ", { fmtDe: fmtDe(okScore * 100, 0) }) +
+            t("Sicherheit."),
           "mittel",
           okScore - lateScore,
           late.slice(0, 6).map((f) => ref(f, null, `als ${trColor(f.rec.user_color)}`)),

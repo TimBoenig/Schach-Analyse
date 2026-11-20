@@ -10,6 +10,7 @@ import { CountUp, ResultRibbon } from "../kit";
 import { accClass, badgeFor, balanceText, classLabel, formatDate, monthLabel, outcomeFor, resultText, SPEED_DE, shortOpening, streakText } from "../labels";
 import { navigate } from "../router";
 import { SplitBar, Stat } from "../viz/Bars";
+import { t } from "../../i18n";
 
 export type AnalysisStatus = "completed" | "paused" | "not_started";
 
@@ -56,15 +57,15 @@ export function summarize(games: StoredGame[], usernames: string[]): Summary {
 
 const RIBBON_GAMES = 14;
 const OUTCOME_SCORE = { win: 1, draw: 0.5, loss: 0 } as const;
-const OUTCOME_WORD = { win: "Sieg", draw: "Remis", loss: "Niederlage" } as const;
+const OUTCOME_WORD = { win: t("Sieg"), draw: t("Remis"), loss: t("Niederlage") } as const;
 
 /** What the newest results add up to, as the headline of the page. */
 function formHeadline(recent: (keyof typeof OUTCOME_SCORE)[]): string {
-  if (!recent.length) return "Deine Partien";
+  if (!recent.length) return t("Deine Partien");
   const scores: number[] = recent.map((o) => OUTCOME_SCORE[o]);
   const last = scores.slice(0, 10);
   const points = last.reduce<number>((sum, v) => sum + v, 0);
-  return streakText(scores) ?? `${de(points, points % 1 ? 1 : 0)} ${points === 1 ? "Punkt" : "Punkte"} aus den letzten ${last.length} Partien`;
+  return streakText(scores) ?? t("{de} {1} aus den letzten {length} Partien", { de: de(points, points % 1 ? 1 : 0), 1: points === 1 ? t("Punkt") : t("Punkte"), length: last.length });
 }
 
 /** The figures of everything the filters show, the current run and the last results as tiles. */
@@ -79,40 +80,40 @@ export function GamesSummary({ s, games, usernames, period }: { s: Summary; game
     <section class="card gl-summary">
       <header class="gl-summary-head">
         <div>
-          <span class="eyebrow">Deine Partien · {period}</span>
+          <span class="eyebrow">{t("Deine Partien ·")} {period}</span>
           <h2>{formHeadline(recent.map((x) => x.o))}</h2>
         </div>
         {recent.length > 0 && (
           <ResultRibbon
             games={[...recent].reverse().map(({ g, o }) => {
               const white = getUserColor(g, usernames) === "white";
-              return { id: g.id, score: OUTCOME_SCORE[o], title: `${formatDate(g.date)} gegen ${white ? g.black : g.white}: ${OUTCOME_WORD[o]}` };
+              return { id: g.id, score: OUTCOME_SCORE[o], title: t("{formatDate} gegen {1}: {2}", { formatDate: formatDate(g.date), 1: white ? g.black : g.white, 2: OUTCOME_WORD[o] }) };
             })}
             onPick={(id) => navigate({ view: "analysis", gameId: id })}
           />
         )}
       </header>
       <div class="stat-row" style={{ "--cols": 4 }}>
-        <Stat label="Partien" value={<CountUp value={s.games} />} sub={`${s.analyzed} davon analysiert`} />
+        <Stat label={t("Partien")} value={<CountUp value={s.games} />} sub={`${s.analyzed} davon analysiert`} />
         <Stat
-          label="Punkte-Quote"
+          label={t("Punkte-Quote")}
           value={decided ? `${Math.round(((s.wins + s.draws / 2) / decided) * 100)} %` : "–"}
           sub={
             <>
               <SplitBar
                 height={6}
                 parts={[
-                  { key: "w", label: "Siege", value: s.wins, color: "var(--win)" },
-                  { key: "d", label: "Remis", value: s.draws, color: "var(--draw)" },
-                  { key: "l", label: "Niederlagen", value: s.losses, color: "var(--loss)" },
+                  { key: "w", label: t("Siege"), value: s.wins, color: "var(--win)" },
+                  { key: "d", label: t("Remis"), value: s.draws, color: "var(--draw)" },
+                  { key: "l", label: t("Niederlagen"), value: s.losses, color: "var(--loss)" },
                 ]}
               />
               {balanceText(s.wins, s.draws, s.losses)}
             </>
           }
         />
-        <Stat label="Ø Genauigkeit" value={s.accuracy !== null ? de(s.accuracy) : "–"} sub={s.analyzed ? `über ${s.analyzed} analysierte Partien` : "noch keine Partie analysiert"} />
-        <Stat label="Patzer pro Partie" value={s.analyzed ? de(s.blunders / s.analyzed, 2) : "–"} sub={s.analyzed ? `${s.blunders} Patzer in ${s.analyzed} Partien` : undefined} />
+        <Stat label={t("Ø Genauigkeit")} value={s.accuracy !== null ? de(s.accuracy) : "–"} sub={s.analyzed ? t("über {analyzed} analysierte Partien", { analyzed: s.analyzed }) : t("noch keine Partie analysiert")} />
+        <Stat label={t("Patzer pro Partie")} value={s.analyzed ? de(s.blunders / s.analyzed, 2) : "–"} sub={s.analyzed ? t("{blunders} Patzer in {analyzed} Partien", { blunders: s.blunders, analyzed: s.analyzed }) : undefined} />
       </div>
     </section>
   );
@@ -136,7 +137,7 @@ function GameSpark({ g, color }: { g: StoredGame; color: "white" | "black" }) {
   const mid = SPARK_H / 2;
   const half = (clamp: (v: number) => number) => `M0,${mid} ${wp.map((v, i) => `L${x(i).toFixed(1)},${y(clamp(v)).toFixed(1)}`).join(" ")} L${SPARK_W},${mid} Z`;
   return (
-    <svg class="game-spark" width={SPARK_W} height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label="Verlauf deiner Gewinnchance">
+    <svg class="game-spark" width={SPARK_W} height={SPARK_H} viewBox={`0 0 ${SPARK_W} ${SPARK_H}`} role="img" aria-label={t("Verlauf deiner Gewinnchance")}>
       <path class="up" d={half((v) => Math.max(v, 0.5))} />
       <path class="down" d={half((v) => Math.min(v, 0.5))} />
       <line x1="0" x2={SPARK_W} y1={mid} y2={mid} />
@@ -219,7 +220,7 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
             </span>
           )}
           <span class="gl-sub">
-            {color && <span class={`side-dot ${color}`} title={color === "white" ? "Du hattest Weiß" : "Du hattest Schwarz"} />}
+            {color && <span class={`side-dot ${color}`} title={color === "white" ? t("Du hattest Weiß") : t("Du hattest Schwarz")} />}
             {/* The month header above already names the year. */}
             <span class="gl-sub-text">{[speed, formatDate(g.date).replace(/\.\d{4}$/, "."), opening].filter(Boolean).join(" · ")}</span>
           </span>
@@ -230,20 +231,20 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
             {color ? <GameSpark g={g} color={color} /> : <span class="game-spark" />}
             <span class="gl-acc">
               <strong class={`tnum ${accClass(acc)}`}>{de(acc)}</strong>
-              <span>Genauigkeit</span>
+              <span>{t("Genauigkeit")}</span>
             </span>
           </>
         ) : (
           <span class="gl-state">
             {isCurrent ? (
               <>
-                <span class="pill accent">läuft {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
-                <CancelButton id={g.id} label="Analyse abbrechen" />
+                <span class="pill accent">{t("läuft")} {Math.round((queue!.done / Math.max(1, queue!.total)) * 100)} %</span>
+                <CancelButton id={g.id} label={t("Analyse abbrechen")} />
               </>
             ) : queue?.queued.includes(g.id) ? (
               <>
                 <span class="pill">wartet</span>
-                <CancelButton id={g.id} label="Aus der Warteschlange nehmen" />
+                <CancelButton id={g.id} label={t("Aus der Warteschlange nehmen")} />
               </>
             ) : st === "completed" ? (
               <span class="pill">analysiert</span>
@@ -256,7 +257,7 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
                   void enqueue([g.id], { front: true });
                 }}
               >
-                <IconPlay /> Analysieren
+                <IconPlay />  {t("Analysieren")}
               </button>
             )}
           </span>
@@ -294,7 +295,7 @@ export function GameRows({ games, all, usernames, queue }: { games: StoredGame[]
           <h3 class="gl-month-head">
             {m}
             <span class="faint">
-              {totals.get(m) ?? list.length} {(totals.get(m) ?? list.length) === 1 ? "Partie" : "Partien"}
+              {totals.get(m) ?? list.length} {(totals.get(m) ?? list.length) === 1 ? t("Partie") : t("Partien")}
             </span>
           </h3>
           <ul class="gl-rows">

@@ -5,6 +5,7 @@ import type { GameFeatures } from "./features";
 import type { SkillScore, StyleAxis, StyleProfile } from "./models";
 import { avg, fmtDe, pyRound } from "./num";
 import { scale } from "./skills";
+import { t } from "../../i18n";
 
 // A style read from a handful of games is mostly the openings and opponents of
 // those games, so no style is shown below this many analyzed games.
@@ -76,15 +77,15 @@ export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StylePr
   const endgame = scale(endgameRate, 0.2, 0.7);
 
   const axes = [
-    axis("aggression", "Angriffslust", aggression, n, "abwartend", "angriffslustig"),
-    axis("tactical", "Taktik-Orientierung", tactical, n, "positionell", "taktisch"),
-    axis("trading", "Tauschfreude", trading, n, "hält Spannung", "tauscht gern"),
-    axis("risk", "Risikobereitschaft", risk, finished.length, "sicherheitsorientiert", "riskant"),
-    axis("endgame", "Endspielneigung", endgame, n, "Entscheidung früh", "spielt lange"),
+    axis("aggression", t("Angriffslust"), aggression, n, "abwartend", "angriffslustig"),
+    axis("tactical", t("Taktik-Orientierung"), tactical, n, "positionell", "taktisch"),
+    axis("trading", t("Tauschfreude"), trading, n, t("hält Spannung"), "tauscht gern"),
+    axis("risk", t("Risikobereitschaft"), risk, finished.length, "sicherheitsorientiert", "riskant"),
+    axis("endgame", t("Endspielneigung"), endgame, n, t("Entscheidung früh"), "spielt lange"),
   ];
   if (clockFracs.length >= STYLE_MIN_GAMES) {
     axes.push(
-      axis("tempo", "Zeitverbrauch", scale(1 - avg(clockFracs), 0.2, 0.9), clockFracs.length, "zügig", "gründlich"),
+      axis("tempo", t("Zeitverbrauch"), scale(1 - avg(clockFracs), 0.2, 0.9), clockFracs.length, t("zügig"), t("gründlich")),
     );
   }
 
@@ -95,19 +96,19 @@ export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StylePr
   const [label, description] = styleLabel(v.aggression, v.tactical, v.trading, v.risk, v.endgame, skillMap);
 
   const facts = [
-    `${fmtDe(checksPm * 40, 1)} Schachgebote pro 40 Züge`,
-    `${fmtDe(tradesPg, 1)} gleichwertige Abtausche pro Partie`,
-    `Damentausch bis Zug 20 in ${fmtDe(earlyQueenTrade * 100, 0)} % der Partien`,
-    `Endspiel erreicht in ${fmtDe(endgameRate * 100, 0)} % der Partien`,
-    `Remisquote ${fmtDe(drawRate * 100, 0)} %`,
+    t("{fmtDe} Schachgebote pro 40 Züge", { fmtDe: fmtDe(checksPm * 40, 1) }),
+    t("{fmtDe} gleichwertige Abtausche pro Partie", { fmtDe: fmtDe(tradesPg, 1) }),
+    t("Damentausch bis Zug 20 in {fmtDe} % der Partien", { fmtDe: fmtDe(earlyQueenTrade * 100, 0) }),
+    t("Endspiel erreicht in {fmtDe} % der Partien", { fmtDe: fmtDe(endgameRate * 100, 0) }),
+    t("Remisquote {fmtDe} %", { fmtDe: fmtDe(drawRate * 100, 0) }),
   ];
   const castled = games.filter((f) => f.castle_side);
   if (castled.length) {
     const short = castled.filter((f) => f.castle_side === "kingside").length / castled.length;
     facts.push(
-      `Rochade in ${fmtDe((castled.length / games.length) * 100, 0)} % der Partien ` +
-        `(${fmtDe(short * 100, 0)} % kurz), im Schnitt im ` +
-        `${fmtDe(avg(castled.map((f) => f.castle_move ?? 0)), 0)}. Zug`,
+      t("Rochade in {fmtDe} % der Partien ", { fmtDe: fmtDe((castled.length / games.length) * 100, 0) }) +
+        t("({fmtDe} % kurz), im Schnitt im ", { fmtDe: fmtDe(short * 100, 0) }) +
+        t("{fmtDe}. Zug", { fmtDe: fmtDe(avg(castled.map((f) => f.castle_move ?? 0)), 0) }),
     );
   }
   return { label, description, axes, facts };
@@ -125,50 +126,50 @@ function styleLabel(
   const defSkill = skill.get("defense");
   if (aggression >= 60 && tactical >= 50) {
     return [
-      "Angriffsspieler",
-      "Du suchst die Initiative: viele Schachgebote, Bauernstürme und taktische Motive. " +
-        "Deine Partien werden scharf entschieden. Achte darauf, dass dein eigener König und " +
-        "deine Figuren dabei sicher bleiben.",
+      t("Angriffsspieler"),
+      t("Du suchst die Initiative: viele Schachgebote, Bauernstürme und taktische Motive. ") +
+        t("Deine Partien werden scharf entschieden. Achte darauf, dass dein eigener König und ") +
+        t("deine Figuren dabei sicher bleiben."),
     ];
   }
   if (tactical >= 60) {
     return [
-      "Taktiker",
-      "Du lebst von konkreten Varianten und taktischen Schlägen. Ruhige, strategische " +
-        "Stellungen ohne direkte Ziele sind eher Neuland – dort lohnt sich Planungstraining.",
+      t("Taktiker"),
+      t("Du lebst von konkreten Varianten und taktischen Schlägen. Ruhige, strategische ") +
+        t("Stellungen ohne direkte Ziele sind eher Neuland – dort lohnt sich Planungstraining."),
     ];
   }
   if (endgame >= 60 && egSkill !== undefined && egSkill.reliable && egSkill.score >= 55) {
     return [
-      "Endspieltechniker",
-      "Du spielst Partien gern lange und bist im Endspiel sicher unterwegs. Vereinfachen, " +
-        "wenn du besser stehst, ist für dich eine gute Strategie.",
+      t("Endspieltechniker"),
+      t("Du spielst Partien gern lange und bist im Endspiel sicher unterwegs. Vereinfachen, ") +
+        t("wenn du besser stehst, ist für dich eine gute Strategie."),
     ];
   }
   if (trading >= 60 && risk < 50) {
     return [
-      "Solider Positionsspieler",
-      "Du tauschst gern ab und vermeidest unnötige Risiken. Das macht dich schwer zu " +
-        "schlagen; gegen schwächere Gegner fehlt manchmal der Druck, um zu gewinnen.",
+      t("Solider Positionsspieler"),
+      t("Du tauschst gern ab und vermeidest unnötige Risiken. Das macht dich schwer zu ") +
+        t("schlagen; gegen schwächere Gegner fehlt manchmal der Druck, um zu gewinnen."),
     ];
   }
   if (defSkill !== undefined && defSkill.reliable && defSkill.score >= 60) {
     return [
-      "Kämpfer",
-      "Auch in schlechteren Stellungen gibst du nicht auf und rettest überdurchschnittlich " +
-        "oft noch Punkte.",
+      t("Kämpfer"),
+      t("Auch in schlechteren Stellungen gibst du nicht auf und rettest überdurchschnittlich ") +
+        t("oft noch Punkte."),
     ];
   }
   if (risk >= 65) {
     return [
-      "Risikospieler",
-      "Deine Partien schwanken stark – du gehst Risiken ein und Remis sind selten. " +
-        "Mehr Stabilität in kritischen Momenten bringt dir schnell Punkte.",
+      t("Risikospieler"),
+      t("Deine Partien schwanken stark – du gehst Risiken ein und Remis sind selten. ") +
+        t("Mehr Stabilität in kritischen Momenten bringt dir schnell Punkte."),
     ];
   }
   return [
-    "Universalspieler",
-    "Dein Stil ist ausgewogen: weder ausgesprochen aggressiv noch übervorsichtig. " +
-      "Die Profilwerte unten zeigen, wo du dich gezielt weiterentwickeln kannst.",
+    t("Universalspieler"),
+    t("Dein Stil ist ausgewogen: weder ausgesprochen aggressiv noch übervorsichtig. ") +
+      t("Die Profilwerte unten zeigen, wo du dich gezielt weiterentwickeln kannst."),
   ];
 }

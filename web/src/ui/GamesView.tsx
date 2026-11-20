@@ -23,6 +23,7 @@ import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
 import { PeriodSelect } from "./useProfile";
 import { ENGINE_NAME } from "../engine/info";
+import { t } from "../i18n";
 
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
@@ -75,7 +76,7 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
         if (color) for (const g of parsed) mine.add((color === "white" ? g.metadata.white : g.metadata.black).trim());
         const anyKnown = parsed.some((g) => known(g.metadata.white) || known(g.metadata.black));
         if (!color && !anyKnown && parsed.length) {
-          setError("Bitte wähle, mit welcher Farbe du gespielt hast, damit die Partie in „Meine Partien“ erscheint.");
+          setError(t("Bitte wähle, mit welcher Farbe du gespielt hast, damit die Partie in „Meine Partien“ erscheint."));
           return;
         }
         const fresh = [...mine].filter((n) => n && n !== "?" && !known(n));
@@ -107,7 +108,7 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
 
   return (
     <dialog ref={ref} onClose={onClose}>
-      <h3 style={{ marginTop: 0 }}>Partien importieren</h3>
+      <h3 style={{ marginTop: 0 }}>{t("Partien importieren")}</h3>
       <div class="segmented" style={{ marginBottom: "14px" }}>
         {(
           [
@@ -124,23 +125,23 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       {source !== "pgn" ? (
         <>
           <label class="field">
-            <span>Benutzername auf {source === "chesscom" ? "Chess.com" : "Lichess"}</span>
+            <span>{t("Benutzername auf")} {source === "chesscom" ? "Chess.com" : "Lichess"}</span>
             <input type="text" autocapitalize="off" autocorrect="off" value={user} onInput={(e) => setUser(e.currentTarget.value)} />
           </label>
           {source === "chesscom" ? (
             <label class="field">
-              <span>Zeitraum</span>
+              <span>{t("Zeitraum")}</span>
               <select value={months} onChange={(e) => setMonths(e.currentTarget.value)}>
-                <option value="1">Letzter Monat</option>
-                <option value="3">Letzte 3 Monate</option>
-                <option value="6">Letzte 6 Monate</option>
-                <option value="12">Letztes Jahr</option>
-                <option value="all">Alle Partien</option>
+                <option value="1">{t("Letzter Monat")}</option>
+                <option value="3">{t("Letzte 3 Monate")}</option>
+                <option value="6">{t("Letzte 6 Monate")}</option>
+                <option value="12">{t("Letztes Jahr")}</option>
+                <option value="all">{t("Alle Partien")}</option>
               </select>
             </label>
           ) : (
             <label class="field">
-              <span>Anzahl der letzten Partien</span>
+              <span>{t("Anzahl der letzten Partien")}</span>
               <select value={count} onChange={(e) => setCount(e.currentTarget.value)}>
                 {["20", "50", "100", "300", "1000"].map((c) => (
                   <option key={c} value={c}>
@@ -154,16 +155,16 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       ) : (
         <>
           <label class="field">
-            <span>PGN einfügen (eine oder mehrere Partien)</span>
+            <span>{t("PGN einfügen (eine oder mehrere Partien)")}</span>
             <textarea value={pgn} onInput={(e) => setPgn(e.currentTarget.value)} placeholder='[Event "..."]' />
           </label>
           <div class="field">
-            <span>Mit welcher Farbe hast du gespielt?</span>
+            <span>{t("Mit welcher Farbe hast du gespielt?")}</span>
             <div class="segmented">
               {(
                 [
-                  ["white", "Weiß"],
-                  ["black", "Schwarz"],
+                  ["white", t("Weiß")],
+                  ["black", t("Schwarz")],
                 ] as const
               ).map(([k, l]) => (
                 <button key={k} type="button" class={color === k ? "active" : ""} onClick={() => setColor(color === k ? "" : k)} disabled={busy}>
@@ -173,7 +174,8 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
             </div>
           </div>
           <label class="btn" style={{ marginBottom: "12px" }}>
-            PGN-Datei wählen
+            
+            {t("PGN-Datei wählen")}
             <input
               type="file"
               accept=".pgn,text/plain,application/x-chess-pgn"
@@ -190,25 +192,26 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
       {error && <p class="error small">{error}</p>}
       {result && (
         <div class="notice" style={{ marginBottom: "12px" }}>
-          {result.imported === 1 ? "1 neue Partie" : `${result.imported} neue Partien`} importiert
-          {result.already_known ? `, ${result.already_known} ${result.already_known === 1 ? "war" : "waren"} schon vorhanden` : ""}.
+          {result.imported === 1 ? t("1 neue Partie") : t("{imported} neue Partien", { imported: result.imported })} importiert
+          {result.already_known ? t(", {already_known} {1} schon vorhanden", { already_known: result.already_known, 1: result.already_known === 1 ? "war" : "waren" }) : ""}.
           {result.skipped.length > 0 &&
-            ` ${result.skipped.length === 1 ? "1 Partie (Chess960 oder Variante) wird" : `${result.skipped.length} Partien (Chess960 oder Varianten) werden`} in der App noch nicht unterstützt.`}
+            t(" {0} in der App noch nicht unterstützt.", { 0: result.skipped.length === 1 ? t("1 Partie (Chess960 oder Variante) wird") : t("{length} Partien (Chess960 oder Varianten) werden", { length: result.skipped.length }) })}
           {failedMonthsNote(result)}
         </div>
       )}
       <div class="row" style={{ justifyContent: "flex-end" }}>
         {busy ? (
           <button class="btn" onClick={() => abort.current?.abort()}>
-            Abbrechen
+            
+            {t("Abbrechen")}
           </button>
         ) : (
           <button class="btn" onClick={() => ref.current?.close()}>
-            {result ? "Fertig" : "Schließen"}
+            {result ? t("Fertig") : t("Schließen")}
           </button>
         )}
         <button class="btn primary" disabled={busy || (source === "pgn" ? !pgn.trim() : !user.trim())} onClick={run}>
-          {busy ? "Importiere …" : "Importieren"}
+          {busy ? t("Importiere …") : t("Importieren")}
         </button>
       </div>
     </dialog>
@@ -227,7 +230,7 @@ const QUICK_MONTHS = 2;
  */
 function failedMonthsNote(r: ImportResult): string {
   const n = r.failed_months ?? 0;
-  return n ? ` ${n === 1 ? "Ein Monat konnte" : `${n} Monate konnten`} nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.` : "";
+  return n ? t(" {0} nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.", { 0: n === 1 ? t("Ein Monat konnte") : t("{n} Monate konnten", { n }) }) : "";
 }
 
 async function quickImportChesscom(onProgress: (label: string) => void, skipBullet: boolean): Promise<{ name: string; result: ImportResult; queued: number } | null> {
@@ -319,7 +322,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
   const open = scoped.filter((g) => status(g) !== "completed" && !((skipBullet || hideBullet) && isBulletGame(g))).map((g) => g.id);
 
   const runQuick = async () => {
-    setQuick({ busy: true, text: "Suche neue Partien auf chess.com …" });
+    setQuick({ busy: true, text: t("Suche neue Partien auf chess.com …") });
     try {
       const res = await quickImportChesscom((label) => setQuick({ busy: true, text: label }), skipBullet);
       if (!res) {
@@ -331,8 +334,8 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       setQuick({
         busy: false,
         text: result.imported
-          ? `${result.imported} neue ${result.imported === 1 ? "Partie" : "Partien"} von ${name} geholt${queued ? `, ${queued} ${queued === 1 ? "wird" : "werden"} jetzt analysiert` : ""}.`
-          : `Keine neuen Partien von ${name} auf chess.com.${result.failed_months ? "" : " Alles ist schon da."}`,
+          ? t("{imported} neue {1} von {name} geholt{3}.", { imported: result.imported, 1: result.imported === 1 ? t("Partie") : t("Partien"), name, 3: queued ? t(", {queued} {1} jetzt analysiert", { queued, 1: queued === 1 ? "wird" : "werden" }) : "" })
+          : t("Keine neuen Partien von {name} auf chess.com.{1}", { name, 1: result.failed_months ? "" : t(" Alles ist schon da.") }),
       });
       if (result.failed_months) setQuick((q) => q && { ...q, text: q.text + failedMonthsNote(result) });
     } catch (e) {
@@ -349,12 +352,12 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <>
         {busy ? (
           <button class="btn" onClick={cancelAll}>
-            <IconStop /> Stoppen ({remaining})
+            <IconStop />  {t("Stoppen (")}{remaining})
           </button>
         ) : (
           open.length > 0 && (
-            <button class="btn" onClick={() => void enqueue(open)} title="Die neuesten Partien zuerst">
-              <IconPlay /> Alle analysieren ({open.length})
+            <button class="btn" onClick={() => void enqueue(open)} title={t("Die neuesten Partien zuerst")}>
+              <IconPlay />  {t("Alle analysieren (")}{open.length})
             </button>
           )
         )}
@@ -362,12 +365,12 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           class="btn primary"
           onClick={() => void runQuick()}
           disabled={quick?.busy}
-          title="Holt die neuesten Partien von chess.com und analysiert sie sofort"
+          title={t("Holt die neuesten Partien von chess.com und analysiert sie sofort")}
         >
-          <IconSync /> {quick?.busy ? "Hole Partien …" : "Neueste holen"}
+          <IconSync /> {quick?.busy ? t("Hole Partien …") : t("Neueste holen")}
         </button>
         <button class="btn" onClick={() => setShowImport(true)}>
-          <IconPlus /> Importieren
+          <IconPlus />  {t("Importieren")}
         </button>
         {games && games.length > 0 && <GuideButton id="games" />}
           </>
@@ -378,7 +381,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <div class={`notice${quick.error ? " error" : ""}`} role="status">
           <span>{quick.text}</span>
           {!quick.busy && (
-            <button class="btn small ghost" onClick={() => setQuick(null)} aria-label="Hinweis schließen">
+            <button class="btn small ghost" onClick={() => setQuick(null)} aria-label={t("Hinweis schließen")}>
               OK
             </button>
           )}
@@ -390,9 +393,10 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <span class="orb-mini" aria-hidden="true" />
           <span>
             <strong>
-              {justImported.length} {justImported.length === 1 ? "neue Partie ist" : "neue Partien sind"} da.
+              {justImported.length} {justImported.length === 1 ? t("neue Partie ist") : t("neue Partien sind")} da.
             </strong>{" "}
-            Soll ich sie gleich analysieren? Danach siehst du zu jedem Zug, wie gut er war.
+            
+            {t("Soll ich sie gleich analysieren? Danach siehst du zu jedem Zug, wie gut er war.")}
           </span>
           <button
             class="btn primary small"
@@ -401,7 +405,7 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
               setJustImported([]);
             }}
           >
-            <IconPlay /> Jetzt analysieren
+            <IconPlay />  {t("Jetzt analysieren")}
           </button>
         </div>
       )}
@@ -410,16 +414,17 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         <div class="card">
           <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
             <span>
-              <strong>Analyse läuft</strong>
+              <strong>{t("Analyse läuft")}</strong>
               <span class="muted">
                 {" "}
-                · {queue.current ? `${queue.done}/${queue.total} Züge · ` : ""}noch {remaining}{" "}
-                {remaining === 1 ? "Partie" : "Partien"}
+                · {queue.current ? t("{done}/{total} Züge · ", { done: queue.done, total: queue.total }) : ""}noch {remaining}{" "}
+                {remaining === 1 ? t("Partie") : t("Partien")}
               </span>
             </span>
             {queue.current && (
               <button class="btn small" onClick={() => navigate({ view: "analysis", gameId: queue.current! })}>
-                Ansehen
+                
+                {t("Ansehen")}
               </button>
             )}
           </div>
@@ -438,9 +443,9 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <div class="segmented">
             {(
               [
-                ["all", "Alle"],
-                ["analyzed", "Analysiert"],
-                ["open", "Offen"],
+                ["all", t("Alle")],
+                ["analyzed", t("Analysiert")],
+                ["open", t("Offen")],
               ] as const
             ).map(([k, l]) => (
               <button key={k} class={filter === k ? "active" : ""} onClick={() => setFilter(k)}>
@@ -449,14 +454,14 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             ))}
           </div>
           {othersCount > 0 && (
-            <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label="Spieler">
-              <option value="mine">Meine Partien</option>
-              <option value="all">Auch andere Spieler ({othersCount})</option>
+            <select value={scope} onChange={(e) => setScope(e.currentTarget.value as "mine" | "all")} aria-label={t("Spieler")}>
+              <option value="mine">{t("Meine Partien")}</option>
+              <option value="all">{t("Auch andere Spieler (")}{othersCount})</option>
             </select>
           )}
           {speeds.length > 1 && (
-            <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label="Bedenkzeit">
-              <option value="all">Alle Bedenkzeiten</option>
+            <select value={speed} onChange={(e) => setSpeed(e.currentTarget.value)} aria-label={t("Bedenkzeit")}>
+              <option value="all">{t("Alle Bedenkzeiten")}</option>
               {speeds.map((sp) => (
                 <option key={sp} value={sp}>
                   {SPEED_DE[sp] ?? sp}
@@ -465,16 +470,17 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
             </select>
           )}
           {bulletCount > 0 && (
-            <label class="check-chip" title="Bullet-Partien in der Liste und in der Zusammenfassung ausblenden">
+            <label class="check-chip" title={t("Bullet-Partien in der Liste und in der Zusammenfassung ausblenden")}>
               <input type="checkbox" checked={hideBullet} onChange={(e) => setHideBullet(e.currentTarget.checked)} />
-              Bullet ausblenden ({bulletCount})
+              
+              {t("Bullet ausblenden (")}{bulletCount})
             </label>
           )}
           <PeriodSelect value={period} onChange={setPeriod} />
           <input
             ref={searchRef}
             type="search"
-            placeholder={narrow ? "Spieler oder Eröffnung suchen" : "Spieler oder Eröffnung suchen  ( / )"}
+            placeholder={narrow ? t("Spieler oder Eröffnung suchen") : t("Spieler oder Eröffnung suchen  ( / )")}
             value={search}
             onInput={(e) => setSearch(e.currentTarget.value)}
             class="gl-search"
@@ -491,18 +497,18 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
       ) : games.length === 0 ? (
         <div class="empty">
           <CoachAvatar size={96} />
-          <h3>Zeig mir deine Partien!</h3>
-          <p>Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit {ENGINE_NAME}.</p>
+          <h3>{t("Zeig mir deine Partien!")}</h3>
+          <p>{t("Importiere sie von chess.com oder Lichess oder füge eine PGN ein. Ich analysiere sie dann direkt auf diesem Gerät mit")} {ENGINE_NAME}.</p>
           <button class="btn primary big" onClick={() => setShowImport(true)}>
-            <IconPlus /> Partien importieren
+            <IconPlus />  {t("Partien importieren")}
           </button>
         </div>
       ) : filtered.length === 0 ? (
         <div class="empty">
-          <p>Keine Partie passt zu diesen Filtern.</p>
+          <p>{t("Keine Partie passt zu diesen Filtern.")}</p>
           {hiddenOlder > 0 && (
             <button class="btn" onClick={() => setPeriod("All Time")}>
-              {hiddenOlder} ältere {hiddenOlder === 1 ? "Partie" : "Partien"} zeigen
+              {hiddenOlder}  {t("ältere")} {hiddenOlder === 1 ? t("Partie") : t("Partien")} zeigen
             </button>
           )}
         </div>
@@ -511,14 +517,16 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
           <GameRows games={filtered.slice(0, limit)} all={filtered} usernames={usernames} queue={queue} />
           {filtered.length > limit && (
             <button class="btn" onClick={() => setLimit((l) => l + 60)}>
-              Weitere {Math.min(60, filtered.length - limit)} anzeigen
+              
+              {t("Weitere")} {Math.min(60, filtered.length - limit)} anzeigen
             </button>
           )}
           {filtered.length <= limit && hiddenOlder > 0 && (
             <p class="faint small" style={{ textAlign: "center" }}>
-              {trFilter(period)}. {hiddenOlder} ältere {hiddenOlder === 1 ? "Partie ist" : "Partien sind"} ausgeblendet.{" "}
+              {trFilter(period)}. {hiddenOlder}  {t("ältere")} {hiddenOlder === 1 ? t("Partie ist") : t("Partien sind")} ausgeblendet.{" "}
               <button class="link-btn" onClick={() => setPeriod("All Time")}>
-                Alle zeigen
+                
+                {t("Alle zeigen")}
               </button>
             </p>
           )}

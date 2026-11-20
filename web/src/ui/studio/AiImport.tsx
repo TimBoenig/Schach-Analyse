@@ -4,6 +4,7 @@ import { useMemo, useState } from "preact/hooks";
 
 import { buildAiPrompt, importAiScript, toAiScript } from "./aiScript";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
+import { t } from "../../i18n";
 
 const LENGTHS = [15, 30, 45, 60, 90];
 // Long YouTube lessons: about four minutes is the sweet spot Tim asked for.
@@ -37,13 +38,13 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
     <div class="studio-modal" role="dialog" aria-modal="true" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div class="studio-modal-card wide ai">
         <div class="ai-head">
-          <h3>Mit KI erstellen</h3>
+          <h3>{t("Mit KI erstellen")}</h3>
           <div class="ai-steps">
             <button class={step === "prompt" ? "on" : ""} onClick={() => setStep("prompt")}>
-              <b>1</b> Prompt für die KI
+              <b>1</b>  {t("Prompt für die KI")}
             </button>
             <button class={step === "answer" ? "on" : ""} onClick={() => setStep("answer")}>
-              <b>2</b> Antwort einfügen
+              <b>2</b>  {t("Antwort einfügen")}
             </button>
           </div>
         </div>
@@ -51,16 +52,16 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
         {step === "prompt" && (
           <div class="ai-body">
             <p class="muted small">
-              Sag kurz, was du willst. Kopier dann den Prompt in ChatGPT, Claude oder Gemini. Die KI schreibt das ganze Video: Züge, Kamera pro Zug, Texte, Sprechtext, Pfeile, Markierungen, Effekte und
-              Tempo.
+              
+              {t("Sag kurz, was du willst. Kopier dann den Prompt in ChatGPT, Claude oder Gemini. Die KI schreibt das ganze Video: Züge, Kamera pro Zug, Texte, Sprechtext, Pfeile, Markierungen, Effekte und Tempo.")}
             </p>
             <label class="ai-field">
-              <span>Worum geht es?</span>
-              <input value={topic} onInput={(e) => setTopic(e.currentTarget.value)} placeholder="z. B. Die Spanische Partie für Anfänger" />
+              <span>{t("Worum geht es?")}</span>
+              <input value={topic} onInput={(e) => setTopic(e.currentTarget.value)} placeholder={t("z. B. Die Spanische Partie für Anfänger")} />
             </label>
             <div class="ai-row">
               <label class="ai-field">
-                <span>Plattform</span>
+                <span>{t("Plattform")}</span>
                 <select class="studio-select" value={platform} onChange={(e) => {
                     const p = e.currentTarget.value as Platform;
                     setPlatform(p);
@@ -74,7 +75,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                 </select>
               </label>
               <div class="ai-field">
-                <span>Länge</span>
+                <span>{t("Länge")}</span>
                 <div class="studio-speed">
                   {(platform === "youtube" ? LONG_LENGTHS : LENGTHS).map((l) => (
                     <button key={l} class={length === l ? "on" : ""} onClick={() => setLength(l)}>
@@ -85,21 +86,21 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
               </div>
             </div>
             <div class="ai-field">
-              <span>Aus wessen Sicht?</span>
+              <span>{t("Aus wessen Sicht?")}</span>
               <div class="studio-speed">
                 {(["auto", "white", "black"] as const).map((k) => (
                   <button key={k} class={side === k ? "on" : ""} onClick={() => setSide(k)}>
-                    {k === "auto" ? "KI entscheidet" : k === "white" ? "Weiß" : "Schwarz"}
+                    {k === "auto" ? t("KI entscheidet") : k === "white" ? t("Weiß") : t("Schwarz")}
                   </button>
                 ))}
               </div>
             </div>
             <label class="ai-field">
-              <span>Das soll die KI beachten (optional)</span>
-              <textarea rows={4} value={notes} onInput={(e) => setNotes(e.currentTarget.value)} placeholder={"z. B. Zeig die Variante 3… Sf6\nViel Spannung, am Ende eine Umfrage\nSprechtext locker und per Du"} />
+              <span>{t("Das soll die KI beachten (optional)")}</span>
+              <textarea rows={4} value={notes} onInput={(e) => setNotes(e.currentTarget.value)} placeholder={t("z. B. Zeig die Variante 3… Sf6\nViel Spannung, am Ende eine Umfrage\nSprechtext locker und per Du")} />
             </label>
             <details class="studio-fine">
-              <summary>Prompt ansehen</summary>
+              <summary>{t("Prompt ansehen")}</summary>
               <pre class="ai-prompt">{prompt}</pre>
             </details>
             <div class="studio-modal-actions">
@@ -109,32 +110,33 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                   await doCopy(prompt, "prompt");
                 }}
               >
-                {copied === "prompt" ? "✓ Kopiert" : "Prompt kopieren"}
+                {copied === "prompt" ? t("✓ Kopiert") : t("Prompt kopieren")}
               </button>
               <button class="btn ghost" onClick={() => setStep("answer")}>
-                Weiter: Antwort einfügen
+                
+                {t("Weiter: Antwort einfügen")}
               </button>
-              <button class="btn ghost" onClick={() => void doCopy(`Überarbeite dieses Video-Skript und antworte im selben Format:\n\n${toAiScript(current)}`, "script")} title="Das aktuelle Video als Skript, damit die KI es verbessert">
-                {copied === "script" ? "✓ Kopiert" : "Aktuelles Video als Skript kopieren"}
+              <button class="btn ghost" onClick={() => void doCopy(t("Überarbeite dieses Video-Skript und antworte im selben Format:\n\n{toAiScript}", { toAiScript: toAiScript(current) }), "script")} title={t("Das aktuelle Video als Skript, damit die KI es verbessert")}>
+                {copied === "script" ? t("✓ Kopiert") : t("Aktuelles Video als Skript kopieren")}
               </button>
             </div>
-            {copied === "failed" && <p class="studio-warn">Kopieren ging nicht. Markier den Text unter „Prompt ansehen“ und kopier ihn von Hand.</p>}
+            {copied === "failed" && <p class="studio-warn">{t("Kopieren ging nicht. Markier den Text unter „Prompt ansehen“ und kopier ihn von Hand.")}</p>}
           </div>
         )}
 
         {step === "answer" && (
           <div class="ai-body">
-            <p class="muted small">Füg die komplette Antwort der KI ein. Ich prüfe jeden Zug und zeige, was nicht passt.</p>
+            <p class="muted small">{t("Füg die komplette Antwort der KI ein. Ich prüfe jeden Zug und zeige, was nicht passt.")}</p>
             <textarea class="wz-script ai-answer" rows={12} value={answer} onInput={(e) => setAnswer(e.currentTarget.value)} placeholder="```json { … } ```" spellcheck={false} />
             {result && (
               <div class="ai-check">
                 {result.stats && (
                   <p class="ai-stats">
-                    <b>{result.stats.scenes}</b> Szenen · <b>{result.stats.moves}</b> Züge
+                    <b>{result.stats.scenes}</b>  {t("Szenen ·")} <b>{result.stats.moves}</b>  {t("Züge")}
                     {result.stats.variations ? (
                       <>
                         {" "}
-                        · <b>{result.stats.variations}</b> {result.stats.variations === 1 ? "Variante" : "Varianten"}
+                        · <b>{result.stats.variations}</b> {result.stats.variations === 1 ? t("Variante") : t("Varianten")}
                       </>
                     ) : null}{" "}
                     · <b>{Math.round(result.stats.seconds)}</b> s
@@ -150,22 +152,26 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                     {w}
                   </p>
                 ))}
-                {result.project && !result.errors.length && !result.warnings.length && <p class="ai-msg good">Alles passt. Alle Züge sind legal.</p>}
+                {result.project && !result.errors.length && !result.warnings.length && <p class="ai-msg good">{t("Alles passt. Alle Züge sind legal.")}</p>}
               </div>
             )}
             <div class="studio-modal-actions">
               <button class="btn primary" disabled={!result?.project} onClick={() => result?.project && onCreate(result.project)}>
-                Video erstellen
+                
+                {t("Video erstellen")}
               </button>
-              <button class="btn ghost" disabled={!result?.project} onClick={() => result?.project && onReplace(result.project)} title="Ersetzt die Szenen und Einstellungen des offenen Videos">
-                Offenes Video ersetzen
+              <button class="btn ghost" disabled={!result?.project} onClick={() => result?.project && onReplace(result.project)} title={t("Ersetzt die Szenen und Einstellungen des offenen Videos")}>
+                
+                {t("Offenes Video ersetzen")}
               </button>
               <label class="btn ghost">
-                Datei …
+                
+                {t("Datei …")}
                 <input type="file" accept=".json,.txt,.md,application/json,text/plain" hidden onChange={(e) => e.currentTarget.files?.[0] && void readFile(e.currentTarget.files[0])} />
               </label>
               <button class="btn ghost" onClick={onClose}>
-                Abbrechen
+                
+                {t("Abbrechen")}
               </button>
             </div>
           </div>

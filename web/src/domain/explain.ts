@@ -30,6 +30,7 @@ import { PIECE_VALUES, TacticalTheme } from "./tactics/constants";
 import { getHangingPieces } from "./tactics/hanging";
 import { detectTacticalMotifs } from "./tactics/motifs";
 import { staticExchangeEvaluation } from "./tactics/see";
+import { t } from "../i18n";
 
 export interface ExplainInput {
   fenBefore: string;
@@ -59,12 +60,12 @@ const WIN_THRESHOLD_CP = 200;
 // Nominative and accusative with a possessive, e.g. "dein Turm" / "deinen Turm".
 // `of` is the genitive ("den Verlust deines Turms"), `fork` the compound noun.
 const NAMES: Record<PieceType, { nom: string; acc: string; of: string; gen: "m" | "f"; fork: string }> = {
-  1: { nom: "Bauer", acc: "Bauern", of: "Bauern", gen: "m", fork: "Bauerngabel" },
-  2: { nom: "Springer", acc: "Springer", of: "Springers", gen: "m", fork: "Springergabel" },
-  3: { nom: "Läufer", acc: "Läufer", of: "Läufers", gen: "m", fork: "Läufergabel" },
-  4: { nom: "Turm", acc: "Turm", of: "Turms", gen: "m", fork: "Turmgabel" },
-  5: { nom: "Dame", acc: "Dame", of: "Dame", gen: "f", fork: "Damengabel" },
-  6: { nom: "König", acc: "König", of: "Königs", gen: "m", fork: "Königsgabel" },
+  1: { nom: t("Bauer"), acc: t("Bauern"), of: t("Bauern"), gen: "m", fork: t("Bauerngabel") },
+  2: { nom: t("Springer"), acc: t("Springer"), of: t("Springers"), gen: "m", fork: t("Springergabel") },
+  3: { nom: t("Läufer"), acc: t("Läufer"), of: t("Läufers"), gen: "m", fork: t("Läufergabel") },
+  4: { nom: t("Turm"), acc: t("Turm"), of: t("Turms"), gen: "m", fork: t("Turmgabel") },
+  5: { nom: t("Dame"), acc: t("Dame"), of: t("Dame"), gen: "f", fork: t("Damengabel") },
+  6: { nom: t("König"), acc: t("König"), of: t("Königs"), gen: "m", fork: t("Königsgabel") },
 };
 
 const fem = (tk: PieceType) => NAMES[tk].gen === "f";
@@ -74,7 +75,7 @@ const theirNom = (tk: PieceType) => `${fem(tk) ? "seine" : "sein"} ${NAMES[tk].n
 const yourOf = (tk: PieceType) => `${fem(tk) ? "deiner" : "deines"} ${NAMES[tk].of}`;
 const theirAcc = (tk: PieceType) => `${fem(tk) ? "seine" : "seinen"} ${NAMES[tk].acc}`;
 /** Dative after "mit": "mit deinem Springer", "mit einem Bauern". */
-const withPiece = (tk: PieceType) => (tk === PAWN ? "einem Bauern" : `${fem(tk) ? "deiner" : "deinem"} ${NAMES[tk].nom}`);
+const withPiece = (tk: PieceType) => (tk === PAWN ? t("einem Bauern") : `${fem(tk) ? "deiner" : "deinem"} ${NAMES[tk].nom}`);
 const pronoun = (tk: PieceType) => (fem(tk) ? "sie" : "er");
 
 function material(board: TBoard, color: Color): number {
@@ -84,11 +85,11 @@ function material(board: TBoard, color: Color): number {
 }
 
 function materialWords(v: number): string {
-  if (v >= 9) return "die Dame oder entsprechend viel Material";
-  if (v >= 5) return "einen Turm oder entsprechend viel Material";
-  if (v >= 3) return "eine Figur";
-  if (v === 2) return "die Qualität oder zwei Bauern";
-  return "einen Bauern";
+  if (v >= 9) return t("die Dame oder entsprechend viel Material");
+  if (v >= 5) return t("einen Turm oder entsprechend viel Material");
+  if (v >= 3) return t("eine Figur");
+  if (v === 2) return t("die Qualität oder zwei Bauern");
+  return t("einen Bauern");
 }
 
 const sameMove = (a: Move, b: Move) => a.from === b.from && a.to === b.to && (a.promotion ?? null) === (b.promotion ?? null);
@@ -235,7 +236,7 @@ function threatStillWorks(board: TBoard, tk: Threat): boolean {
 }
 
 /** "eine Springergabel auf e3 (Ne3)" */
-const forkPhrase = (tk: Threat) => `eine ${NAMES[tk.piece].fork} auf ${squareName(tk.move.to)} (${tk.san})`;
+const forkPhrase = (tk: Threat) => t("eine {fork} auf {squareName} ({san})", { fork: NAMES[tk.piece].fork, squareName: squareName(tk.move.to), san: tk.san });
 
 /** An arrow for the board that shows the idea behind a sentence. */
 export interface IdeaArrow {
@@ -275,15 +276,15 @@ function attackedSquares(board: TBoard, sq: number, victim: Color): number[] {
 function preventedNote(tk: Threat, move: Move, before: TBoard): Note {
   // No arrow from a piece the move just took off the board.
   const marks = move.to === tk.move.from ? [] : [arrowOf(tk.move, "opp")];
-  if (tk.kind === "mate") return note(`Du verhinderst damit das drohende Matt durch ${tk.san}.`, marks);
-  if (tk.kind === "fork") return note(`Du verhinderst damit ${forkPhrase(tk)} gegen ${joinPieces(tk.targets, yourAcc)}.`, marks, [tk.move.to]);
+  if (tk.kind === "mate") return note(t("Du verhinderst damit das drohende Matt durch {san}.", { san: tk.san }), marks);
+  if (tk.kind === "fork") return note(t("Du verhinderst damit {forkPhrase} gegen {joinPieces}.", { forkPhrase: forkPhrase(tk), joinPieces: joinPieces(tk.targets, yourAcc) }), marks, [tk.move.to]);
   const victim = tk.targets[0];
   const sq = squareName(tk.square);
-  if (move.from === tk.square) return note(`Du bringst ${yourAcc(victim)} in Sicherheit: Auf ${sq} war ${pronoun(victim)} angegriffen und nicht ausreichend gedeckt.`, marks);
-  if (move.to === tk.move.from) return note(`Du schlägst die Figur, die ${yourAcc(victim)} auf ${sq} bedroht hat.`, marks, [tk.square]);
+  if (move.from === tk.square) return note(t("Du bringst {yourAcc} in Sicherheit: Auf {sq} war {pronoun} angegriffen und nicht ausreichend gedeckt.", { yourAcc: yourAcc(victim), sq, pronoun: pronoun(victim) }), marks);
+  if (move.to === tk.move.from) return note(t("Du schlägst die Figur, die {yourAcc} auf {sq} bedroht hat.", { yourAcc: yourAcc(victim), sq }), marks, [tk.square]);
   const captured = before.pieceAt(move.to);
-  if (captured && captured.color !== before.turn) return note(`Du nimmst eine Figur, die ${yourAcc(victim)} auf ${sq} angegriffen hat.`, marks, [tk.square]);
-  return note(`Damit schützt du ${yourAcc(victim)} auf ${sq}, ${fem(victim) ? "die" : "den"} dein Gegner sonst mit ${tk.san} gewonnen hätte.`, marks, [tk.square]);
+  if (captured && captured.color !== before.turn) return note(t("Du nimmst eine Figur, die {yourAcc} auf {sq} angegriffen hat.", { yourAcc: yourAcc(victim), sq }), marks, [tk.square]);
+  return note(t("Damit schützt du {yourAcc} auf {sq}, {2} dein Gegner sonst mit {san} gewonnen hätte.", { yourAcc: yourAcc(victim), sq, 2: fem(victim) ? "die" : "den", san: tk.san }), marks, [tk.square]);
 }
 
 /** Pin or skewer set up by the slider on `sq` of `attacker`; `you` = the attacker is the mover. */
@@ -293,17 +294,17 @@ function rayNote(board: TBoard, sq: number, attacker: Color, san: string, you: b
     const skewer = rear.type !== KING && front.type !== PAWN && PIECE_VALUES[front.type] > PIECE_VALUES[rear.type];
     const squares = [frontSq, rearSq];
     if (front.type === KING || skewer) {
-      const lost = `geht ${you ? theirNom(rear.type) : yourNom(rear.type)} dahinter verloren`;
+      const lost = t("geht {0} dahinter verloren", { 0: you ? theirNom(rear.type) : yourNom(rear.type) });
       return note(
         you
-          ? `Mit ${san} spießt du ${own(front.type)} auf: Weicht ${pronoun(front.type)} aus, ${lost}.`
-          : `Mit ${san} spießt dein Gegner ${own(front.type)} auf: Weicht ${pronoun(front.type)} aus, ${lost}.`,
+          ? t("Mit {san} spießt du {own} auf: Weicht {pronoun} aus, {lost}.", { san, own: own(front.type), pronoun: pronoun(front.type), lost })
+          : t("Mit {san} spießt dein Gegner {own} auf: Weicht {pronoun} aus, {lost}.", { san, own: own(front.type), pronoun: pronoun(front.type), lost }),
         [],
         squares,
       );
     }
     if (rear.type === KING || rear.type === QUEEN || (rear.type === ROOK && front.type !== PAWN)) {
-      return note(you ? `Mit ${san} fesselst du ${own(front.type)} an ${own(rear.type)}.` : `Mit ${san} fesselt dein Gegner ${own(front.type)} an ${own(rear.type)}.`, [], squares);
+      return note(you ? t("Mit {san} fesselst du {own} an {own2}.", { san, own: own(front.type), own2: own(rear.type) }) : t("Mit {san} fesselt dein Gegner {own} an {own2}.", { san, own: own(front.type), own2: own(rear.type) }), [], squares);
     }
   }
   return null;
@@ -323,21 +324,21 @@ function replyNote(afterMove: TBoard, reply: Move, replySan: string, me: Color, 
 
   if (motifs.includes(TacticalTheme.FORK)) {
     const targets = attackedTargets(afterReply, reply.to, me);
-    if (targets.length >= 2) return note(`Dein Gegner antwortet ${replySan} und greift mit einer Gabel ${joinPieces(targets, yourAcc)} gleichzeitig an.`, marks, attackedSquares(afterReply, reply.to, me));
+    if (targets.length >= 2) return note(t("Dein Gegner antwortet {replySan} und greift mit einer Gabel {joinPieces} gleichzeitig an.", { replySan, joinPieces: joinPieces(targets, yourAcc) }), marks, attackedSquares(afterReply, reply.to, me));
   }
   if (motifs.includes(TacticalTheme.PIN) || motifs.includes(TacticalTheme.SKEWER)) {
     const n = rayNote(afterReply, reply.to, opp, replySan, false);
     if (n) return { ...n, arrows: marks };
   }
-  if (motifs.includes(TacticalTheme.DISCOVERED_ATTACK)) return note(`${replySan} ist ein Abzugsangriff: Dein Gegner zieht eine Figur weg und öffnet damit eine zweite Angriffslinie.`, marks);
-  if (motifs.includes(TacticalTheme.BACK_RANK)) return note(`Deine Grundreihe ist schwach: ${replySan} nutzt aus, dass dein König kein Luftloch hat.`, marks);
+  if (motifs.includes(TacticalTheme.DISCOVERED_ATTACK)) return note(t("{replySan} ist ein Abzugsangriff: Dein Gegner zieht eine Figur weg und öffnet damit eine zweite Angriffslinie.", { replySan }), marks);
+  if (motifs.includes(TacticalTheme.BACK_RANK)) return note(t("Deine Grundreihe ist schwach: {replySan} nutzt aus, dass dein König kein Luftloch hat.", { replySan }), marks);
   if (captured && captured.color === me && captured.type !== PAWN && material(afterReply, me) - material(afterReply, opp) < balance) {
     const tk = captured.type;
     const free = legalDefenders(afterMove, me, reply.to).length === 0;
     const capturer = afterMove.pieceAt(reply.from);
     // A recapturable trade is no loss; only free pieces or captures by a cheaper piece are.
-    if (free) return note(`Dein Gegner schlägt mit ${replySan} ${fem(tk) ? "deine ungedeckte" : "deinen ungedeckten"} ${NAMES[tk].acc}.`, marks);
-    if (capturer && PIECE_VALUES[capturer.type] < PIECE_VALUES[tk]) return note(`Dein Gegner schlägt mit ${replySan} ${yourAcc(tk)} und gewinnt Material, auch wenn du zurückschlägst.`, marks);
+    if (free) return note(t("Dein Gegner schlägt mit {replySan} {1} {acc}.", { replySan, 1: fem(tk) ? "deine ungedeckte" : "deinen ungedeckten", acc: NAMES[tk].acc }), marks);
+    if (capturer && PIECE_VALUES[capturer.type] < PIECE_VALUES[tk]) return note(t("Dein Gegner schlägt mit {replySan} {yourAcc} und gewinnt Material, auch wenn du zurückschlägst.", { replySan, yourAcc: yourAcc(tk) }), marks);
   }
   return null;
 }
@@ -366,14 +367,14 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
   const out: Note[] = [];
   const piece = before.pieceAt(move.from);
   if (!piece) return out;
-  if (after.isCheckmate()) return [note("Schachmatt! Damit ist die Partie entschieden.")];
+  if (after.isCheckmate()) return [note(t("Schachmatt! Damit ist die Partie entschieden."))];
 
   const mateAfter = input.mateAfter ?? null;
   const sign = me ? 1 : -1;
   if (mateAfter !== null && sign * mateAfter > 0) {
     const n = Math.abs(mateAfter);
     const line = playLine(after, input.replyPv, n * 2 - 1);
-    out.push(note(`Damit erzwingst du Matt in ${n} ${n === 1 ? "Zug" : "Zügen"}${line.sans.length ? `: ${lineText([san, ...line.sans], before, n * 2 - 1)}` : ""}.`));
+    out.push(note(t("Damit erzwingst du Matt in {n} {1}{2}.", { n, 1: n === 1 ? t("Zug") : t("Zügen"), 2: line.sans.length ? `: ${lineText([san, ...line.sans], before, n * 2 - 1)}` : "" })));
   }
 
   const motifs = detectTacticalMotifs(before, after, move, me);
@@ -381,7 +382,7 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
   const diff = (b: TBoard) => material(b, me) - material(b, !me);
 
   if (motifs.includes(TacticalTheme.SACRIFICE)) {
-    out.push(note(`Mit ${san} opferst du ${yourAcc(piece.type)} – und die Engine bestätigt, dass sich das lohnt.`));
+    out.push(note(t("Mit {san} opferst du {yourAcc} – und die Engine bestätigt, dass sich das lohnt.", { san, yourAcc: yourAcc(piece.type) })));
   }
   if (motifs.includes(TacticalTheme.FORK)) {
     const targets = attackedTargets(after, move.to, !me);
@@ -389,7 +390,7 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
       const squares = attackedSquares(after, move.to, !me);
       out.push(
         note(
-          `Mit ${san} greifst du mit einer ${NAMES[piece.type].fork} ${joinPieces(targets, theirAcc)} gleichzeitig an.`,
+          t("Mit {san} greifst du mit einer {fork} {joinPieces} gleichzeitig an.", { san, fork: NAMES[piece.type].fork, joinPieces: joinPieces(targets, theirAcc) }),
           squares.map((tk) => ({ from: squareName(move.to), to: squareName(tk), by: "me" as const })),
           squares,
         ),
@@ -399,7 +400,7 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
     const n = rayNote(after, move.to, me, san, true);
     if (n) out.push(n);
   } else if (motifs.includes(TacticalTheme.DISCOVERED_ATTACK)) {
-    out.push(note(`${san} ist ein Abzugsangriff: Du ziehst eine Figur weg und öffnest damit eine zweite Angriffslinie.`));
+    out.push(note(t("{san} ist ein Abzugsangriff: Du ziehst eine Figur weg und öffnest damit eine zweite Angriffslinie.", { san })));
   }
 
   const evens = diff(before) < 0 && diff(after) >= 0;
@@ -417,9 +418,9 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
   if (captured && isCapture && out.length < 2) {
     const tk = captured.type;
     const free = legalDefenders(before, !me, move.to).length === 0;
-    if (recapture) out.push(note(evens ? "Du schlägst zurück und gleichst das Material wieder aus." : "Du schlägst zurück."));
-    else if (tk !== PAWN && free) out.push(note(`Du schlägst ${fem(tk) ? "die ungedeckte" : "den ungedeckten"} ${NAMES[tk].acc} auf ${squareName(move.to)}.`));
-    else if (tk !== PAWN && PIECE_VALUES[piece.type] < PIECE_VALUES[tk] && piece.type !== KING) out.push(note(`Du schlägst ${theirAcc(tk)} mit ${withPiece(piece.type)} und gewinnst Material.`));
+    if (recapture) out.push(note(evens ? t("Du schlägst zurück und gleichst das Material wieder aus.") : t("Du schlägst zurück.")));
+    else if (tk !== PAWN && free) out.push(note(t("Du schlägst {0} {acc} auf {squareName}.", { 0: fem(tk) ? t("die ungedeckte") : "den ungedeckten", acc: NAMES[tk].acc, squareName: squareName(move.to) })));
+    else if (tk !== PAWN && PIECE_VALUES[piece.type] < PIECE_VALUES[tk] && piece.type !== KING) out.push(note(t("Du schlägst {theirAcc} mit {withPiece} und gewinnst Material.", { theirAcc: theirAcc(tk), withPiece: withPiece(piece.type) })));
   }
 
   // Material the engine line wins, when no sentence above already says so.
@@ -429,7 +430,7 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
       // The worse of the last two positions, so a line cut off mid-exchange
       // does not count a piece that is about to be taken back.
       const gain = Math.min(...line.boards.slice(-2).map(diff)) - diff(before);
-      if (gain >= 1) out.push(note(`Nach ${lineText(line.sans, before, 7)} gewinnst du ${materialWords(gain)}.`));
+      if (gain >= 1) out.push(note(t("Nach {lineText} gewinnst du {materialWords}.", { lineText: lineText(line.sans, before, 7), materialWords: materialWords(gain) })));
     }
   }
 
@@ -441,22 +442,22 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
       const known = (tk: Threat) => old.some((o) => o.kind === tk.kind && o.square === tk.square && o.move.to === tk.move.to);
       const tk = threatsOf(passed).find((x) => !known(x));
       const marks = tk ? [arrowOf(tk.move, "me")] : [];
-      if (tk?.kind === "mate") out.push(note(`Du drohst Matt mit ${tk.san}.`, marks));
-      else if (tk?.kind === "fork") out.push(note(`Du drohst ${forkPhrase(tk)} gegen ${joinPieces(tk.targets, theirAcc)}.`, marks, [tk.move.to]));
+      if (tk?.kind === "mate") out.push(note(t("Du drohst Matt mit {san}.", { san: tk.san }), marks));
+      else if (tk?.kind === "fork") out.push(note(t("Du drohst {forkPhrase} gegen {joinPieces}.", { forkPhrase: forkPhrase(tk), joinPieces: joinPieces(tk.targets, theirAcc) }), marks, [tk.move.to]));
       else if (tk?.kind === "win") {
         const victim = tk.targets[0];
         const by = tk.piece !== KING && PIECE_VALUES[tk.piece] < PIECE_VALUES[victim] ? ` mit ${withPiece(tk.piece)}` : "";
         const where = `${theirAcc(victim)} auf ${squareName(tk.square)}`;
-        out.push(note(by ? `Du greifst ${where}${by} an.` : `Du greifst ${where} an, ${fem(victim) ? "die" : "der"} nicht ausreichend gedeckt ist.`, marks, [tk.square]));
+        out.push(note(by ? t("Du greifst {where}{by} an.", { where, by }) : t("Du greifst {where} an, {1} nicht ausreichend gedeckt ist.", { where, 1: fem(victim) ? "die" : "der" }), marks, [tk.square]));
       }
     }
   }
 
   if (!out.length && piece.type === KING && Math.abs(move.to - move.from) === 2) {
-    out.push(note("Du rochierst: Dein König steht sicherer und dein Turm kommt ins Spiel."));
+    out.push(note(t("Du rochierst: Dein König steht sicherer und dein Turm kommt ins Spiel.")));
   }
-  if (move.promotion === QUEEN) out.push(note("Du wandelst deinen Bauern in eine Dame um."));
-  else if (move.promotion === KNIGHT) out.push(note("Du wandelst in einen Springer um – genau das richtige Stück für diese Stellung."));
+  if (move.promotion === QUEEN) out.push(note(t("Du wandelst deinen Bauern in eine Dame um.")));
+  else if (move.promotion === KNIGHT) out.push(note(t("Du wandelst in einen Springer um – genau das richtige Stück für diese Stellung.")));
   return out;
 }
 
@@ -473,7 +474,7 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
   if (mateAfter !== null && sign * mateAfter < 0 && !afterMove.isCheckmate()) {
     const n = Math.abs(mateAfter);
     const line = playLine(afterMove, input.replyPv, n * 2 - 1);
-    out.push(note(`Danach kann dein Gegner in ${n} ${n === 1 ? "Zug" : "Zügen"} mattsetzen${line.sans.length ? `: ${lineText(line.sans, afterMove, n * 2 - 1)}` : ""}.`, line.moves.slice(0, 1).map((m) => arrowOf(m, "opp"))));
+    out.push(note(t("Danach kann dein Gegner in {n} {1} mattsetzen{2}.", { n, 1: n === 1 ? t("Zug") : t("Zügen"), 2: line.sans.length ? `: ${lineText(line.sans, afterMove, n * 2 - 1)}` : "" }), line.moves.slice(0, 1).map((m) => arrowOf(m, "opp"))));
   }
 
   // The opponent's threats before the move: an ignored one is worth saying so.
@@ -484,7 +485,7 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
   // The opponent's best reply, read as a motif or a capture.
   if (reply.moves.length && !out.length) {
     const n = replyNote(afterMove, reply.moves[0], reply.sans[0], me, material(before, me) - material(before, !me));
-    if (n) out.push(ignored ? { ...n, text: `Du hast die Drohung übersehen: ${n.text}` } : n);
+    if (n) out.push(ignored ? { ...n, text: t("Du hast die Drohung übersehen: {text}", { text: n.text }) } : n);
   }
 
   // Material the forced line costs, when no motif already says it.
@@ -495,7 +496,7 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
     const ends = reply.boards.slice(-2).map(diff);
     const total = diff(before) - Math.max(...ends);
     if (total >= 1 && out.length < 2) {
-      out.push(note(`Nach der besten Antwort ${lineText(reply.sans, afterMove, 6)} verlierst du ${materialWords(total)}.`, out.length ? [] : [arrowOf(reply.moves[0], "opp")]));
+      out.push(note(t("Nach der besten Antwort {lineText} verlierst du {materialWords}.", { lineText: lineText(reply.sans, afterMove, 6), materialWords: materialWords(total) }), out.length ? [] : [arrowOf(reply.moves[0], "opp")]));
     }
   }
 
@@ -504,7 +505,7 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
     const hangingBefore = new Set(getHangingPieces(before, me).map((h) => h.square));
     const fresh = getHangingPieces(afterMove, me, move, before).filter((h) => !hangingBefore.has(h.square) && h.piece_type !== PAWN);
     const worst = fresh.sort((a, b) => PIECE_VALUES[b.piece_type as PieceType] - PIECE_VALUES[a.piece_type as PieceType])[0];
-    if (worst) out.push(note(`Nach diesem Zug ist ${yourNom(worst.piece_type as PieceType)} auf ${worst.square} nicht mehr ausreichend gedeckt.`, [], [worst.square_index]));
+    if (worst) out.push(note(t("Nach diesem Zug ist {yourNom} auf {square} nicht mehr ausreichend gedeckt.", { yourNom: yourNom(worst.piece_type as PieceType), square: worst.square }), [], [worst.square_index]));
   }
 
   // What the better move would have done (the board already shows it as an arrow).
@@ -520,21 +521,21 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
       // The threat the game move ignored and the better move would have stopped.
       const stopped = ignored && preventedBy(before, bm, [ignored]).length ? ignored : null;
       if (mateBefore !== null && sign * mateBefore > 0) {
-        out.push(note(`Du hattest Matt in ${Math.abs(mateBefore)}: ${lineText(best.sans, before, Math.abs(mateBefore) * 2 - 1)}.`));
+        out.push(note(t("Du hattest Matt in {0}: {lineText}.", { 0: Math.abs(mateBefore), lineText: lineText(best.sans, before, Math.abs(mateBefore) * 2 - 1) })));
       } else if (bestMotifs.includes(TacticalTheme.FORK)) {
         const targets = attackedTargets(afterBest, bm.to, !me);
-        out.push(note(`Besser war ${bSan}: Damit greifst du mit einer Gabel ${joinPieces(targets, theirAcc)} gleichzeitig an.`));
+        out.push(note(t("Besser war {bSan}: Damit greifst du mit einer Gabel {joinPieces} gleichzeitig an.", { bSan, joinPieces: joinPieces(targets, theirAcc) })));
       } else if (target && target.color !== me && target.type !== PAWN && legalDefenders(before, !me, bm.to).length === 0) {
-        out.push(note(`Besser war ${bSan}: ${fem(target.type) ? "Die" : "Der"} gegnerische ${NAMES[target.type].nom} auf ${squareName(bm.to)} war ungedeckt.`));
+        out.push(note(t("Besser war {bSan}: {1} gegnerische {nom} auf {squareName} war ungedeckt.", { bSan, 1: fem(target.type) ? t("Die") : t("Der"), nom: NAMES[target.type].nom, squareName: squareName(bm.to) })));
       } else if (stopped) {
-        const what = stopped.kind === "mate" ? `das Matt durch ${stopped.san}` : stopped.kind === "fork" ? forkPhrase(stopped) : `den Verlust ${yourOf(stopped.targets[0])}`;
-        out.push(note(`Besser war ${bSan}: Damit verhinderst du ${what}.`));
+        const what = stopped.kind === "mate" ? t("das Matt durch {san}", { san: stopped.san }) : stopped.kind === "fork" ? forkPhrase(stopped) : t("den Verlust {yourOf}", { yourOf: yourOf(stopped.targets[0]) });
+        out.push(note(t("Besser war {bSan}: Damit verhinderst du {what}.", { bSan, what })));
       } else if (bestMotifs.includes(TacticalTheme.PIN)) {
-        out.push(note(`Besser war ${bSan} mit einer Fesselung.`));
+        out.push(note(t("Besser war {bSan} mit einer Fesselung.", { bSan })));
       } else if (bestMotifs.includes(TacticalTheme.SKEWER)) {
-        out.push(note(`Besser war ${bSan} mit einem Spieß.`));
+        out.push(note(t("Besser war {bSan} mit einem Spieß.", { bSan })));
       } else if (out.length < 2) {
-        out.push(note(`Besser war ${lineText(best.sans, before, 3)}.`));
+        out.push(note(t("Besser war {lineText}.", { lineText: lineText(best.sans, before, 3) })));
       }
     }
   }

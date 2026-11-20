@@ -2,6 +2,8 @@
 // and years. Both are cut from the full history (not from the page's period)
 // and thinned to what a chart of that span can show: one closing value per
 // day for the rating, days, weeks, months or quarters for the accuracy.
+import { t } from "../../i18n";
+
 
 const DAY = 86400;
 
@@ -187,12 +189,12 @@ export interface RangeOption {
 }
 
 const RANGES: RangeOption[] = [
-  { key: "1m", label: "1 M", days: 31, text: "im letzten Monat" },
-  { key: "3m", label: "3 M", days: 92, text: "in den letzten 3 Monaten" },
-  { key: "6m", label: "6 M", days: 183, text: "in den letzten 6 Monaten" },
-  { key: "1y", label: "1 J", days: 366, text: "im letzten Jahr" },
+  { key: "1m", label: "1 M", days: 31, text: t("im letzten Monat") },
+  { key: "3m", label: "3 M", days: 92, text: t("in den letzten 3 Monaten") },
+  { key: "6m", label: "6 M", days: 183, text: t("in den letzten 6 Monaten") },
+  { key: "1y", label: "1 J", days: 366, text: t("im letzten Jahr") },
 ];
-const ALL: RangeOption = { key: "all", label: "Alles", days: null, text: "insgesamt" };
+const ALL: RangeOption = { key: "all", label: t("Alles"), days: null, text: "insgesamt" };
 
 /**
  * The spans worth offering for a history of `spanDays`: only those shorter
@@ -208,7 +210,7 @@ export function defaultRange(choices: RangeOption[]): RangeOption {
   return choices.find((c) => c.key === "1y") ?? choices[choices.length - 1];
 }
 
-const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTHS = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
 
 /** "12. Mär 2026", "Woche ab 9. Mär 2026", "März 2026", "Q1 2026". */
 export function bucketLabel(key: string, bucket: Bucket): string {
@@ -216,5 +218,5 @@ export function bucketLabel(key: string, bucket: Bucket): string {
   if (bucket === "quarter") return `Q${Math.floor((m - 1) / 3) + 1} ${y}`;
   if (bucket === "month") return `${MONTHS[m - 1]} ${y}`;
   const day = `${d}. ${MONTHS[m - 1]} ${y}`;
-  return bucket === "week" ? `Woche ab ${day}` : day;
+  return bucket === "week" ? t("Woche ab {day}", { day }) : day;
 }

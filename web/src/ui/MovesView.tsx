@@ -15,6 +15,7 @@ import { navigate } from "./router";
 import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { scrollToSection, SectionJump, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useAllTimeProfile, useProfile } from "./useProfile";
+import { t } from "../i18n";
 
 export function MovesView() {
   const { profile, games, usernames, loading, error, filters, setFilters, excludeBullet } = useProfile({ page: "moves" });
@@ -28,7 +29,7 @@ export function MovesView() {
     return (
       <div>
         <PageHeader />
-        <NeedNames what="zähle ich hier alle deine Züge, von brillant bis Patzer." />
+        <NeedNames what={t("zähle ich hier alle deine Züge, von brillant bis Patzer.")} />
       </div>
     );
   }
@@ -60,12 +61,13 @@ export function MovesView() {
           <p>
             {profile?.total_games
               ? filtersActive(filters)
-                ? "In diesem Zeitraum ist keine Partie analysiert. Wähle oben einen anderen Zeitraum."
-                : "Noch ist keine Partie analysiert. Danach steht hier jeder brillante Zug und jeder Patzer."
-              : "Importiere deine Partien und lass sie analysieren, dann zähle ich hier jeden Zug."}
+                ? t("In diesem Zeitraum ist keine Partie analysiert. Wähle oben einen anderen Zeitraum.")
+                : t("Noch ist keine Partie analysiert. Danach steht hier jeder brillante Zug und jeder Patzer.")
+              : t("Importiere deine Partien und lass sie analysieren, dann zähle ich hier jeden Zug.")}
           </p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
-            Zu den Partien
+            
+            {t("Zu den Partien")}
           </button>
         </div>
       </div>

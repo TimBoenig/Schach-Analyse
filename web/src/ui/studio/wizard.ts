@@ -24,6 +24,7 @@ import {
   type StudioProject,
   type ThemeId,
 } from "./model";
+import { t } from "../../i18n";
 
 // ---------- move tree (main line plus side variations) ----------
 
@@ -128,9 +129,9 @@ export function treeFromPgn(text: string, startFen = START_FEN): { tree: GameTre
 // ---------- automatic explanations ----------
 
 const VALUE: Record<PieceSymbol, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 100 };
-const ACC: Record<PieceSymbol, string> = { p: "den Bauern", n: "den Springer", b: "den Läufer", r: "den Turm", q: "die Dame", k: "den König" };
-const DAT: Record<PieceSymbol, string> = { p: "dem Bauern", n: "dem Springer", b: "dem Läufer", r: "dem Turm", q: "der Dame", k: "dem König" };
-const SIDE = { w: "Weiß", b: "Schwarz" } as const;
+const ACC: Record<PieceSymbol, string> = { p: t("den Bauern"), n: t("den Springer"), b: t("den Läufer"), r: t("den Turm"), q: t("die Dame"), k: t("den König") };
+const DAT: Record<PieceSymbol, string> = { p: t("dem Bauern"), n: t("dem Springer"), b: t("dem Läufer"), r: t("dem Turm"), q: t("der Dame"), k: t("dem König") };
+const SIDE = { w: t("Weiß"), b: t("Schwarz") } as const;
 const CENTRE = new Set(["d4", "e4", "d5", "e5"]);
 
 export interface Insight {
@@ -189,12 +190,12 @@ export function explainMove(fenBefore: string, san: string, ply: number): Insigh
   const arrows: StudioArrow[] = [];
   const marks: StudioMark[] = [];
   let text: string;
-  if (m.flags.includes("k") || m.flags.includes("q")) text = `${side} rochiert ${m.flags.includes("k") ? "kurz" : "lang"} und bringt den *König in Sicherheit*.`;
+  if (m.flags.includes("k") || m.flags.includes("q")) text = t("{side} rochiert {1} und bringt den *König in Sicherheit*.", { side, 1: m.flags.includes("k") ? "kurz" : "lang" });
   else if (m.captured) {
-    text = `${side} schlägt mit ${DAT[m.piece]} auf *${m.to}*.`;
+    text = t("{side} schlägt mit {1} auf *{to}*.", { side, 1: DAT[m.piece], to: m.to });
     marks.push({ square: m.to, tone: "bad" });
-  } else if (m.promotion) text = `Der Bauer erreicht die letzte Reihe und wird zur *${m.promotion === "q" ? "Dame" : ACC[m.promotion].replace(/^den |^die /, "")}*.`;
-  else text = `${side} zieht ${ACC[m.piece]} nach *${m.to}*.`;
+  } else if (m.promotion) text = t("Der Bauer erreicht die letzte Reihe und wird zur *{0}*.", { 0: m.promotion === "q" ? t("Dame") : ACC[m.promotion].replace(/^den |^die /, "") });
+  else text = t("{side} zieht {1} nach *{to}*.", { side, 1: ACC[m.piece], to: m.to });
   if (chess.isCheckmate()) text = text.replace(/\.$/, ". *Schachmatt!*");
   else if (chess.inCheck()) text = text.replace(/\.$/, ". *Schach!*");
   else {
@@ -236,22 +237,22 @@ export interface Answers {
   perspective: Side | "auto";
 }
 
-export const KIND_LABEL: Record<VideoKind, string> = { opening: "Eröffnung erklären", trap: "Falle oder Trick", puzzle: "Rätsel", game: "Partie-Moment" };
-export const VIBE_LABEL: Record<Vibe, string> = { viral: "Schnell & viral", calm: "Ruhig & lehrreich", elegant: "Edel & elegant" };
-export const ENDING_LABEL: Record<Ending, string> = { follow: "Zum Folgen auffordern", comment: "Zum Kommentieren auffordern", save: "Zum Speichern auffordern", site: `Auf ${BRAND_DOMAIN} schicken` };
+export const KIND_LABEL: Record<VideoKind, string> = { opening: t("Eröffnung erklären"), trap: t("Falle oder Trick"), puzzle: t("Rätsel"), game: t("Partie-Moment") };
+export const VIBE_LABEL: Record<Vibe, string> = { viral: t("Schnell & viral"), calm: t("Ruhig & lehrreich"), elegant: t("Edel & elegant") };
+export const ENDING_LABEL: Record<Ending, string> = { follow: t("Zum Folgen auffordern"), comment: t("Zum Kommentieren auffordern"), save: t("Zum Speichern auffordern"), site: t("Auf {BRAND_DOMAIN} schicken", { BRAND_DOMAIN }) };
 
 /** Opening lines for the first second, where people decide to keep watching. No invented numbers. */
 export function hookIdeas(kind: VideoKind, name: string, length: number): string[] {
-  const n = name.trim() || "diese Eröffnung";
+  const n = name.trim() || t("diese Eröffnung");
   switch (kind) {
     case "opening":
-      return [`So funktioniert ${withArticle(n)}`, `${capital(withArticle(n))} in ${length} Sekunden`, `Diese Eröffnung musst du kennen`];
+      return [t("So funktioniert {withArticle}", { withArticle: withArticle(n) }), t("{capital} in {length} Sekunden", { capital: capital(withArticle(n)), length }), t("Diese Eröffnung musst du kennen")];
     case "trap":
-      return ["Fällst du auf diese Falle rein?", `Die gemeinste Falle in ${withArticle(n, true)}`, "Stopp! Spiel diesen Zug nicht"];
+      return [t("Fällst du auf diese Falle rein?"), t("Die gemeinste Falle in {withArticle}", { withArticle: withArticle(n, true) }), t("Stopp! Spiel diesen Zug nicht")];
     case "puzzle":
-      return ["Findest du den Gewinnzug?", "Schaffst du das in 5 Sekunden?", "Weiß zieht und gewinnt. Siehst du es?"];
+      return [t("Findest du den Gewinnzug?"), t("Schaffst du das in 5 Sekunden?"), t("Weiß zieht und gewinnt. Siehst du es?")];
     default:
-      return ["Dieser Zug hat alles entschieden", "Hättest du das gesehen?", "Der schönste Zug der Partie"];
+      return [t("Dieser Zug hat alles entschieden"), t("Hättest du das gesehen?"), t("Der schönste Zug der Partie")];
   }
 }
 
@@ -268,10 +269,10 @@ function withArticle(name: string, dative = false): string {
 }
 
 const ENDINGS: Record<Ending, { title: string; text: string }> = {
-  follow: { title: "Folge für mehr Schach-Tricks", text: `Und analysiere deine Partien gratis auf *${BRAND_DOMAIN}*` },
-  comment: { title: "Was hättest du gespielt?", text: `Schreib deinen Zug in die *Kommentare*` },
-  save: { title: "Speichern, bevor du es vergisst", text: `Mehr Training auf *${BRAND_DOMAIN}*` },
-  site: { title: "Wie gut spielst du wirklich?", text: `Analysiere deine Partien kostenlos auf *${BRAND_DOMAIN}*` },
+  follow: { title: t("Folge für mehr Schach-Tricks"), text: t("Und analysiere deine Partien gratis auf *{BRAND_DOMAIN}*", { BRAND_DOMAIN }) },
+  comment: { title: t("Was hättest du gespielt?"), text: t("Schreib deinen Zug in die *Kommentare*") },
+  save: { title: t("Speichern, bevor du es vergisst"), text: t("Mehr Training auf *{BRAND_DOMAIN}*", { BRAND_DOMAIN }) },
+  site: { title: t("Wie gut spielst du wirklich?"), text: t("Analysiere deine Partien kostenlos auf *{BRAND_DOMAIN}*", { BRAND_DOMAIN }) },
 };
 
 const VIBES: Record<Vibe, { theme: ThemeId; serif: boolean; tempo: number; orbit: number; env: Environment }> = {
@@ -349,12 +350,12 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
       title: hook,
       text:
         a.kind === "puzzle"
-          ? "Schreib deine Lösung in die Kommentare"
+          ? t("Schreib deine Lösung in die Kommentare")
           : a.name.trim() && !hook.toLowerCase().includes(a.name.trim().toLowerCase())
             ? a.name.trim()
             : a.level === "beginner"
-              ? "Einfach erklärt"
-              : "Die wichtigsten Ideen",
+              ? t("Einfach erklärt")
+              : t("Die wichtigsten Ideen"),
       duration: fast ? 2.4 : 3.2,
       countdown: a.kind === "puzzle" && !a.poll ? 3 : 0,
       camera: "white",
@@ -394,8 +395,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
       scenes.push(
         scene({
           card: "poll",
-          title: a.kind === "puzzle" ? "Welcher Zug gewinnt?" : `Was spielt ${SIDE[board.turn()]} jetzt?`,
-          text: "Stimm in den Kommentaren ab",
+          title: a.kind === "puzzle" ? t("Welcher Zug gewinnt?") : t("Was spielt {0} jetzt?", { 0: SIDE[board.turn()] }),
+          text: t("Stimm in den Kommentaren ab"),
           options: options.map((o, i) => `${letters[i]}) ${germanSan(o)}`),
           countdown: 3,
           duration: 4.2,
@@ -411,7 +412,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
       scenes.push(
         scene({
           moves: movesLabel(ms, fenBefore),
-          title: `Richtig: ${answer}) ${germanSan(right)}`,
+          title: t("Richtig: {answer}) {germanSan}", { answer, germanSan: germanSan(right) }),
           text: insight.text,
           arrows: insight.arrows,
           marks: insight.marks,
@@ -443,8 +444,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
         scene({
           moves: movesLabel(ms, fenBefore),
           fen: backToMain ? fenBefore : "",
-          label: backToMain ? "Zurück zur Hauptvariante" : "",
-          title: isKey ? (a.kind === "trap" ? "Der entscheidende Zug" : "Der Schlüsselzug") : movesLabel(ms, fenBefore),
+          label: backToMain ? t("Zurück zur Hauptvariante") : "",
+          title: isKey ? (a.kind === "trap" ? t("Der entscheidende Zug") : t("Der Schlüsselzug")) : movesLabel(ms, fenBefore),
           text: parts.join(" | "),
           arrows,
           marks,
@@ -481,8 +482,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
         scene({
           fen: vf,
           moves: movesLabel(ms, vf),
-          label: `Variante ${vi + 1}`,
-          title: `Und wenn ${movesLabel(ms.slice(0, 1), vf).replace(/^\d+(\.|…) /, "")}?`,
+          label: t("Variante {0}", { 0: vi + 1 }),
+          title: t("Und wenn {0}?", { 0: movesLabel(ms.slice(0, 1), vf).replace(/^\d+(\.|…) /, "") }),
           text: texts.map((tk) => tk.text).join(" | "),
           arrows: last?.arrows ?? [],
           marks: last?.marks ?? [],
@@ -624,7 +625,7 @@ export function variationScene(fen: string, moves: string[], index: number): Sce
     return tk;
   });
   const last = texts[texts.length - 1];
-  return scene({ fen, moves: movesLabel(ms, fen), label: `Variante ${index}`, title: `Und wenn ${germanSan(moves[0] ?? "")}?`, text: texts.map((tk) => tk.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
+  return scene({ fen, moves: movesLabel(ms, fen), label: t("Variante {index}", { index }), title: t("Und wenn {germanSan}?", { germanSan: germanSan(moves[0] ?? "") }), text: texts.map((tk) => tk.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
 }
 
 /** Explanation and arrows for the moves of an existing scene ("Auto" button in the editor). */

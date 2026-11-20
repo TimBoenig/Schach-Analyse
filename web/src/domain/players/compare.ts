@@ -19,6 +19,7 @@ import { PRIOR_MARGIN, SKILL_NAMES } from "../profile/skills";
 import { ADJUST_SE_SHARE, FAIRNESS_NOTE, type SpeedAdjust } from "./fairness";
 import type { HeadToHead } from "./h2h";
 import { FACTOR_WEIGHTS } from "./weights";
+import { t } from "../../i18n";
 
 export interface Estimate {
   value: number;
@@ -261,8 +262,8 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
   const eloP = elo ? expectedScore(elo.me, elo.them) : null;
   const f = forecastScore(quality, h2h);
   const parts: string[] = [];
-  if (f.start !== null) parts.push("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)");
-  if (h2h.games) parts.push(plural(h2h.games, "direkten Partie", "direkten Partien"));
+  if (f.start !== null) parts.push(t("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)"));
+  if (h2h.games) parts.push(plural(h2h.games, t("direkten Partie"), t("direkten Partien")));
   return {
     pct: f.p * 100,
     low: f.low * 100,
@@ -271,7 +272,7 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
     elo_pct: eloP === null ? null : eloP * 100,
     quality_pct: f.start === null ? null : f.start * 100,
     h2h_games: h2h.games,
-    basis: `Aus ${parts.join(" und ")}. Die Wertung zählt nicht mit.`,
+    basis: t("Aus {parts}. Die Wertung zählt nicht mit.", { parts: parts.join(" und ") }),
   };
 }
 
@@ -311,7 +312,7 @@ export function buildMatchup(
   if (prediction?.elo?.from === "Wertung") {
     rows.unshift({
       key: "rating",
-      label: `Wertung (${prediction.elo.speed})`,
+      label: t("Wertung ({speed})", { speed: prediction.elo.speed }),
       group: "Ergebnisse",
       higher_is_better: true,
       me: prediction.elo.me,

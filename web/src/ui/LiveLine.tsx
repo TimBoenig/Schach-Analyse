@@ -3,6 +3,7 @@ import type { MoveData } from "../domain/types";
 import { badgeFor, classLabel, formatEval } from "./labels";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
+import { t } from "../i18n";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
@@ -18,14 +19,15 @@ export function MoveFacts({ move }: { move: MoveData }) {
   const delta = after - before;
   return (
     <div class="move-facts small">
-      <span title="Gewinnchance aus Sicht des Ziehenden">
-        Gewinnchance {before} % → <strong>{after} %</strong>{" "}
+      <span title={t("Gewinnchance aus Sicht des Ziehenden")}>
+        
+        {t("Gewinnchance")} {before} % → <strong>{after} %</strong>{" "}
         <span class={delta <= -10 ? "neg" : delta >= 3 ? "pos" : "faint"}>
           ({delta > 0 ? "+" : delta < 0 ? "−" : "±"}
           {Math.abs(delta)})
         </span>
       </span>
-      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">· {formatSeconds(move.time_spent)} Bedenkzeit</span>}
+      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">· {formatSeconds(move.time_spent)}  {t("Bedenkzeit")}</span>}
     </div>
   );
 }
@@ -61,7 +63,7 @@ export function LineMoves({
           <>
             {label && <span class="faint">{label}</span>}
             {san}
-            {v === undefined ? <span class="dot-wait" title="Engine rechnet" /> : badge ? <img src={badge} alt={classLabel(v!.classification)} /> : null}
+            {v === undefined ? <span class="dot-wait" title={t("Engine rechnet")} /> : badge ? <img src={badge} alt={classLabel(v!.classification)} /> : null}
           </>
         );
         return onPick ? (
@@ -97,9 +99,10 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
         <strong>{san}</strong> <span class="muted">· {classLabel(verdict.classification)}</span>
         <div class="small">{verdict.explanation}</div>
         <MoveFacts move={verdict} />
-        {better?.pv_san && !verdict.explanation.includes("Besser war") && (
+        {better?.pv_san && !verdict.explanation.includes(t("Besser war")) && (
           <div class="small muted" style={{ marginTop: "2px" }}>
-            Besser war {better.pv_san.split(" ")[0]} ({formatEval(verdict.eval_before_cp, verdict.eval_before_mate)})
+            
+            {t("Besser war")} {better.pv_san.split(" ")[0]} ({formatEval(verdict.eval_before_cp, verdict.eval_before_mate)})
           </div>
         )}
       </div>

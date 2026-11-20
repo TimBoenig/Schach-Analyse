@@ -11,6 +11,7 @@ import { monthName } from "../MoveTally";
 import { RangeChips } from "../viz/Range";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
 import { de, plural } from "./shared";
+import { t } from "../../i18n";
 
 // A line of monthly points needs at least half a year to be worth a shorter view.
 const MIN_RANGE_DAYS = 183;
@@ -29,17 +30,17 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
   const o = tally?.opponents;
 
   const points = (pick: (m: MonthQuality) => number): TrendPoint[] =>
-    shown.map((m) => ({ t: monthStart(m.key) ?? 0, value: pick(m), label: monthName(m.key, true), detail: `${plural(m.moves, "Zug", "Züge")} in ${plural(m.games, "Partie", "Partien")}`, weight: m.moves }));
-  const reference = (keys: typeof TOP_CLASSES) => (o && o.moves ? { value: (sumOf(o.counts, keys) / o.moves) * 100, label: "Ø deiner Gegner" } : null);
+    shown.map((m) => ({ t: monthStart(m.key) ?? 0, value: pick(m), label: monthName(m.key, true), detail: `${plural(m.moves, t("Zug"), t("Züge"))} in ${plural(m.games, t("Partie"), t("Partien"))}`, weight: m.moves }));
+  const reference = (keys: typeof TOP_CLASSES) => (o && o.moves ? { value: (sumOf(o.counts, keys) / o.moves) * 100, label: t("Ø deiner Gegner") } : null);
 
-  const empty = loading ? "Lädt …" : `Für einen Verlauf braucht es mindestens zwei Monate mit je ${MIN_TREND_MOVES} analysierten Zügen.`;
+  const empty = loading ? t("Lädt …") : t("Für einen Verlauf braucht es mindestens zwei Monate mit je {MIN_TREND_MOVES} analysierten Zügen.", { MIN_TREND_MOVES });
 
   return (
     <>
       <div class="span-12 sec-head" id="s-verlauf">
         <div>
-          <h2>Verlauf</h2>
-          <p>Werden deine Züge besser? Pro Monat über deine ganze Geschichte, unabhängig vom Zeitraum oben.</p>
+          <h2>{t("Verlauf")}</h2>
+          <p>{t("Werden deine Züge besser? Pro Monat über deine ganze Geschichte, unabhängig vom Zeitraum oben.")}</p>
         </div>
         <RangeChips choices={choices} value={current.key} onChange={setRange} />
       </div>
@@ -47,12 +48,12 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
       <section class="card span-6 tr">
         <header class="card-head">
           <div>
-            <h3>Bester Zug oder besser</h3>
+            <h3>{t("Bester Zug oder besser")}</h3>
             {span && shown.length > 1 ? (
               <p class="tr-figure">
                 <strong class="tnum">{de(span.top_pct, 0)} %</strong>
                 <span class="faint">
-                  {current.text} · {plural(span.moves, "Zug", "Züge")}
+                  {current.text} · {plural(span.moves, t("Zug"), t("Züge"))}
                 </span>
               </p>
             ) : (
@@ -61,17 +62,17 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
           </div>
           <span class="card-tag">soll steigen</span>
         </header>
-        <TrendChart points={points((m) => m.top_pct)} label="Anteil bester Züge" color="var(--win)" dots format={(v) => `${Math.round(v)} %`} bounds={{ lo: 0, hi: 100, minSpan: 16 }} reference={reference(TOP_CLASSES)} />
+        <TrendChart points={points((m) => m.top_pct)} label={t("Anteil bester Züge")} color="var(--win)" dots format={(v) => `${Math.round(v)} %`} bounds={{ lo: 0, hi: 100, minSpan: 16 }} reference={reference(TOP_CLASSES)} />
         {span?.best_top && (
           <dl class="tr-facts">
             <div>
-              <dt>Bester Monat</dt>
+              <dt>{t("Bester Monat")}</dt>
               <dd class="tnum">
                 {de(span.best_top.top_pct, 0)} % <span class="faint">{monthName(span.best_top.key, true)}</span>
               </dd>
             </div>
             <div>
-              <dt>Monate im Bild</dt>
+              <dt>{t("Monate im Bild")}</dt>
               <dd class="tnum">{span.months}</dd>
             </div>
           </dl>
@@ -81,12 +82,12 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
       <section class="card span-6 tr">
         <header class="card-head">
           <div>
-            <h3>Grobe Fehler je 100 Züge</h3>
+            <h3>{t("Grobe Fehler je 100 Züge")}</h3>
             {span && shown.length > 1 ? (
               <p class="tr-figure">
                 <strong class="tnum">{de(span.serious_per_100)}</strong>
                 <span class="faint">
-                  {current.text} · {plural(span.games, "Partie", "Partien")}
+                  {current.text} · {plural(span.games, t("Partie"), t("Partien"))}
                 </span>
               </p>
             ) : (
@@ -95,17 +96,17 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
           </div>
           <span class="card-tag">soll fallen</span>
         </header>
-        <TrendChart points={points((m) => m.serious_per_100)} label="Grobe Fehler je 100 Züge" color="var(--loss)" dots format={(v) => de(v)} bounds={{ lo: 0, minSpan: 4 }} reference={reference(SERIOUS_CLASSES)} />
+        <TrendChart points={points((m) => m.serious_per_100)} label={t("Grobe Fehler je 100 Züge")} color="var(--loss)" dots format={(v) => de(v)} bounds={{ lo: 0, minSpan: 4 }} reference={reference(SERIOUS_CLASSES)} />
         {span?.fewest_errors && (
           <dl class="tr-facts">
             <div>
-              <dt>Sauberster Monat</dt>
+              <dt>{t("Sauberster Monat")}</dt>
               <dd class="tnum">
                 {de(span.fewest_errors.serious_per_100)} <span class="faint">{monthName(span.fewest_errors.key, true)}</span>
               </dd>
             </div>
             <div>
-              <dt>Monate im Bild</dt>
+              <dt>{t("Monate im Bild")}</dt>
               <dd class="tnum">{span.months}</dd>
             </div>
           </dl>
@@ -114,8 +115,8 @@ export function QualityTrend({ full, loading }: { full: PlayerProfile | null; lo
 
       <div class="span-12 mv-trend-foot">
         <Foot>
-          Ein Punkt je Kalendermonat mit mindestens {MIN_TREND_MOVES} analysierten Zügen (etwa vier Partien); dünnere Monate würden nur Zacken beitragen. Die Säulen am unteren Rand zeigen, wie
-          viele Züge hinter einem Monat stehen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer. Die gestrichelte Linie ist der Wert deiner Gegner über alle diese Partien.
+          
+          {t("Ein Punkt je Kalendermonat mit mindestens")} {MIN_TREND_MOVES}  {t("analysierten Zügen (etwa vier Partien); dünnere Monate würden nur Zacken beitragen. Die Säulen am unteren Rand zeigen, wie viele Züge hinter einem Monat stehen. Grobe Fehler sind Fehler, verpasste Chancen und Patzer. Die gestrichelte Linie ist der Wert deiner Gegner über alle diese Partien.")}
         </Foot>
       </div>
     </>

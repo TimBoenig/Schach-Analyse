@@ -15,6 +15,7 @@ import type { TodayTraining } from "../training/useTraining";
 import { Stat } from "../viz/Bars";
 import { Delta } from "../viz/Range";
 import { Journey } from "./Journey";
+import { t } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
@@ -55,33 +56,33 @@ export function HomeHero({
           <strong class="tnum">{planned ? `${done}/${planned}` : done}</strong>
         </Ring>
         <div class="hm-today-text">
-          <span class="eyebrow">Heute</span>
-          <strong>{planned ? (finished ? "Einheit geschafft" : `${planned - done} Aufgaben offen`) : done ? `${done} Aufgaben gelöst` : "Noch nicht trainiert"}</strong>
+          <span class="eyebrow">{t("Heute")}</span>
+          <strong>{planned ? (finished ? t("Einheit geschafft") : t("{0} Aufgaben offen", { 0: planned - done })) : done ? t("{done} Aufgaben gelöst", { done }) : t("Noch nicht trainiert")}</strong>
           <span class="small muted">
-            {today?.streak ? `${today.streak} ${today.streak === 1 ? "Tag" : "Tage"} in Folge` : "Starte heute eine Serie"}
-            {today?.week.done ? ` · diese Woche ${today.week.correct} von ${today.week.done} richtig` : ""}
+            {today?.streak ? t("{streak} {1} in Folge", { streak: today.streak, 1: today.streak === 1 ? t("Tag") : t("Tage") }) : t("Starte heute eine Serie")}
+            {today?.week.done ? t(" · diese Woche {correct} von {done} richtig", { correct: today.week.correct, done: today.week.done }) : ""}
           </span>
         </div>
         <div class="hm-today-actions">
           <button class="btn primary" onClick={() => navigate({ view: "training" })}>
-            <IconPlay /> {finished ? "Weiter üben" : "Einheit starten"}
+            <IconPlay /> {finished ? t("Weiter üben") : t("Einheit starten")}
           </button>
           {open > 0 && (
             <button class="btn" onClick={onAnalyse}>
-              {open} {open === 1 ? "Partie" : "Partien"} analysieren
+              {open} {open === 1 ? t("Partie") : t("Partien")} analysieren
             </button>
           )}
         </div>
       </div>
       <div class="hm-links">
         <button class="link-chip" onClick={() => navigate(lastGame ? { view: "analysis", gameId: lastGame.id } : { view: "games" })}>
-          <IconBoard /> {lastGame ? `Letzte Partie gegen ${lastGame.opponent}` : "Partien"}
+          <IconBoard /> {lastGame ? t("Letzte Partie gegen {opponent}", { opponent: lastGame.opponent }) : t("Partien")}
         </button>
         <button class="link-chip" onClick={() => navigate({ view: "games", import: true })}>
-          <IconUpload /> Importieren
+          <IconUpload />  {t("Importieren")}
         </button>
         <button class="link-chip" onClick={() => navigate({ view: "board" })}>
-          <IconFreeBoard /> Analysebrett
+          <IconFreeBoard />  {t("Analysebrett")}
         </button>
       </div>
     </section>
@@ -111,7 +112,7 @@ export function RatingCard({
   if (rc) {
     figure = (
       <>
-        <span class="eyebrow">Wertung · {trSpeed(rc.speed)}</span>
+        <span class="eyebrow">{t("Wertung ·")} {trSpeed(rc.speed)}</span>
         <div class="hm-rating-num">
           <strong class="tnum">
             <CountUp value={rc.rating} />
@@ -124,7 +125,7 @@ export function RatingCard({
   } else if (accuracy?.value != null) {
     figure = (
       <>
-        <span class="eyebrow">Genauigkeit</span>
+        <span class="eyebrow">{t("Genauigkeit")}</span>
         <div class="hm-rating-num">
           <strong class="tnum">
             <CountUp value={accuracy.value} format={(v) => de(v)} />
@@ -136,19 +137,19 @@ export function RatingCard({
   } else return null;
   return (
     <section class="card span-4 hm-rating">
-      <button class="hm-rating-top" onClick={() => navigate({ view: "profile" })} title="Zu deinem Profil">
+      <button class="hm-rating-top" onClick={() => navigate({ view: "profile" })} title={t("Zu deinem Profil")}>
         {figure}
       </button>
       {series.length >= 2 && fullRc ? (
         <Journey series={series} speed={trSpeed(fullRc.speed)} lever={lever} />
       ) : (
-        <p class="small muted">Sobald ein paar gewertete Partien da sind, zeige ich dir hier den Weg zu deinem nächsten Ziel.</p>
+        <p class="small muted">{t("Sobald ein paar gewertete Partien da sind, zeige ich dir hier den Weg zu deinem nächsten Ziel.")}</p>
       )}
     </section>
   );
 }
 
-const RESULT_WORD = (score: number | null) => (score === 1 ? "Sieg" : score === 0 ? "Niederlage" : score === null ? "offen" : "Remis");
+const RESULT_WORD = (score: number | null) => (score === 1 ? t("Sieg") : score === 0 ? t("Niederlage") : score === null ? "offen" : t("Remis"));
 
 function kpiFormat(k: KpiChange): (v: number) => string {
   switch (k.key) {
@@ -182,20 +183,20 @@ export function FormCard({ profile, kpis: all, label }: { profile: PlayerProfile
     <section class="card span-12 hm-form">
       <header class="card-head">
         <div>
-          <h3>Deine Form</h3>
+          <h3>{t("Deine Form")}</h3>
           <p class="card-sub">
-            {last.length === 1 ? "Letzte Partie" : `Letzte ${last.length} Partien`}
-            {streak ? ` · ${streak}` : ""} · Kennzahlen {label}, jeweils gegenüber dem Zeitraum davor
+            {last.length === 1 ? t("Letzte Partie") : t("Letzte {length} Partien", { length: last.length })}
+            {streak ? ` · ${streak}` : ""}  {t("· Kennzahlen")} {label}{t(", jeweils gegenüber dem Zeitraum davor")}
           </p>
         </div>
         {last.length > 0 && (
           <ResultRibbon
-            games={[...last].reverse().map((g) => ({ id: g.game_id, score: g.score, title: `${formatDate(g.date)} gegen ${g.opponent}: ${RESULT_WORD(g.score)}` }))}
+            games={[...last].reverse().map((g) => ({ id: g.game_id, score: g.score, title: t("{formatDate} gegen {opponent}: {RESULT_WORD}", { formatDate: formatDate(g.date), opponent: g.opponent, RESULT_WORD: RESULT_WORD(g.score) }) }))}
             onPick={(id) => navigate({ view: "analysis", gameId: id })}
           />
         )}
       </header>
-      <div class="stat-row many" style={{ "--cols": kpis.length }} aria-label={`Kennzahlen ${label}`}>
+      <div class="stat-row many" style={{ "--cols": kpis.length }} aria-label={t("Kennzahlen {label}", { label })}>
         {kpis.map((k) => {
           const tk = trendOf(k);
           const d = deltaText(k);
@@ -213,7 +214,7 @@ export function FormCard({ profile, kpis: all, label }: { profile: PlayerProfile
                     {k.previous === null ? "–" : kpiFormat(k)(k.previous)}
                   </>
                 ) : (
-                  "kein Vergleich"
+                  t("kein Vergleich")
                 )
               }
             />

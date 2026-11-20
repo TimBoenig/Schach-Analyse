@@ -7,6 +7,7 @@ import type { GameFeatures } from "./features";
 import { MIN_ANALYZED, MIN_LINE_GAMES, scoresDiffer, Z_MULTI } from "./evidence";
 import { avg, pyRound } from "./num";
 import { buildOpeningTree, fenAfter, mainLine, type OpeningLeak, type OpeningTree } from "./openingTree";
+import { t } from "../../i18n";
 
 export interface OpeningGameRef {
   id: string;
@@ -90,66 +91,66 @@ export function openingParts(name: string): { main: string; variation: string } 
 }
 
 const OPENINGS_DE: Record<string, string> = {
-  "Italian Game": "Italienische Partie",
-  "Sicilian Defense": "Sizilianische Verteidigung",
-  "French Defense": "Französische Verteidigung",
-  "Caro-Kann Defense": "Caro-Kann-Verteidigung",
-  "Queen's Gambit Declined": "Abgelehntes Damengambit",
-  "Queen's Gambit Accepted": "Angenommenes Damengambit",
-  "Queen's Gambit": "Damengambit",
-  "Ruy Lopez": "Spanische Partie",
-  "Scotch Game": "Schottische Partie",
-  "King's Indian Defense": "Königsindische Verteidigung",
-  "Nimzo-Indian Defense": "Nimzowitsch-Indische Verteidigung",
-  "Queen's Pawn Game": "Damenbauernspiel",
-  "King's Pawn Game": "Königsbauernspiel",
-  "English Opening": "Englische Eröffnung",
-  "Scandinavian Defense": "Skandinavische Verteidigung",
-  "Pirc Defense": "Pirc-Verteidigung",
-  "Petrov's Defense": "Russische Verteidigung",
-  "Four Knights Game": "Vierspringerspiel",
-  "Two Knights Defense": "Zweispringerspiel im Nachzuge",
-  "Slav Defense": "Slawische Verteidigung",
-  "Dutch Defense": "Holländische Verteidigung",
-  "Vienna Game": "Wiener Partie",
-  "King's Gambit": "Königsgambit",
-  "London System": "London-System",
-  "Philidor Defense": "Philidor-Verteidigung",
-  "Alekhine Defense": "Aljechin-Verteidigung",
-  "Modern Defense": "Moderne Verteidigung",
-  "Bishop's Opening": "Läuferspiel",
-  "Center Game": "Mittelgambit",
-  "Danish Gambit": "Nordisches Gambit",
-  "Evans Gambit": "Evans-Gambit",
-  "Elephant Gambit": "Elefantengambit",
-  "Ponziani Opening": "Ponziani-Eröffnung",
-  "Grünfeld Defense": "Grünfeld-Indische Verteidigung",
-  "Queen's Indian Defense": "Damenindische Verteidigung",
-  "Catalan Opening": "Katalanische Eröffnung",
-  "Benoni Defense": "Benoni-Verteidigung",
-  "Benko Gambit": "Wolga-Gambit",
-  "Budapest Defense": "Budapester Gambit",
-  "Bird Opening": "Bird-Eröffnung",
-  "Zukertort Opening": "Zukertort-Eröffnung",
-  "Réti Opening": "Réti-Eröffnung",
-  "Trompowsky Attack": "Trompowsky-Angriff",
-  "Owen Defense": "Owen-Verteidigung",
-  "Englund Gambit": "Englund-Gambit",
-  "Indian Defense": "Indische Verteidigung",
-  "Semi-Slav Defense": "Halbslawische Verteidigung",
-  "Bogo-Indian Defense": "Bogoljubow-Indische Verteidigung",
-  "Old Indian Defense": "Altindische Verteidigung",
-  "Polish Opening": "Polnische Eröffnung",
-  "Van't Kruijs Opening": "Van-’t-Kruijs-Eröffnung",
-  "King's Gambit Accepted": "Angenommenes Königsgambit",
-  "King's Gambit Declined": "Abgelehntes Königsgambit",
-  "Nimzowitsch Defense": "Nimzowitsch-Verteidigung",
-  "King's Indian Attack": "Königsindischer Angriff",
-  "Tarrasch Defense": "Tarrasch-Verteidigung",
-  "Benko Gambit Accepted": "Angenommenes Wolga-Gambit",
-  "Vienna Gambit": "Wiener Gambit",
-  "Latvian Gambit": "Lettisches Gambit",
-  "Hungarian Opening": "Ungarische Eröffnung",
+  "Italian Game": t("Italienische Partie"),
+  "Sicilian Defense": t("Sizilianische Verteidigung"),
+  "French Defense": t("Französische Verteidigung"),
+  "Caro-Kann Defense": t("Caro-Kann-Verteidigung"),
+  "Queen's Gambit Declined": t("Abgelehntes Damengambit"),
+  "Queen's Gambit Accepted": t("Angenommenes Damengambit"),
+  "Queen's Gambit": t("Damengambit"),
+  "Ruy Lopez": t("Spanische Partie"),
+  "Scotch Game": t("Schottische Partie"),
+  "King's Indian Defense": t("Königsindische Verteidigung"),
+  "Nimzo-Indian Defense": t("Nimzowitsch-Indische Verteidigung"),
+  "Queen's Pawn Game": t("Damenbauernspiel"),
+  "King's Pawn Game": t("Königsbauernspiel"),
+  "English Opening": t("Englische Eröffnung"),
+  "Scandinavian Defense": t("Skandinavische Verteidigung"),
+  "Pirc Defense": t("Pirc-Verteidigung"),
+  "Petrov's Defense": t("Russische Verteidigung"),
+  "Four Knights Game": t("Vierspringerspiel"),
+  "Two Knights Defense": t("Zweispringerspiel im Nachzuge"),
+  "Slav Defense": t("Slawische Verteidigung"),
+  "Dutch Defense": t("Holländische Verteidigung"),
+  "Vienna Game": t("Wiener Partie"),
+  "King's Gambit": t("Königsgambit"),
+  "London System": t("London-System"),
+  "Philidor Defense": t("Philidor-Verteidigung"),
+  "Alekhine Defense": t("Aljechin-Verteidigung"),
+  "Modern Defense": t("Moderne Verteidigung"),
+  "Bishop's Opening": t("Läuferspiel"),
+  "Center Game": t("Mittelgambit"),
+  "Danish Gambit": t("Nordisches Gambit"),
+  "Evans Gambit": t("Evans-Gambit"),
+  "Elephant Gambit": t("Elefantengambit"),
+  "Ponziani Opening": t("Ponziani-Eröffnung"),
+  "Grünfeld Defense": t("Grünfeld-Indische Verteidigung"),
+  "Queen's Indian Defense": t("Damenindische Verteidigung"),
+  "Catalan Opening": t("Katalanische Eröffnung"),
+  "Benoni Defense": t("Benoni-Verteidigung"),
+  "Benko Gambit": t("Wolga-Gambit"),
+  "Budapest Defense": t("Budapester Gambit"),
+  "Bird Opening": t("Bird-Eröffnung"),
+  "Zukertort Opening": t("Zukertort-Eröffnung"),
+  "Réti Opening": t("Réti-Eröffnung"),
+  "Trompowsky Attack": t("Trompowsky-Angriff"),
+  "Owen Defense": t("Owen-Verteidigung"),
+  "Englund Gambit": t("Englund-Gambit"),
+  "Indian Defense": t("Indische Verteidigung"),
+  "Semi-Slav Defense": t("Halbslawische Verteidigung"),
+  "Bogo-Indian Defense": t("Bogoljubow-Indische Verteidigung"),
+  "Old Indian Defense": t("Altindische Verteidigung"),
+  "Polish Opening": t("Polnische Eröffnung"),
+  "Van't Kruijs Opening": t("Van-’t-Kruijs-Eröffnung"),
+  "King's Gambit Accepted": t("Angenommenes Königsgambit"),
+  "King's Gambit Declined": t("Abgelehntes Königsgambit"),
+  "Nimzowitsch Defense": t("Nimzowitsch-Verteidigung"),
+  "King's Indian Attack": t("Königsindischer Angriff"),
+  "Tarrasch Defense": t("Tarrasch-Verteidigung"),
+  "Benko Gambit Accepted": t("Angenommenes Wolga-Gambit"),
+  "Vienna Gambit": t("Wiener Gambit"),
+  "Latvian Gambit": t("Lettisches Gambit"),
+  "Hungarian Opening": t("Ungarische Eröffnung"),
 };
 
 /** German name where a common one exists; otherwise the (English) book name. */
@@ -159,7 +160,7 @@ export function openingLabel(name: string): string {
 
 const pct = (scores: number[]) => (scores.length ? avg(scores) * 100 : null);
 const de = (n: number) => String(pyRound(n)).replace(".", ",");
-const COLOR_DE = { white: "Weiß", black: "Schwarz" } as const;
+const COLOR_DE = { white: t("Weiß"), black: t("Schwarz") } as const;
 
 function scoreCounts(fs: GameFeatures[]) {
   const scores = fs.map((f) => f.score).filter((s): s is number => s !== null);
@@ -326,12 +327,12 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): Fact[] {
     if (best.score_pct! - worst.score_pct! >= 15 && scoresDiffer(best, worst, z, MIN_FACT_GAMES)) {
       facts.push([
         best.score_pct! - 50,
-        `Stärkste Eröffnung mit ${COLOR_DE[color]}: ${openingLabel(best.name)} mit ${de(best.score_pct!)} % der Punkte aus ${best.games} Partien.`,
+        t("Stärkste Eröffnung mit {0}: {openingLabel} mit {de} % der Punkte aus {games} Partien.", { 0: COLOR_DE[color], openingLabel: openingLabel(best.name), de: de(best.score_pct!), games: best.games }),
         color,
       ]);
       facts.push([
         50 - worst.score_pct!,
-        `Schwächste Eröffnung mit ${COLOR_DE[color]}: ${openingLabel(worst.name)} mit nur ${de(worst.score_pct!)} % der Punkte aus ${worst.games} Partien.`,
+        t("Schwächste Eröffnung mit {0}: {openingLabel} mit nur {de} % der Punkte aus {games} Partien.", { 0: COLOR_DE[color], openingLabel: openingLabel(worst.name), de: de(worst.score_pct!), games: worst.games }),
         color,
       ]);
     }
@@ -346,7 +347,7 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): Fact[] {
     if (gap >= 15 && scoresDiffer(hi, lo, vs.length > 2 ? Z_MULTI : undefined, MIN_FACT_GAMES)) {
       facts.push([
         gap,
-        `Mit Schwarz holst du gegen 1. ${lo.san} nur ${de(lo.score_pct!)} % der Punkte, gegen 1. ${hi.san} dagegen ${de(hi.score_pct!)} %.`,
+        t("Mit Schwarz holst du gegen 1. {san} nur {de} % der Punkte, gegen 1. {san2} dagegen {de2} %.", { san: lo.san, de: de(lo.score_pct!), san2: hi.san, de2: de(hi.score_pct!) }),
         "black",
       ]);
     }
@@ -355,9 +356,9 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): Fact[] {
   if (o.wp_after_opening !== null && analyzedGames >= MIN_ANALYZED) {
     const wp = o.wp_after_opening;
     if (wp <= 45) {
-      facts.push([50 - wp, `Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance ${de(wp)} %).`, null]);
+      facts.push([50 - wp, t("Nach der Eröffnung stehst du im Schnitt schon schlechter (Gewinnchance {de} %).", { de: de(wp) }), null]);
     } else if (wp >= 55) {
-      facts.push([wp - 50, `Du kommst meist gut aus der Eröffnung: Danach liegt deine Gewinnchance im Schnitt bei ${de(wp)} %.`, null]);
+      facts.push([wp - 50, t("Du kommst meist gut aus der Eröffnung: Danach liegt deine Gewinnchance im Schnitt bei {de} %.", { de: de(wp) }), null]);
     }
   }
 
@@ -366,14 +367,14 @@ function openingFacts(o: OpeningInsights, analyzedGames: number): Fact[] {
     if (l.first_error_move !== null && l.first_error_move <= 12 && l.analyzed >= MIN_FACT_GAMES) {
       facts.push([
         25 - l.first_error_move,
-        `${openingLabel(l.name)} (${COLOR_DE[l.color]}): Dein erster schwerer Fehler kommt im Schnitt schon in Zug ${de(l.first_error_move)}.`,
+        t("{openingLabel} ({1}): Dein erster schwerer Fehler kommt im Schnitt schon in Zug {de}.", { openingLabel: openingLabel(l.name), 1: COLOR_DE[l.color], de: de(l.first_error_move) }),
         l.color,
       ]);
     }
     if (l.wp_after_opening !== null && l.wp_after_opening <= 40 && l.analyzed >= MIN_FACT_GAMES) {
       facts.push([
         50 - l.wp_after_opening,
-        `${openingLabel(l.name)} (${COLOR_DE[l.color]}): Nach der Eröffnung liegt deine Gewinnchance nur bei ${de(l.wp_after_opening)} %. Hier lohnt sich Theorie.`,
+        t("{openingLabel} ({1}): Nach der Eröffnung liegt deine Gewinnchance nur bei {de} %. Hier lohnt sich Theorie.", { openingLabel: openingLabel(l.name), 1: COLOR_DE[l.color], de: de(l.wp_after_opening) }),
         l.color,
       ]);
     }
@@ -400,8 +401,8 @@ export function movesText(sans: string[], startPly = 0): string {
 
 function leakFact(l: OpeningLeak): string {
   const ply = l.path.length - 1;
-  const where = ply > 0 ? `Nach ${movesText(l.path.slice(0, -1))} ` : "Als ersten Zug ";
+  const where = ply > 0 ? t("Nach {movesText} ", { movesText: movesText(l.path.slice(0, -1)) }) : t("Als ersten Zug ");
   const move = movesText([l.san], ply);
-  const better = l.better ? ` Besser ist ${movesText([l.better], ply)}.` : "";
-  return `${where}spielst du oft ${move}, das war in ${l.errors} von ${l.judged} Partien ein Fehler.${better}`;
+  const better = l.better ? t(" Besser ist {movesText}.", { movesText: movesText([l.better], ply) }) : "";
+  return t("{where}spielst du oft {move}, das war in {errors} von {judged} Partien ein Fehler.{better}", { where, move, errors: l.errors, judged: l.judged, better });
 }

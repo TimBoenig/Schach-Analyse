@@ -1,6 +1,8 @@
 // Video export straight from the browser: the finished frames are played in
 // real time onto a canvas whose picture (and the move sounds) MediaRecorder
 // encodes. MP4 where the browser can (Chrome, Edge, Safari), WebM otherwise.
+import { t } from "../../i18n";
+
 
 export interface VideoType {
   mime: string;
@@ -37,7 +39,7 @@ export interface RecordJob {
 
 export async function recordVideo(job: RecordJob): Promise<{ blob: Blob; type: VideoType }> {
   const type = videoType();
-  if (!type) throw new Error("Dieser Browser kann keine Videos aufnehmen. Nimm Chrome, Edge oder Safari.");
+  if (!type) throw new Error(t("Dieser Browser kann keine Videos aufnehmen. Nimm Chrome, Edge oder Safari."));
   job.paint(0);
   const stream = job.canvas.captureStream(job.fps);
   for (const track of job.audio?.getAudioTracks() ?? []) stream.addTrack(track);

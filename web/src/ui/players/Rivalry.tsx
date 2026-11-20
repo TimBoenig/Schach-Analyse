@@ -11,6 +11,7 @@ import { formatDate, SPEED_DE } from "../labels";
 import { navigate } from "../router";
 import { Avatar, de, formatFactor, pct0, plural } from "./common";
 import { Foot } from "../kit";
+import { t } from "../../i18n";
 
 function ratingLine(p: PlayerProfile | null): string {
   const r = p?.rating;
@@ -53,31 +54,31 @@ export function FaceOff({
       <div class="rv-hero-row">
         <div class={`rv-side${lead === "me" ? " lead" : ""}`}>
           <Avatar name="Du" tone="tone-me" size="xl" ring={lead === "me"} />
-          <strong>Du</strong>
+          <strong>{t("Du")}</strong>
           <span class="faint small">{myRating}</span>
         </div>
         <div class="rv-score">
           {h2h.games ? (
             <>
-              <div class="rv-big tnum" aria-label={`${h2h.wins} Siege, ${h2h.draws} Remis, ${h2h.losses} Niederlagen`}>
+              <div class="rv-big tnum" aria-label={t("{wins} Siege, {draws} Remis, {losses} Niederlagen", { wins: h2h.wins, draws: h2h.draws, losses: h2h.losses })}>
                 <span class={lead === "me" ? "on" : ""}>{h2h.wins}</span>
                 <span class="faint">:</span>
                 <span class={lead === "them" ? "on" : ""}>{h2h.losses}</span>
               </div>
               <span class="faint small">
-                {plural(h2h.games, "Partie", "Partien")}
-                {h2h.draws ? ` · ${h2h.draws} Remis` : ""} · du holst {pct0(h2h.score_pct)}
+                {plural(h2h.games, t("Partie"), t("Partien"))}
+                {h2h.draws ? t(" · {draws} Remis", { draws: h2h.draws }) : ""}  {t("· du holst")} {pct0(h2h.score_pct)}
               </span>
             </>
           ) : (
             <>
               <div class="rv-big tnum faint">– : –</div>
-              <span class="faint small">Ihr habt noch nicht gegeneinander gespielt</span>
+              <span class="faint small">{t("Ihr habt noch nicht gegeneinander gespielt")}</span>
             </>
           )}
           {s && (
             <span class={`rv-streak ${s.who}`}>
-              {s.who === "me" ? `Du hast die letzten ${s.count} gewonnen` : `${name} hat die letzten ${s.count} gewonnen`}
+              {s.who === "me" ? t("Du hast die letzten {count} gewonnen", { count: s.count }) : t("{name} hat die letzten {count} gewonnen", { name, count: s.count })}
             </span>
           )}
         </div>
@@ -90,45 +91,45 @@ export function FaceOff({
       {p && (
         <div class="rv-forecast">
           <div class="rv-forecast-head">
-            <span class="kpi-label">Prognose für eure nächste Partie</span>
+            <span class="kpi-label">{t("Prognose für eure nächste Partie")}</span>
             <span>
-              <strong class="tnum">{pct0(p.pct)}</strong> <span class="muted small">der Punkte für dich</span>
+              <strong class="tnum">{pct0(p.pct)}</strong> <span class="muted small">{t("der Punkte für dich")}</span>
             </span>
           </div>
-          <div class="rv-forecast-bar" role="img" aria-label={`Prognose ${Math.round(p.pct)} Prozent für dich, wahrscheinlich ${Math.round(p.low)} bis ${Math.round(p.high)} Prozent`}>
+          <div class="rv-forecast-bar" role="img" aria-label={t("Prognose {0} Prozent für dich, wahrscheinlich {1} bis {2} Prozent", { 0: Math.round(p.pct), 1: Math.round(p.low), 2: Math.round(p.high) })}>
             <span class="rv-fc-me tone-me" style={{ width: `${p.pct}%` }} />
             <span class={`rv-fc-them ${tone}`} />
             <span class="rv-fc-band" style={{ left: `${p.low}%`, width: `${Math.max(1, p.high - p.low)}%` }} />
             <span class="rv-fc-mid" />
           </div>
           <div class="rv-forecast-labels faint small">
-            <span>Du</span>
+            <span>{t("Du")}</span>
             <span>
               wahrscheinlich {Math.round(p.low)}–{Math.round(p.high)} %
             </span>
             <span>{name}</span>
           </div>
-          <Foot label="Woraus wird das berechnet?">
+          <Foot label={t("Woraus wird das berechnet?")}>
             {p.basis}
-            {p.elo_pct !== null ? ` Nach Wertung wären es ${pct0(p.elo_pct)}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.` : ""}
+            {p.elo_pct !== null ? t(" Nach Wertung wären es {pct0}; die zählt aber nicht, weil neue oder selten genutzte Konten oft weit danebenliegen.", { pct0: pct0(p.elo_pct) }) : ""}
           </Foot>
         </div>
       )}
       <div class="rv-hero-stats">
         <div>
-          <span class="kpi-label">Bilanz von {name}</span>
+          <span class="kpi-label">{t("Bilanz von")} {name}</span>
           <strong class="tnum">{pct0(them.overview.score_pct)}</strong>
-          <span class="faint small">aus {plural(them.total_games, "Partie", "Partien")}</span>
+          <span class="faint small">aus {plural(them.total_games, t("Partie"), t("Partien"))}</span>
         </div>
-        <div title={fair ? "nach Bedenkzeit bereinigt, wie im Vergleich darunter" : undefined}>
-          <span class="kpi-label">Genauigkeit</span>
+        <div title={fair ? t("nach Bedenkzeit bereinigt, wie im Vergleich darunter") : undefined}>
+          <span class="kpi-label">{t("Genauigkeit")}</span>
           <strong class="tnum">{accThem === null ? "–" : `${de(accThem, 1)} %`}</strong>
-          <span class="faint small">{accThem === null ? "noch nichts analysiert" : accMe === null ? "" : `du ${de(accMe, 1)} %`}</span>
+          <span class="faint small">{accThem === null ? t("noch nichts analysiert") : accMe === null ? "" : t("du {de} %", { de: de(accMe, 1) })}</span>
         </div>
         <div>
-          <span class="kpi-label">Analysiert</span>
+          <span class="kpi-label">{t("Analysiert")}</span>
           <strong class="tnum">{them.analyzed_games}</strong>
-          <span class="faint small">von {plural(them.total_games, "Partie", "Partien")}</span>
+          <span class="faint small">von {plural(them.total_games, t("Partie"), t("Partien"))}</span>
         </div>
       </div>
     </section>
@@ -142,9 +143,9 @@ function rowValue(key: string, v: number | null): string {
 }
 
 function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
-  if (r.key === "rating") return { text: "nur Info", cls: "" };
-  if (r.p_me === null) return { text: "zu wenig Daten", cls: "" };
-  if (r.edge === "me") return { text: r.sure ? "klar du" : "eher du", cls: "me" };
+  if (r.key === "rating") return { text: t("nur Info"), cls: "" };
+  if (r.p_me === null) return { text: t("zu wenig Daten"), cls: "" };
+  if (r.edge === "me") return { text: r.sure ? t("klar du") : t("eher du"), cls: "me" };
   if (r.edge === "them") return { text: r.sure ? `klar ${name}` : `eher ${name}`, cls: "them" };
   return { text: "offen", cls: "" };
 }
@@ -156,8 +157,8 @@ export function TaleOfTape({ name, tone, matchup }: { name: string; tone: string
   return (
     <section class="card tile span-12 rv-tape">
       <div class="tile-head">
-        <h3>Wer ist wo besser?</h3>
-        <span class="tile-sub">{rows.length ? `du vorn: ${matchup.ahead} · ${name} vorn: ${matchup.behind} · offen: ${matchup.even}` : "Vergleich"}</span>
+        <h3>{t("Wer ist wo besser?")}</h3>
+        <span class="tile-sub">{rows.length ? t("du vorn: {ahead} · {name} vorn: {behind} · offen: {even}", { ahead: matchup.ahead, name, behind: matchup.behind, even: matchup.even }) : t("Vergleich")}</span>
       </div>
       {rows.length ? (
         <div class="rv-tape-rows">
@@ -165,7 +166,7 @@ export function TaleOfTape({ name, tone, matchup }: { name: string; tone: string
             const v = verdict(r, name);
             const pMe = (r.p_me as number) * 100;
             return (
-              <div class="rv-tape-row" key={r.key} title={`Wahrscheinlichkeit, dass du hier besser bist: ${Math.round(pMe)} %`}>
+              <div class="rv-tape-row" key={r.key} title={t("Wahrscheinlichkeit, dass du hier besser bist: {0} %", { 0: Math.round(pMe) })}>
                 <span class={`rv-val tnum${r.edge === "me" ? " lead" : ""}`}>{rowValue(r.key, r.me)}</span>
                 <span class="rv-mid">
                   <span class="rv-label">
@@ -185,11 +186,12 @@ export function TaleOfTape({ name, tone, matchup }: { name: string; tone: string
           })}
         </div>
       ) : (
-        <p class="muted small">Analysiere Partien von dir und {name} (je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.</p>
+        <p class="muted small">{t("Analysiere Partien von dir und")} {name}  {t("(je mindestens 5), dann vergleicht die App Genauigkeit, Patzer und Fähigkeiten.")}</p>
       )}
       {rows.length > 0 && (
         <Foot>
-          Links du, rechts {name}. Balken: Wahrscheinlichkeit, wer hier wirklich besser ist, „klar“ ab 95 %.{missing ? ` ${plural(missing, "Wert", "Werte")} ohne genug Daten.` : ""}
+          
+          {t("Links du, rechts")} {name}{t(". Balken: Wahrscheinlichkeit, wer hier wirklich besser ist, „klar“ ab 95 %.")}{missing ? t(" {plural} ohne genug Daten.", { plural: plural(missing, t("Wert"), t("Werte")) }) : ""}
           {matchup.notes.length ? ` ${matchup.notes.join(" ")}` : ""}
         </Foot>
       )}
@@ -225,11 +227,11 @@ export function DuelStory({ name, duel }: { name: string; duel: DuelInsights }) 
   return (
     <section class="card tile span-7 rv-story">
       <div class="tile-head">
-        <h3>Euer Duell-Verlauf</h3>
-        <span class="tile-sub">{now === 0 ? "ausgeglichen" : now > 0 ? `du ${plural(now, "Sieg", "Siege")} vorn` : `${name} ${plural(-now, "Sieg", "Siege")} vorn`}</span>
+        <h3>{t("Euer Duell-Verlauf")}</h3>
+        <span class="tile-sub">{now === 0 ? "ausgeglichen" : now > 0 ? t("du {plural} vorn", { plural: plural(now, t("Sieg"), t("Siege")) }) : `${name} ${plural(-now, t("Sieg"), t("Siege"))} vorn`}</span>
       </div>
       <div ref={ref} class="rv-story-plot">
-        <svg width={w} height={h} role="img" aria-label="Siege minus Niederlagen nach jeder Partie">
+        <svg width={w} height={h} role="img" aria-label={t("Siege minus Niederlagen nach jeder Partie")}>
           <line class="zero" x1={pad.l} x2={w - pad.r} y1={sy(0)} y2={sy(0)} />
           <text class="axis" x={pad.l - 6} y={sy(hi) + 4} text-anchor="end">
             {hi > 0 ? `+${hi}` : hi}
@@ -247,7 +249,8 @@ export function DuelStory({ name, duel }: { name: string; duel: DuelInsights }) 
         </svg>
       </div>
       <p class="faint small" style={{ margin: "2px 0 10px" }}>
-        Linie: deine Siege minus Niederlagen nach jeder Partie, von der ersten bis heute.
+        
+        {t("Linie: deine Siege minus Niederlagen nach jeder Partie, von der ersten bis heute.")}
       </p>
       <div class="rv-games">
         {last.map((g) => (
@@ -256,7 +259,7 @@ export function DuelStory({ name, duel }: { name: string; duel: DuelInsights }) 
       </div>
       {newest.length > STORY_GAMES && (
         <button class="btn ghost small tile-foot-btn" onClick={() => setAll(!all)}>
-          {all ? "Weniger zeigen" : `Alle ${newest.length} Partien zeigen`}
+          {all ? t("Weniger zeigen") : t("Alle {length} Partien zeigen", { length: newest.length })}
         </button>
       )}
     </section>
@@ -270,17 +273,17 @@ function DuelGameRow({ g, name }: { g: DuelGame; name: string }) {
       <span class={`op-result ${r.cls}`}>{r.ch}</span>
       <span class="rv-game-main">
         <span>
-          {g.color === "white" ? "Du mit Weiß" : "Du mit Schwarz"}
+          {g.color === "white" ? t("Du mit Weiß") : t("Du mit Schwarz")}
           {g.opening && <span class="faint"> · {g.opening.split(":")[0]}</span>}
         </span>
         <span class="faint small">
           {formatDate(g.date)}
           {g.speed ? ` · ${SPEED_DE[g.speed] ?? g.speed}` : ""}
-          {g.decisive ? ` · kippte im Zug ${g.decisive.move} (${PHASE_DE[g.decisive.phase]})` : ""}
+          {g.decisive ? t(" · kippte im Zug {move} ({1})", { move: g.decisive.move, 1: PHASE_DE[g.decisive.phase] }) : ""}
         </span>
       </span>
       {g.my_acc !== null && (
-        <span class="rv-game-acc tnum small" title={`Genauigkeit: du ${de(g.my_acc, 1)} %, ${name} ${g.their_acc === null ? "–" : `${de(g.their_acc, 1)} %`}`}>
+        <span class="rv-game-acc tnum small" title={t("Genauigkeit: du {de} %, {name} {2}", { de: de(g.my_acc, 1), name, 2: g.their_acc === null ? "–" : `${de(g.their_acc, 1)} %` })}>
           {Math.round(g.my_acc)}
           <span class="faint"> : </span>
           {g.their_acc === null ? "–" : Math.round(g.their_acc)}
@@ -301,15 +304,15 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
   return (
     <section class="card tile span-5 rv-tip">
       <div class="tile-head">
-        <h3>Wo eure Partien kippen</h3>
-        <span class="tile-sub">{plural(duel.analyzed, "analysierte Partie", "analysierte Partien")}</span>
+        <h3>{t("Wo eure Partien kippen")}</h3>
+        <span class="tile-sub">{plural(duel.analyzed, t("analysierte Partie"), t("analysierte Partien"))}</span>
       </div>
       {decided ? (
         <div class="rv-phases">
           <div class="rv-phase-head faint small">
-            <span>dein Patzer entschied</span>
+            <span>{t("dein Patzer entschied")}</span>
             <span />
-            <span>Patzer von {name}</span>
+            <span>{t("Patzer von")} {name}</span>
           </div>
           {decisive.map((d) => (
             <div class="rv-phase" key={d.phase}>
@@ -326,11 +329,11 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
           ))}
         </div>
       ) : (
-        <p class="muted small">Sobald entschiedene Partien zwischen euch analysiert sind, siehst du hier, in welcher Phase sie kippen.</p>
+        <p class="muted small">{t("Sobald entschiedene Partien zwischen euch analysiert sind, siehst du hier, in welcher Phase sie kippen.")}</p>
       )}
       {feTotal > 0 && (
         <div class="rv-first">
-          <span class="small">Den ersten groben Fehler macht</span>
+          <span class="small">{t("Den ersten groben Fehler macht")}</span>
           <div class="lg-tug">
             <span class="lg-tug-a tone-me" style={{ width: `${(fe.me / feTotal) * 100}%` }} />
             <span class={`lg-tug-b ${tone}`} />
@@ -343,13 +346,14 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
       {a.mine !== null && (
         <div class="rv-acc small">
           <span>
-            Du: <strong class="tnum">{de(a.mine, 1)} %</strong> gegen {name}
-            {a.my_usual !== null ? <span class="faint"> (sonst {de(a.my_usual, 1)} %)</span> : null}
+            
+            {t("Du:")} <strong class="tnum">{de(a.mine, 1)} %</strong> gegen {name}
+            {a.my_usual !== null ? <span class="faint">  {t("(sonst")} {de(a.my_usual, 1)} %)</span> : null}
           </span>
           {a.theirs !== null && (
             <span>
               {name}: <strong class="tnum">{de(a.theirs, 1)} %</strong> gegen dich
-              {a.their_usual !== null ? <span class="faint"> (sonst {de(a.their_usual, 1)} %)</span> : null}
+              {a.their_usual !== null ? <span class="faint">  {t("(sonst")} {de(a.their_usual, 1)} %)</span> : null}
             </span>
           )}
         </div>
@@ -363,7 +367,7 @@ export function TippingCard({ name, tone, duel }: { name: string; tone: string; 
           ))}
         </div>
       )}
-      <Foot>Entscheidend ist der Zug, nach dem der Verlierer nie mehr ausgleichen konnte. Sätze erscheinen erst ab 8 Fällen und 95 % Sicherheit.</Foot>
+      <Foot>{t("Entscheidend ist der Zug, nach dem der Verlierer nie mehr ausgleichen konnte. Sätze erscheinen erst ab 8 Fällen und 95 % Sicherheit.")}</Foot>
     </section>
   );
 }
@@ -379,9 +383,10 @@ function PreviewRow({ l, name, mine }: { l: PreviewLine; name: string; mine: "wh
       </span>
       {l.name && <span class="small">{l.name}</span>}
       <span class="faint small">
-        Du {l.mine ? `${pct0(l.mine.score_pct)} aus ${l.mine.games}` : "noch nie"} · {name} {l.theirs ? `${pct0(l.theirs.score_pct)} aus ${l.theirs.games}` : "noch nie"}
+        
+        {t("Du")} {l.mine ? `${pct0(l.mine.score_pct)} aus ${l.mine.games}` : t("noch nie")} · {name} {l.theirs ? `${pct0(l.theirs.score_pct)} aus ${l.theirs.games}` : t("noch nie")}
       </span>
-      {l.edge && <span class={`pill ${l.edge === "me" ? "win" : "loss"}`}>{l.edge === "me" ? `liegt dir (${myMove})` : `liegt ${name}`}</span>}
+      {l.edge && <span class={`pill ${l.edge === "me" ? "win" : "loss"}`}>{l.edge === "me" ? t("liegt dir ({myMove})", { myMove }) : `liegt ${name}`}</span>}
     </div>
   );
 }
@@ -392,25 +397,25 @@ export function NextGameCard({ name, preview }: { name: string; preview: Opening
   return (
     <section class="card tile span-12 rv-next">
       <div class="tile-head">
-        <h3>So beginnt eure nächste Partie wahrscheinlich</h3>
-        <span class="tile-sub">aus euren Eröffnungen gegen alle</span>
+        <h3>{t("So beginnt eure nächste Partie wahrscheinlich")}</h3>
+        <span class="tile-sub">{t("aus euren Eröffnungen gegen alle")}</span>
       </div>
       <div class="rv-next-cols">
         {(["white", "black"] as const).map((c) => {
           const lines = c === "white" ? preview.as_white : preview.as_black;
           return (
             <div key={c}>
-              <h4>{c === "white" ? "Du mit Weiß" : "Du mit Schwarz"}</h4>
+              <h4>{c === "white" ? t("Du mit Weiß") : t("Du mit Schwarz")}</h4>
               {lines.length ? (
                 lines.map((l) => <PreviewRow key={`${l.first}${l.reply}`} l={l} name={name} mine={c} />)
               ) : (
-                <p class="muted small">Zu wenige Partien für eine Vorschau.</p>
+                <p class="muted small">{t("Zu wenige Partien für eine Vorschau.")}</p>
               )}
             </div>
           );
         })}
       </div>
-      <Foot>Prozent: wie oft eure Partie so beginnt, wenn ihr beide spielt wie sonst. „Liegt dir“ nur, wenn eine Bilanz ab 8 Partien klar von 50 % abweicht.</Foot>
+      <Foot>{t("Prozent: wie oft eure Partie so beginnt, wenn ihr beide spielt wie sonst. „Liegt dir“ nur, wenn eine Bilanz ab 8 Partien klar von 50 % abweicht.")}</Foot>
     </section>
   );
 }

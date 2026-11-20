@@ -37,6 +37,7 @@ import { DEPTH_GAP, FAIRNESS_NOTE, groupFairness, medianDepths } from "./fairnes
 import { mainSource } from "./h2h";
 import { hashText, MIN_RATED_GAMES, playerStrength, type RankOdds, rankOdds, type StrengthEstimate } from "./strength";
 import { SKILL_FACTORS } from "./weights";
+import { t } from "../../i18n";
 
 export interface RankInput {
   id: string;
@@ -114,18 +115,18 @@ const MIN_ANALYZED = MIN_COMPARE_ANALYZED;
 const ACTIVITY_DAYS = 30;
 
 export const RANK_FACTORS: RankFactor[] = [
-  { key: "rating", label: "Wertung", group: "Ergebnisse", higher_is_better: true, hint: "Letzte Wertung in der gemeinsamen Bedenkzeit. Nur zur Info: neue Konten haben noch keine aussagekräftige Wertung" },
-  { key: "expectation", label: "Über Erwartung", group: "Ergebnisse", higher_is_better: true, hint: "Punkte über oder unter der Elo-Erwartung je Partie, in Prozentpunkten" },
-  { key: "accuracy", label: "Genauigkeit", group: "Spielqualität", higher_is_better: true, hint: "Ø Genauigkeit der analysierten Partien" },
-  { key: "blunders", label: "Patzer pro Partie", group: "Spielqualität", higher_is_better: false, hint: "Grobe Fehler je analysierter Partie, weniger ist besser" },
+  { key: "rating", label: t("Wertung"), group: "Ergebnisse", higher_is_better: true, hint: t("Letzte Wertung in der gemeinsamen Bedenkzeit. Nur zur Info: neue Konten haben noch keine aussagekräftige Wertung") },
+  { key: "expectation", label: t("Über Erwartung"), group: "Ergebnisse", higher_is_better: true, hint: t("Punkte über oder unter der Elo-Erwartung je Partie, in Prozentpunkten") },
+  { key: "accuracy", label: t("Genauigkeit"), group: "Spielqualität", higher_is_better: true, hint: t("Ø Genauigkeit der analysierten Partien") },
+  { key: "blunders", label: t("Patzer pro Partie"), group: "Spielqualität", higher_is_better: false, hint: t("Grobe Fehler je analysierter Partie, weniger ist besser") },
   ...SKILL_FACTORS.map((k) => ({
     key: k,
     label: SKILL_NAMES[k],
     group: "Fähigkeiten" as const,
     higher_is_better: true,
-    hint: `Fähigkeitswert ${SKILL_NAMES[k]} (0–100), nur aus den eigenen Zügen`,
+    hint: t("Fähigkeitswert {0} (0–100), nur aus den eigenen Zügen", { 0: SKILL_NAMES[k] }),
   })),
-  { key: "activity", label: `Partien (${ACTIVITY_DAYS} Tage)`, group: "Sonstiges", higher_is_better: true, hint: `Gespielte Partien in den letzten ${ACTIVITY_DAYS} Tagen (in der gewählten Bedenkzeit, ohne Bots)` },
+  { key: "activity", label: t("Partien ({ACTIVITY_DAYS} Tage)", { ACTIVITY_DAYS }), group: "Sonstiges", higher_is_better: true, hint: t("Gespielte Partien in den letzten {ACTIVITY_DAYS} Tagen (in der gewählten Bedenkzeit, ohne Bots)", { ACTIVITY_DAYS }) },
 ];
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -170,7 +171,7 @@ function speedSource(games: RawGame[], usernames: string[], speedLabel: string):
 
 const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 
-const analyses = (n: number) => plural(n, "Analyse", "Analysen");
+const analyses = (n: number) => plural(n, t("Analyse"), t("Analysen"));
 
 export function buildRanking(
   inputs: RankInput[],
@@ -216,7 +217,7 @@ export function buildRanking(
     const rating = ratingOf(i);
     const sameSite = rating !== null && ratingSources[i] === ratingSource;
     put("rating", i, sameSite ? { value: rating as number, se: RATING_SE } : null, sameSite ? (speed as string) : "");
-    put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, "Partie", "Partien") : "");
+    put("expectation", i, expectationEstimate(p), p.rating ? plural(p.rating.rated_games, t("Partie"), t("Partien")) : "");
     const acc = accuracyEstimate(p);
     const bl = blunderEstimate(p);
     put("accuracy", i, shifted(acc, fair.adjust[i].accuracy), analyses(p.analyzed_games), acc && fair.adjust[i].accuracy ? acc.value : undefined);
@@ -276,14 +277,14 @@ export function buildRanking(
   rows.sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity) || b.games - a.games || a.name.localeCompare(b.name));
 
   const bots = rows.reduce((s, r) => s + r.bot_games, 0);
-  if (bots) notes.push(`${plural(bots, "Partie gegen einen Computer zählt", "Partien gegen Computer zählen")} nicht mit: Bots haben keine vergleichbare Wertung.`);
+  if (bots) notes.push(t("{plural} nicht mit: Bots haben keine vergleichbare Wertung.", { plural: plural(bots, t("Partie gegen einen Computer zählt"), t("Partien gegen Computer zählen")) }));
   const thin = rows.filter((r) => r.strength === null);
   if (thin.length) {
-    notes.push(`Eine Spielstärke gibt es ab ${MIN_RATED_GAMES} gewerteten Partien gegen Menschen im Zeitraum. Noch zu wenige: ${thin.map((r) => (r.is_me ? "du" : r.name)).join(", ")}.`);
+    notes.push(t("Eine Spielstärke gibt es ab {MIN_RATED_GAMES} gewerteten Partien gegen Menschen im Zeitraum. Noch zu wenige: {1}.", { MIN_RATED_GAMES, 1: thin.map((r) => (r.is_me ? "du" : r.name)).join(", ") }));
   }
   const pools = new Set(ranked.flatMap((r) => Object.entries((r.strength as StrengthEstimate).columns).filter(([, w]) => w > 0.2).map(([c]) => c.slice(0, 2))));
   if (pools.size > 1) {
-    notes.push("Lichess- und Chess.com-Wertungen sind über die ChessGoals-Umfrage auf eine Skala gebracht. Diese Umrechnung ist selbst unsicher und steckt in den Spannen: zwischen Spielern verschiedener Plattformen sind Abstände unsicherer als zwischen Spielern derselben.");
+    notes.push(t("Lichess- und Chess.com-Wertungen sind über die ChessGoals-Umfrage auf eine Skala gebracht. Diese Umrechnung ist selbst unsicher und steckt in den Spannen: zwischen Spielern verschiedener Plattformen sind Abstände unsicherer als zwischen Spielern derselben."));
   }
   if (fair.applied) notes.push(FAIRNESS_NOTE);
   const depthNote = depthGapNote(medianDepths(fair.quality), inputs);
@@ -314,11 +315,11 @@ export function comparisonPeriod(games: RawGame[], members: string[][], format: 
  * differently, so accuracy and blunders then compare two different rulers.
  */
 function depthGapNote(depths: (number | null)[], inputs: RankInput[]): string | null {
-  const known = depths.map((d, i) => ({ d, name: inputs[i].is_me ? "deine" : `die von ${inputs[i].name}` })).filter((x): x is { d: number; name: string } => x.d !== null);
+  const known = depths.map((d, i) => ({ d, name: inputs[i].is_me ? "deine" : t("die von {name}", { name: inputs[i].name }) })).filter((x): x is { d: number; name: string } => x.d !== null);
   if (known.length < 2) return null;
   const deep = known.reduce((a, b) => (b.d > a.d ? b : a));
   const flat = known.reduce((a, b) => (b.d < a.d ? b : a));
   if (deep.d - flat.d < DEPTH_GAP) return null;
   const cap = (tk: string) => tk.charAt(0).toUpperCase() + tk.slice(1);
-  return `${cap(flat.name)} Partien sind flacher analysiert (Tiefe ${Math.round(flat.d)}) als ${deep.name} (Tiefe ${Math.round(deep.d)}). Genauigkeit und Patzer vergleichen nur bei gleicher Tiefe ganz fair: stelle in den Einstellungen dieselbe Analysetiefe für dich und deine Freunde ein und lass die Partien neu analysieren.`;
+  return t("{cap} Partien sind flacher analysiert (Tiefe {1}) als {name} (Tiefe {3}). Genauigkeit und Patzer vergleichen nur bei gleicher Tiefe ganz fair: stelle in den Einstellungen dieselbe Analysetiefe für dich und deine Freunde ein und lass die Partien neu analysieren.", { cap: cap(flat.name), 1: Math.round(flat.d), name: deep.name, 3: Math.round(deep.d) });
 }

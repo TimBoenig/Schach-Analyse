@@ -8,6 +8,7 @@ import { LandingHow } from "./LandingHow";
 import { Model3D } from "./Model3D";
 import { navigate } from "./router";
 import { openStage } from "./stage/store";
+import { t } from "../i18n";
 
 function openApp(): void {
   navigate({ view: "home" });
@@ -19,10 +20,10 @@ function startWithLucena(): void {
 }
 
 const FEATURES: { icon: () => preact.JSX.Element; title: string; text: string }[] = [
-  { icon: IconCpu, title: "Engine auf deinem Gerät", text: "Die Analyse läuft im Browser. Deine Partien bleiben bei dir, auch offline." },
-  { icon: IconInsights, title: "Statistiken mit Beleg", text: "Jede Aussage nennt, auf wie vielen Partien sie beruht. Kein Raten aus drei Spielen." },
-  { icon: IconTraining, title: "Training aus deinen Fehlern", text: "Tägliche Einheiten mit Aufgaben aus deinen eigenen Partien." },
-  { icon: IconTrophy, title: "Liga mit Freunden", text: "Vergleiche dich fair mit deinen Freunden, nach Zugqualität und Ergebnissen." },
+  { icon: IconCpu, title: t("Engine auf deinem Gerät"), text: t("Die Analyse läuft im Browser. Deine Partien bleiben bei dir, auch offline.") },
+  { icon: IconInsights, title: t("Statistiken mit Beleg"), text: t("Jede Aussage nennt, auf wie vielen Partien sie beruht. Kein Raten aus drei Spielen.") },
+  { icon: IconTraining, title: t("Training aus deinen Fehlern"), text: t("Tägliche Einheiten mit Aufgaben aus deinen eigenen Partien.") },
+  { icon: IconTrophy, title: t("Liga mit Freunden"), text: t("Vergleiche dich fair mit deinen Freunden, nach Zugqualität und Ergebnissen.") },
 ];
 
 export function LandingView() {
@@ -34,7 +35,8 @@ export function LandingView() {
           <span>{BRAND}</span>
         </a>
         <button class="btn primary ld-open" onClick={openApp}>
-          Zur App
+          
+          {t("Zur App")}
           <IconChevron />
         </button>
       </header>
@@ -42,21 +44,24 @@ export function LandingView() {
       <section class="ld-hero">
         <div class="ld-hero-glow" aria-hidden="true" />
         <div class="ld-hero-text">
-          <p class="ld-kicker">Dein persönlicher Schach-Coach</p>
+          <p class="ld-kicker">{t("Dein persönlicher Schach-Coach")}</p>
           <h1>
-            Finde heraus, <em>warum</em> du verlierst.
+            
+            {t("Finde heraus,")} <em>warum</em>  {t("du verlierst.")}
           </h1>
-          <p class="ld-lead">{BRAND} analysiert deine Partien von chess.com und Lichess, zeigt dir deine echten Stärken und Schwächen und trainiert genau das, was dich Punkte kostet.</p>
+          <p class="ld-lead">{BRAND}  {t("analysiert deine Partien von chess.com und Lichess, zeigt dir deine echten Stärken und Schwächen und trainiert genau das, was dich Punkte kostet.")}</p>
           <div class="ld-cta-row">
             <button class="btn primary big ld-cta" onClick={startWithLucena}>
               <IconBolt />
-              Mit {COACH_NAME} loslegen
+              
+              {t("Mit")} {COACH_NAME} loslegen
             </button>
             <button class="btn big" onClick={openApp}>
-              Direkt zur App
+              
+              {t("Direkt zur App")}
             </button>
           </div>
-          <p class="ld-fine">Kostenlos · ohne Anmeldung · läuft im Browser</p>
+          <p class="ld-fine">{t("Kostenlos · ohne Anmeldung · läuft im Browser")}</p>
         </div>
         <div class="ld-hero-art" aria-hidden="true">
           <div class="ld-orbit">
@@ -68,7 +73,7 @@ export function LandingView() {
 
       <LandingHow />
 
-      <section class="ld-features" aria-label="Was dich erwartet">
+      <section class="ld-features" aria-label={t("Was dich erwartet")}>
         {FEATURES.map((f) => (
           <div class="ld-feature" key={f.title}>
             <span class="ld-skill-icon">
@@ -82,20 +87,21 @@ export function LandingView() {
 
       <section class="ld-final">
         <Model3D kind="trophy" size={110} />
-        <h2>Bereit für deine erste Analyse?</h2>
+        <h2>{t("Bereit für deine erste Analyse?")}</h2>
         <div class="ld-cta-row">
           <button class="btn primary big ld-cta" onClick={startWithLucena}>
-            Mit {COACH_NAME} loslegen
+            
+            {t("Mit")} {COACH_NAME} loslegen
             <IconChevron />
           </button>
           <button class="btn big" onClick={openApp}>
-            {BRAND} öffnen
+            {BRAND}  {t("öffnen")}
           </button>
         </div>
       </section>
 
       <footer class="ld-foot faint small">
-        <a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a>
+        <a href="#/rechtliches">{t("Impressum")}</a> · <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a>
       </footer>
     </div>
   );

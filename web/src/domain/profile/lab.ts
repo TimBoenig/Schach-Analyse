@@ -9,6 +9,7 @@
 
 import { MIN_GROUP_GAMES, type ScoreSample, scoreZ, wilson, Z95, Z_MULTI } from "./evidence";
 import type { GameFeatures } from "./features";
+import { t } from "../../i18n";
 
 export type Daypart = "morning" | "midday" | "evening" | "night";
 export type OppBand = "weaker" | "even" | "stronger";
@@ -28,16 +29,16 @@ export interface GameFact {
 }
 
 export const DAYPARTS: { key: Daypart; label: string; test: (hour: number) => boolean }[] = [
-  { key: "morning", label: "Morgens", test: (h) => h >= 5 && h < 11 },
-  { key: "midday", label: "Mittags", test: (h) => h >= 11 && h < 17 },
-  { key: "evening", label: "Abends", test: (h) => h >= 17 && h < 22 },
-  { key: "night", label: "Nachts", test: (h) => h >= 22 || h < 5 },
+  { key: "morning", label: t("Morgens"), test: (h) => h >= 5 && h < 11 },
+  { key: "midday", label: t("Mittags"), test: (h) => h >= 11 && h < 17 },
+  { key: "evening", label: t("Abends"), test: (h) => h >= 17 && h < 22 },
+  { key: "night", label: t("Nachts"), test: (h) => h >= 22 || h < 5 },
 ];
 
 export const OPP_BANDS: { key: OppBand; label: string }[] = [
-  { key: "weaker", label: "Schwächere" },
-  { key: "even", label: "Gleich starke" },
-  { key: "stronger", label: "Stärkere" },
+  { key: "weaker", label: t("Schwächere") },
+  { key: "even", label: t("Gleich starke") },
+  { key: "stronger", label: t("Stärkere") },
 ];
 
 export function gameFacts(feats: GameFeatures[], localHour: (ts: number) => number = (ts) => new Date(ts * 1000).getHours()): GameFact[] {

@@ -14,6 +14,7 @@ import { Session } from "./training/Session";
 import type { SessionSpec } from "./training/shared";
 import { TodayPage } from "./training/Today";
 import { useTraining } from "./training/useTraining";
+import { t } from "../i18n";
 
 const GUIDE: Record<TrainingTab, GuideId> = { heute: "training", uebungen: "exercises", fortschritt: "progress" };
 // Route part of a link that practises one game: #/training/uebungen/partie-<game id>.
@@ -32,7 +33,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
   if (!autoStarted && !tk.loading && fromGame) {
     setAutoStarted(true);
     const ids = gameExercises(tk.pool, fromGame);
-    if (ids.length) setSession({ title: "Fehler aus dieser Partie", ids });
+    if (ids.length) setSession({ title: t("Fehler aus dieser Partie"), ids });
     else setNoGameExercises(true);
   }
 
@@ -73,7 +74,7 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
     return (
       <div>
         {header}
-        <NeedNames what="baue ich dir aus deinen Partien Übungen und einen Trainingsplan." />
+        <NeedNames what={t("baue ich dir aus deinen Partien Übungen und einen Trainingsplan.")} />
       </div>
     );
   }
@@ -91,17 +92,19 @@ export function TrainingView({ tab = "heute", category }: { tab?: TrainingTab; c
       {header}
       {tk.profile?.is_empty && tab !== "heute" && (
         <div class="card notice tn-notice">
-          <span>Noch keine Partie analysiert: Endspiel-Grundlagen und Eröffnungen kannst du schon üben. Aufgaben aus deinen Fehlern kommen dazu, sobald Partien analysiert sind.</span>
+          <span>{t("Noch keine Partie analysiert: Endspiel-Grundlagen und Eröffnungen kannst du schon üben. Aufgaben aus deinen Fehlern kommen dazu, sobald Partien analysiert sind.")}</span>
           <button class="btn small" onClick={() => navigate({ view: "games" })}>
-            Zu den Partien
+            
+            {t("Zu den Partien")}
           </button>
         </div>
       )}
       {noGameExercises && (
         <div class="card notice tn-notice">
-          <span>Aus dieser Partie steht gerade keine Übung in deiner Bibliothek. Hier sind die übrigen Bereiche.</span>
+          <span>{t("Aus dieser Partie steht gerade keine Übung in deiner Bibliothek. Hier sind die übrigen Bereiche.")}</span>
           <button class="btn small" onClick={() => setNoGameExercises(false)}>
-            Ausblenden
+            
+            {t("Ausblenden")}
           </button>
         </div>
       )}

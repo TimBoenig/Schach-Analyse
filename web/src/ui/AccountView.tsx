@@ -34,6 +34,7 @@ import { navigate } from "./router";
 import { PageHeader } from "./Layout";
 import { Coach, CoachAvatar } from "./Coach";
 import { IconEye, IconEyeOff, IconSync } from "./icons";
+import { t } from "../i18n";
 
 type Mode = "login" | "register" | "link" | "forgot" | "newPassword";
 /** A mail is on its way and the page waits for its link to be opened. */
@@ -49,7 +50,7 @@ export function useSyncStatus(): SyncStatus {
 function PasswordField({
   value,
   onInput,
-  label = "Passwort",
+  label = t("Passwort"),
   autocomplete,
 }: {
   value: string;
@@ -72,7 +73,7 @@ function PasswordField({
           type="button"
           class="btn icon ghost"
           onClick={() => setShow((s) => !s)}
-          aria-label={show ? "Passwort verbergen" : "Passwort anzeigen"}
+          aria-label={show ? t("Passwort verbergen") : t("Passwort anzeigen")}
         >
           {show ? <IconEyeOff /> : <IconEye />}
         </button>
@@ -82,10 +83,10 @@ function PasswordField({
 }
 
 function ago(ms: number): string {
-  if (!ms) return "noch nie";
+  if (!ms) return t("noch nie");
   const min = Math.round((Date.now() - ms) / 60000);
   if (min < 1) return "gerade eben";
-  if (min < 60) return `vor ${min} Min.`;
+  if (min < 60) return t("vor {min} Min.", { min });
   return new Date(ms).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
 }
 
@@ -104,20 +105,20 @@ function useLocalCounts() {
 }
 
 const SYNCED = [
-  ["Partien", "Spieldaten, PGN und Ergebnis jeder Partie"],
-  ["Analysen kompakt", "Bewertung, Einstufung und Engine-Zug pro Zug, ohne lange Varianten"],
-  ["Profil & Statistiken", "Genauigkeit, Fähigkeiten, Zugbilanz und Eröffnungen entstehen daraus auf jedem Gerät"],
-  ["Spieler & Freunde", "deine Freundesliste samt Ranglisten-Auswahl"],
-  ["Training & Einstellungen", "Fortschritt, Tagesplan, Namen, Analysetiefe, Aussehen"],
+  [t("Partien"), t("Spieldaten, PGN und Ergebnis jeder Partie")],
+  [t("Analysen kompakt"), t("Bewertung, Einstufung und Engine-Zug pro Zug, ohne lange Varianten")],
+  [t("Profil & Statistiken"), t("Genauigkeit, Fähigkeiten, Zugbilanz und Eröffnungen entstehen daraus auf jedem Gerät")],
+  [t("Spieler & Freunde"), t("deine Freundesliste samt Ranglisten-Auswahl")],
+  [t("Training & Einstellungen"), t("Fortschritt, Tagesplan, Namen, Analysetiefe, Aussehen")],
 ] as const;
 
 /** Why an account is worth it; shown before signing in and ticked off after. */
 const BENEFITS = [
-  ["Nichts geht verloren", "Leert der Browser seinen Speicher oder geht das Handy kaputt, holst du mit einer Anmeldung alles zurück."],
-  ["Auf jedem Gerät", "PC, iPad und Handy zeigen dasselbe Profil, dieselben Statistiken und dieselbe Rangliste."],
-  ["Training läuft weiter", "Tagesplan, Wiederholungen und Fortschritt merken sich, wo du aufgehört hast, egal wo du weitermachst."],
-  ["Analysen nur einmal rechnen", "Was ein Gerät analysiert hat, ist auf allen anderen sofort fertig. Das spart Akku und Zeit."],
-  ["Kostenlos und in deiner Hand", "Keine Werbung. Du kannst alles jederzeit herunterladen oder dein Konto mit einem Klick löschen."],
+  [t("Nichts geht verloren"), t("Leert der Browser seinen Speicher oder geht das Handy kaputt, holst du mit einer Anmeldung alles zurück.")],
+  [t("Auf jedem Gerät"), t("PC, iPad und Handy zeigen dasselbe Profil, dieselben Statistiken und dieselbe Rangliste.")],
+  [t("Training läuft weiter"), t("Tagesplan, Wiederholungen und Fortschritt merken sich, wo du aufgehört hast, egal wo du weitermachst.")],
+  [t("Analysen nur einmal rechnen"), t("Was ein Gerät analysiert hat, ist auf allen anderen sofort fertig. Das spart Akku und Zeit.")],
+  [t("Kostenlos und in deiner Hand"), t("Keine Werbung. Du kannst alles jederzeit herunterladen oder dein Konto mit einem Klick löschen.")],
 ] as const;
 
 function BenefitList({ done }: { done?: boolean }) {
@@ -141,8 +142,8 @@ function BenefitList({ done }: { done?: boolean }) {
 function LegalLinks() {
   return (
     <p class="faint small legal-links">
-      <a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a> ·{" "}
-      <a href="#/rechtliches/lizenzen">Lizenzen</a>
+      <a href="#/rechtliches">{t("Impressum")}</a> · <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a> ·{" "}
+      <a href="#/rechtliches/lizenzen">{t("Lizenzen")}</a>
     </p>
   );
 }
@@ -215,12 +216,13 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                   style={{ flex: 1, minWidth: 0 }}
                   value={name}
                   maxLength={40}
-                  placeholder="Wie sollen wir dich nennen?"
-                  aria-label="Anzeigename"
+                  placeholder={t("Wie sollen wir dich nennen?")}
+                  aria-label={t("Anzeigename")}
                   onInput={(e) => setName(e.currentTarget.value)}
                 />
                 <button class="btn primary" disabled={busy}>
-                  Speichern
+                  
+                  {t("Speichern")}
                 </button>
               </form>
             ) : (
@@ -228,11 +230,12 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                 <strong class="account-name">
                   {shownName}{" "}
                   <button class="link-btn small" onClick={() => setEditName(true)}>
-                    ändern
+                    
+                    {t("ändern")}
                   </button>
                 </strong>
                 <div class="small muted account-mail">{status.email}</div>
-                {info?.createdAt ? <div class="faint small">Dabei seit {memberSince(info.createdAt)}</div> : null}
+                {info?.createdAt ? <div class="faint small">{t("Dabei seit")} {memberSince(info.createdAt)}</div> : null}
               </>
             )}
           </div>
@@ -240,10 +243,10 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
         <div class={`sync-state ${status.phase}`}>
           <span class="sync-dot" />
           {running
-            ? "Wird abgeglichen …"
+            ? t("Wird abgeglichen …")
             : status.phase === "error"
               ? status.error
-              : `Abgeglichen ${ago(status.lastAt)}`}
+              : t("Abgeglichen {ago}", { ago: ago(status.lastAt) })}
         </div>
         <div class="row" style={{ flexWrap: "wrap", gap: "8px" }}>
           <button
@@ -255,18 +258,19 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                 const r = await syncNow({ full: true });
                 setMsg({
                   text: r.failed
-                    ? `${r.pulled} empfangen, ${r.pushed} gesendet. ${r.failed} Einträge folgen im nächsten Versuch.`
+                    ? t("{pulled} empfangen, {pushed} gesendet. {failed} Einträge folgen im nächsten Versuch.", { pulled: r.pulled, pushed: r.pushed, failed: r.failed })
                     : r.pulled || r.pushed
-                      ? `Fertig: ${r.pulled} empfangen, ${r.pushed} gesendet.`
-                      : "Alles ist auf dem neuesten Stand.",
+                      ? t("Fertig: {pulled} empfangen, {pushed} gesendet.", { pulled: r.pulled, pushed: r.pushed })
+                      : t("Alles ist auf dem neuesten Stand."),
                 });
               })
             }
           >
-            <IconSync /> Jetzt abgleichen
+            <IconSync />  {t("Jetzt abgleichen")}
           </button>
           <button class="btn" disabled={busy} onClick={() => run(signOut)}>
-            Abmelden
+            
+            {t("Abmelden")}
           </button>
         </div>
         {msg && <p class={`small ${msg.error ? "error" : "ok"}`}>{msg.text}</p>}
@@ -274,14 +278,14 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Dein Konto bringt dir</h3>
+          <h3>{t("Dein Konto bringt dir")}</h3>
           <span class={`tile-sub${allSafe ? " ok" : ""}`}>
             {counts && counts.games > 0 && online !== null
               ? allSafe
-                ? `Alle ${counts.games} Partien gesichert`
+                ? t("Alle {games} Partien gesichert", { games: counts.games })
                 : online.games < counts.games
-                  ? `${online.games} von ${counts.games} Partien online`
-                  : `${online.analysed} von ${counts.analysed} Analysen online`
+                  ? t("{games} von {games2} Partien online", { games: online.games, games2: counts.games })
+                  : t("{analysed} von {analysed2} Analysen online", { analysed: online.analysed, analysed2: counts.analysed })
               : " "}
           </span>
         </div>
@@ -290,7 +294,7 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Online gespeichert</h3>
+          <h3>{t("Online gespeichert")}</h3>
           <span class="tile-sub">{counts ? `${counts.analysed} analysiert` : " "}</span>
         </div>
         <ul class="synced-list">
@@ -302,20 +306,20 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
           ))}
         </ul>
         <p class="faint small" style={{ marginBottom: 0 }}>
-          Lange Engine-Varianten und der Rechen-Cache bleiben auf dem Gerät, auf dem sie entstanden sind. Eine
-          analysierte Partie braucht online nur wenige Kilobyte.
+          
+          {t("Lange Engine-Varianten und der Rechen-Cache bleiben auf dem Gerät, auf dem sie entstanden sind. Eine analysierte Partie braucht online nur wenige Kilobyte.")}
         </p>
       </section>
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Sicherheit & Daten</h3>
+          <h3>{t("Sicherheit & Daten")}</h3>
         </div>
         {showPw ? (
           <div class="account-form">
-            {recovery && <p style={{ marginTop: 0 }}>Du hast den Link zum Zurücksetzen geöffnet. Lege jetzt ein neues Passwort fest.</p>}
-            <PasswordField label="Neues Passwort" value={pw} onInput={setPw} autocomplete="new-password" />
-            <p class="faint small">Mindestens {MIN_PASSWORD} Zeichen, mit einer Zahl oder einem Sonderzeichen.</p>
+            {recovery && <p style={{ marginTop: 0 }}>{t("Du hast den Link zum Zurücksetzen geöffnet. Lege jetzt ein neues Passwort fest.")}</p>}
+            <PasswordField label={t("Neues Passwort")} value={pw} onInput={setPw} autocomplete="new-password" />
+            <p class="faint small">{t("Mindestens")} {MIN_PASSWORD}  {t("Zeichen, mit einer Zahl oder einem Sonderzeichen.")}</p>
             <div class="row" style={{ gap: "8px" }}>
               <button
                 class="btn primary"
@@ -326,15 +330,17 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                     clearAuthCallback();
                     setPw("");
                     setShowPw(false);
-                    setMsg({ text: "Neues Passwort gespeichert." });
+                    setMsg({ text: t("Neues Passwort gespeichert.") });
                   })
                 }
               >
-                Passwort speichern
+                
+                {t("Passwort speichern")}
               </button>
               {!recovery && (
                 <button class="btn ghost" onClick={() => setShowPw(false)}>
-                  Abbrechen
+                  
+                  {t("Abbrechen")}
                 </button>
               )}
             </div>
@@ -343,8 +349,8 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
           <div class="danger-zone">
             <p style={{ marginTop: 0 }}>
               {confirm === "data"
-                ? "Löscht alles, was dieses Konto online gespeichert hat, und meldet dich ab. Die Partien auf diesem Gerät bleiben erhalten."
-                : "Löscht dein Konto und alle Online-Daten endgültig. Die Partien auf diesem Gerät bleiben erhalten. Das lässt sich nicht rückgängig machen."}
+                ? t("Löscht alles, was dieses Konto online gespeichert hat, und meldet dich ab. Die Partien auf diesem Gerät bleiben erhalten.")
+                : t("Löscht dein Konto und alle Online-Daten endgültig. Die Partien auf diesem Gerät bleiben erhalten. Das lässt sich nicht rückgängig machen.")}
             </p>
             <div class="row" style={{ flexWrap: "wrap", gap: "8px" }}>
               <button
@@ -356,39 +362,44 @@ function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean 
                     const full = await deleteAccount();
                     if (!full) {
                       setMsg({
-                        text: `Deine Online-Daten sind gelöscht. Die Anmeldung selbst konnte der Server noch nicht entfernen; schreib dafür kurz an ${SUPPORT_EMAIL}.`,
+                        text: t("Deine Online-Daten sind gelöscht. Die Anmeldung selbst konnte der Server noch nicht entfernen; schreib dafür kurz an {SUPPORT_EMAIL}.", { SUPPORT_EMAIL }),
                         error: true,
                       });
                     }
                   })
                 }
               >
-                {confirm === "data" ? "Ja, Online-Daten löschen" : "Ja, Konto endgültig löschen"}
+                {confirm === "data" ? t("Ja, Online-Daten löschen") : t("Ja, Konto endgültig löschen")}
               </button>
               <button class="btn ghost" onClick={() => setConfirm(null)}>
-                Abbrechen
+                
+                {t("Abbrechen")}
               </button>
             </div>
           </div>
         ) : (
           <div class="account-actions">
             <button class="btn" onClick={() => setShowPw(true)}>
-              Passwort ändern
+              
+              {t("Passwort ändern")}
             </button>
             <button class="btn" onClick={() => navigate({ view: "settings", tab: "daten" })}>
-              Alle Daten herunterladen
+              
+              {t("Alle Daten herunterladen")}
             </button>
             <button class="btn ghost" onClick={() => setConfirm("data")}>
-              Online-Daten löschen
+              
+              {t("Online-Daten löschen")}
             </button>
             <button class="btn ghost danger-text" onClick={() => setConfirm("account")}>
-              Konto löschen
+              
+              {t("Konto löschen")}
             </button>
           </div>
         )}
         <p class="faint small" style={{ marginBottom: 0 }}>
-          Passwörter speichert nur der Anmeldedienst und nur als sicherer Hash. Jede Zeile online ist an dein Konto
-          gebunden; andere Nutzer können sie nicht lesen.
+          
+          {t("Passwörter speichert nur der Anmeldedienst und nur als sicherer Hash. Jede Zeile online ist an dein Konto gebunden; andere Nutzer können sie nicht lesen.")}
         </p>
       </section>
       <div class="span-12">
@@ -410,7 +421,7 @@ function MailSent({ pending, onBack }: { pending: NonNullable<Pending>; onBack: 
     return () => window.clearTimeout(tk);
   }, [wait]);
   const title =
-    pending.kind === "confirm" ? "Bestätige deine E-Mail" : pending.kind === "link" ? "Dein Anmeldelink ist unterwegs" : "Link zum Zurücksetzen ist unterwegs";
+    pending.kind === "confirm" ? t("Bestätige deine E-Mail") : pending.kind === "link" ? t("Dein Anmeldelink ist unterwegs") : t("Link zum Zurücksetzen ist unterwegs");
   const resend = async () => {
     setMsg(null);
     try {
@@ -418,7 +429,7 @@ function MailSent({ pending, onBack }: { pending: NonNullable<Pending>; onBack: 
       else if (pending.kind === "link") await signInWithLink(pending.email);
       else await requestPasswordReset(pending.email);
       setWait(RESEND_WAIT_S);
-      setMsg({ text: "Neue Mail ist unterwegs." });
+      setMsg({ text: t("Neue Mail ist unterwegs.") });
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
     }
@@ -430,19 +441,21 @@ function MailSent({ pending, onBack }: { pending: NonNullable<Pending>; onBack: 
       </div>
       <h3>{title}</h3>
       <p>
-        Wir haben eine Mail an <strong>{pending.email}</strong> geschickt. Öffne den Link darin
-        {pending.kind === "reset" ? " und lege ein neues Passwort fest." : ", dann bist du hier automatisch angemeldet."}
+        
+        {t("Wir haben eine Mail an")} <strong>{pending.email}</strong>  {t("geschickt. Öffne den Link darin")}
+        {pending.kind === "reset" ? t(" und lege ein neues Passwort fest.") : t(", dann bist du hier automatisch angemeldet.")}
       </p>
       <ul class="small muted mail-tips">
-        <li>Keine Mail nach zwei Minuten? Schau im Spam- oder Werbung-Ordner nach.</li>
-        <li>Öffne den Link am besten auf diesem Gerät. Auf einem anderen klappt es auch, dann meldest du dich hier danach an.</li>
+        <li>{t("Keine Mail nach zwei Minuten? Schau im Spam- oder Werbung-Ordner nach.")}</li>
+        <li>{t("Öffne den Link am besten auf diesem Gerät. Auf einem anderen klappt es auch, dann meldest du dich hier danach an.")}</li>
       </ul>
       <div class="row" style={{ flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
         <button class="btn" disabled={wait > 0} onClick={() => void resend()}>
-          {wait > 0 ? `Erneut senden (${wait} s)` : "Erneut senden"}
+          {wait > 0 ? t("Erneut senden ({wait} s)", { wait }) : t("Erneut senden")}
         </button>
         <button class="btn ghost" onClick={onBack}>
-          Andere Adresse
+          
+          {t("Andere Adresse")}
         </button>
       </div>
       {msg && <p class={`small ${msg.error ? "error" : "ok"}`}>{msg.text}</p>}
@@ -474,7 +487,7 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
         const needsConfirm = await signUp(email, password);
         if (needsConfirm) setPending({ email: email.trim(), kind: "confirm" });
         else {
-          setMsg({ text: "Konto erstellt. Deine Daten werden jetzt gesichert." });
+          setMsg({ text: t("Konto erstellt. Deine Daten werden jetzt gesichert.") });
           void syncNow().catch(() => undefined);
         }
       } else if (mode === "link") {
@@ -501,14 +514,15 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
   return (
     <div class="dash">
       <section class="card tile span-6 account-pitch">
-        <Coach size={56} title="Sichere deine Analysen">
-          Ohne Konto bleibt alles nur auf diesem Gerät. Mit einem kostenlosen Konto ist es gesichert und überall
-          dabei.
+        <Coach size={56} title={t("Sichere deine Analysen")}>
+          
+          {t("Ohne Konto bleibt alles nur auf diesem Gerät. Mit einem kostenlosen Konto ist es gesichert und überall dabei.")}
         </Coach>
         {counts && counts.games > 0 && (
           <p class="unsaved-note small">
-            Auf diesem Gerät liegen {counts.games} Partien
-            {counts.analysed ? `, ${counts.analysed} davon analysiert` : ""}, bisher ohne Sicherung.
+            
+            {t("Auf diesem Gerät liegen")} {counts.games}  {t("Partien")}
+            {counts.analysed ? t(", {analysed} davon analysiert", { analysed: counts.analysed }) : ""}{t(", bisher ohne Sicherung.")}
           </p>
         )}
         <BenefitList />
@@ -522,8 +536,8 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
             <div class="segmented full" role="tablist" style={{ marginBottom: "14px" }}>
               {(
                 [
-                  ["login", "Anmelden"],
-                  ["register", "Konto erstellen"],
+                  ["login", t("Anmelden")],
+                  ["register", t("Konto erstellen")],
                 ] as const
               ).map(([m, label]) => (
                 <button
@@ -541,15 +555,15 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
               ))}
             </div>
             <form class="account-form" onSubmit={submit}>
-              {mode === "forgot" && <p style={{ marginTop: 0 }}>Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.</p>}
+              {mode === "forgot" && <p style={{ marginTop: 0 }}>{t("Wir schicken dir einen Link, mit dem du ein neues Passwort festlegst.")}</p>}
               {mode === "link" && (
                 <p style={{ marginTop: 0 }}>
-                  Kein Passwort nötig: Wir schicken dir einen Link, ein Klick und du bist angemeldet. Gibt es noch kein
-                  Konto, entsteht es dabei.
+                  
+                  {t("Kein Passwort nötig: Wir schicken dir einen Link, ein Klick und du bist angemeldet. Gibt es noch kein Konto, entsteht es dabei.")}
                 </p>
               )}
               <label class="field">
-                <span>E-Mail</span>
+                <span>{t("E-Mail")}</span>
                 <input type="email" autocomplete="email" inputMode="email" value={email} onInput={(e) => setEmail(e.currentTarget.value)} />
               </label>
               {needsPw && (
@@ -561,33 +575,36 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
               )}
               {mode === "register" && (
                 <p class={`small ${pwIssue ? "error" : "faint"}`} style={{ marginTop: 0 }}>
-                  {pwIssue ?? `Mindestens ${MIN_PASSWORD} Zeichen, mit einer Zahl oder einem Sonderzeichen.`}
+                  {pwIssue ?? t("Mindestens {MIN_PASSWORD} Zeichen, mit einer Zahl oder einem Sonderzeichen.", { MIN_PASSWORD })}
                 </p>
               )}
               <button class="btn primary block" type="submit" disabled={busy || !canSubmit}>
                 {busy
-                  ? "Einen Moment …"
+                  ? t("Einen Moment …")
                   : mode === "login"
-                    ? "Anmelden"
+                    ? t("Anmelden")
                     : mode === "register"
-                      ? "Kostenlos registrieren"
+                      ? t("Kostenlos registrieren")
                       : mode === "link"
-                        ? "Anmeldelink senden"
-                        : "Link senden"}
+                        ? t("Anmeldelink senden")
+                        : t("Link senden")}
               </button>
               <div class="row account-alt" style={{ justifyContent: "space-between", marginTop: "10px", flexWrap: "wrap", gap: "6px" }}>
                 {mode === "forgot" || mode === "link" ? (
                   <button type="button" class="link-btn" onClick={() => setMode("login")}>
-                    Mit Passwort anmelden
+                    
+                    {t("Mit Passwort anmelden")}
                   </button>
                 ) : (
                   <>
                     <button type="button" class="link-btn" onClick={() => setMode("link")}>
-                      Ohne Passwort, per Link
+                      
+                      {t("Ohne Passwort, per Link")}
                     </button>
                     {mode === "login" && (
                       <button type="button" class="link-btn" onClick={() => setMode("forgot")}>
-                        Passwort vergessen?
+                        
+                        {t("Passwort vergessen?")}
                       </button>
                     )}
                   </>
@@ -595,7 +612,8 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
               </div>
               {mode === "register" && (
                 <p class="faint small" style={{ marginBottom: 0 }}>
-                  Wie wir mit deinen Daten umgehen, steht in der <a href="#/rechtliches/datenschutz">Datenschutzerklärung</a>.
+                  
+                  {t("Wie wir mit deinen Daten umgehen, steht in der")} <a href="#/rechtliches/datenschutz">{t("Datenschutzerklärung")}</a>.
                 </p>
               )}
             </form>
@@ -607,7 +625,8 @@ function SignedOut({ initialMode, notice }: { initialMode: Mode; notice: Msg }) 
                     .catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : String(e), error: true }))
                 }
               >
-                Bestätigungsmail erneut senden
+                
+                {t("Bestätigungsmail erneut senden")}
               </button>
             )}
           </>
@@ -631,7 +650,7 @@ export function AccountView() {
   const notice: Msg = callback?.error
     ? { text: callback.error, error: true }
     : callback?.type === "signup"
-      ? { text: "E-Mail bestätigt. Du kannst dich jetzt anmelden." }
+      ? { text: t("E-Mail bestätigt. Du kannst dich jetzt anmelden.") }
       : null;
 
   if (!syncAvailable()) {
@@ -640,8 +659,8 @@ export function AccountView() {
         <PageHeader />
         <div class="empty">
           <CoachAvatar size={88} mood="think" />
-          <h3>Kein Sync-Server hinterlegt</h3>
-          <p>Diese Version läuft rein lokal. Deine Partien und Analysen bleiben auf diesem Gerät.</p>
+          <h3>{t("Kein Sync-Server hinterlegt")}</h3>
+          <p>{t("Diese Version läuft rein lokal. Deine Partien und Analysen bleiben auf diesem Gerät.")}</p>
         </div>
       </div>
     );

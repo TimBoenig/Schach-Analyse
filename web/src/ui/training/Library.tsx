@@ -26,17 +26,18 @@ import { SplitBar, Stat } from "../viz/Bars";
 import { OpeningPick } from "./OpeningPick";
 import { pct, plural, type StartSession, StateTag } from "./shared";
 import type { TrainingState } from "./useTraining";
+import { t } from "../../i18n";
 
 // Single exercises listed before "show all": enough to see what is in an area.
 const ROWS = 8;
 
 const fillParts = (c: { fresh: number; learning: number; mastered: number }) => [
-  { key: "mastered", label: "Sicher", value: c.mastered, color: "var(--win)" },
-  { key: "learning", label: "Im Aufbau", value: c.learning, color: "var(--accent)" },
-  { key: "fresh", label: "Neu", value: c.fresh, color: "var(--surface-3)" },
+  { key: "mastered", label: t("Sicher"), value: c.mastered, color: "var(--win)" },
+  { key: "learning", label: t("Im Aufbau"), value: c.learning, color: "var(--accent)" },
+  { key: "fresh", label: t("Neu"), value: c.fresh, color: "var(--surface-3)" },
 ];
 
-const PHASE_DE: Record<string, string> = { opening: "in der Eröffnung", middlegame: "im Mittelspiel", endgame: "im Endspiel" };
+const PHASE_DE: Record<string, string> = { opening: t("in der Eröffnung"), middlegame: t("im Mittelspiel"), endgame: t("im Endspiel") };
 
 /** One line under an exercise: when it happened and what kind of error it was. */
 function sourceLine(e: Exercise): string {
@@ -46,7 +47,7 @@ function sourceLine(e: Exercise): string {
     const date = e.date ? e.date.split(/[.-]/).reverse().join(".") : "";
     return [date, kind && `${kind} ${PHASE_DE[e.phase] ?? ""}`.trim()].filter(Boolean).join(" · ");
   }
-  if (e.kind === "playout") return e.goal === "hold" ? "Gegen die Engine halten" : "Gegen die Engine zu Ende spielen";
+  if (e.kind === "playout") return e.goal === "hold" ? t("Gegen die Engine halten") : t("Gegen die Engine zu Ende spielen");
   return "";
 }
 
@@ -55,16 +56,16 @@ function Summary({ t: tk, rows, start }: { t: TrainingState; rows: CategoryOverv
   const due = dueExercises(tk.pool, tk.progress, tk.today);
   return (
     <section class="card span-12 tx-sum">
-      <Stat label="Übungen" value={<CountUp value={totals.total} />} sub="aus deinen Partien, deinen Eröffnungen und den Grundlagen">
+      <Stat label={t("Übungen")} value={<CountUp value={totals.total} />} sub={t("aus deinen Partien, deinen Eröffnungen und den Grundlagen")}>
         <SplitBar parts={fillParts(totals)} height={8} />
       </Stat>
-      <Stat label="Neu" value={<CountUp value={totals.fresh} />} sub="noch nie versucht" />
-      <Stat label="Im Aufbau" value={<CountUp value={totals.learning} />} sub="versucht, noch nicht sicher" />
-      <Stat label="Sicher" value={<CountUp value={totals.mastered} />} sub="dreimal in Folge auf Anhieb" tone={totals.mastered ? "good" : undefined} />
-      <Stat label="Heute fällig" value={<CountUp value={due.length} />} sub={due.length ? "Wiederholungen, die älteste zuerst" : "nichts offen"}>
+      <Stat label={t("Neu")} value={<CountUp value={totals.fresh} />} sub={t("noch nie versucht")} />
+      <Stat label={t("Im Aufbau")} value={<CountUp value={totals.learning} />} sub={t("versucht, noch nicht sicher")} />
+      <Stat label={t("Sicher")} value={<CountUp value={totals.mastered} />} sub={t("dreimal in Folge auf Anhieb")} tone={totals.mastered ? "good" : undefined} />
+      <Stat label={t("Heute fällig")} value={<CountUp value={due.length} />} sub={due.length ? t("Wiederholungen, die älteste zuerst") : "nichts offen"}>
         {due.length > 0 && (
-          <button class="btn small primary" onClick={() => start({ title: "Fällige Wiederholungen", ids: due.slice(0, SESSION_SIZE) })}>
-            <IconPlay /> {due.length > SESSION_SIZE ? `${SESSION_SIZE} wiederholen` : "Wiederholen"}
+          <button class="btn small primary" onClick={() => start({ title: t("Fällige Wiederholungen"), ids: due.slice(0, SESSION_SIZE) })}>
+            <IconPlay /> {due.length > SESSION_SIZE ? `${SESSION_SIZE} wiederholen` : t("Wiederholen")}
           </button>
         )}
       </Stat>
@@ -75,7 +76,7 @@ function Summary({ t: tk, rows, start }: { t: TrainingState; rows: CategoryOverv
 function AreaList({ rows, selected, onSelect }: { rows: CategoryOverview[]; selected: Category; onSelect: (c: Category) => void }) {
   const by = new Map(rows.map((r) => [r.category, r]));
   return (
-    <nav class="card span-4 tx-areas" aria-label="Bereiche">
+    <nav class="card span-4 tx-areas" aria-label={t("Bereiche")}>
       {LIBRARY_GROUPS.map((g) => (
         <div key={g.key} class="tx-group">
           <span class="eyebrow">{g.label}</span>
@@ -85,7 +86,7 @@ function AreaList({ rows, selected, onSelect }: { rows: CategoryOverview[]; sele
               <button key={c} class={`tx-area${selected === c ? " on" : ""}${r.total ? "" : " empty"}`} aria-current={selected === c ? "true" : undefined} onClick={() => onSelect(c)}>
                 <span class="tx-area-name">
                   <strong>{CATEGORIES[c].label}</strong>
-                  {r.due > 0 && <span class="tx-due tnum">{r.due} fällig</span>}
+                  {r.due > 0 && <span class="tx-due tnum">{r.due}  {t("fällig")}</span>}
                 </span>
                 <span class="tx-area-n tnum">{r.total}</span>
                 <span class="tx-area-bar">
@@ -119,12 +120,12 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
           <h3>{info.label}</h3>
           <p class="card-sub">
             {info.text}
-            {c !== "basics" && playouts > 0 ? ` Davon ${plural(playouts, "Stellung", "Stellungen")} zum Ausspielen gegen die Engine.` : ""}
+            {c !== "basics" && playouts > 0 ? t(" Davon {plural} zum Ausspielen gegen die Engine.", { plural: plural(playouts, t("Stellung"), t("Stellungen")) }) : ""}
           </p>
         </div>
         {row.rate !== null && (
-          <span class="card-tag tnum" title={`${row.solved} von ${row.attempts} Versuchen auf Anhieb gelöst`}>
-            {pct(row.rate)} auf Anhieb
+          <span class="card-tag tnum" title={t("{solved} von {attempts} Versuchen auf Anhieb gelöst", { solved: row.solved, attempts: row.attempts })}>
+            {pct(row.rate)}  {t("auf Anhieb")}
           </span>
         )}
       </header>
@@ -132,7 +133,7 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
       {c === "repertoire" ? (
         <OpeningPick t={tk} start={start} />
       ) : row.total === 0 ? (
-        <p class="tn-none">Noch keine passenden Stellungen. Sie kommen dazu, sobald mehr Partien analysiert sind.</p>
+        <p class="tn-none">{t("Noch keine passenden Stellungen. Sie kommen dazu, sobald mehr Partien analysiert sind.")}</p>
       ) : (
         <>
           <div class="tx-go">
@@ -143,7 +144,7 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
                   <i style={{ background: "var(--win)" }} /> {row.mastered} sicher
                 </span>
                 <span>
-                  <i style={{ background: "var(--accent)" }} /> {row.learning} im Aufbau
+                  <i style={{ background: "var(--accent)" }} /> {row.learning}  {t("im Aufbau")}
                 </span>
                 <span>
                   <i style={{ background: "var(--surface-3)" }} /> {row.fresh} neu
@@ -151,12 +152,12 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
               </span>
             </div>
             <button class="btn primary big" onClick={() => start({ title: info.label, ids: set })}>
-              <IconPlay /> {c === "basics" ? "Alle der Reihe nach" : `${plural(set.length, "Aufgabe", "Aufgaben")} üben`}
-              <small class="tnum">ca. {estimateMinutes(set, tk.byId)} Min</small>
+              <IconPlay /> {c === "basics" ? t("Alle der Reihe nach") : t("{plural} üben", { plural: plural(set.length, t("Aufgabe"), t("Aufgaben")) })}
+              <small class="tnum">ca. {estimateMinutes(set, tk.byId)}  {t("Min")}</small>
             </button>
           </div>
           <div class="tx-list">
-            <span class="eyebrow">{c === "basics" ? "Lehrstellungen" : row.due ? "Als Nächstes dran: fällige zuerst, dann neue" : "Als Nächstes dran"}</span>
+            <span class="eyebrow">{c === "basics" ? t("Lehrstellungen") : row.due ? t("Als Nächstes dran: fällige zuerst, dann neue") : t("Als Nächstes dran")}</span>
             {shown.map((e) => {
               const line = sourceLine(e);
               return (
@@ -172,16 +173,16 @@ function AreaDetail({ t: tk, row, start }: { t: TrainingState; row: CategoryOver
             })}
             {order.length > ROWS && (
               <button class="btn small ghost tx-more" onClick={() => setAll(!all)}>
-                {all ? "Weniger zeigen" : `Alle ${order.length} zeigen`}
+                {all ? t("Weniger zeigen") : t("Alle {length} zeigen", { length: order.length })}
               </button>
             )}
           </div>
         </>
       )}
       {c !== "repertoire" && row.total > 0 && (
-        <Foot label="Wann gilt eine Übung als sicher?">
-          Wenn du sie dreimal hintereinander auf Anhieb gelöst hast. Danach kommt sie nur noch in großen Abständen wieder (nach 1, 3, 7, 14 und 30 Tagen). Ein Fehler setzt sie zurück
-          auf morgen.
+        <Foot label={t("Wann gilt eine Übung als sicher?")}>
+          
+          {t("Wenn du sie dreimal hintereinander auf Anhieb gelöst hast. Danach kommt sie nur noch in großen Abständen wieder (nach 1, 3, 7, 14 und 30 Tagen). Ein Fehler setzt sie zurück auf morgen.")}
         </Foot>
       )}
     </section>

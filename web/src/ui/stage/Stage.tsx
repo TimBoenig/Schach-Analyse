@@ -10,6 +10,7 @@ import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
 import { IconBack, IconClose } from "../icons";
 import { isTyping } from "../keys";
 import { useNarrow } from "../useNarrow";
+import { t } from "../../i18n";
 
 const reducedMotion = () => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 
@@ -93,7 +94,7 @@ export function Stage({
   onBack,
   onNext,
   onClose,
-  closeLabel = "Überspringen",
+  closeLabel = t("Überspringen"),
   stepKey,
 }: StageProps) {
   const narrow = useNarrow();
@@ -155,7 +156,7 @@ export function Stage({
           <span>{BRAND}</span>
         </div>
         {steps !== undefined && steps > 1 && (
-          <ol class="stage-progress" aria-label={`Schritt ${step + 1} von ${steps}`}>
+          <ol class="stage-progress" aria-label={t("Schritt {0} von {steps}", { 0: step + 1, steps })}>
             {Array.from({ length: steps }, (_, i) => (
               <li key={i} data-state={i < step ? "done" : i === step ? "on" : "todo"} />
             ))}
@@ -190,7 +191,8 @@ export function Stage({
         {onBack ? (
           <button class="stage-back" onClick={onBack}>
             <IconBack />
-            Zurück
+            
+            {t("Zurück")}
           </button>
         ) : (
           <span />

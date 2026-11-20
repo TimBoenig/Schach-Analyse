@@ -20,6 +20,7 @@ import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { type InsightsSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
+import { t } from "../i18n";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
 // for conclusions (the same limits the findings use).
@@ -36,7 +37,7 @@ function scoreColumns(buckets: (ScoreBucket | ScoreStat)[]): Column[] {
     label: b.label.split(" (")[0],
     value: b.games ? b.score_pct : null,
     valueText: b.score_pct !== null && b.games ? `${Math.round(b.score_pct)} %` : undefined,
-    sub: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)}`,
+    sub: `${plural(b.games, t("Partie"), t("Partien"))}${pm(b.margin)}`,
     faint: b.games < MIN_GAMES,
   }));
 }
@@ -50,7 +51,7 @@ function scoreRows(buckets: (ScoreBucket | ScoreStat)[], overall: number): BarRo
       value: b.score_pct,
       reference: overall,
       valueText: b.score_pct !== null ? `${Math.round(b.score_pct)} %` : "–",
-      note: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)}`,
+      note: `${plural(b.games, t("Partie"), t("Partien"))}${pm(b.margin)}`,
       faint: b.games < MIN_GAMES,
     }));
 }
@@ -63,7 +64,7 @@ function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
     value: tk.score_pct,
     reference: overall,
     valueText: tk.score_pct !== null ? `${Math.round(tk.score_pct)} %` : "–",
-    note: `${plural(tk.games, "Partie", "Partien")}${pm(tk.margin)}${tk.accuracy !== null ? ` · Genauigkeit ${Math.round(tk.accuracy)} %` : ""}${tk.description ? ` · ${tk.description}` : ""}`,
+    note: `${plural(tk.games, t("Partie"), t("Partien"))}${pm(tk.margin)}${tk.accuracy !== null ? t(" · Genauigkeit {0} %", { 0: Math.round(tk.accuracy) }) : ""}${tk.description ? ` · ${tk.description}` : ""}`,
     faint: tk.games < MIN_GAMES,
   }));
 }
@@ -75,7 +76,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
   const evo = d.evolution;
   const points = evo.blocks
     .filter((b) => b.accuracy !== null)
-    .map((b) => ({ label: b.label.split("–")[0], value: b.accuracy as number, detail: `${b.label} · ${plural(b.games, "Partie", "Partien")}` }));
+    .map((b) => ({ label: b.label.split("–")[0], value: b.accuracy as number, detail: `${b.label} · ${plural(b.games, t("Partie"), t("Partien"))}` }));
   const phaseRow = (label: string, pick: (b: (typeof evo.blocks)[number]) => number | null) => (
     <tr>
       <th>{label}</th>
@@ -93,7 +94,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
   );
   return (
     <>
-      <Tile title="Deine Entwicklung" sub={evo.blocks.length ? `Genauigkeit in ${evo.blocks.length} Abschnitten deiner Partien` : undefined} span={8}>
+      <Tile title={t("Deine Entwicklung")} sub={evo.blocks.length ? t("Genauigkeit in {length} Abschnitten deiner Partien", { length: evo.blocks.length }) : undefined} span={8}>
         {points.length >= 2 ? (
           <>
             <AreaChart points={points} format={(v) => `${Math.round(v)} %`} height={200} />
@@ -101,7 +102,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
               <table class="evo-table">
                 <thead>
                   <tr>
-                    <th>Schwere Fehler je 100 Züge</th>
+                    <th>{t("Schwere Fehler je 100 Züge")}</th>
                     {evo.blocks.map((b, i) => (
                       <th key={i} class="tnum">
                         {b.label.split("–")[0]}
@@ -110,18 +111,18 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {phaseRow("Eröffnung", (b) => b.opening_errors)}
-                  {phaseRow("Mittelspiel", (b) => b.middlegame_errors)}
-                  {phaseRow("Endspiel", (b) => b.endgame_errors)}
+                  {phaseRow(t("Eröffnung"), (b) => b.opening_errors)}
+                  {phaseRow(t("Mittelspiel"), (b) => b.middlegame_errors)}
+                  {phaseRow(t("Endspiel"), (b) => b.endgame_errors)}
                 </tbody>
               </table>
             </div>
           </>
         ) : (
-          <p class="muted small">Ab etwa zehn analysierten Partien siehst du hier, wie sich dein Spiel entwickelt.</p>
+          <p class="muted small">{t("Ab etwa zehn analysierten Partien siehst du hier, wie sich dein Spiel entwickelt.")}</p>
         )}
       </Tile>
-      <Tile title="Was sich verändert hat" sub={evo.half ? `letzte ${evo.half} gegen die ${evo.half} davor` : undefined} span={4}>
+      <Tile title={t("Was sich verändert hat")} sub={evo.half ? t("letzte {half} gegen die {half2} davor", { half: evo.half, half2: evo.half }) : undefined} span={4}>
         {evo.changes.length ? (
           <ul class="change-list">
             {evo.changes.map((c) => (
@@ -135,14 +136,14 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
                     {fmtChange(c.earlier, c.unit)} → {fmtChange(c.recent, c.unit)}
                   </span>
                 </span>
-                <span class="change-tag small">{c.significant ? (c.improved ? "besser" : "schlechter") : "im Rauschen"}</span>
+                <span class="change-tag small">{c.significant ? (c.improved ? "besser" : "schlechter") : t("im Rauschen")}</span>
               </li>
             ))}
           </ul>
         ) : (
-          <p class="muted small">Für einen belastbaren Vorher-nachher-Vergleich braucht es mindestens zehn analysierte Partien.</p>
+          <p class="muted small">{t("Für einen belastbaren Vorher-nachher-Vergleich braucht es mindestens zehn analysierte Partien.")}</p>
         )}
-        <Foot>„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.</Foot>
+        <Foot>{t("„Besser“ oder „schlechter“ steht nur da, wo der Unterschied größer ist als normale Schwankung.")}</Foot>
       </Tile>
 
     </>
@@ -158,11 +159,11 @@ function precisionTiles(p: PrecisionStats, overall: number) {
       value: b.score_pct,
       reference: b.expected_pct,
       valueText: b.score_pct !== null ? `${Math.round(b.score_pct)} %` : "–",
-      note: `${plural(b.games, "Partie", "Partien")}${pm(b.margin)} · erwartet ${b.expected_pct !== null ? Math.round(b.expected_pct) : "–"} %${b.avg_diff !== null ? ` · Ø ${b.avg_diff > 0 ? "+" : ""}${b.avg_diff} Elo` : ""}`,
+      note: t("{plural}{pm} · erwartet {2} %{3}", { plural: plural(b.games, t("Partie"), t("Partien")), pm: pm(b.margin), 2: b.expected_pct !== null ? Math.round(b.expected_pct) : "–", 3: b.avg_diff !== null ? t(" · Ø {0}{avg_diff} Elo", { 0: b.avg_diff > 0 ? "+" : "", avg_diff: b.avg_diff }) : "" }),
       color: b.score_pct !== null && b.expected_pct !== null ? (b.score_pct >= b.expected_pct ? "var(--win)" : "var(--loss)") : undefined,
       faint: b.games < MIN_GAMES,
     }));
-  const curve = p.curve.map((c) => ({ label: String(c.move), value: c.avg_wp, detail: `Zug ${c.move} · ${plural(c.games, "Partie", "Partien")}` }));
+  const curve = p.curve.map((c) => ({ label: String(c.move), value: c.avg_wp, detail: t("Zug {move} · {plural}", { move: c.move, plural: plural(c.games, t("Partie"), t("Partien")) }) }));
   const s = p.spread;
   const tk = p.turnarounds;
   const resultRows: BarRow[] = s.by_result
@@ -171,90 +172,92 @@ function precisionTiles(p: PrecisionStats, overall: number) {
       label: r.label,
       value: r.accuracy,
       valueText: r.accuracy !== null ? `${r.accuracy.toFixed(1).replace(".", ",")} %` : "–",
-      note: plural(r.games, "Partie", "Partien"),
+      note: plural(r.games, t("Partie"), t("Partien")),
       color: r.key === "win" ? "var(--win)" : r.key === "loss" ? "var(--loss)" : "var(--draw)",
       faint: r.games < MIN_GAMES,
     }));
   return {
     expectation: (
       <Tile
-        title="Gegen die Erwartung"
-        sub={p.vs_expectation !== null ? `${signed(p.vs_expectation)} Prozentpunkte gegenüber der Elo-Erwartung` : "braucht Wertungen"}
+        title={t("Gegen die Erwartung")}
+        sub={p.vs_expectation !== null ? t("{signed} Prozentpunkte gegenüber der Elo-Erwartung", { signed: signed(p.vs_expectation) }) : t("braucht Wertungen")}
         span={6}
       >
         {ratingRows.length ? (
           <>
-            <BarList rows={ratingRows} referenceLabel="Elo-Erwartung" />
+            <BarList rows={ratingRows} referenceLabel={t("Elo-Erwartung")} />
             <Foot>
-              Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus {plural(p.rated_games, "Partie", "Partien")} mit beiden Wertungen.
+              
+              {t("Grün: mehr Punkte, als die Wertungsdifferenz erwarten lässt. Aus")} {plural(p.rated_games, t("Partie"), t("Partien"))}  {t("mit beiden Wertungen.")}
             </Foot>
           </>
         ) : (
-          <p class="muted small">Deine Partien enthalten keine Wertungen beider Spieler.</p>
+          <p class="muted small">{t("Deine Partien enthalten keine Wertungen beider Spieler.")}</p>
         )}
       </Tile>
     ),
     curve: (
-      <Tile title="Wo deine Partien kippen" sub="Ø Gewinnchance nach Zug" span={6}>
-        <AreaChart points={curve} format={(v) => `${Math.round(v)} %`} domain={[0, 100]} reference={{ value: 50, label: "Ausgeglichen" }} />
-        <Foot>Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.</Foot>
+      <Tile title={t("Wo deine Partien kippen")} sub={t("Ø Gewinnchance nach Zug")} span={6}>
+        <AreaChart points={curve} format={(v) => `${Math.round(v)} %`} domain={[0, 100]} reference={{ value: 50, label: t("Ausgeglichen") }} />
+        <Foot>{t("Mittelwert über alle noch laufenden Partien, aus deiner Sicht. Fällt die Kurve, verlierst du in dieser Phase Boden.")}</Foot>
       </Tile>
     ),
     consistency: (
-      <Tile title="Konstanz" sub={s.stdev !== null ? `Streuung ±${s.stdev.toFixed(1).replace(".", ",")} Punkte` : undefined} span={6}>
+      <Tile title={t("Konstanz")} sub={s.stdev !== null ? t("Streuung ±{0} Punkte", { 0: s.stdev.toFixed(1).replace(".", ",") }) : undefined} span={6}>
         <ColumnChart columns={s.histogram.map((h) => ({ label: h.label, value: h.games }))} format={(v) => String(v)} height={150} />
         {s.median !== null && (
           <p class="small tile-foot">
-            Median <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>, die mittlere Hälfte deiner Partien liegt zwischen{" "}
+            
+            {t("Median")} <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>{t(", die mittlere Hälfte deiner Partien liegt zwischen")}{" "}
             {(s.p25 ?? 0).toFixed(0)} und {(s.p75 ?? 0).toFixed(0)} %.
           </p>
         )}
       </Tile>
     ),
     byResult: (
-      <Tile title="Genauigkeit nach Ergebnis" sub="Durchschnitt" span={6}>
+      <Tile title={t("Genauigkeit nach Ergebnis")} sub={t("Durchschnitt")} span={6}>
         <BarList rows={resultRows} />
-        <Foot>Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.</Foot>
+        <Foot>{t("Ein kleiner Abstand zwischen Sieg und Niederlage heißt: Einzelne Patzer entscheiden deine Partien.")}</Foot>
       </Tile>
     ),
     turnarounds: (
-      <Tile title="Wendepunkte" sub="ab 75 % Gewinnchance" span={6}>
+      <Tile title={t("Wendepunkte")} sub={t("ab 75 % Gewinnchance")} span={6}>
         {tk.winning > 0 && (
           <>
-            <h4>Aus {plural(tk.winning, "gewonnener Stellung", "gewonnenen Stellungen")}</h4>
+            <h4>{t("Aus")} {plural(tk.winning, t("gewonnener Stellung"), t("gewonnenen Stellungen"))}</h4>
             <StackBar
               segments={[
-                { label: "Gewonnen", value: tk.converted, color: "var(--win)" },
-                { label: "Remis", value: tk.drawn_from_winning, color: "var(--draw)" },
-                { label: "Verloren", value: tk.lost_from_winning, color: "var(--loss)" },
+                { label: t("Gewonnen"), value: tk.converted, color: "var(--win)" },
+                { label: t("Remis"), value: tk.drawn_from_winning, color: "var(--draw)" },
+                { label: t("Verloren"), value: tk.lost_from_winning, color: "var(--loss)" },
               ]}
             />
           </>
         )}
         {tk.losing > 0 && (
           <>
-            <h4>Aus {plural(tk.losing, "verlorener Stellung", "verlorenen Stellungen")}</h4>
+            <h4>{t("Aus")} {plural(tk.losing, t("verlorener Stellung"), t("verlorenen Stellungen"))}</h4>
             <StackBar
               segments={[
-                { label: "Noch gewonnen", value: tk.won_from_losing, color: "var(--win)" },
-                { label: "Gerettet (Remis)", value: tk.saved - tk.won_from_losing, color: "var(--draw)" },
-                { label: "Verloren", value: tk.losing - tk.saved, color: "var(--loss)" },
+                { label: t("Noch gewonnen"), value: tk.won_from_losing, color: "var(--win)" },
+                { label: t("Gerettet (Remis)"), value: tk.saved - tk.won_from_losing, color: "var(--draw)" },
+                { label: t("Verloren"), value: tk.losing - tk.saved, color: "var(--loss)" },
               ]}
             />
           </>
         )}
-        {!tk.winning && !tk.losing && <p class="muted small">Noch keine klar entschiedenen Stellungen.</p>}
+        {!tk.winning && !tk.losing && <p class="muted small">{t("Noch keine klar entschiedenen Stellungen.")}</p>}
       </Tile>
     ),
     length: (
-      <Tile title="Nach Partielänge" sub="Punkte-Quote" span={4}>
-        <BarList rows={scoreRows(p.by_length, overall)} referenceLabel="Dein Schnitt" />
+      <Tile title={t("Nach Partielänge")} sub={t("Punkte-Quote")} span={4}>
+        <BarList rows={scoreRows(p.by_length, overall)} referenceLabel={t("Dein Schnitt")} />
       </Tile>
     ),
     color: (
-      <Tile title="Nach Farbe" sub="Punkte-Quote" span={4}>
-        <BarList rows={scoreRows(p.by_color, overall)} referenceLabel="Dein Schnitt" />
-        <Foot>± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.</Foot>
+      <Tile title={t("Nach Farbe")} sub={t("Punkte-Quote")} span={4}>
+        <BarList rows={scoreRows(p.by_color, overall)} referenceLabel={t("Dein Schnitt")} />
+        <Foot>{t("± ist der 95-%-Bereich: So weit kann die Quote allein durch Zufall schwanken. Mehr Partien machen ihn kleiner.")}</Foot>
       </Tile>
     ),
   };
@@ -269,8 +272,8 @@ function errorRows(buckets: MoveBucket[]): BarRow[] {
     .map((b) => ({
       label: b.label,
       value: b.per100,
-      valueText: b.per100 !== null ? `${de1(b.per100)} je 100` : "–",
-      note: `${plural(b.errors, "Fehler", "Fehler")} in ${plural(b.moves, "Zug", "Zügen")}`,
+      valueText: b.per100 !== null ? t("{de1} je 100", { de1: de1(b.per100) }) : "–",
+      note: `${plural(b.errors, t("Fehler"), t("Fehler"))} in ${plural(b.moves, t("Zug"), t("Zügen"))}`,
       faint: b.moves < MIN_MOVES,
     }));
 }
@@ -299,7 +302,7 @@ export function InsightsView() {
     return (
       <div>
         <PageHeader />
-        <NeedNames what="zeige ich dir hier Muster aus deinen Partien." />
+        <NeedNames what={t("zeige ich dir hier Muster aus deinen Partien.")} />
       </div>
     );
   }
@@ -332,11 +335,12 @@ export function InsightsView() {
         <div class="empty">
           <p>
             {profile && profile.total_games
-              ? "Analysiere zuerst ein paar Partien, dann zeigt dir diese Seite, wann, wo und womit du Punkte verlierst."
-              : `Keine Partien gefunden${filtersActive(filters) ? " (mit diesen Filtern)" : ""}.`}
+              ? t("Analysiere zuerst ein paar Partien, dann zeigt dir diese Seite, wann, wo und womit du Punkte verlierst.")
+              : t("Keine Partien gefunden{0}.", { 0: filtersActive(filters) ? t(" (mit diesen Filtern)") : "" })}
           </p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
-            Zu den Partien
+            
+            {t("Zu den Partien")}
           </button>
         </div>
       </div>
@@ -347,7 +351,7 @@ export function InsightsView() {
   const o = profile.overview;
   const rc = profile.rating;
   const expDiff = rc && rc.expected_score !== null ? rc.score - rc.expected_score : null;
-  const scoreRef = { value: overall, label: `Dein Schnitt ${Math.round(overall)} %` };
+  const scoreRef = { value: overall, label: t("Dein Schnitt {0} %", { 0: Math.round(overall) }) };
   const afterRows: BarRow[] = d.after_result
     .filter((b) => b.games > 0)
     .map((b) => ({
@@ -355,7 +359,7 @@ export function InsightsView() {
       value: b.score_pct,
       reference: overall,
       valueText: b.score_pct !== null ? `${Math.round(b.score_pct)} %` : "–",
-      note: `${plural(b.games, "Partie", "Partien")}${b.avg_accuracy ? ` · Genauigkeit ${Math.round(b.avg_accuracy)} %` : ""}`,
+      note: `${plural(b.games, t("Partie"), t("Partien"))}${b.avg_accuracy ? t(" · Genauigkeit {0} %", { 0: Math.round(b.avg_accuracy) }) : ""}`,
       faint: b.games < MIN_GAMES,
     }));
   const timed = d.by_daytime.reduce((s, b) => s + b.games, 0);
@@ -363,7 +367,7 @@ export function InsightsView() {
     label: b.label,
     value: b.per100,
     valueText: b.per100 !== null ? de1(b.per100) : undefined,
-    sub: plural(b.moves, "Zug", "Züge"),
+    sub: plural(b.moves, t("Zug"), t("Züge")),
     faint: b.moves < MIN_MOVES,
   }));
   const clocked = d.by_think_time.some((b) => b.moves > 0);
@@ -375,7 +379,7 @@ export function InsightsView() {
   // Seven weekdays as columns leave no room for "32 Partien · ±16" under each
   // on a phone; there the same buckets are rows with the note beside them.
   const scoreChart = (buckets: (ScoreBucket | ScoreStat)[]) =>
-    narrow ? <BarList rows={scoreRows(buckets, overall)} referenceLabel="Dein Schnitt" /> : <ColumnChart columns={scoreColumns(buckets)} max={100} reference={scoreRef} />;
+    narrow ? <BarList rows={scoreRows(buckets, overall)} referenceLabel={t("Dein Schnitt")} /> : <ColumnChart columns={scoreColumns(buckets)} max={100} reference={scoreRef} />;
 
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
@@ -384,25 +388,26 @@ export function InsightsView() {
       <div class="dash">
         <SectionHead section={sec("blick")} quiet />
         <Hero
-          kicker={`Ergebnisse · ${plural(o.games, "Partie", "Partien")}`}
+          kicker={t("Ergebnisse · {plural}", { plural: plural(o.games, t("Partie"), t("Partien")) })}
           title={
             <>
-              Du holst <CountUp value={overall} format={(v) => `${Math.round(v)}\u00a0%`} /> der Punkte
+              
+              {t("Du holst")} <CountUp value={overall} format={(v) => `${Math.round(v)}\u00a0%`} />  {t("der Punkte")}
             </>
           }
           sub={
             <>
               {balanceText(o.wins, o.draws, o.losses)}
               {expDiff !== null && Math.abs(expDiff) >= 0.5
-                ? ` · ${de1(Math.abs(expDiff))} Punkte ${expDiff > 0 ? "mehr" : "weniger"}, als deine Wertung erwarten lässt`
+                ? t(" · {de1} Punkte {1}, als deine Wertung erwarten lässt", { de1: de1(Math.abs(expDiff)), 1: expDiff > 0 ? "mehr" : "weniger" })
                 : expDiff !== null
-                  ? " · genau so viele Punkte, wie deine Wertung erwarten lässt"
+                  ? t(" · genau so viele Punkte, wie deine Wertung erwarten lässt")
                   : ""}
             </>
           }
           aside={
             rc?.performance ? (
-              <HeroStat big={<CountUp value={rc.performance} />} label="Performance" sub={`so stark waren deine Ergebnisse · Wertung ${rc.rating}`} />
+              <HeroStat big={<CountUp value={rc.performance} />} label={t("Performance")} sub={t("so stark waren deine Ergebnisse · Wertung {rating}", { rating: rc.rating })} />
             ) : undefined
           }
         >
@@ -413,9 +418,9 @@ export function InsightsView() {
           <section class="card tile span-12 feedback-card">
             <div class="tile-head">
               <h3>
-                <IconSpark /> Dein persönliches Feedback
+                <IconSpark />  {t("Dein persönliches Feedback")}
               </h3>
-              <span class="tile-sub">aus deinen eigenen Partien berechnet</span>
+              <span class="tile-sub">{t("aus deinen eigenen Partien berechnet")}</span>
             </div>
             <ul class="feedback-list">
               {d.feedback.map((f) => (
@@ -429,11 +434,12 @@ export function InsightsView() {
 
         <section class="card tile span-12 facts-card">
           <div class="tile-head">
-            <h3>Das Wichtigste auf einen Blick</h3>
-            <span class="tile-sub">aus {plural(profile.analyzed_games, "analysierten Partie", "analysierten Partien")}</span>
+            <h3>{t("Das Wichtigste auf einen Blick")}</h3>
+            <span class="tile-sub">aus {plural(profile.analyzed_games, t("analysierten Partie"), t("analysierten Partien"))}</span>
             <span class="spacer" />
             <button class="btn small" onClick={() => navigate({ view: "training" })}>
-              Zum Trainingsplan
+              
+              {t("Zum Trainingsplan")}
             </button>
           </div>
           {d.facts.length ? (
@@ -444,8 +450,8 @@ export function InsightsView() {
             </ol>
           ) : (
             <p class="muted small" style={{ margin: 0 }}>
-              Noch keine deutlichen Auffälligkeiten. Mit mehr analysierten Partien (ab etwa 20) werden die Befunde
-              belastbarer.
+              
+              {t("Noch keine deutlichen Auffälligkeiten. Mit mehr analysierten Partien (ab etwa 20) werden die Befunde belastbarer.")}
             </p>
           )}
         </section>
@@ -456,15 +462,15 @@ export function InsightsView() {
 
         <Section section={sec("ergebnisse")}>
           {pt.expectation}
-          <Tile title="Nach Partietyp" sub="Punkte-Quote" span={6}>
+          <Tile title={t("Nach Partietyp")} sub={t("Punkte-Quote")} span={6}>
             {d.game_types.length ? (
-              <BarList rows={typeRows(d.game_types, overall)} referenceLabel="Dein Schnitt" />
+              <BarList rows={typeRows(d.game_types, overall)} referenceLabel={t("Dein Schnitt")} />
             ) : (
-              <p class="muted small">Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.</p>
+              <p class="muted small">{t("Analysiere ein paar Partien, dann erkennt die App, welche Art von Partie dir liegt.")}</p>
             )}
           </Tile>
-          <Tile title="Nach Bedenkzeit" sub="Punkte-Quote" span={4}>
-            <BarList rows={typeRows(d.speeds, overall)} referenceLabel="Dein Schnitt" />
+          <Tile title={t("Nach Bedenkzeit")} sub={t("Punkte-Quote")} span={4}>
+            <BarList rows={typeRows(d.speeds, overall)} referenceLabel={t("Dein Schnitt")} />
           </Tile>
           {pt.color}
           {pt.length}
@@ -478,51 +484,51 @@ export function InsightsView() {
         </Section>
 
         <Section section={sec("gewohnheiten")}>
-          <Tile title="Bedenkzeit pro Zug" sub="schwere Fehler je 100 Züge" span={6}>
+          <Tile title={t("Bedenkzeit pro Zug")} sub={t("schwere Fehler je 100 Züge")} span={6}>
             {clocked ? (
               <ColumnChart columns={thinkCols} />
             ) : (
-              <p class="muted small">Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).</p>
+              <p class="muted small">{t("Deine Partien enthalten keine Uhrzeiten pro Zug ([%clk]).")}</p>
             )}
           </Tile>
 
-          <Tile title="Unter Druck" sub="schwere Fehler je 100 Züge" span={6}>
+          <Tile title={t("Unter Druck")} sub={t("schwere Fehler je 100 Züge")} span={6}>
             {pressureRows.length ? (
               <BarList rows={pressureRows} max={rowsMax(pressureRows)} />
             ) : (
-              <p class="muted small">Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.</p>
+              <p class="muted small">{t("Für Zeitnot braucht es Uhrzeiten, für die Theorie analysierte Partien.")}</p>
             )}
           </Tile>
 
-          <Tile title="Tageszeit" sub="Punkte-Quote" span={6}>
+          <Tile title={t("Tageszeit")} sub={t("Punkte-Quote")} span={6}>
             {timed ? (
               scoreChart(d.by_daytime)
             ) : (
-              <p class="muted small">Deine Partien enthalten keine Uhrzeit. Bei Chess.com und Lichess ist sie dabei.</p>
+              <p class="muted small">{t("Deine Partien enthalten keine Uhrzeit. Bei Chess.com und Lichess ist sie dabei.")}</p>
             )}
           </Tile>
 
-          <Tile title="Wochentag" sub="Punkte-Quote" span={6}>
+          <Tile title={t("Wochentag")} sub={t("Punkte-Quote")} span={6}>
             {timed ? (
               scoreChart(d.by_weekday)
             ) : (
-              <p class="muted small">Deine Partien enthalten keine Uhrzeit.</p>
+              <p class="muted small">{t("Deine Partien enthalten keine Uhrzeit.")}</p>
             )}
           </Tile>
 
-          <Tile title="Nach dem letzten Ergebnis" sub="Tilt-Check" span={6}>
+          <Tile title={t("Nach dem letzten Ergebnis")} sub={t("Tilt-Check")} span={6}>
             {afterRows.length ? (
-              <BarList rows={afterRows} referenceLabel="Dein Schnitt" />
+              <BarList rows={afterRows} referenceLabel={t("Dein Schnitt")} />
             ) : (
-              <p class="muted small">Noch keine Partien direkt hintereinander gespielt (Abstand unter zwei Stunden).</p>
+              <p class="muted small">{t("Noch keine Partien direkt hintereinander gespielt (Abstand unter zwei Stunden).")}</p>
             )}
           </Tile>
 
-          <Tile title="Partie in der Serie" sub="Punkte-Quote" span={6}>
+          <Tile title={t("Partie in der Serie")} sub={t("Punkte-Quote")} span={6}>
             {d.by_session_game.some((b) => b.games) ? (
               scoreChart(d.by_session_game)
             ) : (
-              <p class="muted small">Für Serien braucht es Partien mit Uhrzeit.</p>
+              <p class="muted small">{t("Für Serien braucht es Partien mit Uhrzeit.")}</p>
             )}
           </Tile>
         </Section>

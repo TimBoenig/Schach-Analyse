@@ -1,5 +1,7 @@
 // Axis maths for the charts: round numbers on the value axis, calendar steps
 // on the time axis. Pure, so the choices are testable without a browser.
+import { t } from "../../i18n";
+
 
 const DAY = 86400;
 
@@ -53,7 +55,7 @@ export interface TimeTick {
   label: string;
 }
 
-const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTHS = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
 const p2 = (n: number) => String(n).padStart(2, "0");
 const epoch = (d: Date) => d.getTime() / 1000;
 

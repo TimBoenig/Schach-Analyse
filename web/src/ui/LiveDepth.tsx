@@ -4,8 +4,9 @@ import { useEffect, useState } from "preact/hooks";
 
 import { loadDepthChoice, setDepthChoice, type QueueState } from "../app/analysisService";
 import { DEPTH_PRESETS, PRESET_ORDER, settingsLabel, type DepthChoice, type DepthPreset } from "../domain/analysisDepth";
+import { t } from "../i18n";
 
-const SCOPE_NAME = { own: "deine Partien", friends: "Freunde & Gegner" } as const;
+const SCOPE_NAME = { own: t("deine Partien"), friends: t("Freunde & Gegner") } as const;
 
 export function LiveDepth({ queue }: { queue: QueueState }) {
   const [choice, setChoice] = useState<DepthChoice | null>(null);
@@ -16,7 +17,7 @@ export function LiveDepth({ queue }: { queue: QueueState }) {
   }, [scope, queue.settings]);
 
   if (!queue.current || !queue.settings) return null;
-  const engines = queue.engines > 1 ? ` · ${queue.engines} Engines parallel` : "";
+  const engines = queue.engines > 1 ? t(" · {engines} Engines parallel", { engines: queue.engines }) : "";
 
   // A deeper re-run of one game has fixed limits; nothing to switch.
   if (!scope || !choice) {
@@ -37,19 +38,19 @@ export function LiveDepth({ queue }: { queue: QueueState }) {
   return (
     <div class="live-depth">
       <label class="small">
-        <span class="muted">Tiefe für {SCOPE_NAME[scope]}</span>
-        <select value={choice.preset} onChange={(e) => change(e.currentTarget.value)} aria-label="Analysetiefe während der Analyse ändern">
+        <span class="muted">{t("Tiefe für")} {SCOPE_NAME[scope]}</span>
+        <select value={choice.preset} onChange={(e) => change(e.currentTarget.value)} aria-label={t("Analysetiefe während der Analyse ändern")}>
           {PRESET_ORDER.map((p) => (
             <option key={p} value={p}>
-              {DEPTH_PRESETS[p].name} (Tiefe {DEPTH_PRESETS[p].settings.depth})
+              {DEPTH_PRESETS[p].name}  {t("(Tiefe")} {DEPTH_PRESETS[p].settings.depth})
             </option>
           ))}
-          {choice.preset === "custom" && <option value="custom">Eigene (Tiefe {choice.depth})</option>}
+          {choice.preset === "custom" && <option value="custom">{t("Eigene (Tiefe")} {choice.depth})</option>}
         </select>
       </label>
       <span class="faint small">
         {settingsLabel(queue.settings)}
-        {engines} · gilt ab dem nächsten Zug, ohne Neustart
+        {engines}  {t("· gilt ab dem nächsten Zug, ohne Neustart")}
       </span>
     </div>
   );

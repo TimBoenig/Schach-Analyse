@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import type { ModelKind } from "./three/models";
+import { t } from "../i18n";
 
 type Render = (target: HTMLCanvasElement, kind: ModelKind, yaw: number, tilt: number) => boolean;
 
@@ -119,7 +120,7 @@ export function Model3D({
   if (gone) return null;
   return (
     <span class={`model3d ${extra}`} style={{ "--model-size": `${size}px` }}>
-      <canvas ref={ref} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : "true"} title="Zum Drehen ziehen" />
+      <canvas ref={ref} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : "true"} title={t("Zum Drehen ziehen")} />
     </span>
   );
 }

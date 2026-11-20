@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { nextMilestone, PACE_DAYS, ratingJourney } from "../../domain/profile";
 import { getSetting, setSetting } from "../../storage/db";
 import { IconPlay, IconReset, IconTrophy } from "../icons";
+import { t } from "../../i18n";
 
 export const GOAL_KEY = "goal.rating";
 const GOAL_STEP = 50;
@@ -13,9 +14,9 @@ const GOAL_STEP = 50;
 const de1 = (v: number) => v.toFixed(1).replace(".", ",");
 
 function etaText(days: number): string {
-  if (days < 21) return `${Math.max(1, Math.round(days / 7))} ${Math.round(days / 7) <= 1 ? "Woche" : "Wochen"}`;
+  if (days < 21) return `${Math.max(1, Math.round(days / 7))} ${Math.round(days / 7) <= 1 ? t("Woche") : t("Wochen")}`;
   const months = Math.round(days / 30);
-  return `${months} ${months === 1 ? "Monat" : "Monaten"}`;
+  return `${months} ${months === 1 ? t("Monat") : t("Monaten")}`;
 }
 
 /**
@@ -28,7 +29,7 @@ function JourneyBar({ start, current, peak, goal }: { start: number; current: nu
   const hi = Math.max(goal, peak, current);
   const pct = (v: number) => `${Math.min(100, Math.max(0, ((v - lo) / (hi - lo || 1)) * 100))}%`;
   return (
-    <div class="journey-bar" role="img" aria-label={`Start ${start}, jetzt ${current}, Bestwert ${peak}, Ziel ${goal}`}>
+    <div class="journey-bar" role="img" aria-label={t("Start {start}, jetzt {current}, Bestwert {peak}, Ziel {goal}", { start, current, peak, goal })}>
       <div class="journey-bar-track">
         <span class="journey-bar-fill" style={{ width: pct(current) }} />
         <span class="journey-bar-start" />
@@ -42,15 +43,18 @@ function JourneyBar({ start, current, peak, goal }: { start: number; current: nu
       </div>
       <div class="journey-bar-labels">
         <span>
-          Start <strong class="tnum">{start}</strong>
+          
+          {t("Start")} <strong class="tnum">{start}</strong>
         </span>
         {peak > current && (
           <span class="journey-bar-now">
-            Bestwert <strong class="tnum">{peak}</strong>
+            
+            {t("Bestwert")} <strong class="tnum">{peak}</strong>
           </span>
         )}
         <span>
-          Ziel <strong class="tnum">{goal}</strong>
+          
+          {t("Ziel")} <strong class="tnum">{goal}</strong>
         </span>
       </div>
     </div>
@@ -80,17 +84,17 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
   return (
     <div class="hm-journey">
       <div class="hm-journey-head">
-        <span class="eyebrow">Dein Ziel</span>
-        <div class="journey-goal" role="group" aria-label="Ziel ändern">
-          <button class="btn icon small ghost" aria-label={`Ziel ${GOAL_STEP} Punkte niedriger`} disabled={j.goal - GOAL_STEP <= j.current && !j.reached} onClick={() => setGoal(j.goal - GOAL_STEP)}>
+        <span class="eyebrow">{t("Dein Ziel")}</span>
+        <div class="journey-goal" role="group" aria-label={t("Ziel ändern")}>
+          <button class="btn icon small ghost" aria-label={t("Ziel {GOAL_STEP} Punkte niedriger", { GOAL_STEP })} disabled={j.goal - GOAL_STEP <= j.current && !j.reached} onClick={() => setGoal(j.goal - GOAL_STEP)}>
             −
           </button>
           <strong class="tnum">{j.goal}</strong>
-          <button class="btn icon small ghost" aria-label={`Ziel ${GOAL_STEP} Punkte höher`} onClick={() => setGoal(j.goal + GOAL_STEP)}>
+          <button class="btn icon small ghost" aria-label={t("Ziel {GOAL_STEP} Punkte höher", { GOAL_STEP })} onClick={() => setGoal(j.goal + GOAL_STEP)}>
             +
           </button>
           {own !== null && own !== nextMilestone(j.current) && (
-            <button class="btn ghost small" onClick={() => setGoal(null)} title="Wieder das nächste runde Ziel vorschlagen">
+            <button class="btn ghost small" onClick={() => setGoal(null)} title={t("Wieder das nächste runde Ziel vorschlagen")}>
               <IconReset /> Auto
             </button>
           )}
@@ -100,28 +104,31 @@ export function Journey({ series, speed, lever }: { series: [number, number][]; 
       <p class="hm-journey-text" role="status">
         {j.reached ? (
           <>
-            <strong>Ziel erreicht!</strong> Du stehst bei {j.current}. Zeit für das nächste.
+            <strong>{t("Ziel erreicht!")}</strong>  {t("Du stehst bei")} {j.current}{t(". Zeit für das nächste.")}
           </>
         ) : (
           <>
-            Noch <strong class="tnum">{left} Punkte</strong> bis {j.goal}.{" "}
+            
+            {t("Noch")} <strong class="tnum">{left}  {t("Punkte")}</strong> bis {j.goal}.{" "}
             {j.eta_days !== null && pace !== null ? (
               <>
-                Zuletzt <span class="good tnum">+{de1(pace)}</span> pro Monat ({speed}, letzte {PACE_DAYS} Tage). Bei dem Tempo in etwa <strong>{etaText(j.eta_days)}</strong>.
+                
+                {t("Zuletzt")} <span class="good tnum">+{de1(pace)}</span>  {t("pro Monat (")}{speed}{t(", letzte")} {PACE_DAYS}  {t("Tage). Bei dem Tempo in etwa")} <strong>{etaText(j.eta_days)}</strong>.
               </>
             ) : pace !== null ? (
               <>
-                Deine Wertung {pace <= -3 ? "fällt gerade" : "bewegt sich gerade kaum"} (<span class={pace <= -3 ? "bad tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span> pro Monat).
+                
+                {t("Deine Wertung")} {pace <= -3 ? t("fällt gerade") : t("bewegt sich gerade kaum")} (<span class={pace <= -3 ? "bad tnum" : "tnum"}>{pace >= 0 ? "+" : "−"}{de1(Math.abs(pace))}</span>  {t("pro Monat).")}
               </>
             ) : (
-              "Für ein Tempo brauche ich ein paar gewertete Partien aus den letzten Wochen."
+              t("Für ein Tempo brauche ich ein paar gewertete Partien aus den letzten Wochen.")
             )}
           </>
         )}
       </p>
       {lever && !j.reached && (
         <button class="btn small hm-lever" onClick={lever.go}>
-          <IconPlay /> Größter Hebel: {lever.title}
+          <IconPlay />  {t("Größter Hebel:")} {lever.title}
         </button>
       )}
     </div>

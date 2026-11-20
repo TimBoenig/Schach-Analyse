@@ -1,128 +1,130 @@
 // German display labels for internal domain keys (port of src/utils/translations.py).
 // Internal keys stay English because they are persisted and compared in logic.
+import { t } from "../i18n";
+
 
 export const CLASSIFICATION_LABELS: Record<string, string> = {
-  Brilliant: "Brillant",
-  Great: "Großartig",
-  Best: "Bester Zug",
-  Excellent: "Exzellent",
-  Good: "Gut",
-  Inaccuracy: "Ungenauigkeit",
-  Mistake: "Fehler",
-  Blunder: "Patzer",
-  Miss: "Verpasst",
-  Book: "Buchzug",
-  Forced: "Erzwungen",
-  "Clean Game": "Fehlerfreie Partie",
-  "Lost Lead": "Vorteil verspielt",
-  "Drawn Lead": "Vorteil nur remis",
-  Comeback: "Aufholjagd",
-  "Comeback Win": "Sieg nach Rückstand",
-  "Comeback Draw": "Remis nach Rückstand",
+  Brilliant: t("Brillant"),
+  Great: t("Großartig"),
+  Best: t("Bester Zug"),
+  Excellent: t("Exzellent"),
+  Good: t("Gut"),
+  Inaccuracy: t("Ungenauigkeit"),
+  Mistake: t("Fehler"),
+  Blunder: t("Patzer"),
+  Miss: t("Verpasst"),
+  Book: t("Buchzug"),
+  Forced: t("Erzwungen"),
+  "Clean Game": t("Fehlerfreie Partie"),
+  "Lost Lead": t("Vorteil verspielt"),
+  "Drawn Lead": t("Vorteil nur remis"),
+  Comeback: t("Aufholjagd"),
+  "Comeback Win": t("Sieg nach Rückstand"),
+  "Comeback Draw": t("Remis nach Rückstand"),
 };
 
 export const PHASE_LABELS: Record<string, string> = {
-  opening: "Eröffnung",
-  middlegame: "Mittelspiel",
-  endgame: "Endspiel",
+  opening: t("Eröffnung"),
+  middlegame: t("Mittelspiel"),
+  endgame: t("Endspiel"),
 };
 
 // Dative form for sentences like "Fehler im Mittelspiel" / "in der Eröffnung".
 export const PHASE_IN_LABELS: Record<string, string> = {
-  opening: "in der Eröffnung",
-  middlegame: "im Mittelspiel",
-  endgame: "im Endspiel",
+  opening: t("in der Eröffnung"),
+  middlegame: t("im Mittelspiel"),
+  endgame: t("im Endspiel"),
 };
 
 export const COLOR_LABELS: Record<string, string> = {
-  white: "Weiß",
-  black: "Schwarz",
+  white: t("Weiß"),
+  black: t("Schwarz"),
 };
 
 export const PIECE_LABELS: Record<string, string> = {
-  pawn: "Bauer",
-  knight: "Springer",
-  bishop: "Läufer",
-  rook: "Turm",
-  queen: "Dame",
-  king: "König",
+  pawn: t("Bauer"),
+  knight: t("Springer"),
+  bishop: t("Läufer"),
+  rook: t("Turm"),
+  queen: t("Dame"),
+  king: t("König"),
 };
 
 export const PIECE_LABELS_PLURAL: Record<string, string> = {
-  pawn: "Bauern",
-  knight: "Springer",
-  bishop: "Läufer",
-  rook: "Türme",
-  queen: "Damen",
-  king: "Könige",
+  pawn: t("Bauern"),
+  knight: t("Springer"),
+  bishop: t("Läufer"),
+  rook: t("Türme"),
+  queen: t("Damen"),
+  king: t("Könige"),
 };
 
 export const MOTIF_LABELS: Record<string, string> = {
-  fork: "Gabel",
-  pin: "Fesselung",
-  skewer: "Spieß",
-  discovered_attack: "Abzugsangriff",
-  sacrifice: "Opfer",
-  back_rank: "Grundreihe",
+  fork: t("Gabel"),
+  pin: t("Fesselung"),
+  skewer: t("Spieß"),
+  discovered_attack: t("Abzugsangriff"),
+  sacrifice: t("Opfer"),
+  back_rank: t("Grundreihe"),
 };
 
 export const SPEED_LABELS: Record<string, string> = {
   UltraBullet: "UltraBullet",
   Bullet: "Bullet",
   Blitz: "Blitz",
-  Rapid: "Schnellschach",
-  Classical: "Klassisch",
-  Daily: "Fernschach",
-  Correspondence: "Fernschach",
+  Rapid: t("Schnellschach"),
+  Classical: t("Klassisch"),
+  Daily: t("Fernschach"),
+  Correspondence: t("Fernschach"),
   Chess960: "Chess960",
-  Untimed: "Ohne Zeitangabe",
-  Other: "Sonstige",
-  Unknown: "Unbekannt",
+  Untimed: t("Ohne Zeitangabe"),
+  Other: t("Sonstige"),
+  Unknown: t("Unbekannt"),
   Standard: "Standard",
 };
 
 export const TERMINATION_LABELS: Record<string, string> = {
-  Checkmate: "Schachmatt",
-  Resignation: "Aufgabe",
-  Time: "Zeitüberschreitung",
-  Abandon: "Abbruch",
-  Draw: "Remis",
-  "3-Fold Repetition": "Dreifache Wiederholung",
-  Agreement: "Einigung",
-  Stalemate: "Patt",
-  "Insufficient vs Timeout": "Zeit vs. ungenügendes Material",
-  "Insufficient Material": "Ungenügendes Material",
-  "50-Move Rule": "50-Züge-Regel",
+  Checkmate: t("Schachmatt"),
+  Resignation: t("Aufgabe"),
+  Time: t("Zeitüberschreitung"),
+  Abandon: t("Abbruch"),
+  Draw: t("Remis"),
+  "3-Fold Repetition": t("Dreifache Wiederholung"),
+  Agreement: t("Einigung"),
+  Stalemate: t("Patt"),
+  "Insufficient vs Timeout": t("Zeit vs. ungenügendes Material"),
+  "Insufficient Material": t("Ungenügendes Material"),
+  "50-Move Rule": t("50-Züge-Regel"),
 };
 
 export const OUTCOME_LABELS: Record<string, string> = {
-  win: "Sieg",
-  draw: "Remis",
-  loss: "Niederlage",
+  win: t("Sieg"),
+  draw: t("Remis"),
+  loss: t("Niederlage"),
 };
 
 // Filter option values are stored/compared in English; these are their labels.
 export const FILTER_LABELS: Record<string, string> = {
-  "All Colors": "Alle Farben",
-  White: "Weiß",
-  Black: "Schwarz",
-  "All Formats": "Alle Formate",
-  "No Bullet": "Ohne Bullet",
+  "All Colors": t("Alle Farben"),
+  White: t("Weiß"),
+  Black: t("Schwarz"),
+  "All Formats": t("Alle Formate"),
+  "No Bullet": t("Ohne Bullet"),
   "Freestyle (Chess960)": "Freestyle (Chess960)",
-  "All Sources": "Alle Quellen",
+  "All Sources": t("Alle Quellen"),
   "Chess.com": "Chess.com",
   Lichess: "Lichess",
-  File: "Datei",
-  "PGN File": "PGN-Datei",
-  "All Time": "Gesamter Zeitraum",
-  "Last 24 Hours": "Letzte 24 Stunden",
-  "Last 7 Days": "Letzte 7 Tage",
-  "Last 14 Days": "Letzte 14 Tage",
-  "Last 30 Days": "Letzte 30 Tage",
-  "Last 90 Days": "Letzte 90 Tage",
-  "Last 180 Days": "Letzte 6 Monate",
-  "Last 365 Days": "Letzte 12 Monate",
-  "This Year": "Dieses Jahr",
+  File: t("Datei"),
+  "PGN File": t("PGN-Datei"),
+  "All Time": t("Gesamter Zeitraum"),
+  "Last 24 Hours": t("Letzte 24 Stunden"),
+  "Last 7 Days": t("Letzte 7 Tage"),
+  "Last 14 Days": t("Letzte 14 Tage"),
+  "Last 30 Days": t("Letzte 30 Tage"),
+  "Last 90 Days": t("Letzte 90 Tage"),
+  "Last 180 Days": t("Letzte 6 Monate"),
+  "Last 365 Days": t("Letzte 12 Monate"),
+  "This Year": t("Dieses Jahr"),
   ...SPEED_LABELS,
 };
 
@@ -163,5 +165,5 @@ function rangeLabel(key: string): string {
   if (start !== null && end !== null) return `${dayDe(start)} – ${dayDe(end)}`;
   if (start !== null) return `ab ${dayDe(start)}`;
   if (end !== null) return `bis ${dayDe(end)}`;
-  return "Gesamter Zeitraum";
+  return t("Gesamter Zeitraum");
 }

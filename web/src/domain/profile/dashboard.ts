@@ -6,6 +6,7 @@ import { trSpeed } from "../i18n";
 import { extractGameTimestamp, type FilterableGame, getUserColor, outcomeFor } from "../metrics";
 import type { PlayerProfile, SkillScore } from "./models";
 import { fmt } from "./num";
+import { t } from "../../i18n";
 
 export interface KpiChange {
   key: "games" | "score" | "accuracy" | "blunders" | "punish" | "rating";
@@ -97,26 +98,26 @@ export function comparePeriods(cur: PlayerProfile, prev: PlayerProfile | null): 
   // A rating only compares within one time control.
   const prevRating = p?.rating && rating && p.rating.speed === rating.speed ? p.rating.rating : null;
   const kpis: KpiChange[] = [
-    kpi("games", "Partien", cur.total_games, p ? p.total_games : null, true, Number.POSITIVE_INFINITY),
-    kpi("score", "Punkte-Quote", cur.total_games ? o.score_pct : null, p ? po!.score_pct : null, true, 5),
+    kpi("games", t("Partien"), cur.total_games, p ? p.total_games : null, true, Number.POSITIVE_INFINITY),
+    kpi("score", t("Punkte-Quote"), cur.total_games ? o.score_pct : null, p ? po!.score_pct : null, true, 5),
     kpi(
       "accuracy",
-      "Genauigkeit",
+      t("Genauigkeit"),
       cur.analyzed_games ? o.avg_accuracy : null,
       p && p.analyzed_games ? po!.avg_accuracy : null,
       true,
       1.5,
     ),
-    kpi("blunders", "Patzer pro Partie", blundersPerGame(cur), p ? blundersPerGame(p) : null, false, 0.2),
+    kpi("blunders", t("Patzer pro Partie"), blundersPerGame(cur), p ? blundersPerGame(p) : null, false, 0.2),
     kpi(
       "punish",
-      "Gegnerfehler bestraft",
+      t("Gegnerfehler bestraft"),
       cur.deep?.punish.rate ?? null,
       p?.deep?.punish.rate ?? null,
       true,
       5,
     ),
-    kpi("rating", rating ? `Wertung ${trSpeed(rating.speed)}` : "Wertung", rating?.rating ?? null, prevRating, true, 15),
+    kpi("rating", rating ? t("Wertung {trSpeed}", { trSpeed: trSpeed(rating.speed) }) : t("Wertung"), rating?.rating ?? null, prevRating, true, 15),
   ];
 
   const before = new Map((p?.skills ?? []).filter(usable).map((s) => [s.key, s]));
@@ -153,23 +154,23 @@ export function focusNotes(cur: PlayerProfile, cmp: PeriodComparison): string[] 
   const acc = cmp.kpis.find((k) => k.key === "accuracy");
   if (acc && acc.delta !== null && trendOf(acc) !== "flat") {
     notes.push(
-      `Deine Genauigkeit ist um ${de(Math.abs(acc.delta), 1)} Punkte ${acc.delta > 0 ? "gestiegen" : "gefallen"} ` +
+      t("Deine Genauigkeit ist um {de} Punkte {1} ", { de: de(Math.abs(acc.delta), 1), 1: acc.delta > 0 ? "gestiegen" : "gefallen" }) +
         `(${de(acc.previous as number, 1)} → ${de(acc.value as number, 1)} %).`,
     );
   }
   const bl = cmp.kpis.find((k) => k.key === "blunders");
   if (bl && bl.delta !== null && trendOf(bl) !== "flat") {
     notes.push(
-      `${bl.delta < 0 ? "Weniger" : "Mehr"} Patzer: ${de(bl.value as number, 2)} pro Partie statt ${de(bl.previous as number, 2)}.`,
+      t("{0} Patzer: {de} pro Partie statt {de2}.", { 0: bl.delta < 0 ? t("Weniger") : t("Mehr"), de: de(bl.value as number, 2), de2: de(bl.previous as number, 2) }),
     );
   }
   if (cmp.improved.length) {
-    notes.push(`Besser geworden: ${cmp.improved.map((s) => `${s.name} (+${de(s.delta as number, 0)})`).join(", ")}.`);
+    notes.push(t("Besser geworden: {0}.", { 0: cmp.improved.map((s) => `${s.name} (+${de(s.delta as number, 0)})`).join(", ") }));
   }
   if (cmp.declined.length) {
-    notes.push(`Nachgelassen: ${cmp.declined.map((s) => `${s.name} (${de(s.delta as number, 0)})`).join(", ")}.`);
+    notes.push(t("Nachgelassen: {0}.", { 0: cmp.declined.map((s) => `${s.name} (${de(s.delta as number, 0)})`).join(", ") }));
   }
-  if (cur.weaknesses.length) notes.push(`Größte Baustelle: ${cur.weaknesses[0].title}.`);
+  if (cur.weaknesses.length) notes.push(t("Größte Baustelle: {title}.", { title: cur.weaknesses[0].title }));
   return notes;
 }
 

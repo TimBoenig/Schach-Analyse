@@ -6,6 +6,7 @@ import { useState } from "preact/hooks";
 
 import { useWidth } from "../charts";
 import { nearestIndex, timeTicks, valueScale } from "./scale";
+import { t } from "../../i18n";
 
 export interface TrendPoint {
   /** Epoch seconds. */
@@ -73,7 +74,7 @@ export function TrendChart({ points, format = (v) => String(Math.round(v)), heig
   if (points.length < 2) {
     return (
       <div class="trend trend-empty" ref={ref} style={{ height: `${height}px` }}>
-        <p class="muted small">{points.length ? "Erst ein Messpunkt. Mit dem nächsten wird daraus eine Linie." : "Noch keine Daten für diesen Zeitraum."}</p>
+        <p class="muted small">{points.length ? t("Erst ein Messpunkt. Mit dem nächsten wird daraus eine Linie.") : t("Noch keine Daten für diesen Zeitraum.")}</p>
       </div>
     );
   }
@@ -109,7 +110,7 @@ export function TrendChart({ points, format = (v) => String(Math.round(v)), heig
 
   return (
     <div class="trend" ref={ref}>
-      <svg width={w} height={height} role="img" aria-label={`${label}: von ${format(values[0])} auf ${format(values[last])}`} onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
+      <svg width={w} height={height} role="img" aria-label={t("{label}: von {format} auf {format2}", { label, format: format(values[0]), format2: format(values[last]) })} onPointerMove={onMove} onPointerDown={onMove} onPointerLeave={() => setHover(null)}>
         <defs>
           <linearGradient id={gradient} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color={color} stop-opacity="0.26" />

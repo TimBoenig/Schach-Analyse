@@ -19,6 +19,8 @@
 // Below Chess.com blitz 1100 the survey has no FIDE players. There the line
 // runs straight down to the FIDE floor of 1400 at Chess.com blitz 500; such
 // values are flagged `extrapolated`.
+import { t } from "../../i18n";
+
 
 /** Lowest rating FIDE publishes since March 2024. */
 export const FIDE_FLOOR = 1400;
@@ -150,7 +152,7 @@ export function toLichessBlitz(rating: number, source: string, speed: string): n
 // (a few hundred points up to 1400 instead of one floor value).
 
 /** What the shown number is, for captions. */
-export const ELO_SCALE_LABEL = "Chess.com-Rapid-Skala";
+export const ELO_SCALE_LABEL = t("Chess.com-Rapid-Skala");
 /** Lowest value shown; Chess.com itself has no ratings below 100. */
 export const ELO_MIN = 100;
 

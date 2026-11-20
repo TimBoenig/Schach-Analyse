@@ -3,6 +3,7 @@
 // instead of shrinking with a scaled viewBox.
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { t } from "../i18n";
 
 export function useWidth<T extends HTMLElement>(fallback = 320): [preact.RefObject<T>, number] {
   const ref = useRef<T>(null);
@@ -75,7 +76,7 @@ export interface RadarAxis {
 export function RadarChart({
   axes,
   typicalLabel,
-  ownLabel = "Du",
+  ownLabel = t("Du"),
   compare,
 }: {
   axes: RadarAxis[];
@@ -117,7 +118,7 @@ export function RadarChart({
   return (
     <div ref={ref} class="chart-wrap">
       {n >= 3 && (
-        <svg class="chart" width={w} height={H} role="img" aria-label="Netzdiagramm der Fähigkeiten">
+        <svg class="chart" width={w} height={H} role="img" aria-label={t("Netzdiagramm der Fähigkeiten")}>
           {[25, 50, 75, 100].map((ring) => (
             <polygon key={ring} class="radar-ring" points={poly(axes.map(() => ring))} />
           ))}
@@ -174,10 +175,10 @@ export function RadarChart({
             </span>
           )}
           {hasTypical && h.typical !== null && h.typical !== undefined && (
-            <span class="faint"> · typisch {Math.round(h.typical)}</span>
+            <span class="faint">  {t("· typisch")} {Math.round(h.typical)}</span>
           )}
           {h.raw !== null && h.raw !== undefined && Math.abs(h.raw - h.value) >= 3 && (
-            <span class="faint"> · gemessen {Math.round(h.raw)}</span>
+            <span class="faint">  {t("· gemessen")} {Math.round(h.raw)}</span>
           )}
         </Tip>
       )}
@@ -185,8 +186,8 @@ export function RadarChart({
         items={[
           { label: ownLabel, color: "var(--accent)" },
           ...(hasCompare ? [{ label: compare as string, color: "var(--great)" }] : []),
-          ...(hasTypical ? [{ label: typicalLabel ?? "Typisch", color: "var(--text-3)", dashed: true }] : []),
-          ...(hasBand ? [{ label: "Unsicherheit", color: "var(--accent-soft)" }] : []),
+          ...(hasTypical ? [{ label: typicalLabel ?? t("Typisch"), color: "var(--text-3)", dashed: true }] : []),
+          ...(hasBand ? [{ label: t("Unsicherheit"), color: "var(--accent-soft)" }] : []),
         ]}
       />
     </div>
@@ -332,7 +333,7 @@ export function BarList({
   max = 100,
   min = 0,
   referenceLabel,
-  ownLabel = "Du",
+  ownLabel = t("Du"),
 }: {
   rows: BarRow[];
   max?: number;
@@ -531,7 +532,7 @@ export function AreaChart({
   domain,
   reference,
   color,
-  label = "Du",
+  label = t("Du"),
 }: {
   points: Point[];
   format: (v: number) => string;
@@ -551,16 +552,17 @@ export function AreaChart({
   const wanted = range === undefined ? DEFAULT_RANGE_DAYS : range;
   const active = options.some(([, d]) => d === wanted) ? wanted : null;
   const points = clipRange(allPoints, active);
-  if (allPoints.length < 2) return <p class="muted small">Noch zu wenige Daten für einen Verlauf.</p>;
+  if (allPoints.length < 2) return <p class="muted small">{t("Noch zu wenige Daten für einen Verlauf.")}</p>;
   const chips = options.length ? (
-    <div class="segmented small-seg chart-range" role="group" aria-label="Zeitraum des Diagramms">
+    <div class="segmented small-seg chart-range" role="group" aria-label={t("Zeitraum des Diagramms")}>
       {options.map(([l, d]) => (
         <button key={l} class={active === d ? "active" : ""} onClick={() => setRange(d)}>
           {l}
         </button>
       ))}
       <button class={active === null ? "active" : ""} onClick={() => setRange(null)}>
-        Alle
+        
+        {t("Alle")}
       </button>
     </div>
   ) : null;
@@ -568,7 +570,7 @@ export function AreaChart({
     return (
       <div ref={ref} class="chart-wrap">
         {chips}
-        <p class="muted small">In diesem Zeitraum zu wenige Daten für einen Verlauf.</p>
+        <p class="muted small">{t("In diesem Zeitraum zu wenige Daten für einen Verlauf.")}</p>
       </div>
     );
   const H = height;
@@ -729,7 +731,7 @@ export function ColumnChart({
       {reference && (
         <Legend
           items={[
-            { label: "Du", color: "var(--accent)" },
+            { label: t("Du"), color: "var(--accent)" },
             { label: reference.label, color: "var(--text-3)", dashed: true },
           ]}
         />
@@ -743,7 +745,7 @@ export function ColumnChart({
 const FILES = "abcdefgh";
 
 /** 8×8 heatmap, one hue light → dark; `values[0]` is a1, `values[63]` h8. */
-export function SquareHeatmap({ values, flipped = false, unit = "Fehler" }: { values: number[]; flipped?: boolean; unit?: string }) {
+export function SquareHeatmap({ values, flipped = false, unit = t("Fehler") }: { values: number[]; flipped?: boolean; unit?: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...values);
   const cells = [];
@@ -772,13 +774,13 @@ export function SquareHeatmap({ values, flipped = false, unit = "Fehler" }: { va
   const h = hover !== null ? hover : null;
   return (
     <div class="heatmap-wrap" onPointerLeave={() => setHover(null)}>
-      <div class="heatmap" role="img" aria-label="Felder, auf denen deine Fehler landen">
+      <div class="heatmap" role="img" aria-label={t("Felder, auf denen deine Fehler landen")}>
         {cells}
       </div>
       <div class="heat-scale">
-        <span>{h !== null ? `${FILES[h % 8]}${Math.floor(h / 8) + 1}: ${values[h] ?? 0} ${unit}` : "Wenige"}</span>
+        <span>{h !== null ? `${FILES[h % 8]}${Math.floor(h / 8) + 1}: ${values[h] ?? 0} ${unit}` : t("Wenige")}</span>
         <div class="heat-ramp" aria-hidden="true" />
-        <span>{h !== null ? "" : `Viele (${max})`}</span>
+        <span>{h !== null ? "" : t("Viele ({max})", { max })}</span>
       </div>
     </div>
   );

@@ -5,13 +5,14 @@
 // rules, like every other statement in the app.
 import { MIN_BUCKET_MOVES, ratesDiffer, Z_MULTI } from "./evidence";
 import { type MoveTally, SERIOUS_CLASSES, sumOf, TALLY_CLASSES, type TallyBlock, type TallyClass, TOP_CLASSES } from "./moves";
+import { t } from "../../i18n";
 
 export type KindGroup = "shine" | "solid" | "error";
 
 export const KIND_GROUPS: { key: KindGroup; label: string; classes: TallyClass[] }[] = [
-  { key: "shine", label: "Glanzzüge", classes: ["Brilliant", "Great"] },
-  { key: "solid", label: "Solide Züge", classes: ["Best", "Excellent", "Good", "Book"] },
-  { key: "error", label: "Fehler", classes: ["Inaccuracy", "Mistake", "Miss", "Blunder"] },
+  { key: "shine", label: t("Glanzzüge"), classes: ["Brilliant", "Great"] },
+  { key: "solid", label: t("Solide Züge"), classes: ["Best", "Excellent", "Good", "Book"] },
+  { key: "error", label: t("Fehler"), classes: ["Inaccuracy", "Mistake", "Miss", "Blunder"] },
 ];
 
 // More of these is better, fewer of those is better. "Exzellent", "Gut" and

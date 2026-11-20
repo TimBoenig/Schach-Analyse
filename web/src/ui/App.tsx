@@ -29,6 +29,7 @@ import { startSeenSync } from "./stage/seenSync";
 import { currentShow, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
+import { t } from "../i18n";
 
 // Local changes reach the cloud this long after the last edit (batch imports
 // and analysis write many records in a row).
@@ -199,7 +200,7 @@ export function App() {
           </ErrorBoundary>
           {/* Where the sidebar shows no text, the legal links sit under every page. */}
           <footer class="page-legal faint small">
-            <a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a>
+            <a href="#/rechtliches">{t("Impressum")}</a> · <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a>
           </footer>
         </main>
         <ErrorBoundary area="Das Menü">

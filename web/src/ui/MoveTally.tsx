@@ -5,14 +5,15 @@
 import { type MoveTally, TALLY_CLASSES, type TallyClass } from "../domain/profile";
 import { Legend, type Segment } from "./charts";
 import { badgeFor, CLASS_COLOR, classLabel, detailSegments } from "./labels";
+import { t } from "../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 
 /** "0,4" per game, but "1 von 9 Partien" when the kind is rare. */
 export function perGameText(count: number, games: number, gamesWith: number): string {
-  if (!count) return "noch keiner";
+  if (!count) return t("noch keiner");
   const pg = count / games;
-  return pg >= 0.95 ? `Ø ${de(pg)} pro Partie` : `in ${gamesWith} von ${games} Partien`;
+  return pg >= 0.95 ? t("Ø {de} pro Partie", { de: de(pg) }) : t("in {gamesWith} von {games} Partien", { gamesWith, games });
 }
 
 export function ClassBadge({ c, size = 22 }: { c: TallyClass; size?: number }) {
@@ -51,11 +52,11 @@ export function ClassTiles({
           );
           const shared = { class: "cls-tile", key: c.key, style: { "--tone": CLASS_COLOR[c.key] } };
           return pick ? (
-            <button {...shared} onClick={pick} title="Diese Züge ansehen">
+            <button {...shared} onClick={pick} title={t("Diese Züge ansehen")}>
               {body}
             </button>
           ) : (
-            <div {...shared} title={`${de(c.per_100)} pro 100 Züge`}>
+            <div {...shared} title={t("{de} pro 100 Züge", { de: de(c.per_100) })}>
               {body}
             </div>
           );
@@ -91,13 +92,13 @@ export function VersusBars({ a, b, keys = TALLY_CLASSES }: { a: VersusSide; b: V
               <span>{classLabel(k)}</span>
             </div>
             <div class="vs-pair">
-              <div class="vs-line" title={`${a.label}: ${a.counts[k]} von ${a.moves} Zügen`}>
+              <div class="vs-line" title={t("{label}: {1} von {moves} Zügen", { label: a.label, 1: a.counts[k], moves: a.moves })}>
                 <div class="vs-track">
                   <div class="vs-fill" style={{ width: `${Math.max(ra ? 2 : 0, (ra / top) * 100)}%` }} />
                 </div>
                 <span class="tnum">{de(ra, digits)}</span>
               </div>
-              <div class="vs-line other" title={`${b.label}: ${b.counts[k]} von ${b.moves} Zügen`}>
+              <div class="vs-line other" title={t("{label}: {1} von {moves} Zügen", { label: b.label, 1: b.counts[k], moves: b.moves })}>
                 <div class="vs-track">
                   <div class="vs-fill" style={{ width: `${Math.max(rb ? 2 : 0, (rb / top) * 100)}%` }} />
                 </div>
@@ -109,20 +110,21 @@ export function VersusBars({ a, b, keys = TALLY_CLASSES }: { a: VersusSide; b: V
       })}
       <div class="vs-legend small">
         <span>
-          <span class="vs-key" /> {a.label} (oben, kräftig)
+          <span class="vs-key" /> {a.label}  {t("(oben, kräftig)")}
         </span>
         <span>
-          <span class="vs-key other" /> {b.label} (unten, blass)
+          <span class="vs-key other" /> {b.label}  {t("(unten, blass)")}
         </span>
       </div>
       <p class="faint small" style={{ margin: "2px 0 0" }}>
-        Werte pro 100 Züge. Jede Zeile hat ihren eigenen Maßstab, damit auch seltene Züge sichtbar bleiben.
+        
+        {t("Werte pro 100 Züge. Jede Zeile hat ihren eigenen Maßstab, damit auch seltene Züge sichtbar bleiben.")}
       </p>
     </div>
   );
 }
 
-const MONTHS_SHORT = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const MONTHS_SHORT = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
 
 /** "2026-03" -> "Mär 26", or "Mär 2026" with `long`. */
 export function monthName(key: string, long = false): string {

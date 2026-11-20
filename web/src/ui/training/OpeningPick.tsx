@@ -8,6 +8,7 @@ import { exerciseState, isMastered, OPENING_LIBRARY, type RepertoireExercise } f
 import { IconPlay } from "../icons";
 import { Ladder, plural, type StartSession, StateTag } from "./shared";
 import type { TrainingState } from "./useTraining";
+import { t } from "../../i18n";
 
 type Source = "own" | "library";
 type Side = "white" | "black";
@@ -21,11 +22,11 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
 
   const switches = (
     <div class="op-switches">
-      <div class="segmented" role="tablist" aria-label="Quelle">
+      <div class="segmented" role="tablist" aria-label={t("Quelle")}>
         {(
           [
-            ["own", `Meine Eröffnungen (${own.length})`],
-            ["library", `Bibliothek (${OPENING_LIBRARY.length})`],
+            ["own", t("Meine Eröffnungen ({length})", { length: own.length })],
+            ["library", t("Bibliothek ({length})", { length: OPENING_LIBRARY.length })],
           ] as const
         ).map(([k, label]) => (
           <button key={k} role="tab" aria-selected={source === k} class={source === k ? "active" : ""} onClick={() => setSource(k)}>
@@ -33,10 +34,10 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
           </button>
         ))}
       </div>
-      <div class="segmented" role="tablist" aria-label="Farbe">
+      <div class="segmented" role="tablist" aria-label={t("Farbe")}>
         {(["white", "black"] as const).map((c) => (
           <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => setColor(c)}>
-            <i class={`op-side ${c}`} aria-hidden="true" /> {c === "white" ? "Weiß" : "Schwarz"}
+            <i class={`op-side ${c}`} aria-hidden="true" /> {c === "white" ? t("Weiß") : t("Schwarz")}
           </button>
         ))}
       </div>
@@ -49,11 +50,11 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
     return (
       <div class="op">
         {switches}
-        <p class="op-note">Deine übliche Linie ab Zug 1. Fehler aus deinen Partien sind schon korrigiert. Läuft eine Eröffnung bei dir schlecht, zeige ich dir zuerst die Buchzüge.</p>
+        <p class="op-note">{t("Deine übliche Linie ab Zug 1. Fehler aus deinen Partien sind schon korrigiert. Läuft eine Eröffnung bei dir schlecht, zeige ich dir zuerst die Buchzüge.")}</p>
         {shown.length === 0 ? (
-          <p class="tn-none">Noch keine Linie mit dieser Farbe. Dafür braucht es mindestens zwei Partien mit derselben Eröffnung.</p>
+          <p class="tn-none">{t("Noch keine Linie mit dieser Farbe. Dafür braucht es mindestens zwei Partien mit derselben Eröffnung.")}</p>
         ) : (
-          <div class="op-rows" role="listbox" aria-label="Eröffnung wählen">
+          <div class="op-rows" role="listbox" aria-label={t("Eröffnung wählen")}>
             {shown.map((d) => {
               const p = tk.progress[d.id];
               return (
@@ -61,8 +62,8 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
                   <span class="op-name">
                     <strong>{openingLabel(d.opening)}</strong>
                     <small class="tnum">
-                      {plural(d.games, "Partie", "Partien")}
-                      {d.score_pct !== null ? ` · ${Math.round(d.score_pct)} % der Punkte` : ""}
+                      {plural(d.games, t("Partie"), t("Partien"))}
+                      {d.score_pct !== null ? t(" · {0} % der Punkte", { 0: Math.round(d.score_pct) }) : ""}
                     </small>
                   </span>
                   <Ladder box={p?.box ?? 0} />
@@ -77,12 +78,12 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
             <span class="op-go-text">
               <strong>{openingLabel(chosen.opening)}</strong>
               <small>
-                {chosen.moves.length} Halbzüge
-                {chosen.correction ? ` · korrigiert: ${chosen.correction.best_san} statt ${chosen.correction.played_san}` : ""}
+                {chosen.moves.length}  {t("Halbzüge")}
+                {chosen.correction ? t(" · korrigiert: {best_san} statt {played_san}", { best_san: chosen.correction.best_san, played_san: chosen.correction.played_san }) : ""}
               </small>
             </span>
             <button class="btn primary" onClick={() => start({ title: openingLabel(chosen.opening), ids: [chosen.id] })}>
-              <IconPlay /> Diese Eröffnung üben
+              <IconPlay />  {t("Diese Eröffnung üben")}
             </button>
           </div>
         )}
@@ -103,7 +104,7 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
             <article key={o.key} class="op-card">
               <header>
                 <strong>{o.name}</strong>
-                <small>{o.group}</small>
+                <small>{t(o.group)}</small>
               </header>
               <p>{o.idea}</p>
               <div class="op-lines">
@@ -119,7 +120,7 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
                   {sure} von {ids.length} sicher
                 </span>
                 <button class="btn small" onClick={() => start({ title: o.name, ids })}>
-                  <IconPlay /> {ids.length === 1 ? "Linie lernen" : `Alle ${ids.length} lernen`}
+                  <IconPlay /> {ids.length === 1 ? t("Linie lernen") : t("Alle {length} lernen", { length: ids.length })}
                 </button>
               </footer>
             </article>

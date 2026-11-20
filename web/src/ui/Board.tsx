@@ -20,6 +20,7 @@ import {
   squareAtFraction,
   type PlacedPiece,
 } from "./board/geometry";
+import { t } from "../i18n";
 
 const PROMOTIONS = ["q", "r", "b", "n"] as const;
 export type Promotion = (typeof PROMOTIONS)[number];
@@ -340,7 +341,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
             key={p}
             class="promo-choice"
             style={{ left: pct(col), top: pct(atTop ? k : 7 - k) }}
-            aria-label={`Umwandeln in ${PIECE_NAME[p]}`}
+            aria-label={t("Umwandeln in {0}", { 0: PIECE_NAME[p] })}
             onPointerDown={(e) => {
               e.stopPropagation();
               const chosen = promo;
@@ -362,7 +363,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       ref={rootRef}
       class={`board${movable ? " interactive" : ""}${drag ? " is-dragging" : ""}`}
       role="img"
-      aria-label="Schachbrett"
+      aria-label={t("Schachbrett")}
       onPointerDown={(e) => {
         lastPointer.current = [e.clientX, e.clientY];
         onPointerDown(e);

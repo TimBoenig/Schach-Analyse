@@ -16,11 +16,12 @@ import {
 } from "../../domain/profile";
 import { IconReset, IconSpark } from "../icons";
 import { ChoiceChips, CountUp, WdlBar } from "../kit";
+import { t } from "../../i18n";
 
 const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", ",");
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-const COLOR_LABEL = { white: "Weiß", black: "Schwarz" } as const;
+const COLOR_LABEL = { white: t("Weiß"), black: t("Schwarz") } as const;
 
 /** The picked conditions in words, e.g. "Mit Weiß · Blitz · abends · gegen Stärkere". */
 function pickText(pick: ConditionPick): string {
@@ -47,7 +48,7 @@ export function ConditionFinder({ facts }: { facts: GameFact[] }) {
   const standout = (direction: 1 | -1) => {
     const found = standoutCondition(facts, direction);
     setPick(found?.pick ?? {});
-    setNote(found ? "" : `Keine Lage hebt sich klar vom Rest ab. Dafür braucht es mindestens ${evidence.MIN_GROUP_GAMES} Partien je Lage und einen Abstand, der kein Zufall sein kann.`);
+    setNote(found ? "" : t("Keine Lage hebt sich klar vom Rest ab. Dafür braucht es mindestens {MIN_GROUP_GAMES} Partien je Lage und einen Abstand, der kein Zufall sein kann.", { MIN_GROUP_GAMES: evidence.MIN_GROUP_GAMES }));
   };
 
   const gap = result.score_pct !== null && result.rest_pct !== null ? result.score_pct - result.rest_pct : null;
@@ -55,60 +56,62 @@ export function ConditionFinder({ facts }: { facts: GameFact[] }) {
     !active || result.score_pct === null
       ? null
       : result.verdict === 1
-        ? { cls: "pos", text: "Klar besser als sonst." }
+        ? { cls: "pos", text: t("Klar besser als sonst.") }
         : result.verdict === -1
-          ? { cls: "neg", text: "Klar schlechter als sonst." }
+          ? { cls: "neg", text: t("Klar schlechter als sonst.") }
           : result.verdict === 0
-            ? { cls: "", text: "Der Abstand zu sonst kann Zufall sein." }
-            : { cls: "", text: `Zu wenige Partien für ein Urteil (ab ${evidence.MIN_GROUP_GAMES} je Seite).` };
+            ? { cls: "", text: t("Der Abstand zu sonst kann Zufall sein.") }
+            : { cls: "", text: t("Zu wenige Partien für ein Urteil (ab {MIN_GROUP_GAMES} je Seite).", { MIN_GROUP_GAMES: evidence.MIN_GROUP_GAMES }) };
 
   return (
     <div class="ar-block finder">
       <div class="ar-block-head">
-        <strong>Wann spielst du am besten?</strong>
-        <span class="faint small">Lage zusammenstellen und live sehen, wie du dann punktest</span>
+        <strong>{t("Wann spielst du am besten?")}</strong>
+        <span class="faint small">{t("Lage zusammenstellen und live sehen, wie du dann punktest")}</span>
       </div>
       <div class="finder-grid">
         <div class="finder-picks">
-          <ChoiceChips label="Farbe" value={pick.color ?? null} onChange={(color) => set({ color })} options={(["white", "black"] as const).map((c) => ({ key: c, label: COLOR_LABEL[c] }))} />
-          {speeds.length > 1 && <ChoiceChips label="Bedenkzeit" value={pick.speed ?? null} onChange={(speed) => set({ speed })} options={speeds.map((s) => ({ key: s, label: trSpeed(s) }))} />}
+          <ChoiceChips label={t("Farbe")} value={pick.color ?? null} onChange={(color) => set({ color })} options={(["white", "black"] as const).map((c) => ({ key: c, label: COLOR_LABEL[c] }))} />
+          {speeds.length > 1 && <ChoiceChips label={t("Bedenkzeit")} value={pick.speed ?? null} onChange={(speed) => set({ speed })} options={speeds.map((s) => ({ key: s, label: trSpeed(s) }))} />}
           {dayparts.size > 1 && (
-            <ChoiceChips label="Tageszeit" value={pick.daypart ?? null} onChange={(daypart) => set({ daypart })} options={DAYPARTS.filter((d) => dayparts.has(d.key)).map((d) => ({ key: d.key, label: d.label }))} />
+            <ChoiceChips label={t("Tageszeit")} value={pick.daypart ?? null} onChange={(daypart) => set({ daypart })} options={DAYPARTS.filter((d) => dayparts.has(d.key)).map((d) => ({ key: d.key, label: d.label }))} />
           )}
           {bands.size > 1 && (
-            <ChoiceChips label="Gegner" value={pick.opp ?? null} onChange={(opp) => set({ opp })} options={OPP_BANDS.filter((b) => bands.has(b.key)).map((b) => ({ key: b.key, label: b.label }))} />
+            <ChoiceChips label={t("Gegner")} value={pick.opp ?? null} onChange={(opp) => set({ opp })} options={OPP_BANDS.filter((b) => bands.has(b.key)).map((b) => ({ key: b.key, label: b.label }))} />
           )}
           <div class="finder-auto">
             <button class="btn small" onClick={() => standout(1)}>
-              <IconSpark /> Meine beste Lage
+              <IconSpark />  {t("Meine beste Lage")}
             </button>
             <button class="btn small" onClick={() => standout(-1)}>
-              Meine schwächste Lage
+              
+              {t("Meine schwächste Lage")}
             </button>
             {active && (
               <button class="btn ghost small" onClick={() => set({ color: null, speed: null, daypart: null, opp: null })}>
-                <IconReset /> Zurück
+                <IconReset />  {t("Zurück")}
               </button>
             )}
           </div>
         </div>
         <div class={`finder-result${active ? " on" : ""}`} role="status">
-          <span class="kpi-label">{active ? pickText(pick) : "Alle Partien"}</span>
+          <span class="kpi-label">{active ? pickText(pick) : t("Alle Partien")}</span>
           <span class="finder-score">
             <CountUp value={result.score_pct} format={(v) => `${Math.round(v)} %`} />
-            {gap !== null && active && <span class={`lg-slider-delta ${gap >= 0 ? "up" : "down"}`}>{gap >= 0 ? "+" : "−"}{de(Math.abs(gap))} zu sonst</span>}
+            {gap !== null && active && <span class={`lg-slider-delta ${gap >= 0 ? "up" : "down"}`}>{gap >= 0 ? "+" : "−"}{de(Math.abs(gap))}  {t("zu sonst")}</span>}
           </span>
           <WdlBar wins={result.wins} draws={result.draws} losses={result.losses} />
           <span class="small muted">
-            {result.games ? `${plural(result.games, "Partie", "Partien")}: ${result.wins} S · ${result.draws} R · ${result.losses} N` : "Keine Partie in dieser Lage."}
-            {result.range && active ? ` · wahrscheinlich ${de(result.range[0])}–${de(result.range[1])} %` : ""}
+            {result.games ? `${plural(result.games, t("Partie"), t("Partien"))}: ${result.wins} S · ${result.draws} R · ${result.losses} N` : t("Keine Partie in dieser Lage.")}
+            {result.range && active ? t(" · wahrscheinlich {de}–{de2} %", { de: de(result.range[0]), de2: de(result.range[1]) }) : ""}
           </span>
           {verdict && <strong class={`small ${verdict.cls}`}>{verdict.text}</strong>}
           {note && <span class="small muted">{note}</span>}
         </div>
       </div>
       <p class="faint small finder-foot">
-        Stärkere und Schwächere: ab {OPP_GAP} Wertungspunkten Abstand. Verglichen wird immer mit allen übrigen Partien.
+        
+        {t("Stärkere und Schwächere: ab")} {OPP_GAP}  {t("Wertungspunkten Abstand. Verglichen wird immer mit allen übrigen Partien.")}
       </p>
     </div>
   );

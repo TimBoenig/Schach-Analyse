@@ -18,13 +18,14 @@ import { Illus } from "./Illus";
 import { backStep, canAdvance, type ImportPhase, onboardPath, type SitePick, tourStop } from "./script";
 import { Stage, StagePoint } from "./Stage";
 import { markSeen } from "./store";
+import { t } from "../../i18n";
 
 const SITE_LABEL: Record<Site, string> = { chesscom: "chess.com", lichess: "Lichess" };
 
 const SITES: { key: SitePick; label: string; sub: string; mark: string }[] = [
-  { key: "chesscom", label: "chess.com", sub: "Ich hole deine Partien der letzten drei Monate.", mark: "C" },
-  { key: "lichess", label: "Lichess", sub: "Ich hole deine letzten 100 Partien.", mark: "L" },
-  { key: "none", label: "Noch nirgends", sub: "Oder ich habe meine Partien als PGN-Datei.", mark: "?" },
+  { key: "chesscom", label: "chess.com", sub: t("Ich hole deine Partien der letzten drei Monate."), mark: "C" },
+  { key: "lichess", label: "Lichess", sub: t("Ich hole deine letzten 100 Partien."), mark: "L" },
+  { key: "none", label: t("Noch nirgends"), sub: t("Oder ich habe meine Partien als PGN-Datei."), mark: "?" },
 ];
 
 type Load = { phase: "idle" } | { phase: "busy"; label: string; found: number } | { phase: "done"; look: FirstLook; queued: boolean } | { phase: "empty" } | { phase: "error"; message: string };
@@ -47,22 +48,25 @@ function AnalysisPanel() {
     <>
       <div class="stage-panel">
         <div class="stage-row">
-          <strong>{running ? `Partie ${p!.index} von ${p!.games}` : p && p.games ? "Erste Runde fertig" : "Die Engine startet …"}</strong>
+          <strong>{running ? t("Partie {index} von {games}", { index: p!.index, games: p!.games }) : p && p.games ? t("Erste Runde fertig") : t("Die Engine startet …")}</strong>
           <span class="faint tnum">{running ? `${pct} %` : ""}</span>
         </div>
-        <div class={`stage-meter${running || (p && p.games) ? "" : " busy"}`} style={{ marginTop: "12px" }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Fortschritt der Analyse">
+        <div class={`stage-meter${running || (p && p.games) ? "" : " busy"}`} style={{ marginTop: "12px" }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={t("Fortschritt der Analyse")}>
           <span style={running ? { width: `${Math.max(3, pct)}%` } : p && p.games ? { width: "100%" } : undefined} />
         </div>
       </div>
       <div class="stage-points">
-        <StagePoint icon={<IconBolt />} title="Erst ein schneller Überblick">
-          Ich schaue jede Partie kurz durch, damit du nach wenigen Minuten Ergebnisse siehst.
+        <StagePoint icon={<IconBolt />} title={t("Erst ein schneller Überblick")}>
+          
+          {t("Ich schaue jede Partie kurz durch, damit du nach wenigen Minuten Ergebnisse siehst.")}
         </StagePoint>
-        <StagePoint icon={<IconCpu />} title="Danach gründlich">
-          Dann gehe ich alles noch einmal tiefer durch und die Werte werden genauer. Das läuft im Hintergrund, du kannst die App normal benutzen.
+        <StagePoint icon={<IconCpu />} title={t("Danach gründlich")}>
+          
+          {t("Dann gehe ich alles noch einmal tiefer durch und die Werte werden genauer. Das läuft im Hintergrund, du kannst die App normal benutzen.")}
         </StagePoint>
-        <StagePoint icon={<IconInsights />} title="Alles bleibt auf deinem Gerät">
-          Die Engine rechnet in deinem Browser. Ein Konto brauchst du nur, wenn du deine Analysen auf mehreren Geräten haben willst.
+        <StagePoint icon={<IconInsights />} title={t("Alles bleibt auf deinem Gerät")}>
+          
+          {t("Die Engine rechnet in deinem Browser. Ein Konto brauchst du nur, wenn du deine Analysen auf mehreren Geräten haben willst.")}
         </StagePoint>
       </div>
     </>
@@ -107,7 +111,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     const who = name.trim();
     if (!who) return;
     setIndex(path.indexOf("import"));
-    setLoad({ phase: "busy", label: "Ich suche dein Konto …", found: 0 });
+    setLoad({ phase: "busy", label: t("Ich suche dein Konto …"), found: 0 });
     let found = 0;
     try {
       const { games } = await importAccount(pick, who, {
@@ -166,19 +170,21 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         {...common}
         layout="center"
         mood="happy"
-        say="Hi, ich bin Lucena."
+        say={t("Hi, ich bin Lucena.")}
         sub={
           <p>
-            Ich lese deine Partien, finde heraus, wo du wirklich Punkte liegen lässt, und baue dir daraus ein Training. In zwei Minuten zeige ich dir alles.
+            
+            {t("Ich lese deine Partien, finde heraus, wo du wirklich Punkte liegen lässt, und baue dir daraus ein Training. In zwei Minuten zeige ich dir alles.")}
           </p>
         }
-        closeLabel="Ich kenne mich aus"
+        closeLabel={t("Ich kenne mich aus")}
         actions={
           <>
             <span class="stage-hint">
-              Weiter mit <kbd>Enter</kbd>
+              
+              {t("Weiter mit")} <kbd>{t("Enter")}</kbd>
             </span>
-            {nextButton("Los geht's")}
+            {nextButton(t("Los geht's"))}
           </>
         }
       />
@@ -187,8 +193,8 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   if (step === "site") {
     return (
-      <Stage {...common} mood={pick ? "wow" : "think"} say="Wo spielst du Schach?" sub={<p>Ich hole nur deine öffentlichen Partien. Sie bleiben auf deinem Gerät.</p>} actions={nextButton("Weiter", !ok)}>
-        <div class="stage-choices" role="group" aria-label="Wo spielst du?">
+      <Stage {...common} mood={pick ? "wow" : "think"} say={t("Wo spielst du Schach?")} sub={<p>{t("Ich hole nur deine öffentlichen Partien. Sie bleiben auf deinem Gerät.")}</p>} actions={nextButton(t("Weiter"), !ok)}>
+        <div class="stage-choices" role="group" aria-label={t("Wo spielst du?")}>
           {SITES.map((s) => (
             <button
               key={s.key}
@@ -219,15 +225,16 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       <Stage
         {...common}
         mood="happy"
-        say="Kein Problem, wir fangen trotzdem an."
-        sub={<p>Sobald du online spielst, holst du deine Partien mit einem Tipp. Hast du Partien als PGN-Datei, lade sie gleich hoch.</p>}
+        say={t("Kein Problem, wir fangen trotzdem an.")}
+        sub={<p>{t("Sobald du online spielst, holst du deine Partien mit einem Tipp. Hast du Partien als PGN-Datei, lade sie gleich hoch.")}</p>}
         actions={
           <>
             <button class="btn" onClick={() => finish(() => navigate({ view: "games", import: true }))}>
               <IconUpload />
-              PGN-Datei laden
+              
+              {t("PGN-Datei laden")}
             </button>
-            {nextButton("Zeig mir die App")}
+            {nextButton(t("Zeig mir die App"))}
           </>
         }
       >
@@ -239,7 +246,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   if (step === "name") {
     const site = SITE_LABEL[pick as Site];
     return (
-      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={`Wie heißt du bei ${site}?`} sub={<p>Dein Benutzername reicht, kein Passwort. Ein Konto bei {BRAND} brauchst du nicht.</p>} actions={nextButton("Partien holen", !ok)}>
+      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={t("Wie heißt du bei {site}?", { site })} sub={<p>{t("Dein Benutzername reicht, kein Passwort. Ein Konto bei")} {BRAND}  {t("brauchst du nicht.")}</p>} actions={nextButton(t("Partien holen"), !ok)}>
         <form
           class="stage-field"
           onSubmit={(e) => {
@@ -251,15 +258,15 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             ref={input}
             value={name}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            placeholder="Dein Benutzername"
+            placeholder={t("Dein Benutzername")}
             autocomplete="username"
             autocapitalize="off"
             spellcheck={false}
             enterkeyhint="go"
-            aria-label={`Benutzername bei ${site}`}
+            aria-label={t("Benutzername bei {site}", { site })}
           />
         </form>
-        <p class="stage-note">Ich lese nur, was bei {site} öffentlich zu sehen ist.</p>
+        <p class="stage-note">{t("Ich lese nur, was bei")} {site}  {t("öffentlich zu sehen ist.")}</p>
       </Stage>
     );
   }
@@ -269,16 +276,17 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     const failed = load.phase === "error" || load.phase === "empty";
     const look = load.phase === "done" ? load.look : null;
     const mood: Mood = failed ? "sad" : look ? "wow" : "think";
-    const say = load.phase === "error" ? "Das hat nicht geklappt." : load.phase === "empty" ? "Ich habe keine Partien gefunden." : look ? `${plural(look.games, "Partie", "Partien")} sind da.` : "Ich hole deine Partien …";
+    const say = load.phase === "error" ? t("Das hat nicht geklappt.") : load.phase === "empty" ? t("Ich habe keine Partien gefunden.") : look ? t("{plural} sind da.", { plural: plural(look.games, t("Partie"), t("Partien")) }) : t("Ich hole deine Partien …");
     const sub =
       load.phase === "error" ? (
         <p>{load.message}</p>
       ) : load.phase === "empty" ? (
         <p>
-          Unter „{name.trim()}“ gibt es bei {site} in den letzten Monaten keine Partien. Stimmt der Name?
+          
+          {t("Unter „")}{name.trim()}{t("“ gibt es bei")} {site}  {t("in den letzten Monaten keine Partien. Stimmt der Name?")}
         </p>
       ) : look ? (
-        <p>Das ist deine Bilanz, bevor die Engine einen einzigen Zug gesehen hat.</p>
+        <p>{t("Das ist deine Bilanz, bevor die Engine einen einzigen Zug gesehen hat.")}</p>
       ) : (
         <p>{load.phase === "busy" ? load.label : ""}</p>
       );
@@ -291,10 +299,11 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         actions={
           failed ? (
             <button class="btn primary" onClick={retryName}>
-              Namen ändern
+              
+              {t("Namen ändern")}
             </button>
           ) : (
-            nextButton("Weiter", !ok)
+            nextButton(t("Weiter"), !ok)
           )
         }
       >
@@ -302,7 +311,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           <div class="stage-panel">
             <div class="stage-row">
               <strong>
-                <CountUp value={load.found} /> {load.found === 1 ? "Partie" : "Partien"} gefunden
+                <CountUp value={load.found} /> {load.found === 1 ? t("Partie") : t("Partien")} gefunden
               </strong>
             </div>
             <div class="stage-meter busy" style={{ marginTop: "12px" }}>
@@ -317,19 +326,19 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                 <b>
                   <CountUp value={look.wins} />
                 </b>
-                <span>{look.wins === 1 ? "Sieg" : "Siege"}</span>
+                <span>{look.wins === 1 ? t("Sieg") : t("Siege")}</span>
               </div>
               <div class="stage-stat">
                 <b>
                   <CountUp value={look.draws} />
                 </b>
-                <span>Remis</span>
+                <span>{t("Remis")}</span>
               </div>
               <div class="stage-stat bad">
                 <b>
                   <CountUp value={look.losses} />
                 </b>
-                <span>{look.losses === 1 ? "Niederlage" : "Niederlagen"}</span>
+                <span>{look.losses === 1 ? t("Niederlage") : t("Niederlagen")}</span>
               </div>
             </div>
             <div class="stage-panel">
@@ -340,7 +349,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               </div>
               <div class="stage-row" style={{ marginTop: "12px" }}>
                 <span>
-                  {plural(look.white, "Partie", "Partien")} mit Weiß, {look.games - look.white} mit Schwarz
+                  {plural(look.white, t("Partie"), t("Partien"))}  {t("mit Weiß,")} {look.games - look.white}  {t("mit Schwarz")}
                 </span>
                 {look.bullet > 0 && <span class="faint">davon {look.bullet} Bullet</span>}
               </div>
@@ -353,7 +362,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   if (step === "analysis") {
     return (
-      <Stage {...common} mood="think" say="Jetzt schaue ich mir jeden Zug an." sub={<p>Währenddessen zeige ich dir, wo du gleich was findest.</p>} actions={nextButton("Zeig mir die App")}>
+      <Stage {...common} mood="think" say={t("Jetzt schaue ich mir jeden Zug an.")} sub={<p>{t("Währenddessen zeige ich dir, wo du gleich was findest.")}</p>} actions={nextButton(t("Zeig mir die App"))}>
         <AnalysisPanel />
       </Stage>
     );
@@ -362,7 +371,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   const stop = tourStop(step);
   if (stop) {
     return (
-      <Stage {...common} mood="happy" say={stop.say} sub={<p>{stop.sub}</p>} actions={nextButton("Weiter")}>
+      <Stage {...common} mood="happy" say={stop.say} sub={<p>{stop.sub}</p>} actions={nextButton(t("Weiter"))}>
         <Illus kind={stop.illus} />
         <div class="stage-points">
           {stop.points.map((p) => (
@@ -382,30 +391,32 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       {...common}
       layout="center"
       mood="wow"
-      say={imported ? "Dein Profil füllt sich gerade." : "Das war's. Viel Spaß!"}
+      say={imported ? t("Dein Profil füllt sich gerade.") : t("Das war's. Viel Spaß!")}
       sub={
         <p>
           {imported
-            ? "Die Analyse läuft im Hintergrund weiter. Je mehr Partien fertig sind, desto genauer werden deine Stärken und Schwächen. Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst."
-            : "Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst. Den Rundgang findest du jederzeit in der Seitenleiste wieder."}
+            ? t("Die Analyse läuft im Hintergrund weiter. Je mehr Partien fertig sind, desto genauer werden deine Stärken und Schwächen. Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst.")
+            : t("Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst. Den Rundgang findest du jederzeit in der Seitenleiste wieder.")}
         </p>
       }
-      closeLabel="Schließen"
+      closeLabel={t("Schließen")}
       actions={
         <>
           {imported && (
             <button class="btn" onClick={() => finish(() => navigate({ view: "games" }))}>
               <IconGames />
-              Meine Partien
+              
+              {t("Meine Partien")}
             </button>
           )}
           {!imported && (
             <button class="btn" onClick={() => finish(() => navigate({ view: "training" }))}>
               <IconTraining />
-              Zum Training
+              
+              {t("Zum Training")}
             </button>
           )}
-          {nextButton("Zur Startseite")}
+          {nextButton(t("Zur Startseite"))}
         </>
       }
     />

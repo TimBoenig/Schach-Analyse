@@ -9,6 +9,7 @@ import { MIN_GROUP_GAMES, MIN_SITUATIONS, scoresDiffer, shareAtLeast, Z_MULTI } 
 import { avg, pstdev, pyRound } from "./num";
 import type { PrecisionStats } from "./precision";
 import { wilsonMargin } from "./precision";
+import { t } from "../../i18n";
 
 export interface GameTypeStat {
   key: string;
@@ -63,38 +64,38 @@ const MIN_TYPE_GAMES = MIN_GROUP_GAMES;
 const TYPES: { key: string; label: string; description: string; test: (f: GameFeatures) => boolean }[] = [
   {
     key: "tactical",
-    label: "Taktisch & wild",
-    description: "Die Bewertung schwankt stark, Schläge und Drohungen prägen die Partie.",
+    label: t("Taktisch & wild"),
+    description: t("Die Bewertung schwankt stark, Schläge und Drohungen prägen die Partie."),
     test: (f) => f.wp_volatility >= 0.07,
   },
   {
     key: "quiet",
-    label: "Ruhig & positionell",
-    description: "Kaum Ausschläge in der Bewertung, es geht um Pläne und kleine Vorteile.",
+    label: t("Ruhig & positionell"),
+    description: t("Kaum Ausschläge in der Bewertung, es geht um Pläne und kleine Vorteile."),
     test: (f) => f.wp_volatility > 0 && f.wp_volatility < 0.035,
   },
   {
     key: "attack",
-    label: "Königsangriff",
-    description: "Du stürmst mit Bauern auf den gegnerischen König.",
+    label: t("Königsangriff"),
+    description: t("Du stürmst mit Bauern auf den gegnerischen König."),
     test: (f) => f.pawn_storm_moves >= 2,
   },
   {
     key: "queenless",
-    label: "Früher Damentausch",
-    description: "Die Damen gehen bis Zug 20 vom Brett.",
+    label: t("Früher Damentausch"),
+    description: t("Die Damen gehen bis Zug 20 vom Brett."),
     test: (f) => f.queens_off_by_move !== null && f.queens_off_by_move <= 20,
   },
   {
     key: "endgame",
-    label: "Bis ins Endspiel",
-    description: "Die Partie erreicht ein Endspiel.",
+    label: t("Bis ins Endspiel"),
+    description: t("Die Partie erreicht ein Endspiel."),
     test: (f) => f.reached_endgame,
   },
   {
     key: "short",
-    label: "Kurz & entschieden",
-    description: "Nach höchstens 25 Zügen ist die Partie vorbei.",
+    label: t("Kurz & entschieden"),
+    description: t("Nach höchstens 25 Zügen ist die Partie vorbei."),
     test: (f) => f.plies > 0 && f.plies <= 50 && f.score !== 0.5,
   },
 ];
@@ -163,32 +164,32 @@ const shortDate = (d: string) => {
 type Metric = { key: string; label: string; unit: string; higherIsBetter: boolean; value: (f: GameFeatures) => number | null };
 
 const METRICS: Metric[] = [
-  { key: "accuracy", label: "Genauigkeit", unit: "%", higherIsBetter: true, value: (f) => (f.analyzed ? f.rec.game_acc : null) },
-  { key: "score", label: "Punkte-Quote", unit: "%", higherIsBetter: true, value: (f) => (f.score !== null ? f.score * 100 : null) },
+  { key: "accuracy", label: t("Genauigkeit"), unit: "%", higherIsBetter: true, value: (f) => (f.analyzed ? f.rec.game_acc : null) },
+  { key: "score", label: t("Punkte-Quote"), unit: "%", higherIsBetter: true, value: (f) => (f.score !== null ? f.score * 100 : null) },
   {
     key: "blunders",
-    label: "Patzer pro Partie",
+    label: t("Patzer pro Partie"),
     unit: "",
     higherIsBetter: false,
     value: (f) => (f.analyzed ? f.moves.filter((m) => m.classification === "Blunder").length : null),
   },
   {
     key: "errors",
-    label: "Schwere Fehler pro Partie",
+    label: t("Schwere Fehler pro Partie"),
     unit: "",
     higherIsBetter: false,
     value: (f) => (f.analyzed ? f.errors(true).length : null),
   },
   {
     key: "punish",
-    label: "Gegnerfehler bestraft",
+    label: t("Gegnerfehler bestraft"),
     unit: "%",
     higherIsBetter: true,
     value: (f) => (f.analyzed && f.punish_chances > 0 ? (f.punished / f.punish_chances) * 100 : null),
   },
   {
     key: "opening_wp",
-    label: "Gewinnchance nach der Eröffnung",
+    label: t("Gewinnchance nach der Eröffnung"),
     unit: "%",
     higherIsBetter: true,
     value: (f) => {
@@ -273,16 +274,16 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
   if (better.length) {
     const c = better[0];
     out.push({
-      title: "Fortschritt",
-      text: `${c.label} hat sich verbessert, von ${fmt(c, c.earlier)} auf ${fmt(c, c.recent)} (deine letzten ${evo.half} gegenüber den ${evo.half} Partien davor).`,
+      title: t("Fortschritt"),
+      text: t("{label} hat sich verbessert, von {fmt} auf {fmt2} (deine letzten {half} gegenüber den {half2} Partien davor).", { label: c.label, fmt: fmt(c, c.earlier), fmt2: fmt(c, c.recent), half: evo.half, half2: evo.half }),
       tone: "good",
     });
   }
   if (worse.length) {
     const c = worse[0];
     out.push({
-      title: "Achtung",
-      text: `${c.label} hat sich verschlechtert, von ${fmt(c, c.earlier)} auf ${fmt(c, c.recent)}. Das ist mehr als normale Schwankung.`,
+      title: t("Achtung"),
+      text: t("{label} hat sich verschlechtert, von {fmt} auf {fmt2}. Das ist mehr als normale Schwankung.", { label: c.label, fmt: fmt(c, c.earlier), fmt2: fmt(c, c.recent) }),
       tone: "bad",
     });
   }
@@ -290,8 +291,8 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     // Name the metric that moved most in the right direction, even if still within noise.
     const lean = [...evo.changes].sort((a, b) => Math.abs(b.delta) / (Math.abs(b.earlier) || 1) - Math.abs(a.delta) / (Math.abs(a.earlier) || 1))[0];
     out.push({
-      title: "Stabil",
-      text: `Über deine letzten ${evo.half * 2} analysierten Partien hat sich keine Kennzahl mehr als zufällig verändert. Am deutlichsten bewegt hat sich ${lean.label} (${fmt(lean, lean.earlier)} → ${fmt(lean, lean.recent)}).`,
+      title: t("Stabil"),
+      text: t("Über deine letzten {0} analysierten Partien hat sich keine Kennzahl mehr als zufällig verändert. Am deutlichsten bewegt hat sich {label} ({fmt} → {fmt2}).", { 0: evo.half * 2, label: lean.label, fmt: fmt(lean, lean.earlier), fmt2: fmt(lean, lean.recent) }),
       tone: "neutral",
     });
   }
@@ -304,15 +305,15 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     if ((best.score_pct as number) - (worst.score_pct as number) >= 15 && clear) {
       const tip =
         worst.key === "quiet"
-          ? "Übe Pläne in ruhigen Stellungen."
+          ? t("Übe Pläne in ruhigen Stellungen.")
           : worst.key === "tactical"
-            ? "Taktiktraining zahlt sich hier direkt aus."
+            ? t("Taktiktraining zahlt sich hier direkt aus.")
             : worst.key === "endgame"
-              ? "Endspieltraining bringt dir hier am meisten."
-              : "Hier liegt dein größtes Potenzial.";
+              ? t("Endspieltraining bringt dir hier am meisten.")
+              : t("Hier liegt dein größtes Potenzial.");
       out.push({
-        title: "Partietyp",
-        text: `In Partien vom Typ „${best.label}“ holst du ${de(best.score_pct as number, 0)} %, bei „${worst.label}“ nur ${de(worst.score_pct as number, 0)} %. ${tip}`,
+        title: t("Partietyp"),
+        text: t("In Partien vom Typ „{label}“ holst du {de} %, bei „{label2}“ nur {de2} %. {tip}", { label: best.label, de: de(best.score_pct as number, 0), label2: worst.label, de2: de(worst.score_pct as number, 0), tip }),
         tone: "neutral",
       });
     }
@@ -326,8 +327,8 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
     const clear = scoresDiffer(best, worst, sp.length > 2 ? Z_MULTI : undefined);
     if (gap >= 12 && clear && best.accuracy !== null && worst.accuracy !== null) {
       out.push({
-        title: "Bedenkzeit",
-        text: `Im ${best.label} holst du ${de(gap, 0)} Prozentpunkte mehr als im ${worst.label} (Genauigkeit ${de(best.accuracy)} gegenüber ${de(worst.accuracy)} %).`,
+        title: t("Bedenkzeit"),
+        text: t("Im {label} holst du {de} Prozentpunkte mehr als im {label2} (Genauigkeit {de2} gegenüber {de3} %).", { label: best.label, de: de(gap, 0), label2: worst.label, de2: de(best.accuracy), de3: de(worst.accuracy) }),
         tone: "neutral",
       });
     }
@@ -336,12 +337,12 @@ export function personalFeedback(evo: Evolution, types: GameTypeStat[], speeds: 
   const tk = precision.turnarounds;
   if (tk.winning >= MIN_SITUATIONS && tk.lost_from_winning / tk.winning >= 0.2 && shareAtLeast(tk.lost_from_winning, tk.winning, 0.1)) {
     out.push({
-      title: "Nächster Schritt",
-      text: `Sichere gewonnene Stellungen ab: ${tk.lost_from_winning} von ${tk.winning} hast du noch verloren. Frage dich vor jedem Zug, was dein Gegner droht, statt sofort weiter anzugreifen.`,
+      title: t("Nächster Schritt"),
+      text: t("Sichere gewonnene Stellungen ab: {lost_from_winning} von {winning} hast du noch verloren. Frage dich vor jedem Zug, was dein Gegner droht, statt sofort weiter anzugreifen.", { lost_from_winning: tk.lost_from_winning, winning: tk.winning }),
       tone: "neutral",
     });
   } else if (precision.spread.games >= MIN_GROUP_GAMES * 2 && precision.spread.stdev !== null && precision.spread.stdev >= 12) {
-    out.push({ title: "Nächster Schritt", text: "Mehr Konstanz. Spiele nur ausgeruht und mache nach zwei Niederlagen eine Pause.", tone: "neutral" });
+    out.push({ title: t("Nächster Schritt"), text: t("Mehr Konstanz. Spiele nur ausgeruht und mache nach zwei Niederlagen eine Pause."), tone: "neutral" });
   }
   return out;
 }

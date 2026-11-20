@@ -13,6 +13,7 @@ const SAFE: Record<Platform, { top: number; bottom: number; right: number }> = {
   youtube: { top: 0, bottom: 0, right: 0 },
 };
 import type { Frame } from "./timeline";
+import { t } from "../../i18n";
 
 export interface Assets {
   logo: HTMLImageElement | null;
@@ -514,7 +515,7 @@ export function compose(
     ctx.textBaseline = "middle";
     drawMove(ctx, frame.pill.text, dx + dot / 2 + 14 * u, 2 * u, 54 * u, assets, black);
     if (v.plainMoves && frame.pill.plain) {
-      const words = `${black ? "Schwarz" : "Weiß"}: ${frame.pill.plain}`;
+      const words = `${black ? t("Schwarz") : t("Weiß")}: ${frame.pill.plain}`;
       // The pill is scaled while it pops in; measure against the frame's width at full size.
       const size = fitLine(ctx, words, W - 90 * u, 34 * u, (sz) => `700 ${sz}px ${SANS}`);
       ctx.font = `700 ${size}px ${SANS}`;
@@ -687,7 +688,7 @@ export function compose(
     ctx.font = `600 ${24 * u}px ${SANS}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`Hier liegen die Knöpfe von ${PLATFORM_LABEL[v.platform]}`, W / 2, H - z.bottom * u / 2);
+    ctx.fillText(t("Hier liegen die Knöpfe von {0}", { 0: PLATFORM_LABEL[v.platform] }), W / 2, H - z.bottom * u / 2);
     ctx.restore();
   }
 }
@@ -716,7 +717,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.55)";
     ctx.shadowBlur = 40 * u;
-    const kicker = `${BRAND} erklärt`;
+    const kicker = t("{BRAND} erklärt", { BRAND });
     ctx.font = `600 ${30 * u}px ${SANS}`;
     ctx.fillStyle = st.accent;
     ctx.globalAlpha = a * clamp01(age / 0.4);
@@ -883,7 +884,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
   // Call-to-action button.
   const bk = easeOut((age - 0.9) / 0.5);
   if (bk > 0) {
-    const label = `Jetzt kostenlos auf ${BRAND_DOMAIN}`;
+    const label = t("Jetzt kostenlos auf {BRAND_DOMAIN}", { BRAND_DOMAIN });
     ctx.save();
     ctx.globalAlpha = a * bk;
     ctx.font = `700 ${38 * u}px ${SANS}`;
@@ -1048,7 +1049,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     const black = frame.pill.side === "b";
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(`ZUG VON ${black ? "SCHWARZ" : "WEISS"}`, x0, nowTop);
+    ctx.fillText(t("ZUG VON {0}", { 0: black ? "SCHWARZ" : "WEISS" }), x0, nowTop);
     ctx.font = `800 ${36 * u}px ${SANS}`;
     ctx.fillStyle = "#ffffff";
     const mw = drawMove(ctx, frame.pill.text, x0, nowTop + 50 * u, 36 * u, assets, black);
@@ -1065,7 +1066,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     const top = listTop;
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText("ZÜGE", x0, top);
+    ctx.fillText(t("ZÜGE"), x0, top);
     const msize = 28 * u;
     ctx.font = `600 ${msize}px ${SANS}`;
     let x = x0;

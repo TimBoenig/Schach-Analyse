@@ -2,6 +2,7 @@
 // Caissa WASM build in the app, a Node process in tests).
 import type { PvLine } from "../domain/types";
 import { ENGINE_NET } from "./info";
+import { t } from "../i18n";
 
 export interface UciTransport {
   send(cmd: string): void;
@@ -68,7 +69,7 @@ export class UciEngine {
     transport.onLine((line) => {
       for (const l of [...this.listeners]) l(line);
     });
-    transport.onError?.((err) => this.fail(new EngineFailure(`Die Engine ist abgestürzt: ${err.message}`)));
+    transport.onError?.((err) => this.fail(new EngineFailure(t("Die Engine ist abgestürzt: {message}", { message: err.message }))));
     this.ready = (async () => {
       await this.command("uci", (l) => l === "uciok");
       await this.isReady();
@@ -117,7 +118,7 @@ export class UciEngine {
         // Overdue: ask for the result now; no answer after that means the worker hangs.
         stopTimer = setTimeout(() => {
           this.transport.send("stop");
-          deadTimer = setTimeout(() => this.fail(new EngineFailure("Die Engine antwortet nicht mehr.")), STOP_GRACE_MS);
+          deadTimer = setTimeout(() => this.fail(new EngineFailure(t("Die Engine antwortet nicht mehr."))), STOP_GRACE_MS);
         }, timeoutMs);
       }
       this.transport.send(cmd);
@@ -186,7 +187,7 @@ export class UciEngine {
   }
 
   quit(): void {
-    this.fail(new EngineFailure("Engine beendet."));
+    this.fail(new EngineFailure(t("Engine beendet.")));
     try {
       this.transport.send("quit");
     } finally {
@@ -275,7 +276,7 @@ export function createEngineWorker(): UciTransport {
       if (!dead) worker.postMessage({ net });
     },
     (e: unknown) => {
-      if (!dead) onError(new Error(`Die Engine-Daten konnten nicht geladen werden (${e instanceof Error ? e.message : String(e)}).`));
+      if (!dead) onError(new Error(t("Die Engine-Daten konnten nicht geladen werden ({0}).", { 0: e instanceof Error ? e.message : String(e) })));
     },
   );
   return {
@@ -294,9 +295,9 @@ export function createEngineWorker(): UciTransport {
       onError = cb;
       worker.onerror = (e: ErrorEvent) => {
         e.preventDefault?.();
-        cb(new Error(e.message || "Worker-Fehler"));
+        cb(new Error(e.message || t("Worker-Fehler")));
       };
-      worker.onmessageerror = () => cb(new Error("Ungültige Nachricht"));
+      worker.onmessageerror = () => cb(new Error(t("Ungültige Nachricht")));
     },
   };
 }

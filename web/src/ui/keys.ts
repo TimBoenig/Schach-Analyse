@@ -1,4 +1,6 @@
 /** True while the user types in a field, so single-key shortcuts stay out of the way. */
+import { t } from "../i18n";
+
 export function isTyping(e: KeyboardEvent): boolean {
   const tk = e.target as HTMLElement | null;
   if (!tk) return false;
@@ -7,4 +9,4 @@ export function isTyping(e: KeyboardEvent): boolean {
 }
 
 /** "⌘" on Apple devices, "Strg" elsewhere (German keyboards). */
-export const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : "Strg";
+export const MOD = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘" : t("Strg");

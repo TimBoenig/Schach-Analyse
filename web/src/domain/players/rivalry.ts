@@ -17,13 +17,14 @@ import { fmt as fmtDot } from "../profile/num";
 import { openingLabel, type MoveChoice } from "../profile/openings";
 import { Board } from "../tactics/board";
 import { classifyGamePhase } from "../tactics/phase";
+import { t } from "../../i18n";
 
 // German decimal comma: "92,5".
 const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", ",");
 
 export type Phase = "opening" | "middlegame" | "endgame";
-export const PHASE_DE: Record<Phase, string> = { opening: "Eröffnung", middlegame: "Mittelspiel", endgame: "Endspiel" };
-const PHASE_IN: Record<Phase, string> = { opening: "in der Eröffnung", middlegame: "im Mittelspiel", endgame: "im Endspiel" };
+export const PHASE_DE: Record<Phase, string> = { opening: t("Eröffnung"), middlegame: t("Mittelspiel"), endgame: t("Endspiel") };
+const PHASE_IN: Record<Phase, string> = { opening: t("in der Eröffnung"), middlegame: t("im Mittelspiel"), endgame: t("im Endspiel") };
 
 const SERIOUS = new Set(["Mistake", "Blunder", "Miss"]);
 // The decisive error leaves the loser at most this winning chance, and they never get back to even.
@@ -198,17 +199,17 @@ export function duelInsights(games: RawGame[], me: string[], them: string[], nam
 
   const facts: string[] = [];
   if (accuracy.my_change && accuracy.mine !== null && accuracy.my_usual !== null) {
-    facts.push(`Gegen ${name} spielst du klar ${accuracy.my_change === "better" ? "genauer" : "ungenauer"} als sonst: ${fmt(accuracy.mine, 1)} statt ${fmt(accuracy.my_usual, 1)} % Genauigkeit.`);
+    facts.push(t("Gegen {name} spielst du klar {1} als sonst: {fmt} statt {fmt2} % Genauigkeit.", { name, 1: accuracy.my_change === "better" ? "genauer" : "ungenauer", fmt: fmt(accuracy.mine, 1), fmt2: fmt(accuracy.my_usual, 1) }));
   }
   if (accuracy.their_change && accuracy.theirs !== null && accuracy.their_usual !== null) {
-    facts.push(`${name} spielt gegen dich klar ${accuracy.their_change === "better" ? "genauer" : "ungenauer"} als sonst: ${fmt(accuracy.theirs, 1)} statt ${fmt(accuracy.their_usual, 1)} %.`);
+    facts.push(t("{name} spielt gegen dich klar {1} als sonst: {fmt} statt {fmt2} %.", { name, 1: accuracy.their_change === "better" ? "genauer" : "ungenauer", fmt: fmt(accuracy.theirs, 1), fmt2: fmt(accuracy.their_usual, 1) }));
   }
   const errs = first_error.me + first_error.them;
   if (errs >= MIN_SITUATIONS) {
     if (shareAtLeast(first_error.me, errs, 0.5, Z_ONE) && first_error.me > first_error.them) {
-      facts.push(`Den ersten groben Fehler macht meistens du (${first_error.me} von ${errs} Partien). Ruhig bleiben zahlt sich gegen ${name} aus.`);
+      facts.push(t("Den ersten groben Fehler macht meistens du ({me} von {errs} Partien). Ruhig bleiben zahlt sich gegen {name} aus.", { me: first_error.me, errs, name }));
     } else if (shareAtLeast(first_error.them, errs, 0.5, Z_ONE) && first_error.them > first_error.me) {
-      facts.push(`Den ersten groben Fehler macht meistens ${name} (${first_error.them} von ${errs} Partien): Stellungen lange spannend halten lohnt sich.`);
+      facts.push(t("Den ersten groben Fehler macht meistens {name} ({them} von {errs} Partien): Stellungen lange spannend halten lohnt sich.", { name, them: first_error.them, errs }));
     }
   }
   const lost = decisive.reduce((s, d) => s + d.me, 0);
@@ -216,14 +217,14 @@ export function duelInsights(games: RawGame[], me: string[], them: string[], nam
     const top = [...decisive].sort((a, b) => b.me - a.me)[0];
     // Three phases: a third would be chance.
     if (shareAtLeast(top.me, lost, 1 / 3, Z_ONE)) {
-      facts.push(`Deine Niederlagen gegen ${name} kippen meist ${PHASE_IN[top.phase]} (${top.me} von ${lost}).`);
+      facts.push(t("Deine Niederlagen gegen {name} kippen meist {1} ({me} von {lost}).", { name, 1: PHASE_IN[top.phase], me: top.me, lost }));
     }
   }
   const won = decisive.reduce((s, d) => s + d.them, 0);
   if (won >= MIN_SITUATIONS) {
     const top = [...decisive].sort((a, b) => b.them - a.them)[0];
     if (shareAtLeast(top.them, won, 1 / 3, Z_ONE)) {
-      facts.push(`Deine Siege gegen ${name} entscheiden sich meist ${PHASE_IN[top.phase]} (${top.them} von ${won}).`);
+      facts.push(t("Deine Siege gegen {name} entscheiden sich meist {1} ({them} von {won}).", { name, 1: PHASE_IN[top.phase], them: top.them, won }));
     }
   }
   return { games: duels, balance, streak, analyzed: analysed.length, accuracy, first_error, decisive, facts };

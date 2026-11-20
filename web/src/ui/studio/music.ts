@@ -1,14 +1,16 @@
 // Background music made in code (no sound files, so no rights questions): a short
 // loop of chords, bass and drums per mood, written straight into PCM samples.
+import { t } from "../../i18n";
+
 
 export type MusicId = "none" | "lofi" | "tension" | "epic" | "file";
 
 export const MUSIC_LABEL: Record<MusicId, string> = {
-  none: "Keine",
+  none: t("Keine"),
   lofi: "Lo-fi",
-  tension: "Spannung",
-  epic: "Episch",
-  file: "Eigene Datei",
+  tension: t("Spannung"),
+  epic: t("Episch"),
+  file: t("Eigene Datei"),
 };
 
 interface Groove {

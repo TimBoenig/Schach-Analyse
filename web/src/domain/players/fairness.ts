@@ -19,6 +19,7 @@ import { filterGames } from "../metrics/filters";
 import { parseSummary, type RawGame } from "../metrics/models";
 import { detectSpeedCategory } from "../metrics/speed";
 import { MIN_GROUP_GAMES } from "../profile/evidence";
+import { t } from "../../i18n";
 
 export interface QualityGame {
   speed: string;
@@ -155,4 +156,4 @@ export function medianDepths(quality: QualityGame[][]): (number | null)[] {
 }
 
 export const FAIRNESS_NOTE =
-  "Genauigkeit und Patzer sind nach Bedenkzeit bereinigt: in Blitz spielt jeder ungenauer als in Schnellschach, deshalb zählt nur, wie gut jemand in seiner Bedenkzeit spielt, nicht welche er wählt.";
+  t("Genauigkeit und Patzer sind nach Bedenkzeit bereinigt: in Blitz spielt jeder ungenauer als in Schnellschach, deshalb zählt nur, wie gut jemand in seiner Bedenkzeit spielt, nicht welche er wählt.");

@@ -9,6 +9,7 @@ import { Illus } from "./Illus";
 import { Stage, StagePoint } from "./Stage";
 import { hydrateSeen } from "./seenSync";
 import { autoFree, currentShow, markSeen, openStage, takeAuto, wasSeen } from "./store";
+import { t } from "../../i18n";
 
 const seenId = (id: GuideId) => `page:${id}`;
 
@@ -29,7 +30,7 @@ export function PageGuide({ id, onClose }: { id: GuideId; onClose: () => void })
       steps={guide.steps.length}
       step={index}
       stepKey={`${id}-${index}`}
-      kicker={`Lucena · ${guide.title}`}
+      kicker={t("Lucena · {title}", { title: guide.title })}
       mood={step.mood ?? "happy"}
       layout={step.illus || step.points ? "split" : "center"}
       say={step.say}
@@ -37,10 +38,10 @@ export function PageGuide({ id, onClose }: { id: GuideId; onClose: () => void })
       onBack={index > 0 ? () => setIndex(index - 1) : undefined}
       onNext={next}
       onClose={close}
-      closeLabel="Schließen"
+      closeLabel={t("Schließen")}
       actions={
         <button class="btn primary" onClick={next}>
-          {last ? "Alles klar" : "Weiter"}
+          {last ? t("Alles klar") : t("Weiter")}
           {!last && <IconChevron />}
         </button>
       }
@@ -91,9 +92,9 @@ export function usePageGuide(id: GuideId, ready: boolean): void {
 /** The button in a page header that brings the explanation back. */
 export function GuideButton({ id }: { id: GuideId }) {
   return (
-    <button class="btn ghost guide-btn" onClick={() => openStage({ kind: "page", subject: id })} title="Lucena erklärt dir diese Seite">
+    <button class="btn ghost guide-btn" onClick={() => openStage({ kind: "page", subject: id })} title={t("Lucena erklärt dir diese Seite")}>
       <span class="orb-mini" aria-hidden="true" />
-      <span class="guide-btn-text">Erklären</span>
+      <span class="guide-btn-text">{t("Erklären")}</span>
     </button>
   );
 }

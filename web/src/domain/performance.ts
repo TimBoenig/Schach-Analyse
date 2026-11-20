@@ -5,6 +5,8 @@
 // without cross-origin isolation), so more CPU is used by running several
 // engines in parallel, each on its own core, instead of one engine with threads.
 // Headless: the app layer stores the choice per device.
+import { t } from "../i18n";
+
 
 export type PerfPreset = "eco" | "balanced" | "high" | "max";
 
@@ -35,10 +37,10 @@ export interface PerfPresetInfo {
 }
 
 export const PERF_PRESETS: Record<PerfPreset, PerfPresetInfo> = {
-  eco: { name: "Sparsam", hint: "1 Kern, kühl und leise" },
-  balanced: { name: "Ausgewogen", hint: "etwa ein Viertel der Kerne" },
-  high: { name: "Stark", hint: "etwa die Hälfte der Kerne" },
-  max: { name: "Sehr stark", hint: "fast alle Kerne" },
+  eco: { name: t("Sparsam"), hint: t("1 Kern, kühl und leise") },
+  balanced: { name: t("Ausgewogen"), hint: t("etwa ein Viertel der Kerne") },
+  high: { name: t("Stark"), hint: t("etwa die Hälfte der Kerne") },
+  max: { name: t("Sehr stark"), hint: t("fast alle Kerne") },
 };
 
 export const PERF_ORDER: PerfPreset[] = ["eco", "balanced", "high", "max"];
@@ -123,10 +125,10 @@ export function resolvePerf(choice: PerfChoice, device: DeviceInfo): PerfSetting
 
 /** "Sehr stark" or "Eigene". */
 export function perfName(choice: PerfChoice): string {
-  return choice.preset === "custom" ? "Eigene" : PERF_PRESETS[choice.preset].name;
+  return choice.preset === "custom" ? t("Eigene") : PERF_PRESETS[choice.preset].name;
 }
 
 /** "4 Engines · 128 MB Hash je Engine". */
 export function perfLabel(p: PerfSettings): string {
-  return `${p.engines} ${p.engines === 1 ? "Engine" : "Engines"} · ${p.hashMb} MB Hash${p.engines > 1 ? " je Engine" : ""}`;
+  return t("{engines} {1} · {hashMb} MB Hash{3}", { engines: p.engines, 1: p.engines === 1 ? "Engine" : "Engines", hashMb: p.hashMb, 3: p.engines > 1 ? t(" je Engine") : "" });
 }

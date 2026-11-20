@@ -18,6 +18,7 @@ import {
 } from "./icons";
 import { navigate, type Route } from "./router";
 import { ENGINE_NAME } from "../engine/info";
+import { t } from "../i18n";
 
 export type AreaId = "home" | "games" | "stats" | "training" | "players" | "settings";
 
@@ -44,54 +45,54 @@ const is = <V extends Route["view"]>(view: V, extra?: (r: Extract<Route, { view:
 export const AREAS: Area[] = [
   {
     id: "home",
-    label: "Start",
-    hint: "Dein Tag auf einen Blick",
+    label: t("Start"),
+    hint: t("Dein Tag auf einen Blick"),
     icon: IconHome,
-    sub: [{ label: "Start", about: "", route: { view: "home" }, match: is("home") }],
+    sub: [{ label: t("Start"), about: "", route: { view: "home" }, match: is("home") }],
   },
   {
     id: "games",
-    label: "Partien",
-    hint: "Importieren, analysieren, nachspielen",
+    label: t("Partien"),
+    hint: t("Importieren, analysieren, nachspielen"),
     icon: IconGames,
     sub: [
       // A game opens from the list; its analysis counts as part of this page.
       {
-        label: "Alle Partien",
-        about: "Deine Partien importieren, analysieren lassen und durchsehen.",
+        label: t("Alle Partien"),
+        about: t("Deine Partien importieren, analysieren lassen und durchsehen."),
         route: { view: "games" },
         match: (r) => r.view === "games" || r.view === "analysis",
       },
-      { label: "Analysebrett", about: `Stellungen frei ausprobieren, mit ${ENGINE_NAME}.`, route: { view: "board" }, match: is("board") },
+      { label: t("Analysebrett"), about: t("Stellungen frei ausprobieren, mit {ENGINE_NAME}.", { ENGINE_NAME }), route: { view: "board" }, match: is("board") },
     ],
   },
   {
     id: "stats",
-    label: "Statistik",
-    hint: "Profil, Ergebnisse, Züge, Eröffnungen",
+    label: t("Statistik"),
+    hint: t("Profil, Ergebnisse, Züge, Eröffnungen"),
     icon: IconInsights,
     sub: [
       {
-        label: "Überblick",
-        about: "Wer du als Spieler bist: Wertung, Fähigkeiten, Stärken und Schwächen, Stil.",
+        label: t("Überblick"),
+        about: t("Wer du als Spieler bist: Wertung, Fähigkeiten, Stärken und Schwächen, Stil."),
         route: { view: "profile" },
         match: is("profile"),
       },
       {
-        label: "Ergebnisse",
-        about: "Wo du Punkte holst und liegen lässt: Entwicklung, Gegner, Bedenkzeit, Partieverlauf, Gewohnheiten.",
+        label: t("Ergebnisse"),
+        about: t("Wo du Punkte holst und liegen lässt: Entwicklung, Gegner, Bedenkzeit, Partieverlauf, Gewohnheiten."),
         route: { view: "insights" },
         match: is("insights"),
       },
       {
-        label: "Züge & Fehler",
-        about: "Jeder Zug gezählt, von brillant bis Patzer, und wann, wo und womit Fehler passieren.",
+        label: t("Züge & Fehler"),
+        about: t("Jeder Zug gezählt, von brillant bis Patzer, und wann, wo und womit Fehler passieren."),
         route: { view: "moves" },
         match: is("moves"),
       },
       {
-        label: "Eröffnungen",
-        about: "Dein Repertoire: Erfolg je Eröffnung, Eröffnungsbaum und Lücken.",
+        label: t("Eröffnungen"),
+        about: t("Dein Repertoire: Erfolg je Eröffnung, Eröffnungsbaum und Lücken."),
         route: { view: "openings" },
         match: is("openings"),
       },
@@ -100,35 +101,35 @@ export const AREAS: Area[] = [
   {
     id: "training",
     label: "Training",
-    hint: "Tagesplan, Übungen, Fortschritt",
+    hint: t("Tagesplan, Übungen, Fortschritt"),
     icon: IconTraining,
     sub: [
-      { label: "Heute", about: "", route: { view: "training" }, match: is("training", (r) => !r.tab || r.tab === "heute") },
-      { label: "Übungen", about: "", route: { view: "training", tab: "uebungen" }, match: is("training", (r) => r.tab === "uebungen") },
-      { label: "Fortschritt", about: "", route: { view: "training", tab: "fortschritt" }, match: is("training", (r) => r.tab === "fortschritt") },
+      { label: t("Heute"), about: "", route: { view: "training" }, match: is("training", (r) => !r.tab || r.tab === "heute") },
+      { label: t("Übungen"), about: "", route: { view: "training", tab: "uebungen" }, match: is("training", (r) => r.tab === "uebungen") },
+      { label: t("Fortschritt"), about: "", route: { view: "training", tab: "fortschritt" }, match: is("training", (r) => r.tab === "fortschritt") },
     ],
   },
   {
     id: "players",
-    label: "Spieler",
-    hint: "Freunde, Gegner, Rangliste",
+    label: t("Spieler"),
+    hint: t("Freunde, Gegner, Rangliste"),
     icon: IconPlayers,
     sub: [
-      { label: "Gegner & Freunde", about: "", route: { view: "players" }, match: is("players", (r) => r.tab !== "rangliste") },
-      { label: "Rangliste", about: "", route: { view: "players", tab: "rangliste" }, match: is("players", (r) => r.tab === "rangliste") },
+      { label: t("Gegner & Freunde"), about: "", route: { view: "players" }, match: is("players", (r) => r.tab !== "rangliste") },
+      { label: t("Rangliste"), about: "", route: { view: "players", tab: "rangliste" }, match: is("players", (r) => r.tab === "rangliste") },
     ],
   },
   {
     id: "settings",
-    label: "Einstellungen",
-    hint: "Namen, Analyse, Daten, Konto",
+    label: t("Einstellungen"),
+    hint: t("Namen, Analyse, Daten, Konto"),
     icon: IconSettings,
     sub: [
-      { label: "Allgemein", about: "", route: { view: "settings" }, match: is("settings", (r) => !r.tab) },
-      { label: "Analyse", about: "", route: { view: "settings", tab: "analyse" }, match: is("settings", (r) => r.tab === "analyse") },
-      { label: "Daten & Export", about: "", route: { view: "settings", tab: "daten" }, match: is("settings", (r) => r.tab === "daten") },
-      { label: "Konto", about: "", route: { view: "account" }, match: is("account") },
-      { label: "Rechtliches", about: "", route: { view: "legal" }, match: is("legal") },
+      { label: t("Allgemein"), about: "", route: { view: "settings" }, match: is("settings", (r) => !r.tab) },
+      { label: t("Analyse"), about: "", route: { view: "settings", tab: "analyse" }, match: is("settings", (r) => r.tab === "analyse") },
+      { label: t("Daten & Export"), about: "", route: { view: "settings", tab: "daten" }, match: is("settings", (r) => r.tab === "daten") },
+      { label: t("Konto"), about: "", route: { view: "account" }, match: is("account") },
+      { label: t("Rechtliches"), about: "", route: { view: "legal" }, match: is("legal") },
     ],
   },
 ];
@@ -180,7 +181,7 @@ export function AreaTabs() {
   if (area.sub.length < 2) return null;
   return (
     <div class="area-tabs">
-      <nav class="area-tabs-row" ref={row} aria-label={`${area.label}: Bereiche`}>
+      <nav class="area-tabs-row" ref={row} aria-label={t("{label}: Bereiche", { label: area.label })}>
         {area.sub.map((s) => {
           const on = s === current;
           return (
@@ -236,11 +237,11 @@ export function PageHeader({
         {toolbar && <div class="ph-tools wide">{toolbar}</div>}
         {actions}
         <span class="ph-mobile">
-          <button class="btn icon ghost" onClick={openPalette} aria-label="Suchen">
+          <button class="btn icon ghost" onClick={openPalette} aria-label={t("Suchen")}>
             <IconSearch />
           </button>
           {area.id !== "settings" && (
-            <button class="btn icon ghost" onClick={() => navigate({ view: "settings" })} aria-label="Einstellungen">
+            <button class="btn icon ghost" onClick={() => navigate({ view: "settings" })} aria-label={t("Einstellungen")}>
               <IconSettings />
             </button>
           )}

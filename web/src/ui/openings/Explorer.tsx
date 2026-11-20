@@ -12,6 +12,7 @@ import { StackBar } from "../charts";
 import { formatDate } from "../labels";
 import { navigate } from "../router";
 import { useBook } from "../useBook";
+import { t } from "../../i18n";
 
 const pctText = (v: number | null) => (v === null ? "–" : `${Math.round(v)} %`);
 
@@ -63,7 +64,7 @@ function GameRow({ g }: { g: TreeGame }) {
         {g.score === 1 ? "S" : g.score === 0 ? "N" : g.score === 0.5 ? "R" : "–"}
       </span>
       <span class="op-opp">
-        {g.opponent || "Gegner"}
+        {g.opponent || t("Gegner")}
         {g.opp_rating > 0 && <span class="faint"> {g.opp_rating}</span>}
       </span>
       <span class="faint small">{formatDate(g.date)}</span>
@@ -130,26 +131,28 @@ export function Explorer({
           legalTargets={legalTargets}
         />
         <div class="explorer-nav">
-          <button class="btn small ghost" onClick={() => onPath([])} disabled={!at.length} aria-label="Zum Anfang">
+          <button class="btn small ghost" onClick={() => onPath([])} disabled={!at.length} aria-label={t("Zum Anfang")}>
             ⏮
           </button>
-          <button class="btn small ghost" onClick={() => onPath(at.slice(0, -1))} disabled={!at.length} aria-label="Einen Zug zurück">
+          <button class="btn small ghost" onClick={() => onPath(at.slice(0, -1))} disabled={!at.length} aria-label={t("Einen Zug zurück")}>
             ◀
           </button>
-          <button class="btn small ghost" onClick={() => kids[0] && go(kids[0].san)} disabled={!kids.length} aria-label="Häufigster Zug">
+          <button class="btn small ghost" onClick={() => kids[0] && go(kids[0].san)} disabled={!kids.length} aria-label={t("Häufigster Zug")}>
             ▶
           </button>
           <span class="spacer" />
           <button class="btn small" onClick={() => navigate({ view: "board", fen })}>
-            Am Brett untersuchen
+            
+            {t("Am Brett untersuchen")}
           </button>
         </div>
       </div>
 
       <div class="explorer-side">
-        <div class="explorer-crumbs" aria-label="Zugfolge">
+        <div class="explorer-crumbs" aria-label={t("Zugfolge")}>
           <button class={`crumb${at.length ? "" : " on"}`} onClick={() => onPath([])}>
-            Start
+            
+            {t("Start")}
           </button>
           {at.map((san, i) => (
             <button key={i} class={`crumb${i === at.length - 1 ? " on" : ""}`} onClick={() => onPath(at.slice(0, i + 1))}>
@@ -161,36 +164,36 @@ export function Explorer({
         <div class="explorer-head">
           <div>
             <div class="explorer-name">
-              {name ? name.main : at.length ? "Eigene Wege" : "Ausgangsstellung"}
+              {name ? name.main : at.length ? t("Eigene Wege") : t("Ausgangsstellung")}
               {name?.eco && <span class="op-eco">{name.eco}</span>}
             </div>
             <div class="small faint">
-              {name?.variation || (at.length ? "Abseits der bekannten Theorie" : "Alle deine Partien mit dieser Farbe")}
+              {name?.variation || (at.length ? t("Abseits der bekannten Theorie") : t("Alle deine Partien mit dieser Farbe"))}
             </div>
           </div>
           <div class="explorer-score">
             <strong class={`tnum ${scoreClass(here.score_pct)}`}>{pctText(here.score_pct)}</strong>
-            <span class="small faint">{here.games === 1 ? "1 Partie" : `${here.games} Partien`}</span>
+            <span class="small faint">{here.games === 1 ? t("1 Partie") : t("{games} Partien", { games: here.games })}</span>
           </div>
         </div>
         <StackBar
           height={8}
           legend={false}
           segments={[
-            { label: "Siege", value: here.wins, color: "var(--win)" },
-            { label: "Remis", value: here.draws, color: "var(--draw)" },
-            { label: "Niederlagen", value: here.losses, color: "var(--loss)" },
+            { label: t("Siege"), value: here.wins, color: "var(--win)" },
+            { label: t("Remis"), value: here.draws, color: "var(--draw)" },
+            { label: t("Niederlagen"), value: here.losses, color: "var(--loss)" },
           ]}
         />
 
-        <div class="explorer-label">{userToMove ? "Was du hier spielst" : "Was deine Gegner hier spielen"}</div>
+        <div class="explorer-label">{userToMove ? t("Was du hier spielst") : t("Was deine Gegner hier spielen")}</div>
         {kids.length ? (
           <div class="explorer-moves" role="table">
             {kids.map((c) => (
               <button key={c.san} class={`explorer-move${c.games < 2 ? " thin" : ""}${c.leak ? " leak" : ""}`} role="row" onClick={() => go(c.san)}>
                 <span class="em-san">
                   {movesText([c.san], at.length)}
-                  {c.book && <span class="em-book" title="Eröffnungstheorie">Theorie</span>}
+                  {c.book && <span class="em-book" title={t("Eröffnungstheorie")}>{t("Theorie")}</span>}
                 </span>
                 <span class="tnum em-games">
                   {c.games}
@@ -201,9 +204,9 @@ export function Explorer({
                     height={6}
                     legend={false}
                     segments={[
-                      { label: "Siege", value: c.wins, color: "var(--win)" },
-                      { label: "Remis", value: c.draws, color: "var(--draw)" },
-                      { label: "Niederlagen", value: c.losses, color: "var(--loss)" },
+                      { label: t("Siege"), value: c.wins, color: "var(--win)" },
+                      { label: t("Remis"), value: c.draws, color: "var(--draw)" },
+                      { label: t("Niederlagen"), value: c.losses, color: "var(--loss)" },
                     ]}
                   />
                 </span>
@@ -211,8 +214,8 @@ export function Explorer({
                 {c.user && c.judged > 0 && !c.book && (
                   <span class={`em-note small${c.leak ? " bad" : " faint"}`}>
                     {c.leak ? "⚠ " : ""}
-                    {c.errors ? `Fehler in ${c.errors} von ${c.judged}` : `fehlerfrei in ${c.judged}`}
-                    {c.better && c.errors * 2 >= c.judged ? ` · besser ${c.better}` : ""}
+                    {c.errors ? t("Fehler in {errors} von {judged}", { errors: c.errors, judged: c.judged }) : `fehlerfrei in ${c.judged}`}
+                    {c.better && c.errors * 2 >= c.judged ? t(" · besser {better}", { better: c.better }) : ""}
                   </span>
                 )}
               </button>
@@ -221,14 +224,14 @@ export function Explorer({
         ) : (
           <p class="small muted" style={{ margin: "6px 0 0" }}>
             {here.games > 1
-              ? "Ab hier gehen deine Partien eigene Wege."
-              : "Diese Stellung kam nur in einer Partie vor, weiter verzweige ich nicht."}
+              ? t("Ab hier gehen deine Partien eigene Wege.")
+              : t("Diese Stellung kam nur in einer Partie vor, weiter verzweige ich nicht.")}
           </p>
         )}
 
         {here.recent.length > 0 && (
           <div class="explorer-games">
-            <div class="explorer-label">Partien mit dieser Stellung</div>
+            <div class="explorer-label">{t("Partien mit dieser Stellung")}</div>
             <div class="op-games">
               {here.recent.map((g) => (
                 <GameRow key={g.id} g={g} />

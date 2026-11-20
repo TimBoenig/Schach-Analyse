@@ -5,6 +5,7 @@
 import { Component, type ComponentChildren } from "preact";
 
 import { CoachAvatar } from "./Coach";
+import { t } from "../i18n";
 
 interface Props {
   children: ComponentChildren;
@@ -33,18 +34,20 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <div class="crash card" role="alert">
         <CoachAvatar mood="sad" size={72} />
-        <h3>{this.props.area ?? "Diese Seite"} konnte nicht angezeigt werden</h3>
+        <h3>{this.props.area ?? t("Diese Seite")}  {t("konnte nicht angezeigt werden")}</h3>
         <p class="muted">
-          Deine Partien und Analysen sind sicher gespeichert. Versuch es noch einmal oder lade die App neu. Wenn es wieder
-          passiert, hilft ein Screenshot dieser Meldung bei der Fehlersuche.
+          
+          {t("Deine Partien und Analysen sind sicher gespeichert. Versuch es noch einmal oder lade die App neu. Wenn es wieder passiert, hilft ein Screenshot dieser Meldung bei der Fehlersuche.")}
         </p>
         <pre class="crash-detail">{error.message || String(error)}</pre>
         <div class="row" style={{ justifyContent: "center" }}>
           <button class="btn primary" onClick={() => this.setState({ error: null })}>
-            Nochmal versuchen
+            
+            {t("Nochmal versuchen")}
           </button>
           <button class="btn" onClick={() => location.reload()}>
-            App neu laden
+            
+            {t("App neu laden")}
           </button>
         </div>
       </div>

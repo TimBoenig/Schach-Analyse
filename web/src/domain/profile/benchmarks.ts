@@ -21,6 +21,7 @@ import {
   safetyScore,
   tacticsScore,
 } from "./skills";
+import { t } from "../../i18n";
 
 const ANCHORS = [800, 1200, 1500, 1800, 2100, 2400];
 
@@ -274,7 +275,7 @@ const PHASE_BENCH = { opening: "acc_opening", middlegame: "acc_middlegame", endg
 
 /** Short name of the reference behind "typical" values, for labels. */
 export function typicalLabel(rc: RatingContext): string {
-  return rc.reference === "opponents" ? "Ø deiner Gegner" : `Richtwert für ${rc.rating}`;
+  return rc.reference === "opponents" ? t("Ø deiner Gegner") : t("Richtwert für {rating}", { rating: rc.rating });
 }
 
 /**

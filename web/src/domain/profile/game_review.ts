@@ -19,6 +19,7 @@ import {
 } from "./features";
 import type { GameReview, KeyMoment, PhaseReview } from "./models";
 import { fmtDe, pyRound } from "./num";
+import { t } from "../../i18n";
 
 type Dict = Record<string, any>;
 
@@ -32,7 +33,7 @@ const GRADE_WORDS: Record<number, string> = {
   3: "befriedigend",
   4: "ausreichend",
   5: "mangelhaft",
-  6: "ungenügend",
+  6: t("ungenügend"),
 };
 
 /** Map game accuracy to a German school grade (1,0 = sehr gut … 6,0 = ungenügend). */
@@ -96,12 +97,12 @@ function sideAccuracy(summary: GameSummary, color: string): number {
 
 function phaseComment(name: string, acc: number | null, errors: number, moves: number): string {
   if (acc === null || acc === undefined || moves === 0) {
-    return name !== "Eröffnung" ? `Kein ${name} in dieser Partie.` : "Nur Buchzüge.";
+    return name !== "Eröffnung" ? t("Kein {name} in dieser Partie.", { name }) : t("Nur Buchzüge.");
   }
-  if (acc >= 90 && errors === 0) return "Sehr sauber gespielt.";
-  if (acc >= 80 && errors <= 1) return "Solide, kaum Ungenauigkeiten.";
-  if (errors >= 2) return `${errors} schwere Fehler – hier hast du die meisten Punkte abgegeben.`;
-  return "Mehrere ungenaue Züge, hier steckt Verbesserungspotenzial.";
+  if (acc >= 90 && errors === 0) return t("Sehr sauber gespielt.");
+  if (acc >= 80 && errors <= 1) return t("Solide, kaum Ungenauigkeiten.");
+  if (errors >= 2) return t("{errors} schwere Fehler – hier hast du die meisten Punkte abgegeben.", { errors });
+  return t("Mehrere ungenaue Züge, hier steckt Verbesserungspotenzial.");
 }
 
 const moverIsWhite = (m: MoveData, idx: number): boolean =>
@@ -130,12 +131,12 @@ export function buildGameReview(
   const opponent = isWhite ? game.black : game.white;
   const resultText =
     outcome === "win"
-      ? `Sieg gegen ${opponent}`
+      ? t("Sieg gegen {opponent}", { opponent })
       : outcome === "draw"
-        ? `Remis gegen ${opponent}`
+        ? t("Remis gegen {opponent}", { opponent })
         : outcome === "loss"
-          ? `Niederlage gegen ${opponent}`
-          : `Partie gegen ${opponent}`;
+          ? t("Niederlage gegen {opponent}", { opponent })
+          : t("Partie gegen {opponent}", { opponent });
 
   const userMoves: Array<[number, MoveData]> = [];
   game.moves.forEach((m, idx) => {
@@ -227,25 +228,25 @@ function keyMoments(game: ReviewGame, isWhite: boolean): KeyMoment[] {
     let text: string;
     if (byUser && ERROR_CLASSES.has(m.classification)) {
       title = `${label} – ${clsDe}`;
-      text = `Deine Gewinnchance fiel von ${pctText(wpB)} auf ${pctText(wpA)}.`;
-      if (bestSan) text += ` Besser war ${bestSan}.`;
+      text = t("Deine Gewinnchance fiel von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
+      if (bestSan) text += t(" Besser war {bestSan}.", { bestSan });
     } else if (byUser && brilliant) {
       title = `${label} – ${clsDe}!`;
-      text = m.explanation || "Ein starker Zug, den die Engine besonders hervorhebt.";
-      text += ` Gewinnchance jetzt ${pctText(wpA)}.`;
+      text = m.explanation || t("Ein starker Zug, den die Engine besonders hervorhebt.");
+      text += t(" Gewinnchance jetzt {pctText}.", { pctText: pctText(wpA) });
     } else if (byUser && wpA >= wpB) {
       title = `${label} – ${clsDe}`;
-      text = `Du hast die Chance genutzt: Gewinnchance von ${pctText(wpB)} auf ${pctText(wpA)}.`;
+      text = t("Du hast die Chance genutzt: Gewinnchance von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
     } else if (byUser) {
       // A large drop without an error label: the position was already slipping.
       return;
     } else if (wpA > wpB) {
-      title = `${label} – Fehler des Gegners`;
-      text = `Dein Gegner hat gepatzt: deine Gewinnchance stieg auf ${pctText(wpA)}.`;
-      if (bestSan) text += ` (Er hätte ${bestSan} spielen sollen.)`;
+      title = t("{label} – Fehler des Gegners", { label });
+      text = t("Dein Gegner hat gepatzt: deine Gewinnchance stieg auf {pctText}.", { pctText: pctText(wpA) });
+      if (bestSan) text += t(" (Er hätte {bestSan} spielen sollen.)", { bestSan });
     } else {
-      title = `${label} – starker Gegnerzug`;
-      text = `Dein Gegner fand einen starken Zug, deine Gewinnchance sank auf ${pctText(wpA)}.`;
+      title = t("{label} – starker Gegnerzug", { label });
+      text = t("Dein Gegner fand einen starken Zug, deine Gewinnchance sank auf {pctText}.", { pctText: pctText(wpA) });
     }
     candidates.push([
       swing + (brilliant ? 0.3 : 0),
@@ -308,57 +309,57 @@ function assess(
     .reduce((s, [, v]) => s + v, 0);
 
   if (acc >= 85) {
-    pos.push(`Hohe Genauigkeit von ${fmtDe(acc, 1)} % – du hast die meisten Züge sehr gut gewählt.`);
+    pos.push(t("Hohe Genauigkeit von {fmtDe} % – du hast die meisten Züge sehr gut gewählt.", { fmtDe: fmtDe(acc, 1) }));
   } else if (acc && oppAcc && acc > oppAcc + 5) {
     pos.push(
-      `Du hast genauer gespielt als dein Gegner (${fmtDe(acc, 1)} % gegenüber ${fmtDe(oppAcc, 1)} %).`,
+      t("Du hast genauer gespielt als dein Gegner ({fmtDe} % gegenüber {fmtDe2} %).", { fmtDe: fmtDe(acc, 1), fmtDe2: fmtDe(oppAcc, 1) }),
     );
   }
-  if (total && good / total >= 0.6) pos.push(`${good} von ${total} Zügen waren beste oder exzellente Züge.`);
+  if (total && good / total >= 0.6) pos.push(t("{good} von {total} Zügen waren beste oder exzellente Züge.", { good, total }));
   if (counts.Brilliant || counts.Great) {
     pos.push(
-      `Starke Funde: ${counts.Brilliant ?? 0}× brillant, ${counts.Great ?? 0}× großartig.`,
+      t("Starke Funde: {0}× brillant, {1}× großartig.", { 0: counts.Brilliant ?? 0, 1: counts.Great ?? 0 }),
     );
   }
-  if (blunders === 0 && total >= 10) pos.push("Kein einziger Patzer in der ganzen Partie.");
+  if (blunders === 0 && total >= 10) pos.push(t("Kein einziger Patzer in der ganzen Partie."));
 
   for (const p of review.phases) {
     if (p.accuracy && p.accuracy >= 88 && p.moves >= 5 && p.errors === 0) {
-      pos.push(`${p.name} sehr sauber gespielt (${fmtDe(p.accuracy, 0)} %).`);
+      pos.push(t("{name} sehr sauber gespielt ({fmtDe} %).", { name: p.name, fmtDe: fmtDe(p.accuracy, 0) }));
     }
   }
 
   const adv: Dict = tactics.advantage_metrics ?? {};
-  if (adv.converted_advantage) pos.push("Deinen klaren Vorteil hast du sicher in einen Sieg umgewandelt.");
+  if (adv.converted_advantage) pos.push(t("Deinen klaren Vorteil hast du sicher in einen Sieg umgewandelt."));
   if (adv.comeback_wins) {
-    pos.push("Starke Moral: Aus einer verlorenen Stellung hast du die Partie noch gewonnen.");
+    pos.push(t("Starke Moral: Aus einer verlorenen Stellung hast du die Partie noch gewonnen."));
   } else if (adv.comeback_draws) {
-    pos.push("Aus einer verlorenen Stellung hast du noch ein Remis gerettet.");
+    pos.push(t("Aus einer verlorenen Stellung hast du noch ein Remis gerettet."));
   }
 
   const hang: Dict = tactics.hanging_metrics ?? {};
   if (hang.opponent_hanging_captured) {
-    pos.push(`${hang.opponent_hanging_captured}× hängendes Material des Gegners eingesammelt.`);
+    pos.push(t("{opponent_hanging_captured}× hängendes Material des Gegners eingesammelt.", { opponent_hanging_captured: hang.opponent_hanging_captured }));
   }
 
   // --- Negatives & lessons ---
   if (blunders) {
     neg.push(
       blunders === 1
-        ? "1 Patzer hat die Stellung deutlich verschlechtert."
-        : `${blunders} Patzer – jeder davon hat die Stellung deutlich verschlechtert.`,
+        ? t("1 Patzer hat die Stellung deutlich verschlechtert.")
+        : t("{blunders} Patzer – jeder davon hat die Stellung deutlich verschlechtert.", { blunders }),
     );
   }
   if (mistakes) {
     neg.push(
       mistakes === 1
-        ? "1 Fehler hat dich Vorteil gekostet."
-        : `${mistakes} Fehler haben dich Vorteil gekostet.`,
+        ? t("1 Fehler hat dich Vorteil gekostet.")
+        : t("{mistakes} Fehler haben dich Vorteil gekostet.", { mistakes }),
     );
   }
   if (misses) {
-    neg.push(`${misses}× eine klare Chance verpasst, den Gegner zu bestrafen.`);
-    lessons.push("Nach jedem gegnerischen Zug prüfen: Hängt jetzt etwas? Gibt es Schachs oder Schläge?");
+    neg.push(t("{misses}× eine klare Chance verpasst, den Gegner zu bestrafen.", { misses }));
+    lessons.push(t("Nach jedem gegnerischen Zug prüfen: Hängt jetzt etwas? Gibt es Schachs oder Schläge?"));
   }
 
   const hung: number = hang.total_hung ?? 0;
@@ -367,16 +368,16 @@ function assess(
       ([, v]) => v,
     );
     const pieces = byPiece.map(([k, v]) => `${v}× ${trPiece(k)}`).join(", ");
-    neg.push(`Figuren ungedeckt gelassen bzw. eingestellt: ${pieces || hung}.`);
-    lessons.push("Vor jedem Zug den Blunder-Check: Welche meiner Figuren sind danach ungedeckt?");
+    neg.push(t("Figuren ungedeckt gelassen bzw. eingestellt: {0}.", { 0: pieces || hung }));
+    lessons.push(t("Vor jedem Zug den Blunder-Check: Welche meiner Figuren sind danach ungedeckt?"));
   }
 
   if (adv.thrown_losses) {
-    neg.push("Eine klar gewonnene Stellung (+3) ging noch verloren.");
-    lessons.push("Mit großem Vorteil: Figuren tauschen, Gegenspiel verhindern und keine Hektik.");
+    neg.push(t("Eine klar gewonnene Stellung (+3) ging noch verloren."));
+    lessons.push(t("Mit großem Vorteil: Figuren tauschen, Gegenspiel verhindern und keine Hektik."));
   } else if (adv.squandered_draws) {
-    neg.push("Eine gewonnene Stellung endete nur remis.");
-    lessons.push("Mit Vorteil die Technik üben: Spiele solche Stellungen gegen die Engine zu Ende.");
+    neg.push(t("Eine gewonnene Stellung endete nur remis."));
+    lessons.push(t("Mit Vorteil die Technik üben: Spiele solche Stellungen gegen die Engine zu Ende."));
   }
 
   // max() keeps the first phase on ties, like Python.
@@ -385,58 +386,58 @@ function assess(
     null,
   );
   if (worstPhase && worstPhase.errors >= 2) {
-    neg.push(`Die meisten schweren Fehler passierten ${trPhaseIn(worstPhase.phase)}.`);
+    neg.push(t("Die meisten schweren Fehler passierten {trPhaseIn}.", { trPhaseIn: trPhaseIn(worstPhase.phase) }));
     const phaseLesson: Record<string, string> = {
-      opening: "Lerne die Pläne deiner Eröffnung, nicht nur die ersten Züge.",
-      middlegame: "Im Mittelspiel vor jedem Zug Drohungen und Kandidatenzüge sammeln.",
-      endgame: "Grundendspiele wiederholen und den König im Endspiel aktivieren.",
+      opening: t("Lerne die Pläne deiner Eröffnung, nicht nur die ersten Züge."),
+      middlegame: t("Im Mittelspiel vor jedem Zug Drohungen und Kandidatenzüge sammeln."),
+      endgame: t("Grundendspiele wiederholen und den König im Endspiel aktivieren."),
     };
     lessons.push(phaseLesson[worstPhase.phase]);
   }
 
   const cm: Dict = tactics.clock_metrics ?? {};
   if (cm.trouble_blunders) {
-    neg.push(`${cm.trouble_blunders} Patzer in Zeitnot.`);
-    lessons.push("Teile deine Zeit besser ein, damit kritische Momente nicht in Zeitnot fallen.");
+    neg.push(t("{trouble_blunders} Patzer in Zeitnot.", { trouble_blunders: cm.trouble_blunders }));
+    lessons.push(t("Teile deine Zeit besser ein, damit kritische Momente nicht in Zeitnot fallen."));
   }
   const qualityPace: Dict = cm.quality_timed_moves ?? {};
   if (
     qualityPace.blunder &&
     ((cm.quality_time_spent ?? {}).blunder ?? 0) / Math.max(1, qualityPace.blunder) < 4
   ) {
-    lessons.push("Deine Patzer kamen schnell – in angespannten Stellungen bewusst langsamer ziehen.");
+    lessons.push(t("Deine Patzer kamen schnell – in angespannten Stellungen bewusst langsamer ziehen."));
   }
 
   if (review.turning_point && outcome === "loss") {
     const tp = review.turning_point;
     lessons.unshift(
-      `Wendepunkt war ${tp.move_label}: Hier lohnt es sich, die Stellung nachzuspielen` +
-        (tp.best_move_san && tp.by_user ? ` und ${tp.best_move_san} zu verstehen.` : "."),
+      t("Wendepunkt war {move_label}: Hier lohnt es sich, die Stellung nachzuspielen", { move_label: tp.move_label }) +
+        (tp.best_move_san && tp.by_user ? t(" und {best_move_san} zu verstehen.", { best_move_san: tp.best_move_san }) : "."),
     );
   }
 
-  if (!neg.length) neg.push("Keine größeren Schwächen – eine sehr saubere Partie.");
-  if (!lessons.length) lessons.push("Weiter so! Schau dir die Schlüsselmomente an, um noch präziser zu werden.");
-  if (!pos.length) pos.push("Du hast die Partie zu Ende gekämpft – analysiere die Schlüsselmomente unten.");
+  if (!neg.length) neg.push(t("Keine größeren Schwächen – eine sehr saubere Partie."));
+  if (!lessons.length) lessons.push(t("Weiter so! Schau dir die Schlüsselmomente an, um noch präziser zu werden."));
+  if (!pos.length) pos.push(t("Du hast die Partie zu Ende gekämpft – analysiere die Schlüsselmomente unten."));
   return [unique(pos), unique(neg), unique(lessons).slice(0, 5)];
 }
 
 function headline(outcome: Outcome | null, acc: number, counts: Record<string, number>): string {
   const blunders = counts.Blunder ?? 0;
   if (outcome === "win") {
-    if (acc >= 90) return "Eine Glanzleistung – präzise von Anfang bis Ende.";
-    if (blunders) return "Gewonnen, aber nicht fehlerfrei – hier steckt noch Potenzial.";
-    return "Verdienter Sieg mit solidem Spiel.";
+    if (acc >= 90) return t("Eine Glanzleistung – präzise von Anfang bis Ende.");
+    if (blunders) return t("Gewonnen, aber nicht fehlerfrei – hier steckt noch Potenzial.");
+    return t("Verdienter Sieg mit solidem Spiel.");
   }
   if (outcome === "loss") {
-    if (acc >= 80) return "Knappe Niederlage trotz guter Leistung.";
+    if (acc >= 80) return t("Knappe Niederlage trotz guter Leistung.");
     if (blunders) {
       return blunders === 1
-        ? "Ein Patzer hat die Partie entschieden."
-        : `${blunders} Patzer haben die Partie entschieden.`;
+        ? t("Ein Patzer hat die Partie entschieden.")
+        : t("{blunders} Patzer haben die Partie entschieden.", { blunders });
     }
-    return "Der Gegner war heute genauer.";
+    return t("Der Gegner war heute genauer.");
   }
-  if (outcome === "draw") return "Remis – schau dir an, wo mehr drin war.";
-  return "Partie-Review";
+  if (outcome === "draw") return t("Remis – schau dir an, wo mehr drin war.");
+  return t("Partie-Review");
 }

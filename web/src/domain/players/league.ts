@@ -24,6 +24,7 @@ import {
   strengthGap,
   strengthSampler,
 } from "./strength";
+import { t } from "../../i18n";
 
 const C = Math.LN10 / 400;
 const logistic = (d: number) => 1 / (1 + 10 ** (-d / 400));
@@ -198,19 +199,19 @@ export function simulateTournament(
 // ---------- strengths and player types ----------
 
 export const AREA_LABEL: Record<Area, string> = {
-  opening: "Eröffnung",
-  middlegame: "Mittelspiel",
-  endgame: "Endspiel",
-  tactics: "Taktik",
-  safety: "Figurensicherheit",
+  opening: t("Eröffnung"),
+  middlegame: t("Mittelspiel"),
+  endgame: t("Endspiel"),
+  tactics: t("Taktik"),
+  safety: t("Figurensicherheit"),
 };
 
 const AREA_TITLE: Record<Area, string> = {
-  opening: "Eröffnungsprofi",
-  middlegame: "Mittelspiel-Stratege",
-  endgame: "Endspiel-Techniker",
-  tactics: "Taktiker",
-  safety: "Fels in der Brandung",
+  opening: t("Eröffnungsprofi"),
+  middlegame: t("Mittelspiel-Stratege"),
+  endgame: t("Endspiel-Techniker"),
+  tactics: t("Taktiker"),
+  safety: t("Fels in der Brandung"),
 };
 
 export interface Archetype {
@@ -242,14 +243,14 @@ export function archetypes(ranking: Ranking): Record<string, Archetype> {
     const s = r.strength;
     const practice = s ? practiceGap(s)?.kind ?? null : null;
     if (!s || !s.areas.length) {
-      out[r.id] = { title: "Noch offen", area: null, offset: null, weak: null, practice };
+      out[r.id] = { title: t("Noch offen"), area: null, offset: null, weak: null, practice };
       continue;
     }
     const up = s.areas.filter((a) => a.stands_out === 1).sort((a, b) => b.offset / b.offset_se - a.offset / a.offset_se)[0];
     const down = s.areas.filter((a) => a.stands_out === -1).sort((a, b) => a.offset / a.offset_se - b.offset / b.offset_se)[0];
     const sharp = s.areas.filter((a) => a.offset_se <= ALLROUND_SE).length >= ALLROUND_AREAS;
     if (up) out[r.id] = { title: AREA_TITLE[up.key], area: up.key, offset: up.offset, weak: down ? AREA_LABEL[down.key] : null, practice };
-    else out[r.id] = { title: sharp && !down ? "Allrounder" : "Noch offen", area: null, offset: null, weak: down ? AREA_LABEL[down.key] : null, practice };
+    else out[r.id] = { title: sharp && !down ? t("Allrounder") : t("Noch offen"), area: null, offset: null, weak: down ? AREA_LABEL[down.key] : null, practice };
   }
   return out;
 }
@@ -355,18 +356,18 @@ export function qualityMap(ranking: Ranking): QualityMap | null {
   for (const p of points) {
     if (!p.kind) continue;
     const gap = Math.round(Math.abs(p.gap) / 10) * 10;
-    const who = p.is_me ? "Du" : p.name;
+    const who = p.is_me ? t("Du") : p.name;
     findings.push({
       id: p.id,
       kind: p.kind,
       text:
         p.kind === "fighter"
           ? p.is_me
-            ? `Du holst klar mehr Punkte, als deine Züge wert sind (etwa ${gap} Elo): praktisch stark, du kämpfst und stellst Probleme.`
-            : `${who} holt klar mehr Punkte, als die Züge wert sind (etwa ${gap} Elo): praktisch stark, ${who} kämpft und stellt Probleme.`
+            ? t("Du holst klar mehr Punkte, als deine Züge wert sind (etwa {gap} Elo): praktisch stark, du kämpfst und stellst Probleme.", { gap })
+            : t("{who} holt klar mehr Punkte, als die Züge wert sind (etwa {gap} Elo): praktisch stark, {who2} kämpft und stellt Probleme.", { who, gap, who2: who })
           : p.is_me
-            ? `Deine Züge sind etwa ${gap} Elo mehr wert, als deine Ergebnisse zeigen: da bleiben Punkte liegen, oft bei der Verwertung oder auf der Uhr.`
-            : `Die Züge von ${who} sind etwa ${gap} Elo mehr wert, als die Ergebnisse zeigen: da bleiben Punkte liegen, oft bei der Verwertung oder auf der Uhr.`,
+            ? t("Deine Züge sind etwa {gap} Elo mehr wert, als deine Ergebnisse zeigen: da bleiben Punkte liegen, oft bei der Verwertung oder auf der Uhr.", { gap })
+            : t("Die Züge von {who} sind etwa {gap} Elo mehr wert, als die Ergebnisse zeigen: da bleiben Punkte liegen, oft bei der Verwertung oder auf der Uhr.", { who, gap }),
     });
   }
   return { points, missing, findings };

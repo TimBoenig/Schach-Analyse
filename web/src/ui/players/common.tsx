@@ -14,6 +14,7 @@ import type { StoredGame } from "../../domain/types";
 import { IconPlay, IconSync } from "../icons";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { FORMATS, formatOptionLabel, PeriodSelect } from "../useProfile";
+import { t } from "../../i18n";
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 export const pct0 = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${Math.round(v)} %`);
@@ -71,7 +72,7 @@ export function PlayerFilters({
   const { excludeBullet } = useBulletPrefs();
   return (
     <div class="filters">
-      <select value={format} onChange={(e) => onFormat(e.currentTarget.value)} aria-label="Bedenkzeit">
+      <select value={format} onChange={(e) => onFormat(e.currentTarget.value)} aria-label={t("Bedenkzeit")}>
         {FORMATS.map((f) => (
           <option key={f} value={f}>
             {formatOptionLabel(f, excludeBullet)}
@@ -84,21 +85,21 @@ export function PlayerFilters({
 }
 
 /** Loads new games for all given players in one go. */
-export function RefreshAll({ players, label = "Alle aktualisieren" }: { players: TrackedPlayer[]; label?: string }) {
+export function RefreshAll({ players, label = t("Alle aktualisieren") }: { players: TrackedPlayer[]; label?: string }) {
   const [busy, setBusy] = useState("");
   const online = players.filter((p) => p.accounts.some((a) => a.source !== "other"));
   if (online.length < 2) return null;
   const run = async () => {
-    setBusy("Lade Partien …");
+    setBusy(t("Lade Partien …"));
     const { imported, failed } = await importAllPlayers(online, { onProgress: setBusy });
     setBusy(
-      `${plural(imported, "neue Partie", "neue Partien")} geladen${failed.length ? `, nicht erreichbar: ${failed.join(", ")}` : ""}.`,
+      `${plural(imported, t("neue Partie"), t("neue Partien"))} geladen${failed.length ? t(", nicht erreichbar: {failed}", { failed: failed.join(", ") }) : ""}.`,
     );
     window.setTimeout(() => setBusy(""), failed.length ? 6000 : 3000);
   };
   return (
     <span class="refresh-all">
-      <button class="btn" disabled={Boolean(busy)} onClick={() => void run()} title="Neue Partien aller Spieler von Lichess und Chess.com laden">
+      <button class="btn" disabled={Boolean(busy)} onClick={() => void run()} title={t("Neue Partien aller Spieler von Lichess und Chess.com laden")}>
         <IconSync /> {label}
       </button>
       {busy && (
@@ -129,20 +130,20 @@ export function AnalyzeFriends({ players, games, short }: { players: TrackedPlay
   const waiting = open.filter((id) => !inQueue.has(id));
   const running = open.length - waiting.length;
   if (!open.length) return null;
-  const who = friends.length === shown.length && !shown.some((p) => p.friend) ? "aller Spieler" : "deiner Freunde";
+  const who = friends.length === shown.length && !shown.some((p) => p.friend) ? t("aller Spieler") : t("deiner Freunde");
   return (
     <button
       class="btn"
       disabled={!waiting.length}
       onClick={() => void enqueue(waiting)}
-      title={`Alle noch nicht analysierten Partien ${who}, die neuesten zuerst${skipBullet ? ", ohne Bullet" : ""}`}
+      title={t("Alle noch nicht analysierten Partien {who}, die neuesten zuerst{1}", { who, 1: skipBullet ? t(", ohne Bullet") : "" })}
     >
       <IconPlay />{" "}
       {waiting.length
         ? short
           ? `${waiting.length} analysieren`
-          : `Neue Partien ${who} analysieren (${waiting.length})`
-        : `Analyse läuft (${plural(running, "Partie", "Partien")})`}
+          : t("Neue Partien {who} analysieren ({length})", { who, length: waiting.length })
+        : t("Analyse läuft ({plural})", { plural: plural(running, t("Partie"), t("Partien")) })}
     </button>
   );
 }

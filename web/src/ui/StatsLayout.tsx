@@ -10,6 +10,7 @@ import { IconChevron } from "./icons";
 import { AREAS, ShellContext } from "./Layout";
 import { navigate, type Route } from "./router";
 import { useNarrow } from "./useNarrow";
+import { t } from "../i18n";
 
 export type StatsView = "profile" | "moves" | "insights" | "openings";
 
@@ -29,25 +30,25 @@ export interface StatSection {
 
 export const STAT_SECTIONS: Record<"profile" | "insights" | "moves", StatSection[]> = {
   profile: [
-    { id: "ueberblick", title: "Überblick", sub: "Wertung, Bilanz, Erwartung und Genauigkeit", cards: ["Wertung", "Bilanz", "Punkte gegen Erwartung"] },
-    { id: "faehigkeiten", title: "Fähigkeiten", sub: "von 0 bis 100, verglichen mit Spielern deiner Wertung", cards: ["Fähigkeiten-Netz", "Fähigkeiten im Detail"] },
-    { id: "staerken", title: "Stärken und Schwächen", sub: "nur was viele Partien klar zeigen", cards: ["Stärken", "Schwächen"] },
-    { id: "stil", title: "Stil und Muster", sub: "wie du spielst und was immer wieder passiert", cards: ["Spielstil", "Wiederkehrende Muster"] },
-    { id: "verlauf", title: "Wertung und Genauigkeit", sub: "wie sich beides über die Monate entwickelt", cards: ["Wertungsverlauf", "Genauigkeit im Verlauf"] },
+    { id: "ueberblick", title: t("Überblick"), sub: t("Wertung, Bilanz, Erwartung und Genauigkeit"), cards: [t("Wertung"), t("Bilanz"), t("Punkte gegen Erwartung")] },
+    { id: "faehigkeiten", title: t("Fähigkeiten"), sub: t("von 0 bis 100, verglichen mit Spielern deiner Wertung"), cards: [t("Fähigkeiten-Netz"), t("Fähigkeiten im Detail")] },
+    { id: "staerken", title: t("Stärken und Schwächen"), sub: t("nur was viele Partien klar zeigen"), cards: [t("Stärken"), t("Schwächen")] },
+    { id: "stil", title: t("Stil und Muster"), sub: t("wie du spielst und was immer wieder passiert"), cards: [t("Spielstil"), t("Wiederkehrende Muster")] },
+    { id: "verlauf", title: t("Wertung und Genauigkeit"), sub: t("wie sich beides über die Monate entwickelt"), cards: [t("Wertungsverlauf"), t("Genauigkeit im Verlauf")] },
   ],
   insights: [
-    { id: "blick", title: "Auf einen Blick", sub: "die wichtigsten Befunde aus deinen Partien", cards: ["Persönliches Feedback", "Das Wichtigste"] },
-    { id: "entwicklung", title: "Entwicklung", sub: "wird dein Spiel besser?", cards: ["Deine Entwicklung", "Was sich verändert hat"] },
-    { id: "ergebnisse", title: "Gegner und Partietyp", sub: "wo du Punkte holst und wo du sie liegen lässt", cards: ["Gegen die Erwartung", "Nach Gegnerstärke", "Nach Partietyp", "Nach Bedenkzeit", "Nach Farbe", "Nach Partielänge"] },
-    { id: "verlauf", title: "Partieverlauf", sub: "wann Partien kippen und wie konstant du spielst", cards: ["Wo deine Partien kippen", "Wendepunkte", "Konstanz", "Genauigkeit nach Ergebnis"] },
-    { id: "gewohnheiten", title: "Zeit und Gewohnheiten", sub: "Bedenkzeit, Tageszeit, Serien und Tilt", cards: ["Bedenkzeit pro Zug", "Unter Druck", "Tageszeit", "Wochentag", "Nach dem letzten Ergebnis", "Partie in der Serie"] },
+    { id: "blick", title: t("Auf einen Blick"), sub: t("die wichtigsten Befunde aus deinen Partien"), cards: [t("Persönliches Feedback"), t("Das Wichtigste")] },
+    { id: "entwicklung", title: t("Entwicklung"), sub: t("wird dein Spiel besser?"), cards: [t("Deine Entwicklung"), t("Was sich verändert hat")] },
+    { id: "ergebnisse", title: t("Gegner und Partietyp"), sub: t("wo du Punkte holst und wo du sie liegen lässt"), cards: [t("Gegen die Erwartung"), t("Nach Gegnerstärke"), t("Nach Partietyp"), t("Nach Bedenkzeit"), t("Nach Farbe"), t("Nach Partielänge")] },
+    { id: "verlauf", title: t("Partieverlauf"), sub: t("wann Partien kippen und wie konstant du spielst"), cards: [t("Wo deine Partien kippen"), t("Wendepunkte"), t("Konstanz"), t("Genauigkeit nach Ergebnis")] },
+    { id: "gewohnheiten", title: t("Zeit und Gewohnheiten"), sub: t("Bedenkzeit, Tageszeit, Serien und Tilt"), cards: [t("Bedenkzeit pro Zug"), t("Unter Druck"), t("Tageszeit"), t("Wochentag"), t("Nach dem letzten Ergebnis"), t("Partie in der Serie")] },
   ],
   moves: [
-    { id: "bilanz", title: "Zugbilanz", sub: "jede Bewertung aus deinen analysierten Partien", cards: ["Alle Zugarten", "Was die Zahlen zeigen", "Wenn dein Gegner patzt"] },
-    { id: "verlauf", title: "Verlauf", sub: "werden deine Züge besser?", cards: ["Bester Zug oder besser", "Grobe Fehler je 100 Züge"] },
-    { id: "phasen", title: "Partiephasen", sub: "Eröffnung, Mittelspiel und Endspiel im Vergleich", cards: ["Genauigkeit nach Phase", "Zugarten nach Phase"] },
-    { id: "fehler", title: "Fehler", sub: "wann, womit und in welcher Lage du patzt", cards: ["Wo deine Fehler passieren", "Fehler-Landkarte", "Was dich Patzer kosten"] },
-    { id: "glanz", title: "Glanzzüge und Rekorde", sub: "deine besten Momente", cards: ["Rekorde", "Deine Glanzzüge", "Deine glänzendsten Partien"] },
+    { id: "bilanz", title: t("Zugbilanz"), sub: t("jede Bewertung aus deinen analysierten Partien"), cards: [t("Alle Zugarten"), t("Was die Zahlen zeigen"), t("Wenn dein Gegner patzt")] },
+    { id: "verlauf", title: t("Verlauf"), sub: t("werden deine Züge besser?"), cards: [t("Bester Zug oder besser"), t("Grobe Fehler je 100 Züge")] },
+    { id: "phasen", title: t("Partiephasen"), sub: t("Eröffnung, Mittelspiel und Endspiel im Vergleich"), cards: [t("Genauigkeit nach Phase"), t("Zugarten nach Phase")] },
+    { id: "fehler", title: t("Fehler"), sub: t("wann, womit und in welcher Lage du patzt"), cards: [t("Wo deine Fehler passieren"), t("Fehler-Landkarte"), t("Was dich Patzer kosten")] },
+    { id: "glanz", title: t("Glanzzüge und Rekorde"), sub: t("deine besten Momente"), cards: [t("Rekorde"), t("Deine Glanzzüge"), t("Deine glänzendsten Partien")] },
   ],
 };
 

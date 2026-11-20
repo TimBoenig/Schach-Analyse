@@ -18,10 +18,11 @@ import { GradeBadge, gradeTone, MomentRow, ownErrors, PhaseRows, practiseGame, S
 import { WinChart } from "../report/WinChart";
 import { Stage } from "./Stage";
 import type { Mood } from "../Coach";
+import { t } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
-const PHASE_IN: Record<string, string> = { opening: "In der Eröffnung", middlegame: "Im Mittelspiel", endgame: "Im Endspiel" };
+const PHASE_IN: Record<string, string> = { opening: t("In der Eröffnung"), middlegame: t("Im Mittelspiel"), endgame: t("Im Endspiel") };
 
 /** Seen id of the report story that opens by itself once. */
 export const REPORT_INTRO = "report:first";
@@ -82,8 +83,8 @@ function MomentBoard({ game, k, isWhite }: { game: GameAnalysis; k: KeyMoment; i
 
 /** The turning point in one sentence: who moved, and whether it won or lost the game. */
 function turnSentence(tp: KeyMoment, lost: boolean): string {
-  if (lost) return tp.by_user ? `Bei ${tp.move_label} ist die Partie gekippt.` : `Mit ${tp.move_label} hat dein Gegner die Partie an sich gerissen.`;
-  return tp.by_user ? `Mit ${tp.move_label} hast du die Partie entschieden.` : `Bei ${tp.move_label} hat dein Gegner die Partie aus der Hand gegeben.`;
+  if (lost) return tp.by_user ? t("Bei {move_label} ist die Partie gekippt.", { move_label: tp.move_label }) : t("Mit {move_label} hat dein Gegner die Partie an sich gerissen.", { move_label: tp.move_label });
+  return tp.by_user ? t("Mit {move_label} hast du die Partie entschieden.", { move_label: tp.move_label }) : t("Bei {move_label} hat dein Gegner die Partie aus der Hand gegeben.", { move_label: tp.move_label });
 }
 
 type StepKey = "grade" | "course" | "best" | "worst" | "phases" | "take";
@@ -99,7 +100,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
 
   if (data === "missing") {
     return (
-      <Stage layout="center" mood="think" say="Diese Partie ist noch nicht analysiert." sub={<p>Sobald die Engine sie durchgerechnet hat, erzähle ich sie dir hier.</p>} onClose={onClose} closeLabel="Schließen" actions={<button class="btn primary" onClick={onClose}>Verstanden</button>} />
+      <Stage layout="center" mood="think" say={t("Diese Partie ist noch nicht analysiert.")} sub={<p>{t("Sobald die Engine sie durchgerechnet hat, erzähle ich sie dir hier.")}</p>} onClose={onClose} closeLabel={t("Schließen")} actions={<button class="btn primary" onClick={onClose}>{t("Verstanden")}</button>} />
     );
   }
   if (!data) return <div class="stage stage-loading" aria-busy="true" />;
@@ -124,14 +125,14 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
     steps: steps.length,
     step: index,
     stepKey: `${gameId}-${step}`,
-    kicker: `Lucena · ${review.result_text}`,
+    kicker: t("Lucena · {result_text}", { result_text: review.result_text }),
     onBack: back,
     onNext: next,
     onClose,
-    closeLabel: "Schließen",
+    closeLabel: t("Schließen"),
     actions: (
       <button class="btn primary" onClick={next}>
-        {last ? "Fertig" : "Weiter"}
+        {last ? t("Fertig") : t("Weiter")}
         {!last && <IconChevron />}
       </button>
     ),
@@ -146,8 +147,9 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         say={review.headline}
         sub={
           <p>
-            Deine Note ist eine <strong>{grade.text}</strong>
-            {grade.word ? ` (${grade.word})` : ""}. Sie folgt aus deiner Genauigkeit: wie nah deine Züge an denen der Engine lagen.
+            
+            {t("Deine Note ist eine")} <strong>{grade.text}</strong>
+            {grade.word ? ` (${grade.word})` : ""}{t(". Sie folgt aus deiner Genauigkeit: wie nah deine Züge an denen der Engine lagen.")}
           </p>
         }
       >
@@ -158,13 +160,13 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
               <b>
                 <CountUp value={review.accuracy} format={(v) => de(v)} />
               </b>
-              <span>deine Genauigkeit</span>
+              <span>{t("deine Genauigkeit")}</span>
             </div>
             <div class="stage-stat">
               <b>
                 <CountUp value={review.opponent_accuracy} format={(v) => de(v)} />
               </b>
-              <span>dein Gegner</span>
+              <span>{t("dein Gegner")}</span>
             </div>
           </div>
         </div>
@@ -184,11 +186,12 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         {...frame}
         mood="think"
         layout="split"
-        say={tp ? turnSentence(tp, outcome === "Niederlage") : "So lief die Partie."}
+        say={tp ? turnSentence(tp, outcome === "Niederlage") : t("So lief die Partie.")}
         sub={
           <p>
-            Die Linie ist deine Gewinnchance nach jedem Zug. Über der Mitte stehst du besser, darunter dein Gegner.
-            {tp ? ` Am Wendepunkt ging sie von ${pct(tp.wp_before)} auf ${pct(tp.wp_after)}.` : ""}
+            
+            {t("Die Linie ist deine Gewinnchance nach jedem Zug. Über der Mitte stehst du besser, darunter dein Gegner.")}
+            {tp ? t(" Am Wendepunkt ging sie von {pct} auf {pct2}.", { pct: pct(tp.wp_before), pct2: pct(tp.wp_after) }) : ""}
           </p>
         }
       >
@@ -206,7 +209,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         {...frame}
         mood="wow"
         layout="split"
-        say={`Dein stärkster Moment: ${best.move_label}.`}
+        say={t("Dein stärkster Moment: {move_label}.", { move_label: best.move_label })}
         sub={
           <p>
             {classLabel(best.classification as never)}. {best.text}
@@ -224,14 +227,16 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         {...frame}
         mood="sad"
         layout="split"
-        say={`Am teuersten war ${worst.move_label}.`}
+        say={t("Am teuersten war {move_label}.", { move_label: worst.move_label })}
         sub={
           <p>
-            Deine Gewinnchance fiel von <strong>{pct(worst.wp_before)}</strong> auf <strong>{pct(worst.wp_after)}</strong>.
+            
+            {t("Deine Gewinnchance fiel von")} <strong>{pct(worst.wp_before)}</strong> auf <strong>{pct(worst.wp_after)}</strong>.
             {worst.best_move_san ? (
               <>
                 {" "}
-                Besser war <strong>{worst.best_move_san}</strong>.
+                
+                {t("Besser war")} <strong>{worst.best_move_san}</strong>.
               </>
             ) : null}
           </p>
@@ -250,8 +255,8 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         {...frame}
         mood="think"
         layout="split"
-        say={played.length > 1 ? `${PHASE_IN[weakest.phase] ?? weakest.name} ging die meiste Genauigkeit verloren.` : "Die Phasen der Partie."}
-        sub={<p>Genauigkeit und Note für Eröffnung, Mittelspiel und Endspiel, jede für sich.</p>}
+        say={played.length > 1 ? t("{0} ging die meiste Genauigkeit verloren.", { 0: PHASE_IN[weakest.phase] ?? weakest.name }) : t("Die Phasen der Partie.")}
+        sub={<p>{t("Genauigkeit und Note für Eröffnung, Mittelspiel und Endspiel, jede für sich.")}</p>}
       >
         <div class="stage-panel">
           <PhaseRows review={review} />
@@ -266,12 +271,13 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
       {...frame}
       mood="happy"
       layout="split"
-      say={review.lessons[0] ?? "Das nimmst du aus dieser Partie mit."}
+      say={review.lessons[0] ?? t("Das nimmst du aus dieser Partie mit.")}
       sub={<p>{review.positives[0]}</p>}
       actions={
         <>
           <button class="btn ghost" onClick={() => toGame(worst ? worst.ply_index + 1 : undefined)}>
-            Zur Partie
+            
+            {t("Zur Partie")}
           </button>
           {errors > 0 ? (
             <button
@@ -281,11 +287,12 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
                 practiseGame(gameId);
               }}
             >
-              <IconPlay /> Fehler üben
+              <IconPlay />  {t("Fehler üben")}
             </button>
           ) : (
             <button class="btn primary" onClick={onClose}>
-              Fertig
+              
+              {t("Fertig")}
             </button>
           )}
         </>
