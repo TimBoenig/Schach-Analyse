@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 // How much fits on a phone screen. The pages are drawn for a 390 px wide
 // phone; "Kompakt" lays them out on a wider virtual screen (a smaller
 // initial-scale), so everything shrinks together and more is visible at once.
@@ -6,7 +7,7 @@ export type PhoneScale = "compact" | "normal" | "large";
 export const PHONE_SCALES: Record<PhoneScale, { label: string; scale: number }> = {
   compact: { label: "Kompakt", scale: 0.86 },
   normal: { label: "Normal", scale: 1 },
-  large: { label: "Groß", scale: 1.1 },
+  large: { label: t("Groß"), scale: 1.1 },
 };
 
 const KEY = "schach.phoneScale";

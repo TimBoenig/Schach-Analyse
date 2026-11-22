@@ -289,14 +289,14 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
         <div class="ph-line">
           <span class="ph-line-text">
             <span>
-              <strong class="tnum">{cards.length}</strong> Spieler · <strong class="tnum">{friends}</strong> Freunde
+              <strong class="tnum">{cards.length}</strong> {t("Spieler")} · <strong class="tnum">{friends}</strong> {t("Freunde")}
             </span>
             <small>{n ? `${pct0(((tk.w + tk.d / 2) / n) * 100)} ${t("deine Punkte aus {plural}", { plural: plural(n, t("Direktpartie"), t("Direktpartien")) })}` : t("noch keine Direktpartie")}</small>
           </span>
           <button class="btn primary small" onClick={onAdd}>
-            <IconPlus /> Neu
+            <IconPlus /> {t("Neu")}
           </button>
-          <MoreMenu label="Mehr zu den Spielern">
+          <MoreMenu label={t("Mehr zu den Spielern")}>
             <RefreshAll players={players.filter((p) => !p.hidden)} />
             <AnalyzeFriends players={players} games={games} />
           </MoreMenu>

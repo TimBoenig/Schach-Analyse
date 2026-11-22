@@ -756,7 +756,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         <div class="engine-switches slim">
           <span class="faint small engine-depth">
             {engine.live ? `${ENGINE_NAME} live · ` : ""}
-            {engine.live && busy ? "rechnet …" : lines.length && depthOf(lines) ? `Tiefe ${depthOf(lines)}` : ""}
+            {engine.live && busy ? t("rechnet …") : lines.length && depthOf(lines) ? t("Tiefe {depthOf}", { depthOf: depthOf(lines) }) : ""}
           </span>
         </div>
       ) : null
@@ -907,6 +907,29 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 </>
   );
 
+  const phoneBanner = explore ? (
+
+                <div class="an-banner">
+                  <span class="pill accent">{t("Eigene Variante")}</span>
+                  <span class="an-banner-text">{explore.sans.slice(-3).join(" ")}</span>
+                  <button class="btn small" onClick={leaveLine}>
+                    {t("Zurück")}
+                  </button>
+                </div>
+              ) : move && move.classification ? (
+                <button class="an-banner" style={{ "--tone": CLASS_COLOR[move.classification] ?? "var(--text-3)" }} onClick={() => openSheet("move")}>
+                  {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" width={22} height={22} />}
+                  <span class="an-banner-text">{moveVerdict(move)}</span>
+                  <IconChevron />
+                </button>
+              ) : review ? (
+                <button class="an-banner" onClick={() => openSheet("sum")}>
+                  <GradeBadge grade={review.grade} size="tiny" />
+                  <span class="an-banner-text">{review.headline}</span>
+                  <IconChevron />
+                </button>
+  ) : null;
+
   const statusCard = (
     <>
           {status !== "completed" || analyzing ? (
@@ -1013,7 +1036,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                       <GradeBadge grade={review.grade} size="tiny" />
                       <span class="an-intro-text">
                         <strong>{review.headline}</strong>
-                        <span class="faint">Bericht ansehen</span>
+                        <span class="faint">{t("Bericht ansehen")}</span>
                       </span>
                       <IconChevron />
                     </button>
@@ -1051,7 +1074,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   );
 
   const playerLine = (c: Side, r: number) => (
-    <div class="player-line" style={{ gridRow: r }}>
+    <div class={`player-line ${r === 1 ? "pl-top" : "pl-bot"}`} style={{ gridRow: r }}>
       <span class="who">
         <span class={`side-dot ${c}`} />
         <span>
@@ -1075,7 +1098,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     <div class={`an-page${narrow ? " phone" : ""}${narrow && tab === "report" ? " sheet" : ""}`}>
       {narrow ? (
         <header class="an-bar">
-          <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
+          <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label={t("Zurück zur Liste")}>
             <IconBack />
           </button>
           <div class="an-bar-title">
@@ -1085,25 +1108,25 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </span>
           </div>
           <MoreMenu
-            label="Mehr zur Partie"
+            label={t("Mehr zur Partie")}
             items={[
-              { label: "Brett drehen", icon: <IconFlip />, onSelect: () => setFlipped((f) => !f) },
-              { label: "Pfeile zeigen", icon: <IconArrow />, checked: showArrows, onSelect: () => setShowArrows((v) => !v) },
-              { label: `${ENGINE_NAME} live`, icon: <IconBolt />, checked: engine.live, onSelect: () => setEngine({ ...engine, live: !engine.live }) },
-              { label: "Drohung zeigen", icon: <IconInfo />, checked: engine.threat, onSelect: () => setEngine({ ...engine, threat: !engine.threat }) },
-              errorPlies.length > 0 && !explore && { label: "Voriger Fehler", icon: <IconPrev />, divider: true, disabled: !errorPlies.some((p) => p + 1 < idx), onSelect: () => jumpError(-1) },
-              errorPlies.length > 0 && !explore && { label: "Nächster Fehler", icon: <IconNext />, disabled: !errorPlies.some((p) => p + 1 > idx), onSelect: () => jumpError(1) },
-              { label: "Zum Anfang", icon: <IconFirst />, divider: true, onSelect: () => goTo(0) },
-              { label: "Zum Ende", icon: <IconLast />, onSelect: () => goTo(n) },
-              { label: "Im Analysebrett", icon: <IconFreeBoard />, divider: true, onSelect: () => navigate({ view: "board", fen }) },
-              { label: "Seite erklären", icon: <IconSpark />, onSelect: () => openStage({ kind: "page", subject: "analysis" }) },
+              { label: t("Brett drehen"), icon: <IconFlip />, onSelect: () => setFlipped((f) => !f) },
+              { label: t("Pfeile zeigen"), icon: <IconArrow />, checked: showArrows, onSelect: () => setShowArrows((v) => !v) },
+              { label: t("{ENGINE_NAME} live", { ENGINE_NAME }), icon: <IconBolt />, checked: engine.live, onSelect: () => setEngine({ ...engine, live: !engine.live }) },
+              { label: t("Drohung zeigen"), icon: <IconInfo />, checked: engine.threat, onSelect: () => setEngine({ ...engine, threat: !engine.threat }) },
+              errorPlies.length > 0 && !explore && { label: t("Voriger Fehler"), icon: <IconPrev />, divider: true, disabled: !errorPlies.some((p) => p + 1 < idx), onSelect: () => jumpError(-1) },
+              errorPlies.length > 0 && !explore && { label: t("Nächster Fehler"), icon: <IconNext />, disabled: !errorPlies.some((p) => p + 1 > idx), onSelect: () => jumpError(1) },
+              { label: t("Zum Anfang"), icon: <IconFirst />, divider: true, onSelect: () => goTo(0) },
+              { label: t("Zum Ende"), icon: <IconLast />, onSelect: () => goTo(n) },
+              { label: t("Im Analysebrett"), icon: <IconFreeBoard />, divider: true, onSelect: () => navigate({ view: "board", fen }) },
+              { label: t("Seite erklären"), icon: <IconSpark />, onSelect: () => openStage({ kind: "page", subject: "analysis" }) },
               {
-                label: "Partie löschen",
+                label: t("Partie löschen"),
                 icon: <IconTrash />,
                 danger: true,
                 divider: true,
                 onSelect: () => {
-                  if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+                  if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
                 },
               },
             ]}
@@ -1111,7 +1134,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </header>
       ) : (
       <header class="an-head">
-        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
+        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label={t("Zurück zur Liste")}>
           <IconBack />
         </button>
         <div class="an-head-title">
@@ -1134,16 +1157,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </div>
         <span class="spacer" />
         <div class="an-head-actions">
-          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title="Diese Stellung frei weiteranalysieren">
-            <IconFreeBoard /> <span class="wide-label">Im Analysebrett</span>
+          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title={t("Diese Stellung frei weiteranalysieren")}>
+            <IconFreeBoard /> <span class="wide-label">{t("Im Analysebrett")}</span>
           </button>
           <GuideButton id="analysis" />
           <button
             class="btn icon ghost danger"
-            aria-label="Partie löschen"
-            title="Partie löschen"
+            aria-label={t("Partie löschen")}
+            title={t("Partie löschen")}
             onClick={() => {
-              if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) {
+              if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) {
                 void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
               }
             }}
@@ -1176,58 +1199,60 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             )}
           </div>
           {playerLine(bottom, 3)}
+          {narrow && tab !== "report" && phoneBanner ? <div class="pc-banner">{phoneBanner}</div> : null}
           {narrow ? (
             <div class="pc-controls" style={{ gridRow: 4 }}>
-              <button class="btn pc-step" aria-label="Zug zurück" disabled={!canStep(-1)} {...holdBack}>
+              <button class="btn pc-step" aria-label={t("Zug zurück")} disabled={!canStep(-1)} {...holdBack}>
                 <IconPrev />
               </button>
               <button
                 class={`btn pc-lupe${tab === "report" ? " on" : ""}`}
-                aria-label="Bericht und Zug erklärt"
+                aria-label={t("Bericht und Zug erklärt")}
                 aria-pressed={tab === "report"}
                 onClick={() => (tab === "report" ? setTab("moves") : openSheet(review ? "sum" : "move"))}
               >
                 <IconSearch />
+                <span>{t("Analyse")}</span>
               </button>
-              <button class="btn pc-step" aria-label="Zug vor" disabled={!canStep(1)} {...holdNext}>
+              <button class="btn pc-step" aria-label={t("Zug vor")} disabled={!canStep(1)} {...holdNext}>
                 <IconNext />
               </button>
             </div>
           ) : (
           <div class="controls" style={{ gridRow: 4 }}>
-            <button class="btn" onClick={() => goTo(0)} aria-label="Zum Anfang">
+            <button class="btn" onClick={() => goTo(0)} aria-label={t("Zum Anfang")}>
               <IconFirst />
             </button>
-            <button class="btn" aria-label="Zug zurück" {...holdBack}>
+            <button class="btn" aria-label={t("Zug zurück")} {...holdBack}>
               <IconPrev />
             </button>
-            <button class="btn" aria-label="Zug vor" disabled={!canStep(1)} {...holdNext}>
+            <button class="btn" aria-label={t("Zug vor")} disabled={!canStep(1)} {...holdNext}>
               <IconNext />
             </button>
-            <button class="btn" onClick={() => goTo(n)} aria-label="Zum Ende">
+            <button class="btn" onClick={() => goTo(n)} aria-label={t("Zum Ende")}>
               <IconLast />
             </button>
-            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label="Brett drehen" title="Brett drehen (F)">
+            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label={t("Brett drehen")} title={t("Brett drehen (F)")}>
               <IconFlip />
             </button>
             <button
               class={`btn${showArrows ? " on" : ""}`}
               onClick={() => setShowArrows((v) => !v)}
               aria-pressed={showArrows}
-              aria-label="Pfeil für den besten Zug ein- oder ausblenden"
-              title="Bester-Zug-Pfeil (A)"
+              aria-label={t("Pfeil für den besten Zug ein- oder ausblenden")}
+              title={t("Bester-Zug-Pfeil (A)")}
             >
               <IconArrow />
             </button>
             {errorPlies.length > 0 && !explore && (
-              <div class="error-nav" role="group" aria-label="Eigene Fehler">
-                <button class="btn" onClick={() => jumpError(-1)} disabled={!errorPlies.some((p) => p + 1 < idx)} aria-label="Voriger eigener Fehler" title="Voriger eigener Fehler (P)">
+              <div class="error-nav" role="group" aria-label={t("Eigene Fehler")}>
+                <button class="btn" onClick={() => jumpError(-1)} disabled={!errorPlies.some((p) => p + 1 < idx)} aria-label={t("Voriger eigener Fehler")} title={t("Voriger eigener Fehler (P)")}>
                   <IconPrev />
                 </button>
                 <span class="error-count tnum">
-                  {errorPos >= 0 ? `Fehler ${errorPos + 1}/${errorPlies.length}` : `${errorPlies.length} Fehler`}
+                  {errorPos >= 0 ? t("Fehler {0}/{length}", { 0: errorPos + 1, length: errorPlies.length }) : t("{length} Fehler", { length: errorPlies.length })}
                 </span>
-                <button class="btn" onClick={() => jumpError(1)} disabled={!errorPlies.some((p) => p + 1 > idx)} aria-label="Nächster eigener Fehler" title="Nächster eigener Fehler (N)">
+                <button class="btn" onClick={() => jumpError(1)} disabled={!errorPlies.some((p) => p + 1 > idx)} aria-label={t("Nächster eigener Fehler")} title={t("Nächster eigener Fehler (N)")}>
                   <IconNext />
                 </button>
               </div>
@@ -1277,26 +1302,6 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     </>
                   }
                 />
-              ) : explore ? (
-                <div class="an-banner">
-                  <span class="pill accent">Eigene Variante</span>
-                  <span class="an-banner-text">{explore.sans.slice(-3).join(" ")}</span>
-                  <button class="btn small" onClick={leaveLine}>
-                    Zurück
-                  </button>
-                </div>
-              ) : move && move.classification ? (
-                <button class="an-banner" style={{ "--tone": CLASS_COLOR[move.classification] ?? "var(--text-3)" }} onClick={() => openSheet("move")}>
-                  {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" width={22} height={22} />}
-                  <span class="an-banner-text">{moveVerdict(move)}</span>
-                  <IconChevron />
-                </button>
-              ) : review ? (
-                <button class="an-banner" onClick={() => openSheet("sum")}>
-                  <GradeBadge grade={review.grade} size="tiny" />
-                  <span class="an-banner-text">{review.headline}</span>
-                  <IconChevron />
-                </button>
               ) : null}
             </>
           ) : (

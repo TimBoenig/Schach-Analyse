@@ -158,7 +158,7 @@ function AppearanceCard() {
       {onPhone() && (
         <>
           <div class="muted small" style={{ marginBottom: "6px" }}>
-            Größe auf dem Handy
+            {t("Größe auf dem Handy")}
           </div>
           <div class="segmented" style={{ marginBottom: "14px" }}>
             {(Object.keys(PHONE_SCALES) as PhoneScale[]).map((k) => (

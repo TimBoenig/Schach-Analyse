@@ -1,6 +1,7 @@
 // The start page on a phone: today's step and the form in two compact cards,
 // the last games, and everything longer behind one-line folds.
 import { trSpeed } from "../../domain/i18n";
+import { t } from "../../i18n";
 import { type KpiChange, type PlayerProfile, trendOf } from "../../domain/profile";
 import { Ring } from "../charts";
 import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
@@ -19,7 +20,7 @@ export function PhoneToday({ mood, title, today }: { mood: Mood; title: string; 
   const planned = today?.planned ?? 0;
   const done = today?.done ?? 0;
   const finished = planned > 0 && done >= planned;
-  const line = planned ? (finished ? "Einheit geschafft" : `${planned - done} Aufgaben offen`) : done ? `${done} Aufgaben gelöst` : "Noch nicht trainiert";
+  const line = planned ? (finished ? t("Einheit geschafft") : t("{0} Aufgaben offen", { 0: planned - done })) : done ? t("{0} Aufgaben gelöst", { 0: done }) : t("Noch nicht trainiert");
   return (
     <section class="card ph-today">
       <div class="ph-today-say">
@@ -35,7 +36,7 @@ export function PhoneToday({ mood, title, today }: { mood: Mood; title: string; 
         </Ring>
         <div class="ph-today-text">
           <strong>{line}</strong>
-          <small>{today?.streak ? `${today.streak} ${today.streak === 1 ? "Tag" : "Tage"} in Folge` : "Starte heute eine Serie"}</small>
+          <small>{today?.streak ? t("{0} {1} in Folge", { 0: today.streak, 1: today.streak === 1 ? t("Tag") : t("Tage") }) : t("Starte heute eine Serie")}</small>
         </div>
         <button class="btn primary" onClick={() => navigate({ view: "training" })}>
           <IconPlay /> {finished ? "Weiter" : "Starten"}
@@ -70,7 +71,7 @@ export function PhoneForm({ profile, kpis, ratingKpi, label }: { profile: Player
       <div class="ph-form-top">
         {rc && (
           <button class="ph-rating" onClick={() => navigate({ view: "profile" })}>
-            <span class="eyebrow">Wertung · {trSpeed(rc.speed)}</span>
+            <span class="eyebrow">{t("Wertung ·")} {trSpeed(rc.speed)}</span>
             <span class="ph-rating-num">
               <strong class="tnum">
                 <CountUp value={rc.rating} />
@@ -80,16 +81,16 @@ export function PhoneForm({ profile, kpis, ratingKpi, label }: { profile: Player
           </button>
         )}
         <div class="ph-ribbon">
-          <span class="eyebrow">Form{streak ? ` · ${streak}` : ""}</span>
+          <span class="eyebrow">{t("Form")}{streak ? ` · ${streak}` : ""}</span>
           {last.length > 0 && (
             <ResultRibbon
-              games={[...last].reverse().map((g) => ({ id: g.game_id, score: g.score, title: `${formatDate(g.date)} gegen ${g.opponent}: ${RESULT_WORD(g.score)}` }))}
+              games={[...last].reverse().map((g) => ({ id: g.game_id, score: g.score, title: t("{0} gegen {1}: {2}", { 0: formatDate(g.date), 1: g.opponent, 2: RESULT_WORD(g.score) }) }))}
               onPick={(id) => navigate({ view: "analysis", gameId: id })}
             />
           )}
         </div>
       </div>
-      <div class="ph-kpis" aria-label={`Kennzahlen ${label}`}>
+      <div class="ph-kpis" aria-label={t("Kennzahlen {0}", { 0: label })}>
         {rows.map((k) => {
           const t = trendOf(k);
           const tone = k.key === "games" || t === "flat" ? "" : t === "up" ? " up" : " down";

@@ -1185,3 +1185,125 @@
 .pr-list .movelist {
   max-height: 280px;
 }
+
+/* ---------- game page, third pass: a fixed page, no scrolling ---------- */
+
+@media (max-width: 640px) {
+  .main[data-view="analysis"] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: calc(6px + var(--safe-top));
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 8px);
+    overflow: hidden;
+  }
+  /* Imprint links under an analysis look out of place; they stay in the menu pages. */
+  .main[data-view="analysis"] .page-legal {
+    display: none;
+  }
+  .main[data-view="analysis"] > .an-page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .an-page.phone .analysis {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+  /* Board in the middle, buttons at the bottom: the spare height goes to the two spacer rows. */
+  .an-page.phone .board-area {
+    position: static;
+    flex: 1;
+    grid-template-rows: 1fr auto auto auto 1fr auto auto;
+    width: 100%;
+    max-width: min(100%, calc(100dvh - 250px));
+    min-height: 0;
+    margin-inline: auto;
+  }
+  .an-page.phone .board-area > .player-line.pl-top {
+    grid-row: 2 !important;
+  }
+  .an-page.phone .board-area > .evalbar {
+    grid-row: 3 !important;
+  }
+  .an-page.phone .board-area > .board-fx-wrap {
+    grid-row: 3 !important;
+  }
+  .an-page.phone .board-area > .player-line.pl-bot {
+    grid-row: 4 !important;
+  }
+  .an-page.phone .board-area > .pc-banner {
+    grid-column: 2;
+    grid-row: 6;
+    align-self: end;
+    margin-bottom: 6px;
+  }
+  .an-page.phone .board-area > .pc-controls {
+    grid-row: 7 !important;
+  }
+  .an-page.phone.sheet .board-area {
+    flex: none;
+    grid-template-rows: auto auto auto auto 0 auto auto;
+    max-width: min(100%, 290px);
+  }
+  .an-page.phone .side-panel {
+    flex: none;
+  }
+  .an-page.phone.sheet .side-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* The report button is the way into the analysis, so it must read as one. */
+.pc-controls {
+  grid-template-columns: 1fr 1.7fr 1fr;
+}
+.pc-lupe {
+  gap: 8px;
+  background: var(--cta);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+.pc-lupe svg {
+  width: 22px;
+  height: 22px;
+}
+.pc-lupe.on {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+.pc-lupe:not(.on) {
+  animation: pc-lupe-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pc-lupe-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent), 0 0 0 0 color-mix(in srgb, var(--cta) 45%, transparent);
+  }
+  55% {
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent), 0 0 0 9px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-lupe:not(.on) {
+    animation: none;
+  }
+}
+.pr-more {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}

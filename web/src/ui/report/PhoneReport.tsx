@@ -5,6 +5,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
+import { t } from "../../i18n";
 import { type GameReview, type Standing, winCurve } from "../../domain/profile";
 import type { MoveData } from "../../domain/types";
 import { COACH_NAME, CoachAvatar } from "../Coach";
@@ -18,16 +19,13 @@ import { WinChart } from "./WinChart";
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 
-export type SheetPart = "move" | "sum" | "moments" | "course" | "phases" | "end" | "list";
+export type SheetPart = "move" | "sum" | "moments" | "list";
 type Part = SheetPart;
 const PARTS: [Part, string][] = [
-  ["move", "Zug"],
-  ["sum", "Überblick"],
-  ["moments", "Momente"],
-  ["course", "Verlauf"],
-  ["phases", "Phasen"],
-  ["end", "Fazit"],
-  ["list", "Züge"],
+  ["move", t("Zug")],
+  ["sum", t("Bericht")],
+  ["moments", t("Momente")],
+  ["list", t("Züge")],
 ];
 
 /** Swipeable cards of the moments that decided the game; the board follows the card in view. */
@@ -73,20 +71,20 @@ function Moments({ review, idx, onPeek, onJump }: { review: GameReview; idx: num
       if (!own.current && moments[best] && moments[best].ply_index + 1 !== idx) onPeek(moments[best].ply_index + 1);
     }, 120);
   };
-  if (!moments.length) return <p class="pr-note">In dieser Partie gab es keine großen Wendungen.</p>;
+  if (!moments.length) return <p class="pr-note">{t("In dieser Partie gab es keine großen Wendungen.")}</p>;
   return (
     <div class="pr-moments">
       <div class="pr-moments-head">
         <span class="pr-count tnum">
-          {shown + 1} von {moments.length}
+          {t("{0} von {1}", { 0: shown + 1, 1: moments.length })}
         </span>
-        <span class="pr-moments-hint">Wische durch die Karten, das Brett folgt.</span>
-        <button class="btn icon small ghost" aria-label="Voriger Moment" disabled={shown <= 0} onClick={() => scrollTo(shown - 1, "smooth")}>
+        <span class="pr-moments-hint">{t("Wische durch die Karten, das Brett folgt.")}</span>
+        <button class="btn icon small ghost" aria-label={t("Voriger Moment")} disabled={shown <= 0} onClick={() => scrollTo(shown - 1, "smooth")}>
           <span class="flip-x">
             <IconChevron />
           </span>
         </button>
-        <button class="btn icon small ghost" aria-label="Nächster Moment" disabled={shown >= moments.length - 1} onClick={() => scrollTo(shown + 1, "smooth")}>
+        <button class="btn icon small ghost" aria-label={t("Nächster Moment")} disabled={shown >= moments.length - 1} onClick={() => scrollTo(shown + 1, "smooth")}>
           <IconChevron />
         </button>
       </div>
@@ -104,7 +102,7 @@ function Moments({ review, idx, onPeek, onJump }: { review: GameReview; idx: num
                 </span>
               </span>
               <span class="pr-card-text">{k.text}</span>
-              {k.by_user && k.best_move_san && <span class="pr-card-best">Besser: {k.best_move_san}</span>}
+              {k.by_user && k.best_move_san && <span class="pr-card-best">{t("Besser: {0}", { 0: k.best_move_san })}</span>}
             </button>
           );
         })}
@@ -155,10 +153,10 @@ export function PhoneReport({
   const errors = review ? ownErrors(review) : 0;
   const counts = review?.move_counts ?? {};
   const tiles: [string, number, string][] = [
-    ["Glanzzüge", (counts.Brilliant ?? 0) + (counts.Great ?? 0), "good"],
-    ["Ungenau", counts.Inaccuracy ?? 0, "warn"],
-    ["Fehler", (counts.Mistake ?? 0) + (counts.Miss ?? 0), "bad"],
-    ["Patzer", counts.Blunder ?? 0, "bad"],
+    [t("Glanzzüge"), (counts.Brilliant ?? 0) + (counts.Great ?? 0), "good"],
+    [t("Ungenau"), counts.Inaccuracy ?? 0, "warn"],
+    [t("Fehler"), (counts.Mistake ?? 0) + (counts.Miss ?? 0), "bad"],
+    [t("Patzer"), counts.Blunder ?? 0, "bad"],
   ];
   return (
     <div class="pr">
@@ -170,7 +168,7 @@ export function PhoneReport({
             </button>
           ))}
         </div>
-        <button class="btn icon small ghost pr-close" aria-label="Schließen" onClick={onClose}>
+        <button class="btn icon small ghost pr-close" aria-label={t("Schließen")} onClick={onClose}>
           <IconClose />
         </button>
       </div>
@@ -210,30 +208,31 @@ export function PhoneReport({
             <div class="pr-actions">
               <button class="btn primary small" onClick={() => openStage({ kind: "report", subject: gameId })}>
                 <CoachAvatar mood="happy" size={18} />
-                {COACH_NAME} erklärt
+                {t("{0} erklärt", { 0: COACH_NAME })}
               </button>
               {errors > 0 && (
                 <button class="btn small" onClick={() => practiseGame(gameId)}>
-                  <IconPlay /> Fehler üben
+                  <IconPlay /> {t("Fehler üben")}
                 </button>
               )}
             </div>
           </div>
         )}
-        {review && part === "moments" && <Moments review={review} idx={idx} onPeek={onPeek} onJump={onJump} />}
-        {review && part === "course" && (
+        {review && part === "sum" && (
+          <div class="pr-more">
+        {(
           <div class="pr-course">
             <WinChart points={winCurve(moves, isWhite)} plies={moves.length} moments={review.key_moments} turning={review.turning_point} cursor={idx} height={132} />
-            <p class="pr-note">Deine Gewinnchance nach jedem Zug.{review.turning_point ? ` Wendepunkt: ${review.turning_point.move_label}.` : ""}</p>
+            <p class="pr-note">{t("Deine Gewinnchance nach jedem Zug.")}{review.turning_point ? ` ${t("Wendepunkt: {0}.", { 0: review.turning_point.move_label })}` : ""}</p>
             {review.turning_point && (
               <button class="btn small" onClick={() => onJump(review.turning_point!.ply_index + 1)}>
-                Zum Wendepunkt <IconChevron />
+                {t("Zum Wendepunkt")} <IconChevron />
               </button>
             )}
           </div>
         )}
-        {review && part === "phases" && <PhaseRows review={review} />}
-        {review && part === "end" && (
+        {<PhaseRows review={review} />}
+        {(
           <div class="pr-end">
             <ul class="fd-list">
               {review.positives.map((t) => (
@@ -251,7 +250,7 @@ export function PhoneReport({
             </ul>
             {review.lessons.length > 0 && (
               <div class="rp-lessons">
-                <span class="eyebrow">Was du mitnehmen kannst</span>
+                <span class="eyebrow">{t("Was du mitnehmen kannst")}</span>
                 <ol>
                   {review.lessons.map((l) => (
                     <li key={l}>{l}</li>
@@ -262,6 +261,9 @@ export function PhoneReport({
             <div class="rp-details">{details}</div>
           </div>
         )}
+          </div>
+        )}
+        {review && part === "moments" && <Moments review={review} idx={idx} onPeek={onPeek} onJump={onJump} />}
       </div>
     </div>
   );
