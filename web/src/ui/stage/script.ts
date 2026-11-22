@@ -69,7 +69,7 @@ export const TOUR_STOPS: TourStop[] = [
       { title: "Fair verglichen", text: "Nach Zugqualität und Ergebnissen, auch wenn ihr verschiedene Bedenkzeiten spielt." },
       { title: "Gegner im Blick", text: "Wie spielt jemand, welche Eröffnungen, wo macht er Fehler?" },
     ],
-    go: { label: "Spieler ansehen", route: { view: "players" } },
+    go: { label: "Spieler ansehen", route: { view: "players", tab: "rangliste" } },
     guide: "players",
   },
 ];
