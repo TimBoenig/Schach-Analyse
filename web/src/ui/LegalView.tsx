@@ -59,7 +59,7 @@ function Impressum() {
       </p>
       <h3>Haftung für Links</h3>
       <p>
-        Für Inhalte verlinkter Seiten (zum Beispiel chess.com, Lichess, GitHub) sind ausschließlich deren Betreiber
+        Für Inhalte verlinkter Seiten (zum Beispiel chess.com und Lichess) sind ausschließlich deren Betreiber
         verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar. Werden uns solche bekannt,
         entfernen wir den Link umgehend.
       </p>

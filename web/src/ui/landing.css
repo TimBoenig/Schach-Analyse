@@ -1,11 +1,13 @@
-/* The front door (LandingView, LandingHow, landing/Specimen). Nova tokens
-   only, so light and dark follow the app. The one loud thing is the sample
-   report in the hero; everything around it stays quiet: one typeface, plain
-   rules, iris for "you / next step", teal good, coral bad. */
+/* The front door (LandingView and ui/landing/*). Nova tokens only, so light
+   and dark follow the app. The one loud thing is the hero stage: Lucena large,
+   with a board the visitor plays on. Everything after it is quiet: one
+   typeface, open space, iris for "you / next step", teal good, coral bad,
+   the Lucena gradient only where she speaks. */
 
 .landing {
   --ld-w: 1180px;
   --ld-pad: clamp(16px, 4vw, 40px);
+  --ld-gap: clamp(72px, 11vw, 148px);
   min-height: 100vh;
   background: var(--bg);
   color: var(--text);
@@ -17,6 +19,9 @@
   width: min(var(--ld-w), 100% - 2 * var(--ld-pad));
   margin-inline: auto;
 }
+.landing > section + section {
+  margin-top: var(--ld-gap);
+}
 .landing h1,
 .landing h2,
 .landing h3 {
@@ -25,10 +30,11 @@
   text-wrap: balance;
 }
 .landing h2 {
-  font-size: clamp(26px, 3.3vw, 42px);
-  font-weight: 650;
-  line-height: 1.1;
-  letter-spacing: -0.03em;
+  max-width: 20ch;
+  font-size: clamp(30px, 4vw, 52px);
+  font-weight: 640;
+  line-height: 1.04;
+  letter-spacing: -0.038em;
 }
 .landing h3 {
   font-size: 17px;
@@ -39,9 +45,9 @@
   margin: 0;
 }
 .ld-lead {
-  max-width: 62ch;
+  max-width: 60ch;
   color: var(--text-2);
-  font-size: clamp(16px, 1.35vw, 18px);
+  font-size: clamp(16px, 1.3vw, 18px);
   line-height: 1.6;
   text-wrap: pretty;
 }
@@ -62,6 +68,19 @@
 .ld-link:hover {
   text-decoration: underline;
 }
+.ld-note {
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.landing .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 /* ---------- top bar ---------- */
 
@@ -73,7 +92,7 @@
   align-items: center;
   gap: 20px;
   padding: calc(10px + env(safe-area-inset-top)) var(--ld-pad) 10px;
-  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
@@ -106,6 +125,7 @@
   font: inherit;
   font-size: 14px;
   font-weight: 550;
+  cursor: pointer;
 }
 .ld-nav button:hover {
   background: var(--surface-2);
@@ -126,36 +146,56 @@
 /* ---------- hero ---------- */
 
 .ld-hero {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 500px);
   align-items: center;
-  gap: clamp(32px, 5vw, 72px);
-  padding-block: clamp(40px, 8vw, 104px) clamp(48px, 8vw, 112px);
+  gap: clamp(32px, 5vw, 80px);
+  padding-top: clamp(36px, 7vw, 96px);
+}
+/* Lucena's light: one soft glow behind the stage, in her gradient. */
+.ld-hero::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  right: -8%;
+  top: 0;
+  width: min(760px, 90vw);
+  aspect-ratio: 1;
+  background:
+    radial-gradient(closest-side, color-mix(in srgb, var(--ai-a) 26%, transparent), transparent 70%),
+    radial-gradient(closest-side at 70% 65%, color-mix(in srgb, var(--ai-b) 16%, transparent), transparent 70%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+.ld-hero > * {
+  position: relative;
+  z-index: 1;
 }
 .ld-hero h1 {
-  max-width: 13ch;
-  font-size: clamp(40px, 5.8vw, 76px);
-  font-weight: 680;
-  line-height: 1.01;
-  letter-spacing: -0.042em;
+  max-width: 12ch;
+  font-size: clamp(42px, 6.4vw, 88px);
+  font-weight: 660;
+  line-height: 0.98;
+  letter-spacing: -0.048em;
 }
 .ld-hero .ld-lead {
-  margin-top: 22px;
+  margin-top: 24px;
   max-width: 46ch;
 }
 .ld-cta-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 32px;
+  margin-top: 34px;
 }
 .ld-cta.btn.big {
-  min-height: 52px;
-  padding: 0 24px;
+  min-height: 54px;
+  padding: 0 26px;
   font-size: 16px;
 }
 .ld-ghost.btn.big {
-  min-height: 52px;
+  min-height: 54px;
   background: none;
   font-size: 16px;
 }
@@ -177,13 +217,98 @@
   .ld-hero {
     grid-template-columns: minmax(0, 1fr);
   }
-  .ld-hero .specimen {
-    max-width: 560px;
+  .ld-hero::before {
+    top: 30%;
   }
 }
 @media (max-width: 520px) {
   .ld-cta-row .btn {
     flex: 1 1 100%;
+  }
+}
+
+/* The stage: Lucena above the board, her words beside her. */
+.ld-stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  max-width: 500px;
+  width: 100%;
+  justify-self: end;
+}
+.ld-stage-coach {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: -26px;
+}
+.ld-stage-orb {
+  flex: none;
+  margin: -24px -10px -24px -24px;
+  animation: ld-orb-in 0.9s var(--ease) both;
+}
+.ld-stage-say {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+  font-size: 15px;
+  line-height: 1.45;
+  animation: sp-in 0.4s var(--ease) both;
+}
+.ld-stage.mood-wow .ld-stage-say {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--win) 55%, transparent), 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+}
+.ld-stage.mood-sad .ld-stage-say {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--loss) 45%, transparent), 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+}
+.ld-stage-board {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  animation: sp-in 0.7s 0.15s var(--ease) both;
+}
+.ld-stage-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.ld-stage-foot .btn svg {
+  width: 15px;
+  height: 15px;
+}
+@keyframes ld-orb-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+@media (max-width: 980px) {
+  .ld-stage {
+    justify-self: start;
+  }
+}
+@media (max-width: 520px) {
+  .ld-stage-orb {
+    margin: -18px -12px -18px -18px;
+  }
+  .ld-stage-orb .coach-avatar {
+    width: 112px;
+    height: 112px;
+  }
+  .ld-stage-coach {
+    margin-bottom: -10px;
+  }
+  .ld-stage-say {
+    font-size: 14px;
+    padding: 12px 13px;
   }
 }
 
@@ -512,200 +637,440 @@
   }
 }
 
-/* ---------- the problem ---------- */
 
-.ld-problem {
-  padding-block: clamp(56px, 8vw, 104px);
-  border-top: 1px solid var(--border);
+/* ---------- one game or many ---------- */
+
+.ld-why-head .ld-lead {
+  margin-top: 18px;
 }
-.ld-problem h2 {
-  max-width: 24ch;
-}
-.ld-problem .ld-lead {
-  margin-top: 20px;
-}
-.ld-compare {
+.ld-why-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(16px, 3vw, 40px);
-  margin-top: 44px;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 56px);
+  align-items: start;
+  margin-top: clamp(32px, 4vw, 52px);
 }
-.ld-col h3 {
-  margin-bottom: 14px;
-}
-.ld-col ul {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ld-col li {
-  position: relative;
-  padding: 13px 0 13px 28px;
-  border-top: 1px solid var(--border);
-  font-size: 15.5px;
-  line-height: 1.45;
-}
-.ld-col li::before {
-  position: absolute;
-  left: 2px;
-  top: 13px;
-  font-weight: 700;
-}
-.ld-col.them h3,
-.ld-col.them li {
-  color: var(--text-3);
-}
-.ld-col.them li::before {
-  content: "–";
-}
-.ld-col.us h3 {
-  color: var(--accent);
-}
-.ld-col.us li::before {
-  content: "✓";
-  color: var(--win);
-}
-@media (max-width: 680px) {
-  .ld-compare {
-    grid-template-columns: 1fr;
-    gap: 32px;
+@media (max-width: 960px) {
+  .ld-why-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* ---------- benefits ---------- */
-
-.ld-benefits {
+.ld-lab {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: clamp(24px, 3vw, 40px);
-  padding-bottom: clamp(56px, 8vw, 104px);
+  gap: 22px;
+  margin: 0;
+  padding: clamp(18px, 2.4vw, 28px);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
-.ld-benefit {
-  padding-top: 20px;
-  border-top: 2px solid var(--text);
-}
-.ld-icon {
+.ld-lab-control {
   display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  margin-bottom: 16px;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px 16px;
+}
+.ld-lab-control > span {
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 550;
+}
+.ld-lab-steps {
+  display: flex;
+  justify-self: end;
+  gap: 4px;
+  padding: 3px;
   border-radius: 11px;
-  background: var(--accent-soft);
+  background: var(--surface-2);
+}
+.ld-lab-steps button {
+  min-width: 48px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.ld-lab-steps button.on {
+  background: var(--cta);
+  color: #fff;
+}
+.ld-lab-games {
+  display: grid;
+  grid-template-columns: repeat(25, minmax(0, 1fr));
+  gap: 4px;
+  align-content: start;
+}
+.ld-lab-games i {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--draw);
+  animation: ld-pop 0.35s calc(min(var(--i), 60) * 8ms) var(--ease) both;
+}
+.ld-lab-games i.g-win {
+  background: var(--win);
+}
+.ld-lab-games i.g-loss {
+  background: var(--loss);
+}
+@keyframes ld-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+.ld-lab-bars {
+  display: grid;
+  gap: 10px;
+}
+.ld-lab-bar {
+  display: grid;
+  grid-template-columns: 96px 1fr 48px;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.ld-lab-bar b {
+  text-align: right;
+  color: var(--text);
+}
+.ld-lab-track {
+  height: 10px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.ld-lab-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--draw);
+  transition: width 0.6s var(--ease);
+}
+.ld-lab-bar.top .ld-lab-track span {
+  background: var(--loss);
+}
+.ld-lab-bar.top b {
+  color: var(--loss);
+}
+.ld-lab-axis {
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.ld-lab-say {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 76px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--ai-soft);
+}
+.ld-lab-say > :first-child {
+  flex: none;
+}
+.ld-lab-say p {
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+@media (max-width: 520px) {
+  .ld-lab-control {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ld-lab-steps {
+    justify-self: stretch;
+  }
+  .ld-lab-steps button {
+    flex: 1;
+  }
+  .ld-lab-games {
+    grid-template-columns: repeat(15, minmax(0, 1fr));
+  }
+  .ld-lab-bar {
+    grid-template-columns: 84px 1fr 42px;
+    gap: 8px;
+  }
+}
+
+/* Comparison table: the app's column carries the iris. */
+.ld-cmp {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.ld-cmp th,
+.ld-cmp td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+}
+.ld-cmp thead th {
+  padding-top: 4px;
+  color: var(--text-3);
+  font-size: 13px;
+  font-weight: 600;
+  vertical-align: bottom;
+}
+.ld-cmp thead th.us {
   color: var(--accent);
 }
-.ld-icon svg {
-  width: 20px;
-  height: 20px;
+.ld-cmp tbody th {
+  padding-left: 0;
+  color: var(--text);
+  font-weight: 500;
+  line-height: 1.4;
 }
-.ld-benefit p {
+.ld-cmp td {
+  width: 24%;
+  text-align: center;
+}
+.ld-cmp thead th:not(:first-child) {
+  text-align: center;
+}
+.ld-cmp td.us {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.ld-cmp tbody tr:last-child td.us {
+  border-radius: 0 0 12px 12px;
+}
+.ld-cmp thead th.us {
+  border-radius: 12px 12px 0 0;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.ld-cmp-yes,
+.ld-cmp-no {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.ld-cmp-yes {
+  background: var(--pos-soft);
+  color: var(--win);
+}
+.ld-cmp-no {
+  color: var(--text-3);
+}
+.ld-cmp svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ld-cmp-text {
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.ld-cmp td.us .ld-cmp-text {
+  color: var(--win);
+  font-weight: 650;
+}
+@media (max-width: 520px) {
+  .ld-cmp {
+    font-size: 14px;
+  }
+  .ld-cmp th,
+  .ld-cmp td {
+    padding: 12px 6px;
+  }
+  .ld-cmp td {
+    width: 26%;
+  }
+}
+
+/* ---------- what you get: profile ---------- */
+
+.ld-get {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+.ld-get-text .ld-lead {
+  margin-top: 18px;
+}
+.ld-get-king {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 26px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.landing .model3d canvas {
+  cursor: grab;
+  touch-action: pan-y;
+}
+.landing .model3d canvas:active {
+  cursor: grabbing;
+}
+@media (max-width: 980px) {
+  .ld-get {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ld-get .specimen {
+    max-width: 560px;
+  }
+}
+
+/* ---------- league ---------- */
+
+.ld-league {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 80px);
+  align-items: center;
+}
+.ld-league-cup {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 300px;
+}
+/* A spotlight under the cup: the one place the page dresses up an object. */
+.ld-league-cup::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6% 0;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 22%, transparent), transparent 75%);
+}
+.ld-league-cup::after {
+  content: "";
+  position: absolute;
+  bottom: 22px;
+  width: 52%;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.45), transparent);
+}
+:root[data-theme="light"] .ld-league-cup::after {
+  background: radial-gradient(closest-side, rgba(14, 18, 32, 0.18), transparent);
+}
+.ld-league-cup .model3d {
+  position: relative;
+  z-index: 1;
+}
+.ld-league-text .ld-lead {
+  margin-top: 18px;
+}
+.ld-league-points {
+  display: grid;
+  gap: 10px;
+  margin: 26px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.ld-league-points li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-size: 15.5px;
+}
+.ld-league-points li::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform: translateY(-1px) rotate(45deg);
+}
+@media (max-width: 860px) {
+  .ld-league {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ld-league-cup {
+    min-height: 240px;
+    order: 2;
+  }
+}
+
+/* ---------- steps (a real sequence, so numbered) ---------- */
+
+.ld-steps ol {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: clamp(28px, 4vw, 48px) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.ld-steps li {
+  position: relative;
+  padding: 0 24px 0 0;
+}
+.ld-steps li::before {
+  content: "";
+  position: absolute;
+  top: 17px;
+  left: 44px;
+  right: 8px;
+  height: 1px;
+  background: var(--border-strong);
+}
+.ld-steps li:last-child::before {
+  display: none;
+}
+.ld-step-no {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 18px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ld-steps li:first-child .ld-step-no {
+  background: var(--cta);
+  color: #fff;
+}
+.ld-steps p {
   margin-top: 8px;
   color: var(--text-2);
   font-size: 15px;
   line-height: 1.55;
 }
-@media (max-width: 1040px) {
-  .ld-benefits {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-@media (max-width: 560px) {
-  .ld-benefits {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* ---------- how it works ---------- */
-
-.ld-how {
-  padding-block: clamp(56px, 8vw, 104px);
-  border-top: 1px solid var(--border);
-  scroll-margin-top: 64px;
-}
-.ld-how-head .ld-lead {
-  margin-top: 16px;
-}
-.ld-how-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
-  gap: clamp(32px, 5vw, 72px);
-  align-items: start;
-  margin-top: 44px;
-}
-.ld-how-steps {
-  display: grid;
-  gap: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.ld-how-step {
-  display: grid;
-  grid-template-columns: 40px 1fr;
-  gap: 16px;
-  padding: 20px 0;
-  border-top: 1px solid var(--border);
-}
-.ld-how-step:first-child {
-  border-top: 0;
-  padding-top: 0;
-}
-.ld-how-num {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px var(--border-strong);
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 700;
-}
-.ld-how-step p {
-  margin-top: 6px;
-  color: var(--text-2);
-  font-size: 15px;
-  line-height: 1.55;
-}
-.ld-demo {
-  display: grid;
-  gap: 12px;
-}
-.ld-demo-board {
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: var(--shadow-lg);
-}
-.ld-say {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: var(--ai-soft);
-}
-.ld-say > :first-child {
-  flex: none;
-}
-.ld-say p {
-  font-size: 14.5px;
-  line-height: 1.45;
-  animation: sp-in 0.35s var(--ease, ease) both;
-}
-.ld-demo-note {
-  color: var(--text-3);
-  font-size: 12.5px;
-  text-align: center;
-}
-@media (max-width: 900px) {
-  .ld-how-grid {
+@media (max-width: 860px) {
+  .ld-steps ol {
     grid-template-columns: minmax(0, 1fr);
+    gap: 26px;
   }
-  .ld-demo {
-    max-width: 440px;
+  .ld-steps li {
+    padding: 0 0 0 54px;
+  }
+  .ld-steps li::before {
+    top: 44px;
+    bottom: -18px;
+    left: 17px;
+    right: auto;
+    width: 1px;
+    height: auto;
+  }
+  .ld-step-no {
+    position: absolute;
+    left: 0;
+    top: -6px;
+    margin: 0;
   }
 }
 
@@ -713,120 +1078,197 @@
 
 .ld-private {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: clamp(32px, 5vw, 72px);
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
   align-items: center;
-  padding: clamp(32px, 5vw, 64px);
-  border-radius: 28px;
+}
+.ld-private-text .ld-lead {
+  margin: 18px 0 22px;
+}
+.ld-priv {
+  display: grid;
+  gap: 22px;
+  padding: clamp(18px, 2.4vw, 28px);
+  border-radius: 20px;
   background: var(--surface);
-  box-shadow: 0 0 0 1px var(--border);
-  scroll-margin-top: 80px;
+  box-shadow: var(--shadow);
 }
-.ld-private .ld-lead {
-  margin-top: 16px;
+.ld-priv-switch {
+  display: flex;
+  justify-self: start;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 11px;
+  background: var(--surface-2);
 }
-.ld-facts {
-  display: grid;
-  gap: 16px;
-  margin: 28px 0;
-  padding: 0;
-  list-style: none;
-}
-.ld-facts li {
-  display: grid;
-  grid-template-columns: 22px 1fr;
-  gap: 14px;
+.ld-priv-switch button {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
   color: var(--text-2);
-  font-size: 15px;
-  line-height: 1.5;
-}
-.ld-facts svg {
-  width: 20px;
-  height: 20px;
-  margin-top: 1px;
-  color: var(--win);
-}
-.ld-facts b {
-  color: var(--text);
+  font: inherit;
+  font-size: 14px;
   font-weight: 650;
+  cursor: pointer;
 }
-.ld-flow {
+.ld-priv-switch button.on {
+  background: var(--cta);
+  color: #fff;
+}
+.ld-priv-map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1.1fr) 28px minmax(0, 1fr);
+  align-items: center;
+}
+.ld-priv-node {
   display: grid;
   justify-items: center;
-}
-.ld-node {
-  width: min(100%, 300px);
-  padding: 14px 16px;
-  border-radius: 14px;
-  background: var(--surface-2);
-  color: var(--text-2);
-  font-size: 14px;
-  font-weight: 600;
-  text-align: center;
-}
-.ld-node.device {
-  display: grid;
   gap: 4px;
-  padding: 26px 16px;
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1.5px var(--accent);
+  padding: 14px 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border-strong);
+  text-align: center;
+  transition: border-color 0.3s, opacity 0.3s, background 0.3s;
+}
+.ld-priv-node b {
+  font-size: 13.5px;
+  line-height: 1.25;
+}
+.ld-priv-node span {
+  color: var(--text-3);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.ld-priv-node svg {
+  width: 20px;
+  height: 20px;
   color: var(--text-2);
 }
-.ld-node.device b {
-  color: var(--text);
-  font-size: 18px;
-  letter-spacing: -0.015em;
+.ld-priv-node.me {
+  padding-block: 20px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
-.ld-node.off {
-  background: none;
-  box-shadow: inset 0 0 0 1px var(--border-strong);
-  color: var(--text-3);
-  font-weight: 550;
+.ld-priv-node.me svg {
+  color: var(--accent);
 }
-.ld-pipe {
+.ld-priv-node.cloud {
+  border-style: dashed;
+  opacity: 0.6;
+}
+.ld-priv-node.cloud.live {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--win) 60%, transparent);
+  opacity: 1;
+}
+.ld-priv-node.cloud.live svg {
+  color: var(--win);
+}
+.ld-priv-wire {
   position: relative;
-  width: 2px;
-  height: 40px;
+  height: 2px;
   background: var(--accent);
+  overflow: hidden;
 }
-.ld-pipe.cut {
-  background: repeating-linear-gradient(to bottom, var(--loss) 0 4px, transparent 4px 9px);
+.ld-priv-wire.out {
+  background: repeating-linear-gradient(90deg, var(--text-3) 0 4px, transparent 4px 8px);
+  opacity: 0.6;
 }
-.ld-pipe.cut::after {
-  content: "×";
+.ld-priv-wire.out.live {
+  background: var(--win);
+  opacity: 1;
+}
+/* A pulse travelling along the live wires shows the direction of the data. */
+.ld-priv-wire.in::after,
+.ld-priv-wire.out.live::after {
+  content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1.5px var(--loss);
-  color: var(--loss);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1;
-  transform: translate(-50%, -50%);
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+  animation: ld-flow 1.8s linear infinite;
 }
-@media (max-width: 860px) {
+@keyframes ld-flow {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(260%);
+  }
+}
+.ld-priv-says {
+  min-height: 4.4em;
+  color: var(--text-2);
+  font-size: 14.5px;
+  line-height: 1.55;
+}
+.ld-priv-never {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+.ld-priv-never li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.ld-priv-never svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--win);
+}
+@media (max-width: 900px) {
   .ld-private {
     grid-template-columns: minmax(0, 1fr);
-    border-radius: 22px;
   }
-  .ld-flow {
-    order: -1;
+}
+@media (max-width: 520px) {
+  .ld-priv-map {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+    justify-items: stretch;
+  }
+  .ld-priv-wire {
+    justify-self: center;
+    width: 2px;
+    height: 20px;
+  }
+  .ld-priv-wire.out {
+    background: repeating-linear-gradient(180deg, var(--text-3) 0 4px, transparent 4px 8px);
+  }
+  .ld-priv-wire.out.live {
+    background: var(--win);
+  }
+  .ld-priv-wire.in::after,
+  .ld-priv-wire.out.live::after {
+    width: 100%;
+    height: 40%;
+    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.85), transparent);
+    animation-name: ld-flow-down;
+  }
+}
+@keyframes ld-flow-down {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(260%);
   }
 }
 
-/* ---------- quotes (only with real feedback) ---------- */
+/* ---------- quotes (hidden while there are none) ---------- */
 
 .ld-quotes {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 32px;
-  padding-top: clamp(56px, 8vw, 104px);
+  gap: 24px;
 }
 .ld-quotes blockquote {
   margin: 0;
@@ -845,134 +1287,129 @@
   font-style: normal;
 }
 
-/* ---------- price and maker ---------- */
+/* ---------- questions ---------- */
 
-.ld-trust {
+.ld-faq {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: clamp(32px, 5vw, 72px);
-  padding-block: clamp(56px, 8vw, 104px);
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 72px);
+  align-items: start;
 }
-.ld-trust h2 {
-  font-size: clamp(22px, 2.2vw, 28px);
+.ld-faq-list {
+  border-top: 1px solid var(--border);
 }
-.ld-price {
-  scroll-margin-top: 80px;
+.ld-faq-item {
+  border-bottom: 1px solid var(--border);
 }
-.ld-price-big {
-  margin: 14px 0 12px !important;
-  color: var(--win);
-  font-size: clamp(44px, 5vw, 64px);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
+.ld-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  list-style: none;
+  cursor: pointer;
 }
-.ld-price > p:not(.ld-price-big),
-.ld-maker > p {
-  max-width: 52ch;
+.ld-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+.ld-faq-item summary svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  color: var(--text-3);
+  transform: rotate(90deg);
+  transition: transform 0.25s var(--ease);
+}
+.ld-faq-item[open] summary svg {
+  transform: rotate(-90deg);
+  color: var(--accent);
+}
+.ld-faq-item summary:hover span {
+  color: var(--accent);
+}
+.ld-faq-body {
+  display: grid;
+  gap: 14px;
+  padding: 0 0 22px;
   color: var(--text-2);
   font-size: 15.5px;
   line-height: 1.6;
+  animation: sp-in 0.3s var(--ease) both;
 }
-.ld-price ul {
-  display: grid;
-  gap: 0;
-  margin: 20px 0 0;
-  padding: 0;
-  list-style: none;
+.ld-faq-body p {
+  max-width: 62ch;
 }
-.ld-price li {
-  position: relative;
-  padding: 10px 0 10px 28px;
-  border-top: 1px solid var(--border);
-  font-size: 15px;
-}
-.ld-price li::before {
-  content: "✓";
-  position: absolute;
-  left: 2px;
-  color: var(--win);
-  font-weight: 700;
-}
-.ld-maker-who {
+.ld-maker {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin: 20px 0 16px;
+  gap: 12px;
 }
 .ld-maker-mark {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: var(--surface-3);
-  color: var(--text);
-  font-size: 17px;
+  background: var(--accent-soft);
+  color: var(--accent);
   font-weight: 700;
-  letter-spacing: 0.02em;
 }
-.ld-maker-who div {
+.ld-maker div {
   display: grid;
-  gap: 2px;
 }
-.ld-maker-who b {
-  font-size: 16px;
+.ld-maker b {
+  color: var(--text);
 }
-.ld-maker-who span {
+.ld-maker span {
   color: var(--text-3);
-  font-size: 14px;
+  font-size: 13.5px;
 }
-.ld-maker-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 20px;
-  margin-top: 18px;
-  font-size: 15px;
-}
-@media (max-width: 760px) {
-  .ld-trust {
-    grid-template-columns: 1fr;
+@media (max-width: 860px) {
+  .ld-faq {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
-/* ---------- final call ---------- */
+/* ---------- closing call ---------- */
 
 .ld-final {
   display: grid;
   justify-items: center;
   gap: 18px;
-  padding-block: clamp(56px, 8vw, 96px);
-  border-top: 1px solid var(--border);
+  padding-block: clamp(20px, 4vw, 40px);
   text-align: center;
 }
 .ld-final h2 {
-  max-width: 20ch;
+  max-width: 16ch;
 }
 .ld-final .ld-lead {
-  max-width: 48ch;
+  max-width: 44ch;
 }
-.ld-final .ld-cta {
-  margin-top: 10px;
+.ld-final .btn {
+  margin-top: 8px;
 }
-
 .ld-foot {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px 24px;
-  padding: 24px var(--ld-pad) 40px;
+  margin-top: clamp(56px, 8vw, 96px);
+  padding: 24px var(--ld-pad) calc(28px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
   font-size: 13.5px;
 }
 .ld-foot a,
 .ld-foot button {
-  padding: 0;
   border: 0;
   background: none;
   color: var(--text-3);
   font: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 .ld-foot a:hover,
 .ld-foot button:hover {
@@ -980,11 +1417,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sp-panel,
-  .sp-say p,
-  .ld-say p,
-  .sp-bar-track span,
-  .sp-curve {
-    animation: none;
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation: none !important;
+    transition: none !important;
   }
 }
