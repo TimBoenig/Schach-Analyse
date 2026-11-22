@@ -3,7 +3,7 @@ import type { MoveData } from "../domain/types";
 import { badgeFor, classLabel, formatEval } from "./labels";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t, tj } from "../i18n";
+import { t, tj, tStored } from "../i18n";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
@@ -96,9 +96,9 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
       {badge && <img src={badge} alt="" />}
       <div style={{ minWidth: 0, flex: 1 }}>
         <strong>{san}</strong> <span class="muted">· {classLabel(verdict.classification)}</span>
-        <div class="small">{verdict.explanation}</div>
+        <div class="small">{tStored(verdict.explanation)}</div>
         <MoveFacts move={verdict} />
-        {better?.pv_san && !verdict.explanation.includes(t("Besser war")) && (
+        {better?.pv_san && !tStored(verdict.explanation).includes(t("Besser war")) && (
           <div class="small muted" style={{ marginTop: "2px" }}>
             
             {t("Besser war {n} ({formatEval})", { n: better.pv_san.split(" ")[0], formatEval: formatEval(verdict.eval_before_cp, verdict.eval_before_mate) })}</div>

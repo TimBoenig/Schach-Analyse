@@ -3,7 +3,7 @@
 // Headless: the app layer stores the choices as settings.
 import { DEFAULT_SETTINGS, type AnalysisSettings } from "./analyzer";
 import { getUserColor, isBulletGame, NO_BULLET, type FilterableGame } from "./metrics/filters";
-import { t } from "../i18n";
+import { t, dec } from "../i18n";
 
 export { isBulletGame, NO_BULLET };
 
@@ -97,7 +97,7 @@ export function choiceName(choice: DepthChoice): string {
   return c.preset === "custom" ? t("Eigene") : DEPTH_PRESETS[c.preset].name;
 }
 
-const secondsDe = (s: number) => (Math.round(s * 10) / 10).toString().replace(".", ",");
+const secondsDe = (s: number) => (Math.round(s * 10) / 10).toString().replace(".", dec());
 
 /** "Tiefe 12 · max. 0,4 s pro Zug". */
 export function settingsLabel(s: Pick<AnalysisSettings, "depth" | "movetimeMs">): string {

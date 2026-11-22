@@ -1,6 +1,6 @@
 // The span switch of the history charts and the signed change next to a figure.
 import type { RangeOption } from "../../domain/profile/history";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export function RangeChips({ choices, value, onChange }: { choices: RangeOption[]; value: string; onChange: (key: string) => void }) {
   if (choices.length < 2) return null;
@@ -17,7 +17,7 @@ export function RangeChips({ choices, value, onChange }: { choices: RangeOption[
 
 export function Delta({ value, unit = "" }: { value: number; unit?: string }) {
   const flat = Math.abs(value) < 0.05;
-  const size = Number.isInteger(value) ? String(Math.abs(value)) : Math.abs(value).toFixed(1).replace(".", ",");
+  const size = Number.isInteger(value) ? String(Math.abs(value)) : Math.abs(value).toFixed(1).replace(".", dec());
   return (
     <span class={`delta ${flat ? "" : value > 0 ? "up" : "down"}`}>
       {flat ? "±0" : `${value > 0 ? "+" : "−"}${size}`}

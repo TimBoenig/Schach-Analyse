@@ -6,7 +6,7 @@ import { Chess, type Square } from "chess.js";
 import { useMemo, useState } from "preact/hooks";
 
 import { Board } from "../Board";
-import { ENV_LABEL, germanSan, PLATFORM_LABEL, START_FEN, validFen, type Environment, type Platform, type StudioProject } from "./model";
+import { ENV_LABEL, displaySan, PLATFORM_LABEL, START_FEN, validFen, type Environment, type Platform, type StudioProject } from "./model";
 import {
   buildProject,
   defaultAnswers,
@@ -37,7 +37,7 @@ function moveName(tree: GameTree, line: number | "main", index: number, san: str
   const ply = base + (startBlack ? 1 : 0);
   const no = fullmove + Math.floor(ply / 2);
   const white = ply % 2 === 0;
-  return white ? `${no}. ${germanSan(san)}` : index === 0 || line !== "main" ? `${no}… ${germanSan(san)}` : germanSan(san);
+  return white ? `${no}. ${displaySan(san)}` : index === 0 || line !== "main" ? `${no}… ${displaySan(san)}` : displaySan(san);
 }
 
 export function MoveRecorder({

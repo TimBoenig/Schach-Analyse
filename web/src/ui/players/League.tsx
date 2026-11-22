@@ -76,7 +76,7 @@ import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
 import { formatOptionLabel } from "../useProfile";
 import { AnalyzeFriends, Avatar, de, formatFactor, half, pct0, PlayerFilters, plural, profileFor, RefreshAll, signed, toneOf, Who } from "./common";
-import { t, tj, lang } from "../../i18n";
+import { t, tj, lang, locale } from "../../i18n";
 
 export const LEAGUE_SECTIONS: StatSection[] = [
   { id: "liga", title: t("Liga"), sub: t("Stand, Turnierchancen und dein Weg nach oben"), cards: [t("Liga-Spur"), t("Was wäre wenn"), t("Tabelle"), t("Turnier"), t("Überholen")] },
@@ -473,7 +473,7 @@ function TournamentCard({ t: tk, tones }: { t: Tournament | null; tones: Tones }
         <h3>
           <IconTrophy />  {t("Wer gewinnt euer Turnier?")}
         </h3>
-        <span class="tile-sub">{t("{n}-mal gespielt", { n: tk.runs.toLocaleString("de-DE") })}</span>
+        <span class="tile-sub">{t("{n}-mal gespielt", { n: tk.runs.toLocaleString(locale()) })}</span>
       </div>
       <p class="small muted" style={{ marginTop: 0 }}>
         
@@ -1146,7 +1146,7 @@ function TypesCard({ ranking, types, tones }: { ranking: Ranking; types: Record<
 
 // ---------- form ----------
 
-const SHORT_DATE = (tk: number) => new Date(tk * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+const SHORT_DATE = (tk: number) => new Date(tk * 1000).toLocaleDateString(locale(), { day: "2-digit", month: "2-digit" });
 
 /** Spans the form curve offers, in weeks. */
 const FORM_SPANS: [string, number][] = [

@@ -65,7 +65,7 @@ import { Chess } from "chess.js";
 import { StudioStage } from "./stage";
 import { currentId, loadProjects, saveProjects, setCurrentId } from "./store";
 import { compile, type Timeline } from "./timeline";
-import { t } from "../../i18n";
+import { t, dec, changeStudioLang, LANG_NAMES, LANGS, siteLang, studioSetting, type StudioLang } from "../../i18n";
 
 type Tab = "szene" | "stil" | "video";
 type Tool = "none" | "arrow" | "mark";
@@ -478,6 +478,7 @@ export function StudioView() {
         </select>
         <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label={t("Name des Videos")} />
         <div class="studio-top-actions">
+          <StudioLangSelect />
           <button class="btn ghost studio-ai-btn" onClick={() => setDialog("ai")} title={t("Prompt für ChatGPT, Claude oder Gemini holen und das fertige Skript übernehmen")}>
             
             {t("✦ Mit KI")}
@@ -628,7 +629,7 @@ export function StudioView() {
           <div class="studio-speed" title={t("Tempo des ganzen Videos")}>
             {[0.75, 1, 1.25, 1.5].map((sp) => (
               <button key={sp} class={Math.abs(project.video.speed - sp) < 0.01 ? "on" : ""} onClick={() => setVideo({ speed: sp })}>
-                {String(sp).replace(".", ",")}×
+                {String(sp).replace(".", dec())}×
               </button>
             ))}
           </div>
@@ -1411,5 +1412,30 @@ function SceneBoard({ fen, moves, onClose, onApply }: { fen: string; moves: stri
         </footer>
       </div>
     </div>
+  );
+}
+
+/**
+ * Language of the studio and of the videos it makes (titles, subtitles, move
+ * names, notation, the AI prompt). "Automatic" follows the site language, so a
+ * German site can still produce English videos. Changing it reloads the page.
+ */
+function StudioLangSelect() {
+  const setting = studioSetting();
+  return (
+    <select
+      class="studio-lang"
+      value={setting}
+      onChange={(e) => changeStudioLang(e.currentTarget.value as StudioLang)}
+      aria-label={t("Sprache des Studios und der Videos")}
+      title={t("Sprache des Studios und der Videos")}
+    >
+      <option value="auto">{t("Video: wie die Website ({name})", { name: LANG_NAMES[siteLang()] })}</option>
+      {LANGS.map((l) => (
+        <option key={l} value={l} lang={l}>
+          {t("Video: {name}", { name: LANG_NAMES[l] })}
+        </option>
+      ))}
+    </select>
   );
 }

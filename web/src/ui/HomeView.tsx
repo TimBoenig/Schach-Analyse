@@ -29,7 +29,7 @@ import { Section, type StatSection } from "./StatsLayout";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
 import { useProfile } from "./useProfile";
-import { t } from "../i18n";
+import { t, locale } from "../i18n";
 
 // One tap for the periods that matter day to day.
 const QUICK: [string, string][] = [
@@ -43,7 +43,7 @@ const QUICK: [string, string][] = [
 // The four cards of the longer view; on phones they fold into this one heading.
 const HOME_TRENDS: StatSection = { id: "entwicklung", title: t("Entwicklung"), sub: t("Formkurve, Veränderungen und Kalender"), cards: [] };
 
-const TODAY_LABEL = () => new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+const TODAY_LABEL = () => new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
 
 /** One puzzle from the player's own games per day, solvable right here. */
 function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (ex: PuzzleExercise, ok: boolean) => void }) {

@@ -3,7 +3,7 @@
 // instead of shrinking with a scaled viewBox.
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { t } from "../i18n";
+import { t, locale, dec } from "../i18n";
 
 export function useWidth<T extends HTMLElement>(fallback = 320): [preact.RefObject<T>, number] {
   const ref = useRef<T>(null);
@@ -270,7 +270,7 @@ export function Gauge({
   thickness = 12,
   color = "var(--accent)",
   label,
-  format = (v: number) => v.toFixed(1).replace(".", ","),
+  format = (v: number) => v.toFixed(1).replace(".", dec()),
 }: {
   value: number | null;
   reference?: number | null;
@@ -854,7 +854,7 @@ export function ratingSeriesPoints(series: [number, number][]): Point[] {
     return {
       label: multiYear ? `${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(2)}` : `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.`,
       value: r,
-      detail: d.toLocaleDateString("de-DE"),
+      detail: d.toLocaleDateString(locale()),
       t: ts,
     };
   });

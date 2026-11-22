@@ -31,7 +31,7 @@ import { Level, SplitBar, Stat } from "../viz/Bars";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
 import { dayDate, dayShort, Ladder, pct, plural } from "./shared";
 import type { TrainingState } from "./useTraining";
-import { t, tj } from "../../i18n";
+import { t, tj, dec } from "../../i18n";
 
 const CALENDAR_WEEKS = 16;
 const RATE_WEEKS = 8;
@@ -41,7 +41,7 @@ const RATE_MIN_ATTEMPTS = 3;
 const OPENING_ROWS = 8;
 const MONTH_SHORT = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
 
-const comma = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const comma = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 function Summary({ t: tk }: { t: TrainingState }) {
   const totals = logTotals(tk.log);

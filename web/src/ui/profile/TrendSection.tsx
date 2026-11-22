@@ -11,12 +11,12 @@ import { Foot } from "../kit";
 import { type ProfileFilters, useAllTimeProfile } from "../useProfile";
 import { Delta, RangeChips } from "../viz/Range";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
-import { t } from "../../i18n";
+import { t, locale, dec } from "../../i18n";
 
 const DAY = 86400;
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
-const dateText = (tk: number) => new Date(tk * 1000).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
+const dateText = (tk: number) => new Date(tk * 1000).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString(locale())} ${n === 1 ? one : many}`;
 
 interface Trends {
   ratings: Record<string, RatingSeries>;
@@ -119,7 +119,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
             </div>
             <div>
               <dt>{t("Gewertete Partien")}</dt>
-              <dd class="tnum">{rh.games.toLocaleString("de-DE")}</dd>
+              <dd class="tnum">{rh.games.toLocaleString(locale())}</dd>
             </div>
           </dl>
         )}

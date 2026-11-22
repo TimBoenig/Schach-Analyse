@@ -4,9 +4,9 @@ import { trSpeed } from "../../domain/i18n";
 import type { PlayerProfile } from "../../domain/profile";
 import { accClass, formatDate, shortOpening } from "../labels";
 import { navigate } from "../router";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
-const de = (v: number) => v.toFixed(1).replace(".", ",");
+const de = (v: number) => v.toFixed(1).replace(".", dec());
 
 const RESULT: Record<string, { cls: string; ch: string; word: string }> = {
   "1": { cls: "win", ch: "S", word: t("Sieg") },

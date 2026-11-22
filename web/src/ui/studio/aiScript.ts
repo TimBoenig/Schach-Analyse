@@ -42,7 +42,7 @@ import type { MusicId } from "./music";
 import { fitLength, movesLabel } from "./wizard";
 import { t } from "../../i18n";
 
-// ---------- German words the AI may use ----------
+// ---------- words the AI may use (German or English) ----------
 
 /** "Schräg", "schraeg", "SCHRÄG" and "schräg!" all become "schraeg". */
 const word = (v: unknown): string =>
@@ -62,10 +62,11 @@ const CAMERAS: Record<string, CameraPreset> = {
   seitlich: "side", seite: "side", side: "side",
   tief: "low", tiefdramatisch: "low", dramatisch: "low", low: "low",
   nah: "close", nahdran: "close", close: "close", closeup: "close",
+  angled: "corner", opposite: "black", behind: "white",
 };
 const CARDS: Record<string, Card> = {
   keine: "none", none: "none",
-  titel: "intro", titelkarte: "intro", intro: "intro", hook: "intro",
+  titel: "intro", titelkarte: "intro", intro: "intro", hook: "intro", title: "intro", titlecard: "intro",
   frage: "question", question: "question", raetsel: "question",
   umfrage: "poll", poll: "poll", abstimmung: "poll",
   abspann: "outro", outro: "outro", ende: "outro", cta: "outro",
@@ -73,14 +74,14 @@ const CARDS: Record<string, Card> = {
 const TONES: Record<string, Tone> = {
   akzent: "accent", accent: "accent", blau: "accent", lila: "accent", neutral: "accent",
   gut: "good", good: "good", gruen: "good", verteidigung: "good", richtig: "good",
-  gefahr: "bad", bad: "bad", rot: "bad", schlecht: "bad", drohung: "bad", fehler: "bad", angriff: "bad",
+  gefahr: "bad", danger: "bad", red: "bad", bad: "bad", rot: "bad", schlecht: "bad", drohung: "bad", fehler: "bad", angriff: "bad",
   idee: "idea", idea: "idea", gelb: "idea", orange: "idea", plan: "idea",
   weiss: "white", white: "white",
 };
 const MOODS: Record<string, Mood> = {
   froehlich: "happy", happy: "happy", freude: "happy",
-  nachdenklich: "think", think: "think", denken: "think",
-  begeistert: "wow", wow: "wow", staunen: "wow",
+  nachdenklich: "think", think: "think", denken: "think", thoughtful: "think",
+  begeistert: "wow", wow: "wow", staunen: "wow", excited: "wow",
   traurig: "sad", sad: "sad",
 };
 const EFFECTS: Record<string, Effect> = {
@@ -94,18 +95,20 @@ const EFFECTS: Record<string, Effect> = {
   zeitlupe: "slowmo", slowmo: "slowmo", slowmotion: "slowmo",
 };
 const ENVS: Record<string, Environment> = {
-  schwebend: "void", void: "void", keine: "void", nichts: "void",
-  buehne: "podium", podium: "podium", podest: "podium",
-  holztisch: "table", tisch: "table", table: "table",
+  schwebend: "void", void: "void", keine: "void", nichts: "void", floating: "void", none: "void",
+  buehne: "podium", podium: "podium", podest: "podium", stage: "podium",
+  holztisch: "table", tisch: "table", table: "table", woodtable: "table", woodentable: "table",
   neon: "neon", neonarena: "neon", arena: "neon",
   turniersaal: "hall", saal: "hall", hall: "hall", turnier: "hall",
   bibliothek: "library", library: "library",
 };
-const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "porcelain", glanz: "porcelain", matt: "matte", matte: "matte", chrom: "chrome", chrome: "chrome", metall: "chrome", holz: "wood", wood: "wood", holzfiguren: "wood" };
-const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch" };
-const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d", aufsteller: "billboard", billboard: "billboard", mix: "billboard", "3d2d": "billboard" };
+const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "porcelain", glanz: "porcelain", matt: "matte", matte: "matte", chrom: "chrome", chrome: "chrome", metall: "chrome", holz: "wood", wood: "wood", holzfiguren: "wood", gloss: "porcelain", glossy: "porcelain", porcelain: "porcelain" };
+const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch", big: "punch" };
+const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d", aufsteller: "billboard", billboard: "billboard", standees: "billboard", flat: "2d", mix: "billboard", "3d2d": "billboard" };
 const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
-const MUSICS: Record<string, MusicId> = { keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
+const MUSICS: Record<string, MusicId> = { calm: "lofi", keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic" };
+/** Looks under their English names (the ids stay German, they are stored in projects). */
+const LOOKS: Record<string, ThemeId> = { nova: "nova", marmor: "marmor", marble: "marmor", holz: "holz", wood: "holz", walnuss: "walnuss", walnut: "walnuss", turnier: "turnier", tournament: "turnier", neon: "neon" };
 /** Longest texts that still fit the frame at normal text size. */
 export const FIT = { title: 30, subtitle: 95, label: 22, option: 14, lesson: LESSON_CHUNK };
 
@@ -242,7 +245,7 @@ const number = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(",", ".").replace(/[^\d.-]/g, "")) : NaN;
   return Number.isFinite(n) ? n : null;
 };
-const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : v === "ja" || v === "true" ? true : v === "nein" || v === "false" ? false : null);
+const bool = (v: unknown): boolean | null => (typeof v === "boolean" ? v : v === "ja" || v === "yes" || v === "true" ? true : v === "nein" || v === "no" || v === "false" ? false : null);
 const asList = (v: unknown): unknown[] => (Array.isArray(v) ? v : v === undefined || v === null || v === "" ? [] : typeof v === "string" ? v.split(/[,;]/) : [v]);
 const SQ = /^[a-h][1-8]$/;
 
@@ -251,7 +254,7 @@ function arrowOf(v: unknown): StudioArrow | null {
   let to = "";
   let tone: unknown = "accent";
   if (typeof v === "string") {
-    const m = v.toLowerCase().match(/([a-h][1-8])\s*(?:-|–|>|->|→|\s|nach|bis)?\s*([a-h][1-8])\s*(.*)$/);
+    const m = v.toLowerCase().match(/([a-h][1-8])\s*(?:-|–|>|->|→|\s|nach|bis|to)?\s*([a-h][1-8])\s*(.*)$/);
     if (!m) return null;
     [, from, to, tone] = m;
   } else if (Array.isArray(v)) {
@@ -293,11 +296,11 @@ export function importAiScript(input: string): AiImport {
     return { project: null, errors: [t("Die Antwort ist kein lesbares JSON ({0}). Bitte die KI, nur den JSON-Codeblock zu schicken.", { 0: e instanceof Error ? e.message : t("Fehler") })], warnings, stats: null };
   }
   const root = (Array.isArray(raw) ? { szenen: raw } : raw) as Obj;
-  const rawScenes = asList(field(root, "szenen", "scenes", "szene"));
+  const rawScenes = asList(field(root, "szenen", "scenes", "szene", "scene"));
   if (!rawScenes.length) return { project: null, errors: [t("Im Skript stehen keine Szenen („szenen“).")], warnings, stats: null };
 
   let startFen = START_FEN;
-  const sf = text(field(root, "startstellung", "startfen", "fen", "stellung"), 120);
+  const sf = text(field(root, "startstellung", "startposition", "startfen", "fen", "stellung"), 120);
   if (sf) {
     if (validFen(sf)) startFen = sf;
     else warnings.push(t("Die Startstellung (FEN) ist ungültig, ich nehme die Grundstellung."));
@@ -323,9 +326,9 @@ export function importAiScript(input: string): AiImport {
     const here = line[line.length - 1];
     let jump = "";
     const fen = text(field(o, "fen", "stellung"), 120);
-    const variant = field(o, "variante", "variation");
-    const back = number(variant && typeof variant === "object" ? field(variant as Obj, "zurueck", "back", "halbzuege") : (field(o, "zurueck", "back") ?? (typeof variant === "number" ? variant : null)));
-    const toMain = bool(field(o, "hauptvariante", "zurueckzurhauptvariante", "mainline")) === true;
+    const variant = field(o, "variante", "variation", "variant");
+    const back = number(variant && typeof variant === "object" ? field(variant as Obj, "zurueck", "back", "halbzuege", "plies") : (field(o, "zurueck", "back") ?? (typeof variant === "number" ? variant : null)));
+    const toMain = bool(field(o, "hauptvariante", "zurueckzurhauptvariante", "mainline", "backtomainline")) === true;
     if (fen) {
       if (validFen(fen)) {
         line = [fen];
@@ -377,16 +380,16 @@ export function importAiScript(input: string): AiImport {
     // A mate on the board gets its animation even when the AI forgot it.
     if (effectsRaw === undefined && parsed.moves.length && walk.isCheckmate()) effects.push("mate");
 
-    const badgeRaw = text(field(o, "bewertung", "badge", "symbol"), 30);
+    const badgeRaw = text(field(o, "bewertung", "badge", "symbol", "rating"), 30);
     const badge: Badge = BADGES[badgeRaw] ?? BADGES[word(badgeRaw)] ?? "";
     if (badgeRaw && !badge) warnings.push(t("Szene {n}: Bewertung „{badgeRaw}“ gibt es nicht.", { n, badgeRaw }));
 
-    const arrows = asList(field(o, "pfeile", "arrows", "pfeil")).map(arrowOf);
-    const marks = asList(field(o, "markierungen", "marks", "markierung", "felder")).map(markOf);
+    const arrows = asList(field(o, "pfeile", "arrows", "pfeil", "arrow")).map(arrowOf);
+    const marks = asList(field(o, "markierungen", "marks", "markierung", "felder", "highlights", "highlight", "squares")).map(markOf);
     if (arrows.includes(null) || marks.includes(null)) warnings.push(t("Szene {n}: Ein Pfeil oder eine Markierung war unlesbar und fehlt.", { n }));
 
     const label = parsed.moves.length ? movesLabel(parsed.moves, before) : "";
-    const options = asList(field(o, "antworten", "optionen", "options"))
+    const options = asList(field(o, "antworten", "optionen", "options", "answers"))
       .map((a) => text(a, 40))
       .filter(Boolean)
       .slice(0, 3);
@@ -402,7 +405,7 @@ export function importAiScript(input: string): AiImport {
         duration: Math.min(30, Math.max(1, number(field(o, "dauer", "duration", "sekunden")) ?? (card === "outro" ? 4 : card === "intro" ? 3 : 2.8 + parsed.moves.length * 0.6))),
         camera,
         zoom: Math.min(1.6, Math.max(0.45, number(field(o, "zoom")) ?? 1)),
-        orbit: Math.min(30, Math.max(-30, number(field(o, "drehung", "orbit", "kamerafahrt")) ?? 0)),
+        orbit: Math.min(30, Math.max(-30, number(field(o, "drehung", "orbit", "kamerafahrt", "rotation", "rotate")) ?? 0)),
         focus: bool(field(o, "fokus", "focus")) === true,
         arrows: arrows.filter((a): a is StudioArrow => !!a).slice(0, 12),
         marks: marks.filter((m): m is StudioMark => !!m).slice(0, 16),
@@ -412,14 +415,14 @@ export function importAiScript(input: string): AiImport {
         mood: MOODS[word(field(o, "stimmung", "mood"))] ?? (effects.includes("mate") ? "wow" : "happy"),
         effects: [...new Set(effects)],
         badge,
-        tempo: Math.min(3, Math.max(0.3, number(field(o, "zugtempo", "tempo")) ?? 1)),
+        tempo: Math.min(3, Math.max(0.3, number(field(o, "zugtempo", "tempo", "movespeed")) ?? 1)),
       }),
     );
   });
   if (!scenes.length) return { project: null, errors: errors.length ? errors : [t("Keine lesbare Szene gefunden.")], warnings, stats: null };
 
   // ---- look and video options
-  const theme = (Object.keys(THEMES) as ThemeId[]).find((tk) => tk === word(field(root, "look", "theme", "stil"))) ?? "nova";
+  const theme = LOOKS[word(field(root, "look", "theme", "stil"))] ?? (Object.keys(THEMES) as ThemeId[]).find((tk) => tk === word(field(root, "look", "theme", "stil"))) ?? "nova";
   const envWord = word(field(root, "umgebung", "environment", "hintergrund"));
   const environment = ENVS[envWord] ?? "podium";
   if (envWord && !ENVS[envWord]) warnings.push(t("Umgebung „{String}“ kenne ich nicht, ich nehme {1}.", { String: String(field(root, "umgebung", "environment")), 1: ENV_LABEL[environment] }));
@@ -432,27 +435,27 @@ export function importAiScript(input: string): AiImport {
     return map[w];
   };
   const material = pick(PIECE_LOOKS, t("Figuren"), "figuren", "pieces", "material");
-  const captionStyle = pick(CAPTIONS, t("Untertitel-Stil"), "untertitelstil", "captionstyle", "untertitel");
+  const captionStyle = pick(CAPTIONS, t("Untertitel-Stil"), "untertitelstil", "captionstyle", "subtitlestyle", "untertitel");
   const titleFont = pick(FONTS, t("Schrift"), "schrift", "font");
   const view = pick(VIEWS, t("Ansicht"), "ansicht", "brett", "view");
   const music = pick(MUSICS, t("Musik"), "musik", "music");
   const accentRaw = text(dfield("akzent", "akzentfarbe", "accent"), 12);
   const accent = /^#[0-9a-f]{6}$/i.test(accentRaw) ? accentRaw : undefined;
   if (accentRaw && !accent) warnings.push(t("Akzentfarbe „{accentRaw}“ ist kein Farbcode wie #8d9aff.", { accentRaw }));
-  const textScale = number(dfield("textgroesse", "textscale", "schriftgroesse"));
+  const textScale = number(dfield("textgroesse", "textscale", "schriftgroesse", "textsize"));
   const rim = bool(dfield("figurenrand", "piecerim", "rand"));
   const settings = (field(root, "einstellungen", "settings", "optionen") ?? {}) as Obj;
   const setting = (fallback: boolean, ...names: string[]) => bool(field(settings, ...names)) ?? fallback;
   const platform = PLATFORMS[word(field(root, "plattform", "platform"))] ?? "tiktok";
   const speed = number(field(root, "geschwindigkeit", "speed", "gesamttempo"));
-  const tempo = number(field(root, "zugtempo", "tempo"));
+  const tempo = number(field(root, "zugtempo", "tempo", "movespeed"));
   let project: StudioProject = normalizeProject({
     id: newId("p"),
     name: text(field(root, "titel", "title", "name"), 80) || t("KI-Video"),
     startFen,
     scenes,
     style: {
-      ...styleFromTheme(theme, { environment, coords: setting(true, "koordinaten", "coords"), reflection: setting(true, "spiegelung", "reflection") }),
+      ...styleFromTheme(theme, { environment, coords: setting(true, "koordinaten", "coords", "coordinates"), reflection: setting(true, "spiegelung", "reflection") }),
       ...(material ? { material } : {}),
       ...(captionStyle ? { captionStyle } : {}),
       ...(titleFont ? { titleFont } : {}),
@@ -466,18 +469,18 @@ export function importAiScript(input: string): AiImport {
       ...DEFAULT_VIDEO,
       format: platform === "youtube" ? "16:9" : "9:16",
       perspective,
-      plainMoves: setting(true, "zuginworten", "plainmoves"),
-      squareHints: setting(true, "felderleuchten", "squarehints"),
+      plainMoves: setting(true, "zuginworten", "plainmoves", "moveinwords"),
+      squareHints: setting(true, "felderleuchten", "squarehints", "glowsquares"),
       spellMoves: setting(true, "zuegeausschreiben", "spellmoves"),
       platform,
       speed: speed ?? 1,
       // Lessons move the pieces more calmly so the viewer can follow every move.
       tempo: tempo ?? (platform === "youtube" ? 0.8 : 1),
-      lucena: setting(true, "lucena", "kugel"),
-      sound: setting(true, "effektTon", "ton", "sound", "sounds"),
-      movePill: setting(true, "zuganzeige", "movepill"),
+      lucena: setting(true, "lucena", "kugel", "orb"),
+      sound: setting(true, "effektTon", "ton", "sound", "sounds", "effectsound"),
+      movePill: setting(true, "zuganzeige", "movepill", "movedisplay"),
       progress: setting(true, "fortschritt", "progress"),
-      introFly: setting(true, "kameraflug", "introfly"),
+      introFly: setting(true, "kameraflug", "introfly", "cameraflight"),
       ...(music ? { music } : {}),
       lesson: platform === "youtube" && setting(true, "lernlayout", "lesson"),
     },

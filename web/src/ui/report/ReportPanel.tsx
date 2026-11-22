@@ -14,9 +14,9 @@ import { navigate } from "../router";
 import { openStage } from "../stage/store";
 import { Level } from "../viz/Bars";
 import { WinChart } from "./WinChart";
-import { t, tj } from "../../i18n";
+import { t, tj, dec } from "../../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 
 /** School grades in the app's signal colours: 1–2 good, 2,5–3,5 neutral, 4 a warning, 5–6 bad. */

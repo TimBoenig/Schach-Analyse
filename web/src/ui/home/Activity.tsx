@@ -6,7 +6,7 @@ import { useMemo, useState } from "preact/hooks";
 
 import { activityCalendar, type CalendarDay, type DailyRow } from "../../domain/profile";
 import { Foot } from "../kit";
-import { t, tj } from "../../i18n";
+import { t, tj, locale } from "../../i18n";
 
 const CAL_SPANS = [4, 8, 16] as const;
 const CAL_WEEKDAYS = [t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa"), t("So")];
@@ -15,7 +15,7 @@ const calLevel = (n: number) => (n === 0 ? 0 : n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 
 
 function dayLong(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+  return new Date(y, m - 1, d).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "long" });
 }
 
 function dayText(d: CalendarDay): string {

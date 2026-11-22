@@ -20,7 +20,7 @@ import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { type InsightsSection, Section, SectionHead, SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { useNarrow } from "./useNarrow";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
-import { t, tj } from "../i18n";
+import { t, tj, dec } from "../i18n";
 
 // Buckets below these sizes are drawn faint: the numbers are real but too thin
 // for conclusions (the same limits the findings use).
@@ -56,7 +56,7 @@ function scoreRows(buckets: (ScoreBucket | ScoreStat)[], overall: number): BarRo
     }));
 }
 
-const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(digits).replace(".", ",")}`;
+const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v).toFixed(digits).replace(".", dec())}`;
 
 function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
   return types.map((tk) => ({
@@ -69,7 +69,7 @@ function typeRows(types: GameTypeStat[], overall: number): BarRow[] {
   }));
 }
 
-const fmtChange = (v: number, unit: string) => (unit ? `${v.toFixed(1).replace(".", ",")} ${unit}` : v.toFixed(2).replace(".", ","));
+const fmtChange = (v: number, unit: string) => (unit ? `${v.toFixed(1).replace(".", dec())} ${unit}` : v.toFixed(2).replace(".", dec()));
 
 /** Development over time: accuracy per block of games and a before/after test per metric. */
 function EvolutionTiles({ d }: { d: DeepInsights }) {
@@ -86,7 +86,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
         const tone = v !== null && prev !== null ? (v < prev - 0.5 ? "ok" : v > prev + 0.5 ? "bad" : "") : "";
         return (
           <td key={i} class={`tnum ${tone}`}>
-            {v !== null ? v.toFixed(1).replace(".", ",") : "–"}
+            {v !== null ? v.toFixed(1).replace(".", dec()) : "–"}
           </td>
         );
       })}
@@ -169,7 +169,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
     .map((r) => ({
       label: r.label,
       value: r.accuracy,
-      valueText: r.accuracy !== null ? `${r.accuracy.toFixed(1).replace(".", ",")} %` : "–",
+      valueText: r.accuracy !== null ? `${r.accuracy.toFixed(1).replace(".", dec())} %` : "–",
       note: plural(r.games, t("Partie"), t("Partien")),
       color: r.key === "win" ? "var(--win)" : r.key === "loss" ? "var(--loss)" : "var(--draw)",
       faint: r.games < MIN_GAMES,
@@ -201,12 +201,12 @@ function precisionTiles(p: PrecisionStats, overall: number) {
       </Tile>
     ),
     consistency: (
-      <Tile title={t("Konstanz")} sub={s.stdev !== null ? t("Streuung ±{0} Punkte", { 0: s.stdev.toFixed(1).replace(".", ",") }) : undefined} span={6}>
+      <Tile title={t("Konstanz")} sub={s.stdev !== null ? t("Streuung ±{0} Punkte", { 0: s.stdev.toFixed(1).replace(".", dec()) }) : undefined} span={6}>
         <ColumnChart columns={s.histogram.map((h) => ({ label: h.label, value: h.games }))} format={(v) => String(v)} height={150} />
         {s.median !== null && (
           <p class="small tile-foot">
             
-            {tj("Median {x}, die mittlere Hälfte deiner Partien liegt zwischen {n} und {n2} %.", { x: <strong>{s.median.toFixed(1).replace(".", ",")} %</strong>, n: (s.p25 ?? 0).toFixed(0), n2: (s.p75 ?? 0).toFixed(0) })}</p>
+            {tj("Median {x}, die mittlere Hälfte deiner Partien liegt zwischen {n} und {n2} %.", { x: <strong>{s.median.toFixed(1).replace(".", dec())} %</strong>, n: (s.p25 ?? 0).toFixed(0), n2: (s.p75 ?? 0).toFixed(0) })}</p>
         )}
       </Tile>
     ),
@@ -259,7 +259,7 @@ function precisionTiles(p: PrecisionStats, overall: number) {
   };
 }
 
-const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const de1 = (v: number) => v.toFixed(1).replace(".", dec());
 const errorMax = (rows: BarRow[]) => Math.max(5, ...rows.map((r) => r.value ?? 0)) * 1.1;
 
 function errorRows(buckets: MoveBucket[]): BarRow[] {

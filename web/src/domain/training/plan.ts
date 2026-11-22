@@ -7,7 +7,7 @@ import type { Pattern, SkillScore } from "../profile/models";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "./exercises";
 import { isDue, isMastered, type ProgressMap } from "./progress";
 import type { DayTheme } from "./week";
-import { t } from "../../i18n";
+import { t, lang, type Lang } from "../../i18n";
 
 export interface TrainingPrefs {
   /** Training time per day in minutes. */
@@ -41,6 +41,8 @@ export interface DailyPlan {
   tips: string[];
   /** The week plan's theme for this day (null without a week plan). */
   theme?: DayTheme | null;
+  /** Language the texts were written in; another language rebuilds the plan. Missing on older plans (German). */
+  lang?: Lang;
 }
 
 export interface PlanInput {
@@ -277,6 +279,7 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
     blocks,
     tips: tips.slice(0, 3),
     theme,
+    lang: lang(),
   };
 }
 
@@ -325,5 +328,5 @@ export function sessionParts(blocks: PlanBlock[], open: (id: string) => boolean 
 
 /** True when the stored plan no longer matches today or the preferences. */
 export function planOutdated(plan: DailyPlan | null, prefs: TrainingPrefs, today: string): boolean {
-  return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus;
+  return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus || (plan.lang ?? "de") !== lang();
 }

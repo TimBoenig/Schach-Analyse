@@ -4,9 +4,9 @@ import { trSpeed } from "../../domain/i18n";
 import type { PlayerProfile } from "../../domain/profile";
 import { CountUp } from "../kit";
 import { Level, SplitBar, Stat } from "../viz/Bars";
-import { t, tj } from "../../i18n";
+import { t, tj, locale, dec } from "../../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const signed = (v: number, digits = 1) => `${v >= 0 ? "+" : "−"}${de(Math.abs(v), digits)}`;
 
 export function ProfileHero({ profile }: { profile: PlayerProfile }) {
@@ -16,13 +16,13 @@ export function ProfileHero({ profile }: { profile: PlayerProfile }) {
   const others = Object.entries((o.ratings ?? {}) as Record<string, number>).filter(([k]) => k !== speedName);
   const diff = rc && rc.expected_score !== null ? rc.score - rc.expected_score : null;
   const accDelta = rc && profile.analyzed_games ? o.avg_accuracy - rc.typical_accuracy : null;
-  const games = `${o.games.toLocaleString("de-DE")} ${o.games === 1 ? t("Partie") : t("Partien")}`;
+  const games = `${o.games.toLocaleString(locale())} ${o.games === 1 ? t("Partie") : t("Partien")}`;
   return (
     <section class="card span-12 pf-hero" id="s-ueberblick">
       <div class="pf-hero-id">
         <span class="eyebrow">
           
-          {t("Dein Profil · {games} · {n} analysiert", { games, n: profile.analyzed_games.toLocaleString("de-DE") })}</span>
+          {t("Dein Profil · {games} · {n} analysiert", { games, n: profile.analyzed_games.toLocaleString(locale()) })}</span>
         {profile.style ? (
           <>
             <h2 class="pf-hero-title">

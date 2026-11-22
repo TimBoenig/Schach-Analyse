@@ -16,9 +16,9 @@ import {
 } from "../../domain/profile";
 import { IconReset, IconSpark } from "../icons";
 import { ChoiceChips, CountUp, WdlBar } from "../kit";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
-const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", dec());
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 const COLOR_LABEL = { white: t("Weiß"), black: t("Schwarz") } as const;

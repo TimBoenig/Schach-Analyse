@@ -19,10 +19,10 @@ import { toLichessBlitz } from "../profile/fide";
 import { fmt as fmtDot } from "../profile/num";
 import { headToHead } from "./h2h";
 import { eloText, performanceMle } from "./strength";
-import { t } from "../../i18n";
+import { t, locale, dec } from "../../i18n";
 
 // German decimal comma: "92,5".
-const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", ",");
+const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", dec());
 
 export interface RecordMember {
   id: string;
@@ -75,7 +75,7 @@ interface Game {
   opp: number | null;
 }
 
-const dateDe = (at: number | null) => (at === null ? "" : new Date(at * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }));
+const dateDe = (at: number | null) => (at === null ? "" : new Date(at * 1000).toLocaleDateString(locale(), { day: "2-digit", month: "2-digit", year: "numeric" }));
 const opponent = (x: Game) => String((x.color === "white" ? x.g.black : x.g.white) ?? "?");
 const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 const elo = (v: unknown) => {

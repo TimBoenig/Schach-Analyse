@@ -7,7 +7,7 @@ import { expectedScore } from "./benchmarks";
 import type { GameFeatures } from "./features";
 import { MIN_GROUP_GAMES, MIN_SITUATIONS, restOf, scoreDeviation, scoreZ, shareAtLeast, Z95 } from "./evidence";
 import { avg, pstdev, pyRound } from "./num";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 /** Score of a group of games with its 95 % confidence margin. */
 export interface ScoreStat {
@@ -80,7 +80,7 @@ const CURVE_MIN_GAMES = 5;
 const CURVE_MAX_MOVE = 60;
 const MIN_GAMES = MIN_GROUP_GAMES;
 
-const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 0) => v.toFixed(digits).replace(".", dec());
 
 /**
  * 95 % Wilson interval half width for a score in [0, 1] over n games.

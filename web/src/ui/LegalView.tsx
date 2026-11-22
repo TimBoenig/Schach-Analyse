@@ -7,12 +7,13 @@ import { BRAND, SUPPORT_EMAIL } from "../brand";
 import { PageHeader } from "./Layout";
 import { navigate, type LegalTab } from "./router";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
-import { t, tj } from "../i18n";
+import { changeLang, lang, t, tj } from "../i18n";
 
 /**
  * Operator details for the Impressum (§ 5 DDG, § 18 MStV). The address must be
  * one where post and court documents reach the operator ("ladungsfähig").
  */
+// i18n: name and address
 export const OPERATOR = {
   name: "Tim Bönig",
   street: "Katzbachstraße 23",
@@ -212,6 +213,14 @@ export function LegalView({ tab }: { tab: LegalTab }) {
           </button>
         ))}
       </div>
+      {lang() === "en" && tab !== "lizenzen" && (
+        <p class="notice small legal-lang-note">
+          {t("Übersetzung zur Information. Rechtlich maßgeblich ist die deutsche Fassung.")}{" "}
+          <button class="link-btn" onClick={() => changeLang("de")} lang="de">
+            Deutsche Fassung
+          </button>
+        </p>
+      )}
       <Body />
     </div>
   );

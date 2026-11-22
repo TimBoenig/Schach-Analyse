@@ -6,12 +6,12 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { nextMilestone, PACE_DAYS, ratingJourney } from "../../domain/profile";
 import { getSetting, setSetting } from "../../storage/db";
 import { IconPlay, IconReset, IconTrophy } from "../icons";
-import { t, tj } from "../../i18n";
+import { t, tj, dec } from "../../i18n";
 
 export const GOAL_KEY = "goal.rating";
 const GOAL_STEP = 50;
 
-const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const de1 = (v: number) => v.toFixed(1).replace(".", dec());
 
 function etaText(days: number): string {
   if (days < 21) return `${Math.max(1, Math.round(days / 7))} ${Math.round(days / 7) <= 1 ? t("Woche") : t("Wochen")}`;

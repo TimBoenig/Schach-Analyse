@@ -10,7 +10,8 @@ import { navigate, type SettingsTab } from "./router";
 import { PeriodSelect } from "./useProfile";
 import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
-import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
+import { LangChoice } from "./LangSwitch";
+import { IconCloud, IconInfo, IconPalette, IconProfile, IconGlobe } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { resetSeen } from "./stage/store";
 import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
@@ -198,6 +199,15 @@ function AppearanceCard() {
   );
 }
 
+function LanguageCard() {
+  return (
+    <div class="card settings-card">
+      <SettingsHead icon={<IconGlobe />} title={t("Sprache")} sub={t("Die App erkennt die Sprache deines Browsers. Hier kannst du sie fest einstellen; die Seite lädt dann neu.")} />
+      <LangChoice />
+    </div>
+  );
+}
+
 function AccountCard() {
   const s = useSyncStatus();
   useEffect(() => void refreshSyncStatus(), []);
@@ -354,6 +364,7 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
             {saved ? t("Gespeichert ✓") : t("Speichern")}
           </button>
         </div>
+        <LanguageCard />
         <AppearanceCard />
         <AccountCard />
         <AboutCard />

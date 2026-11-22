@@ -6,7 +6,7 @@ import { trSpeed } from "../i18n";
 import { extractGameTimestamp, type FilterableGame, getUserColor, outcomeFor } from "../metrics";
 import type { PlayerProfile, SkillScore } from "./models";
 import { fmt } from "./num";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export interface KpiChange {
   key: "games" | "score" | "accuracy" | "blunders" | "punish" | "rating";
@@ -58,7 +58,7 @@ export interface DailyRow {
   losses?: number;
 }
 
-const de = (x: number, digits: number) => fmt(x, digits).replace(".", ",");
+const de = (x: number, digits: number) => fmt(x, digits).replace(".", dec());
 
 // Skill scores move a few points from noise alone; smaller changes are not called a trend.
 export const SKILL_TREND_POINTS = 5;

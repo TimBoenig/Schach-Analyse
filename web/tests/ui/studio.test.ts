@@ -7,7 +7,7 @@ import { lookAt, multiply, perspective, screenToBoard, toScreen } from "../../sr
 import {
   DEFAULT_VIDEO,
   fromMoves,
-  germanSan,
+  displaySan,
   moveTokens,
   normalizeProject,
   parseMoves,
@@ -43,8 +43,8 @@ const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProj
 describe("studio moves", () => {
   it("reads German and English SAN with move numbers, castling zeros and annotations", () => {
     expect(moveTokens("1. e4 e5 2. Sf3 Sc6 3. Lb5!? a6 4. 0-0 Dxd8=D+ {Kommentar} 1-0")).toEqual(["e4", "e5", "Nf3", "Nc6", "Bb5", "a6", "O-O", "Qxd8=Q+"]);
-    expect(germanSan("Qxf7#")).toBe("Dxf7#");
-    expect(germanSan("e8=N")).toBe("e8=S");
+    expect(displaySan("Qxf7#")).toBe("Dxf7#");
+    expect(displaySan("e8=N")).toBe("e8=S");
     const ok = parseMoves(START_FEN, "1. e4 e5 2. Sf3");
     expect(ok.moves.map((m) => m.san)).toEqual(["e4", "e5", "Nf3"]);
     expect(parseMoves(START_FEN, "e4 Sf6 Ke3").error).toBe("Ke3");

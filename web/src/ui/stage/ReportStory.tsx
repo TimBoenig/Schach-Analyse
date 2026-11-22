@@ -18,9 +18,9 @@ import { GradeBadge, gradeTone, MomentRow, ownErrors, PhaseRows, practiseGame, S
 import { WinChart } from "../report/WinChart";
 import { Stage } from "./Stage";
 import type { Mood } from "../Coach";
-import { t, tj } from "../../i18n";
+import { t, tj, dec } from "../../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 const PHASE_IN: Record<string, string> = { opening: t("In der Eröffnung"), middlegame: t("Im Mittelspiel"), endgame: t("Im Endspiel") };
 

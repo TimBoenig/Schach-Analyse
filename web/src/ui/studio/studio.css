@@ -72,6 +72,9 @@
 .studio-projects {
   max-width: 200px;
 }
+.studio-lang {
+  max-width: 190px;
+}
 .studio-name {
   flex: 1;
   min-width: 120px;

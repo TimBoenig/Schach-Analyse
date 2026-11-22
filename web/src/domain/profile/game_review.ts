@@ -19,7 +19,7 @@ import {
 } from "./features";
 import type { GameReview, KeyMoment, PhaseReview } from "./models";
 import { fmtDe, pyRound } from "./num";
-import { t } from "../../i18n";
+import { t, tStored, dec } from "../../i18n";
 
 type Dict = Record<string, any>;
 
@@ -42,7 +42,7 @@ export function schoolGrade(accuracy: number): string {
   let value = 1 + (95 - accuracy) / 8;
   value = Math.max(1, Math.min(6, pyRound(value * 2) / 2));
   const word = GRADE_WORDS[Math.trunc(pyRound(value - 0.01)) || 1];
-  return `${value.toFixed(1).replace(".", ",")} (${word})`;
+  return `${value.toFixed(1).replace(".", dec())} (${word})`;
 }
 
 const pctText = (x: number) => `${fmtDe(x * 100, 0)} %`;
@@ -232,7 +232,7 @@ function keyMoments(game: ReviewGame, isWhite: boolean): KeyMoment[] {
       if (bestSan) text += t(" Besser war {bestSan}.", { bestSan });
     } else if (byUser && brilliant) {
       title = `${label} – ${clsDe}!`;
-      text = m.explanation || t("Ein starker Zug, den die Engine besonders hervorhebt.");
+      text = tStored(m.explanation) || t("Ein starker Zug, den die Engine besonders hervorhebt.");
       text += t(" Gewinnchance jetzt {pctText}.", { pctText: pctText(wpA) });
     } else if (byUser && wpA >= wpB) {
       title = `${label} – ${clsDe}`;

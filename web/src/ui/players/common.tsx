@@ -14,11 +14,11 @@ import type { StoredGame } from "../../domain/types";
 import { IconPlay, IconSync } from "../icons";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { FORMATS, formatOptionLabel, PeriodSelect } from "../useProfile";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 export const pct0 = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? "–" : `${Math.round(v)} %`);
-export const de = (v: number, digits: number) => v.toFixed(digits).replace(".", ",");
+export const de = (v: number, digits: number) => v.toFixed(digits).replace(".", dec());
 export const signed = (v: number, digits = 1) => `${v >= 0 ? "+" : "−"}${de(Math.abs(v), digits)}`;
 /** Points like a crosstable: 6½ instead of 6.5. */
 export const half = (v: number) => (v % 1 ? `${Math.floor(v) || ""}½` : String(v));

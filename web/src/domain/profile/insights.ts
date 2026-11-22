@@ -21,7 +21,7 @@ import {
   Z_MULTI,
 } from "./evidence";
 import { buildPrecision, type PrecisionStats, wilsonMargin } from "./precision";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export interface ScoreBucket {
   key: string;
@@ -150,7 +150,7 @@ const WEEKDAYS = [t("So"), t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa")]
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 /** German decimal formatting (comma) for sentences. */
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 export function pieceOf(m: MoveEvent): string {
   const san = m.san || "";

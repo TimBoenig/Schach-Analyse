@@ -7,7 +7,7 @@ import type { GameFeatures } from "./features";
 import { MIN_ANALYZED, MIN_LINE_GAMES, scoresDiffer, Z_MULTI } from "./evidence";
 import { avg, pyRound } from "./num";
 import { buildOpeningTree, fenAfter, mainLine, type OpeningLeak, type OpeningTree } from "./openingTree";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export interface OpeningGameRef {
   id: string;
@@ -159,7 +159,7 @@ export function openingLabel(name: string): string {
 }
 
 const pct = (scores: number[]) => (scores.length ? avg(scores) * 100 : null);
-const de = (n: number) => String(pyRound(n)).replace(".", ",");
+const de = (n: number) => String(pyRound(n)).replace(".", dec());
 const COLOR_DE = { white: t("Weiß"), black: t("Schwarz") } as const;
 
 function scoreCounts(fs: GameFeatures[]) {

@@ -46,7 +46,7 @@ import { getSetting, listGames, setSetting } from "../storage/db";
 import { IconBolt, IconCpu, IconGauge, IconTimer } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { ENGINE_NAME } from "../engine/info";
-import { t, tj } from "../i18n";
+import { t, tj, dec } from "../i18n";
 
 const SCOPES: Array<[DepthScope, string]> = [
   ["own", t("Meine Partien")],
@@ -132,7 +132,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           <label class="range-field">
             <span>
               
-              {tj("Höchstens {x} pro Zug", { x: <strong class="tnum">{String(choice.seconds).replace(".", ",")} s</strong> })}
+              {tj("Höchstens {x} pro Zug", { x: <strong class="tnum">{String(choice.seconds).replace(".", dec())} s</strong> })}
             </span>
             <input
               type="range"

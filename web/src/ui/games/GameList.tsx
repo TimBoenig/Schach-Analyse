@@ -10,7 +10,7 @@ import { CountUp, ResultRibbon } from "../kit";
 import { accClass, badgeFor, balanceText, classLabel, formatDate, monthLabel, outcomeFor, resultText, SPEED_DE, shortOpening, streakText } from "../labels";
 import { navigate } from "../router";
 import { SplitBar, Stat } from "../viz/Bars";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export type AnalysisStatus = "completed" | "paused" | "not_started";
 
@@ -18,7 +18,7 @@ export function status(g: StoredGame): AnalysisStatus {
   return (g.summary_json?.analysis_status as AnalysisStatus) ?? "not_started";
 }
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 // ---------- summary ----------
 

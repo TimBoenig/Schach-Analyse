@@ -92,9 +92,15 @@ export function setLangNow(l: Lang, d?: Record<string, string>): void {
 
 export const lang = (): Lang => current;
 
-/** Saves the site language and reloads, so every label is rebuilt in it. */
-export function changeLang(l: Lang): void {
-  write(LANG_KEY, l);
+/** The saved site choice ("auto" = follow the browser). */
+export function langSetting(): Lang | "auto" {
+  const saved = read(LANG_KEY);
+  return isLang(saved) ? saved : "auto";
+}
+
+/** Saves the site language ("auto" follows the browser) and reloads, so every label is rebuilt in it. */
+export function changeLang(l: Lang | "auto"): void {
+  write(LANG_KEY, l === "auto" ? null : l);
   if (typeof location !== "undefined") location.reload();
 }
 

@@ -15,9 +15,9 @@ import type { TodayTraining } from "../training/useTraining";
 import { Stat } from "../viz/Bars";
 import { Delta } from "../viz/Range";
 import { Journey } from "./Journey";
-import { t, tj } from "../../i18n";
+import { t, tj, dec } from "../../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 export function HomeHero({
   mood,

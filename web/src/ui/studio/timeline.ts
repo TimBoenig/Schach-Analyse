@@ -5,7 +5,7 @@
 import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
-  germanSan,
+  displaySan,
   spellNotation,
   parseMoves,
   POLL_COLOURS,
@@ -217,7 +217,7 @@ export function plainMove(m: Move): string {
 /** "3. Lb5" or "3… a6": the move pill always says which move it is. */
 function moveLabel(m: Move, fenBefore: string): string {
   const no = Number(fenBefore.split(" ")[5]) || 1;
-  return `${no}${m.color === "w" ? "." : "…"} ${germanSan(m.san)}`;
+  return `${no}${m.color === "w" ? "." : "…"} ${displaySan(m.san)}`;
 }
 
 const MOVE = 0.85;

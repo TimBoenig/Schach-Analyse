@@ -5,7 +5,7 @@ import { MUSIC_LABEL, type MusicId } from "./music";
 import { Chess, type Move } from "chess.js";
 
 import { BRAND_DOMAIN } from "../../brand";
-import { t } from "../../i18n";
+import { t, lang } from "../../i18n";
 
 export const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -321,8 +321,9 @@ export function moveTokens(text: string): string[] {
     );
 }
 
-/** SAN with German piece letters, as the app shows moves (Sf3, Lb5, Dxf7#). */
-export function germanSan(san: string): string {
+/** SAN in the studio's language: German piece letters (Sf3, Lb5, Dxf7#) or English ones (Nf3, Bb5, Qxf7#). */
+export function displaySan(san: string): string {
+  if (lang() === "en") return san;
   return san.replace(/^[NBRQK]/, (p) => TO_GERMAN[p]).replace(/=([NBRQ])/, (_m, p: string) => `=${TO_GERMAN[p]}`);
 }
 
@@ -585,7 +586,7 @@ export function fromMoves(name: string, text: string, startFen = START_FEN, pair
       .map((m, k) => {
         const ply = i + k + (whiteFirst ? 0 : 1);
         const no = fullmove + Math.floor(ply / 2);
-        return m.color === "w" ? `${no}. ${germanSan(m.san)}` : k === 0 ? `${no}... ${germanSan(m.san)}` : germanSan(m.san);
+        return m.color === "w" ? `${no}. ${displaySan(m.san)}` : k === 0 ? `${no}... ${displaySan(m.san)}` : displaySan(m.san);
       })
       .join(" ");
     scenes.push(scene({ moves: label, title: label, text: t("Erkläre hier, worum es geht."), camera: cams[n % cams.length], focus: n % 2 === 1, duration: 3.6 + take * 0.6 }));

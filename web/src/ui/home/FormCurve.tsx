@@ -6,9 +6,9 @@ import { formatDate } from "../labels";
 import { Stat } from "../viz/Bars";
 import { Delta } from "../viz/Range";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
-const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const de1 = (v: number) => v.toFixed(1).replace(".", dec());
 
 export interface WeekRow {
   week: string;

@@ -9,7 +9,7 @@ import { MIN_GROUP_GAMES, MIN_SITUATIONS, scoresDiffer, shareAtLeast, Z_MULTI } 
 import { avg, pstdev, pyRound } from "./num";
 import type { PrecisionStats } from "./precision";
 import { wilsonMargin } from "./precision";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export interface GameTypeStat {
   key: string;
@@ -254,7 +254,7 @@ export function buildEvolution(feats: GameFeatures[]): Evolution {
   return { blocks, changes, half };
 }
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 /**
  * A few personal sentences: what got better, what got worse, which games suit

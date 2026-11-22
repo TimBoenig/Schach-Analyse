@@ -5,9 +5,9 @@
 import { type MoveTally, TALLY_CLASSES, type TallyClass } from "../domain/profile";
 import { Legend, type Segment } from "./charts";
 import { badgeFor, CLASS_COLOR, classLabel, detailSegments } from "./labels";
-import { t } from "../i18n";
+import { t, locale, dec } from "../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 
 /** "0,4" per game, but "1 von 9 Partien" when the kind is rare. */
 export function perGameText(count: number, games: number, gamesWith: number): string {
@@ -46,7 +46,7 @@ export function ClassTiles({
                 <ClassBadge c={c.key} />
                 <span>{classLabel(c.key)}</span>
               </div>
-              <div class="cls-tile-count tnum">{c.count.toLocaleString("de-DE")}</div>
+              <div class="cls-tile-count tnum">{c.count.toLocaleString(locale())}</div>
               <div class="cls-tile-sub">{perGameText(c.count, tally.games, c.games_with)}</div>
             </>
           );

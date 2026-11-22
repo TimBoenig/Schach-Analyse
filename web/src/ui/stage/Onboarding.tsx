@@ -18,7 +18,7 @@ import { Illus } from "./Illus";
 import { backStep, canAdvance, type ImportPhase, onboardPath, type SitePick, tourStop } from "./script";
 import { Stage, StagePoint } from "./Stage";
 import { markSeen } from "./store";
-import { t, tj } from "../../i18n";
+import { t, tj, locale } from "../../i18n";
 
 const SITE_LABEL: Record<Site, string> = { chesscom: "chess.com", lichess: "Lichess" };
 
@@ -30,7 +30,7 @@ const SITES: { key: SitePick; label: string; sub: string; mark: string }[] = [
 
 type Load = { phase: "idle" } | { phase: "busy"; label: string; found: number } | { phase: "done"; look: FirstLook; queued: boolean } | { phase: "empty" } | { phase: "error"; message: string };
 
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString(locale())} ${n === 1 ? one : many}`;
 
 function useQueue(): QueueState | null {
   const [q, setQ] = useState<QueueState | null>(null);

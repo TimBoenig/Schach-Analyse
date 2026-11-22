@@ -2,6 +2,7 @@
 // icon rail on medium ones and a tab bar on phones. All three read AREAS, so
 // a page sits in the same place everywhere.
 import { useEffect, useState } from "preact/hooks";
+import { LangToggle } from "./LangSwitch";
 
 import { cancelAll, subscribeQueue, type QueueState } from "../app/analysisService";
 import { BRAND } from "../brand";
@@ -167,6 +168,7 @@ export function Sidebar({ route, area, analysing, onNavigate, onSearch, onKeys }
           {tj("Tastenkürzel {x}", { x: <kbd>?</kbd> })}
         </button>
         <a href="#/rechtliches">{t("Impressum")}</a>
+        <LangToggle class="side-lang" />
       </div>
     </aside>
   );

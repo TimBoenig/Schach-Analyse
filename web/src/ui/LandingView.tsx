@@ -9,6 +9,7 @@ import { Model3D } from "./Model3D";
 import { navigate } from "./router";
 import { openStage } from "./stage/store";
 import { t, tj } from "../i18n";
+import { LangToggle } from "./LangSwitch";
 
 function openApp(): void {
   navigate({ view: "home" });
@@ -34,6 +35,7 @@ export function LandingView() {
           <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span>{BRAND}</span>
         </a>
+        <LangToggle class="ld-lang" />
         <button class="btn primary ld-open" onClick={openApp}>
           
           {t("Zur App")}

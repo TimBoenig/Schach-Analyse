@@ -7,7 +7,7 @@ import { Foot } from "../kit";
 import { CLASS_COLOR, classLabel } from "../labels";
 import { ClassBadge, perGameText } from "../MoveTally";
 import { de, plural, rate } from "./shared";
-import { t } from "../../i18n";
+import { t, locale } from "../../i18n";
 
 const VERDICT: Record<string, { text: string; tone: string }> = {
   "1": { text: "besser", tone: "good" },
@@ -24,7 +24,7 @@ function Row({ r, games, max, onPick }: { r: KindRow; games: number; max: number
         <ClassBadge c={r.key} size={20} />
         <span>{classLabel(r.key)}</span>
       </span>
-      <span class="mv-n tnum">{r.count.toLocaleString("de-DE")}</span>
+      <span class="mv-n tnum">{r.count.toLocaleString(locale())}</span>
       <span class="mv-per">{perGameText(r.count, games, r.games_with)}</span>
       <span class="mv-rate">
         <span class="mv-bar" aria-hidden="true">

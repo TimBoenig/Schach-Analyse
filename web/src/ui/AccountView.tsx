@@ -34,7 +34,7 @@ import { navigate } from "./router";
 import { PageHeader } from "./Layout";
 import { Coach, CoachAvatar } from "./Coach";
 import { IconEye, IconEyeOff, IconSync } from "./icons";
-import { t, tj } from "../i18n";
+import { t, tj, locale } from "../i18n";
 
 type Mode = "login" | "register" | "link" | "forgot" | "newPassword";
 /** A mail is on its way and the page waits for its link to be opened. */
@@ -87,7 +87,7 @@ function ago(ms: number): string {
   const min = Math.round((Date.now() - ms) / 60000);
   if (min < 1) return t("gerade eben");
   if (min < 60) return t("vor {min} Min.", { min });
-  return new Date(ms).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" });
+  return new Date(ms).toLocaleString(locale(), { dateStyle: "short", timeStyle: "short" });
 }
 
 /** Local numbers that the online copy mirrors. */
@@ -150,7 +150,7 @@ function LegalLinks() {
 
 function memberSince(ms: number): string {
   if (!ms) return "";
-  return new Date(ms).toLocaleDateString("de-DE", { month: "long", year: "numeric" });
+  return new Date(ms).toLocaleDateString(locale(), { month: "long", year: "numeric" });
 }
 
 function SignedIn({ status, recovery }: { status: SyncStatus; recovery: boolean }) {

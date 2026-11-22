@@ -9,7 +9,7 @@
 import { parseSummary } from "../metrics/models";
 import { type GameFeatures, moveLabel } from "./features";
 import { MIN_GROUP_GAMES, ratesDiffer, Z_MULTI } from "./evidence";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 /** Classifications best to worst, as the move list shows them. */
 export const TALLY_CLASSES = [
@@ -160,7 +160,7 @@ function addCounts(into: Counts, from: Counts): void {
 }
 
 const per100 = (n: number, moves: number) => (moves ? (n / moves) * 100 : 0);
-const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const de1 = (v: number) => v.toFixed(1).replace(".", dec());
 
 /** Chronological order; games without a time keep their stored order at the start. */
 function chronological(fs: GameFeatures[]): GameFeatures[] {

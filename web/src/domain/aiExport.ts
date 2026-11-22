@@ -25,7 +25,7 @@ import { classifyGamePhase } from "./tactics/phase";
 import { CATEGORIES } from "./training/exercises";
 import { summarizeTraining, type ProgressMap, type TrainingLog } from "./training";
 import type { MoveData, StoredGame } from "./types";
-import { t } from "../i18n";
+import { t, tStored, dec } from "../i18n";
 
 export type AiExportDetail = "full" | "compact";
 
@@ -64,7 +64,7 @@ export const AI_EXPORT_PROMPT =
 // ---- formatting ----
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (v: unknown) => {
   const n = num(v);
   return n === null ? "–" : `${Math.round(n)} %`;
@@ -604,7 +604,7 @@ function momentLines(it: GameItem, idx: number): string {
     t("- **{moveLabel}{1}** {trClassification}{3}: GC {wpB} % → {wpA} % (Bewertung {evalText} → {evalText2}){time}.", { moveLabel: moveLabel(m, idx), 1: NAG[m.classification] ?? "", trClassification: trClassification(m.classification), 3: phase ? ` ${trPhaseIn(phase)}` : "", wpB, wpA, evalText: evalText(m.eval_before_cp, m.eval_before_mate), evalText2: evalText(m.eval_after_cp, m.eval_after_mate, m.san), time }),
     bestLine ? t("  - Besser: {bestLine}", { bestLine }) : "",
     refutation ? t("  - Beste Antwort des Gegners danach: {refutation}", { refutation }) : "",
-    reasons.length ? t("  - Warum: {reasons}", { reasons: reasons.join(" ") }) : m.explanation ? t("  - Hinweis der App: {explanation}", { explanation: m.explanation }) : "",
+    reasons.length ? t("  - Warum: {reasons}", { reasons: reasons.join(" ") }) : m.explanation ? t("  - Hinweis der App: {explanation}", { explanation: tStored(m.explanation) }) : "",
     t("  - Stellung vor dem Zug: `{fen_before}`", { fen_before: m.fen_before }),
   ]
     .filter(Boolean)

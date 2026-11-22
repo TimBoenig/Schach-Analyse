@@ -10,7 +10,7 @@ import { dateWindow, getUserColor, inDateFilter, outcomeFor, parseMoves, parseSu
 import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile } from "./profile";
 import { summarizeTraining, type DailyPlan, type ProgressMap, type TrainingLog, type TrainingSummary } from "./training";
 import type { MoveData, StoredGame } from "./types";
-import { t } from "../i18n";
+import { t, dec } from "../i18n";
 
 export const BACKUP_FORMAT = "schach-analyse-backup";
 export const BACKUP_VERSION = 2;
@@ -224,7 +224,7 @@ function moverIsWhite(m: MoveData, idx: number): boolean {
 // Excel in German locales splits on ";" and reads "," as the decimal mark.
 function cell(v: unknown): string {
   if (v === null || v === undefined) return "";
-  const s = typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", ",")) : String(v);
+  const s = typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", dec())) : String(v);
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 

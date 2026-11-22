@@ -24,7 +24,7 @@ import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
 import { Section, type StatSection } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
-import { t, tj } from "../i18n";
+import { t, tj, dec } from "../i18n";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
 const MIN_GAMES = MIN_LINE_GAMES;
@@ -117,7 +117,7 @@ function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: n
               {g.opp_rating > 0 && <span class="faint"> {g.opp_rating}</span>}
             </span>
             <span class="faint small">{formatDate(g.date)}</span>
-            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1).replace(".", ",")}` : ""}</span>
+            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1).replace(".", dec())}` : ""}</span>
           </button>
         ))}
       </div>

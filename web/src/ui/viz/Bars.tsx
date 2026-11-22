@@ -1,6 +1,7 @@
 // Small measuring pieces shared by the rebuilt pages: a slim meter with a
 // reference tick, and a bar split into parts.
 import type { ComponentChildren } from "preact";
+import { locale, dec } from "../../i18n";
 
 /** 0..max as a slim bar; `reference` is a tick on the same scale (what would be usual). */
 export function Level({ value, max = 100, tone = "accent", reference, faint, band }: { value: number | null; max?: number; tone?: "accent" | "good" | "bad" | "quiet"; reference?: number | null; faint?: boolean; band?: number | null }) {
@@ -35,7 +36,7 @@ export function SplitBar({ parts, height = 10, onPick, picked }: { parts: Part[]
             key={p.key}
             class={`split-part${picked && picked !== p.key ? " dim" : ""}`}
             style={{ flexGrow: p.value, background: p.color }}
-            title={`${p.label}: ${p.value.toLocaleString("de-DE")} (${((p.value / total) * 100).toFixed(1).replace(".", ",")} %)`}
+            title={`${p.label}: ${p.value.toLocaleString(locale())} (${((p.value / total) * 100).toFixed(1).replace(".", dec())} %)`}
             onClick={onPick ? () => onPick(p.key) : undefined}
           />
         ))}

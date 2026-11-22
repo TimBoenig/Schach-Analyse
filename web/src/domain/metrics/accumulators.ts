@@ -16,7 +16,7 @@ import {
   TERM_TYPES,
 } from "./constants";
 import type { GameRecord } from "./models";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 type Dict = Record<string, any>;
 
@@ -415,7 +415,7 @@ export class StatsAccumulator {
         move_display: t("0 Patzer"),
         classification: "Clean Game",
         description:
-          rec.game_acc > 0 ? t("Genauigkeit: {0} % • 0 Patzer", { 0: rec.game_acc.toFixed(1).replace(".", ",") }) : t("0 Patzer"),
+          rec.game_acc > 0 ? t("Genauigkeit: {0} % • 0 Patzer", { 0: rec.game_acc.toFixed(1).replace(".", dec()) }) : t("0 Patzer"),
         fen_before: startFen,
       });
     }
@@ -463,10 +463,10 @@ export class StatsAccumulator {
         move_number: 1,
         move_display: rec.eco || t("Eröffnung"),
         classification:
-          rec.game_acc > 0 ? t("{0} % Gen.", { 0: rec.game_acc.toFixed(1).replace(".", ",") }) : rec.eco || t("Eröffnung"),
+          rec.game_acc > 0 ? t("{0} % Gen.", { 0: rec.game_acc.toFixed(1).replace(".", dec()) }) : rec.eco || t("Eröffnung"),
         description:
           rec.game_acc > 0
-            ? t("{opening} • {1} % Genauigkeit", { opening: rec.opening, 1: rec.game_acc.toFixed(1).replace(".", ",") })
+            ? t("{opening} • {1} % Genauigkeit", { opening: rec.opening, 1: rec.game_acc.toFixed(1).replace(".", dec()) })
             : rec.opening,
         fen_before: startFen,
       });

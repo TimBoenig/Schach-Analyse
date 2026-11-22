@@ -1,6 +1,6 @@
 // German display labels for internal domain keys (port of src/utils/translations.py).
 // Internal keys stay English because they are persisted and compared in logic.
-import { t } from "../i18n";
+import { t, locale } from "../i18n";
 
 
 export const CLASSIFICATION_LABELS: Record<string, string> = {
@@ -154,7 +154,7 @@ export const trFilter = (key: string | null | undefined): string =>
   key?.startsWith("range:") ? rangeLabel(key) : lookup(FILTER_LABELS, key);
 
 const dayDe = (seconds: number) =>
-  new Date(seconds * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
+  new Date(seconds * 1000).toLocaleDateString(locale(), { day: "2-digit", month: "2-digit", year: "numeric" });
 
 /** "range:<start>:<end>" (seconds, end exclusive) → "01.09.2026 – 22.10.2026". */
 function rangeLabel(key: string): string {

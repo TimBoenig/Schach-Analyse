@@ -44,7 +44,7 @@ import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t, tj } from "../i18n";
+import { t, tj, tStored, dec } from "../i18n";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -857,7 +857,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </span>
       </span>
       <span class="player-meta">
-        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", ",")} %</span>}
+        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", dec())} %</span>}
         {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
           <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
             {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}
@@ -1052,7 +1052,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     ) : (
                       // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
                       (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
-                        <div>{move.explanation || (analyzing ? t("Ich schaue mir den Zug gerade an …") : t("Diesen Zug habe ich noch nicht bewertet."))}</div>
+                        <div>{tStored(move.explanation) || (analyzing ? t("Ich schaue mir den Zug gerade an …") : t("Diesen Zug habe ich noch nicht bewertet."))}</div>
                       )
                     )}
                     {reasons.length > 0 && (

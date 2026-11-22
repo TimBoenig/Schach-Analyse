@@ -681,3 +681,55 @@
     display: inline-flex;
   }
 }
+
+/* ---------- language toggle (side bar, landing header) ---------- */
+
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-3);
+}
+.lang-toggle svg {
+  width: 14px;
+  height: 14px;
+  margin: 0 3px 0 5px;
+}
+.lang-toggle button {
+  min-width: 30px;
+  padding: 3px 7px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.lang-toggle button:hover {
+  color: var(--text);
+}
+.lang-toggle button.active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.side-meta .lang-toggle {
+  margin-left: auto;
+}
+.side-meta .lang-toggle button {
+  padding: 3px 7px;
+}
+.ld-lang {
+  margin-left: auto;
+  font-size: 12px;
+}
+@media (max-width: 420px) {
+  .ld-lang svg {
+    display: none;
+  }
+}

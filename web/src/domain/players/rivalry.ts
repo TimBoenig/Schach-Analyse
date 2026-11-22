@@ -17,10 +17,10 @@ import { fmt as fmtDot } from "../profile/num";
 import { openingLabel, type MoveChoice } from "../profile/openings";
 import { Board } from "../tactics/board";
 import { classifyGamePhase } from "../tactics/phase";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 // German decimal comma: "92,5".
-const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", ",");
+const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", dec());
 
 export type Phase = "opening" | "middlegame" | "endgame";
 export const PHASE_DE: Record<Phase, string> = { opening: t("Eröffnung"), middlegame: t("Mittelspiel"), endgame: t("Endspiel") };

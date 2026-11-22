@@ -8,7 +8,7 @@ import { BRAND_DOMAIN } from "../../brand";
 import { compile } from "./timeline";
 import {
   DEFAULT_VIDEO,
-  germanSan,
+  displaySan,
   moveTokens,
   newId,
   scene,
@@ -313,7 +313,7 @@ export function movesLabel(moves: Move[], fenBefore: string): string {
   let no = Number(fenBefore.split(" ")[5]) || 1;
   return moves
     .map((m, k) => {
-      const s = m.color === "w" ? `${no}. ${germanSan(m.san)}` : k === 0 ? `${no}… ${germanSan(m.san)}` : germanSan(m.san);
+      const s = m.color === "w" ? `${no}. ${displaySan(m.san)}` : k === 0 ? `${no}… ${displaySan(m.san)}` : displaySan(m.san);
       if (m.color === "b") no += 1;
       return s;
     })
@@ -397,7 +397,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
           card: "poll",
           title: a.kind === "puzzle" ? t("Welcher Zug gewinnt?") : t("Was spielt {0} jetzt?", { 0: SIDE[board.turn()] }),
           text: t("Stimm in den Kommentaren ab"),
-          options: options.map((o, i) => `${letters[i]}) ${germanSan(o)}`),
+          options: options.map((o, i) => `${letters[i]}) ${displaySan(o)}`),
           countdown: 3,
           duration: 4.2,
           camera: "top",
@@ -412,7 +412,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
       scenes.push(
         scene({
           moves: movesLabel(ms, fenBefore),
-          title: t("Richtig: {answer}) {germanSan}", { answer, germanSan: germanSan(right) }),
+          title: t("Richtig: {answer}) {displaySan}", { answer, displaySan: displaySan(right) }),
           text: insight.text,
           arrows: insight.arrows,
           marks: insight.marks,
@@ -625,7 +625,7 @@ export function variationScene(fen: string, moves: string[], index: number): Sce
     return tk;
   });
   const last = texts[texts.length - 1];
-  return scene({ fen, moves: movesLabel(ms, fen), label: t("Variante {index}", { index }), title: t("Und wenn {germanSan}?", { germanSan: germanSan(moves[0] ?? "") }), text: texts.map((tk) => tk.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
+  return scene({ fen, moves: movesLabel(ms, fen), label: t("Variante {index}", { index }), title: t("Und wenn {displaySan}?", { displaySan: displaySan(moves[0] ?? "") }), text: texts.map((tk) => tk.text).join(" | "), arrows: last?.arrows ?? [], marks: last?.marks ?? [], camera: "corner", duration: 2.6 + moves.length * 0.9, mood: "think" });
 }
 
 /** Explanation and arrows for the moves of an existing scene ("Auto" button in the editor). */

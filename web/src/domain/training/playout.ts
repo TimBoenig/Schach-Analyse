@@ -2,7 +2,7 @@
 // player's perspective: positive = the player is better.
 
 import type { PlayoutGoal } from "./exercises";
-import { t } from "../../i18n";
+import { t, dec } from "../../i18n";
 
 export interface PlayoutState {
   userMoves: number;
@@ -32,7 +32,7 @@ export function scoreCp(s: PlayoutState["score"]): number | null {
   return s.cp;
 }
 
-const pawns = (cp: number) => (Math.abs(cp) >= MATE_CP ? t("Matt") : `${cp > 0 ? "+" : ""}${(cp / 100).toFixed(1).replace(".", ",")}`);
+const pawns = (cp: number) => (Math.abs(cp) >= MATE_CP ? t("Matt") : `${cp > 0 ? "+" : ""}${(cp / 100).toFixed(1).replace(".", dec())}`);
 
 export function judgePlayout(goal: PlayoutGoal, s: PlayoutState): Verdict {
   if (s.over === "won") return { done: true, success: true, text: t("Matt! Aufgabe gelöst.") };
