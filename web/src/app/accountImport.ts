@@ -25,8 +25,6 @@ export async function importAccount(
   { months = 3, count = 100, signal, onProgress, onStored }: AccountImportOptions = {},
 ): Promise<{ result: ImportResult; games: GameAnalysis[] }> {
   const name = username.trim();
-  const last = await getSetting<Record<string, string>>("import.lastUser", {});
-  await setSetting("import.lastUser", { ...last, [site]: name });
   const games: GameAnalysis[] = [];
   const opts = {
     signal,
@@ -41,6 +39,12 @@ export async function importAccount(
     site === "chesscom"
       ? (await importChesscomGames(name, gameExists, months, opts)).result
       : (await importLichessGames(name, gameExists, count, opts)).result;
+  // Only a name that has games on the site is remembered for it: a typo, or the
+  // other site's name, must not replace the account "Neueste holen" asks for.
+  if (result.found > 0) {
+    const last = await getSetting<Record<string, string>>("import.lastUser", {});
+    await setSetting("import.lastUser", { ...last, [site]: name });
+  }
   const names = await getSetting<string[]>("usernames", []);
   if (name && !names.some((n) => n.toLowerCase() === name.toLowerCase())) await setSetting("usernames", [...names, name]);
   return { result, games };

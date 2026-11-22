@@ -188,13 +188,17 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   const step = path[Math.min(index, path.length - 1)];
   const phase: ImportPhase = load.phase;
 
-  // A name the import dialog used before is offered again.
+  // The name used on the picked site before is offered again; never the other
+  // site's name, which on chess.com can belong to a stranger.
+  const remembered = useRef<Record<string, string>>({});
   useEffect(() => {
-    void getSetting<Record<string, string>>("import.lastUser", {}).then((u) => {
-      const known = (["chesscom", "lichess"] as const).find((s) => u[s]);
-      if (known && alive.current) setName((n) => n || u[known]);
-    });
+    void getSetting<Record<string, string>>("import.lastUser", {}).then((u) => (remembered.current = u));
   }, []);
+  useEffect(() => {
+    if (pick !== "chesscom" && pick !== "lichess") return;
+    const known = Object.values(remembered.current);
+    setName((n) => (!n.trim() || known.includes(n.trim()) ? (remembered.current[pick] ?? "") : n));
+  }, [pick]);
   useEffect(() => {
     if (step === "name") window.setTimeout(() => input.current?.focus({ preventScroll: true }), 420);
     // A page this walk introduced does not open its own guide by itself later.

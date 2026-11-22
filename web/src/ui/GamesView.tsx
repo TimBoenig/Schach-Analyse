@@ -5,6 +5,7 @@ import { PageHeader } from "./Layout";
 import { LiveDepth } from "./LiveDepth";
 import { importPgnText, type ImportResult } from "../api/import";
 import { importAccount } from "../app/accountImport";
+import { accountNameFor } from "../domain/accountName";
 import { parsePgnTextDetailed } from "../domain/pgn";
 import { extractGameTimestamp, getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import { trFilter } from "../domain/i18n";
@@ -27,6 +28,16 @@ import { ENGINE_NAME } from "../engine/info";
 type Source = "chesscom" | "lichess" | "pgn";
 type Filter = "all" | "analyzed" | "open";
 
+/** The player's own account on a site, as the stored games show it (see accountNameFor). */
+async function suggestedName(site: "chesscom" | "lichess"): Promise<string> {
+  const [last, usernames, stored] = await Promise.all([
+    getSetting<Record<string, string>>("import.lastUser", {}),
+    getSetting<string[]>("usernames", []),
+    listGames(),
+  ]);
+  return accountNameFor(site, stored, usernames, last[site]);
+}
+
 function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported: (ids: string[]) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [source, setSource] = useState<Source>("chesscom");
@@ -43,14 +54,14 @@ function ImportDialog({ onClose, onImported }: { onClose: () => void; onImported
 
   useEffect(() => {
     ref.current?.showModal();
-    void getSetting<Record<string, string>>("import.lastUser", {}).then((u) => setUser(u.chesscom ?? ""));
+    void suggestedName("chesscom").then(setUser);
   }, []);
 
   const changeSource = async (s: Source) => {
     setSource(s);
     setResult(null);
     setError("");
-    if (s !== "pgn") setUser((await getSetting<Record<string, string>>("import.lastUser", {}))[s] ?? "");
+    if (s !== "pgn") setUser(await suggestedName(s));
   };
 
   const run = async () => {
@@ -231,8 +242,7 @@ function failedMonthsNote(r: ImportResult): string {
 }
 
 async function quickImportChesscom(onProgress: (label: string) => void, skipBullet: boolean): Promise<{ name: string; result: ImportResult; queued: number } | null> {
-  const last = await getSetting<Record<string, string>>("import.lastUser", {});
-  const name = (last.chesscom ?? "").trim();
+  const name = await suggestedName("chesscom");
   if (!name) return null;
   const { result, games: fresh } = await importAccount("chesscom", name, { months: QUICK_MONTHS, onProgress });
   const ids = fresh
@@ -332,7 +342,9 @@ export function GamesView({ openImport = false }: { openImport?: boolean }) {
         busy: false,
         text: result.imported
           ? `${result.imported} neue ${result.imported === 1 ? "Partie" : "Partien"} von ${name} geholt${queued ? `, ${queued} ${queued === 1 ? "wird" : "werden"} jetzt analysiert` : ""}.`
-          : `Keine neuen Partien von ${name} auf chess.com.${result.failed_months ? "" : " Alles ist schon da."}`,
+          : result.found === 0 && !result.failed_months
+            ? `${name} hat auf chess.com in den letzten zwei Monaten keine Partien. Ist das dein Name dort? Über „Importieren“ kannst du ihn ändern.`
+            : `Keine neuen Partien von ${name} auf chess.com.${result.failed_months ? "" : " Alles ist schon da."}`,
       });
       if (result.failed_months) setQuick((q) => q && { ...q, text: q.text + failedMonthsNote(result) });
     } catch (e) {
