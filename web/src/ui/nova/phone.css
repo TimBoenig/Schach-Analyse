@@ -1048,3 +1048,140 @@
     -webkit-box-orient: vertical;
   }
 }
+
+/* ---------- info marks instead of explanation texts (phone) ---------- */
+
+@media (max-width: 640px) {
+  .card-head .card-sub {
+    display: none;
+  }
+  .card-head .card-sub[data-open] {
+    display: block;
+    margin-top: 4px;
+    -webkit-line-clamp: unset;
+  }
+  .card-head h3:has(+ .card-sub) {
+    cursor: pointer;
+  }
+  .card-head h3:has(+ .card-sub)::after {
+    content: "i";
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 7px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.3px var(--text-3);
+    color: var(--text-3);
+    font-size: 10.5px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 1px;
+  }
+  .card-head h3:has(+ .card-sub[data-open])::after {
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1.3px var(--accent);
+  }
+
+  /* Lucena's button: orb and a word, easy to hit. */
+  .guide-btn {
+    width: auto;
+    gap: 6px;
+    padding: 0 11px 0 8px;
+    border-radius: 999px;
+    background: var(--ai-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ai-a) 45%, transparent);
+    color: var(--text);
+  }
+  .guide-btn-text {
+    display: inline;
+    font-size: 12.5px;
+    font-weight: 650;
+  }
+}
+
+/* ---------- game page, second pass: the board is the page ---------- */
+
+.pc-controls {
+  grid-template-columns: 1fr 0.62fr 1fr;
+}
+.pc-lupe {
+  width: 100%;
+  min-height: 46px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.pc-lupe.on {
+  background: var(--cta);
+  color: #fff;
+}
+.pc-lupe svg {
+  width: 21px;
+  height: 21px;
+}
+.an-page.phone .strip-row {
+  display: none;
+}
+/* With the sheet open the board shrinks a little, so the sheet gets room. */
+.an-page.phone.sheet .board-area {
+  max-width: min(100%, 318px);
+  margin-inline: auto;
+}
+.an-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone, var(--text-3)) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--tone, var(--border-strong));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.an-banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-banner > svg {
+  width: 17px;
+  flex: none;
+  color: var(--text-3);
+}
+.pr-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pr-chips-row .pr-chips {
+  flex: 1;
+  min-width: 0;
+}
+.pr-close {
+  flex: none;
+}
+.pr-move > .opening-line {
+  margin-bottom: 8px;
+}
+.pr-move .card,
+.pr-list .eval-graph-wrap {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+.pr-list .eval-graph-wrap {
+  margin-bottom: 8px;
+}
+.pr-list .movelist {
+  max-height: 280px;
+}

@@ -14,6 +14,7 @@ import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { resetSeen } from "./stage/store";
 import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
+import { onPhone, PHONE_SCALES, type PhoneScale, readPhoneScale, setPhoneScale } from "./phoneScale";
 import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
@@ -127,6 +128,7 @@ function AppearanceCard() {
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const [board, setBoard] = useState<BoardTheme>(DEFAULT_BOARD);
   const [tipsBack, setTipsBack] = useState(false);
+  const [scale, setScale] = useState<PhoneScale>(readPhoneScale);
   useEffect(() => {
     void getSetting<ThemeMode>("ui.theme", "system").then(setThemeState);
     void getSetting<BoardTheme>("ui.board", DEFAULT_BOARD).then(setBoard);
@@ -148,6 +150,27 @@ function AppearanceCard() {
           </button>
         ))}
       </div>
+      {onPhone() && (
+        <>
+          <div class="muted small" style={{ marginBottom: "6px" }}>
+            Größe auf dem Handy
+          </div>
+          <div class="segmented" style={{ marginBottom: "14px" }}>
+            {(Object.keys(PHONE_SCALES) as PhoneScale[]).map((k) => (
+              <button
+                key={k}
+                class={scale === k ? "active" : ""}
+                onClick={() => {
+                  setScale(k);
+                  setPhoneScale(k);
+                }}
+              >
+                {PHONE_SCALES[k].label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
       <div class="muted small" style={{ marginBottom: "6px" }}>
         Brettfarben
       </div>

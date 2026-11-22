@@ -6,6 +6,8 @@ import { App } from "./ui/App";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
 import { initMotion } from "./ui/motion";
 import { initAppearance } from "./ui/theme";
+import { initInfoTips } from "./ui/infoTips";
+import { applyPhoneScale } from "./ui/phoneScale";
 import "./ui/styles.css";
 import "./ui/design.css";
 import "./ui/arena.css";
@@ -19,6 +21,8 @@ import "./ui/nova/index.css";
 if (/^\/(hello|hallo)\/?$/.test(location.pathname)) history.replaceState(null, "", `/${location.hash || "#/hello"}`);
 
 initAppearance();
+applyPhoneScale();
+initInfoTips();
 // The AI coach was removed; drop its stored provider settings and API key.
 try {
   localStorage.removeItem("schach.ai");

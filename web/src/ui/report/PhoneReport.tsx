@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { type GameReview, type Standing, winCurve } from "../../domain/profile";
 import type { MoveData } from "../../domain/types";
 import { COACH_NAME, CoachAvatar } from "../Coach";
-import { IconChevron, IconPlay } from "../icons";
+import { IconChevron, IconClose, IconPlay } from "../icons";
 import { badgeFor, CLASS_COLOR, classLabel } from "../labels";
 import { openStage } from "../stage/store";
 import { Level } from "../viz/Bars";
@@ -18,13 +18,16 @@ import { WinChart } from "./WinChart";
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 
-type Part = "sum" | "moments" | "course" | "phases" | "end";
+export type SheetPart = "move" | "sum" | "moments" | "course" | "phases" | "end" | "list";
+type Part = SheetPart;
 const PARTS: [Part, string][] = [
+  ["move", "Zug"],
   ["sum", "Überblick"],
   ["moments", "Momente"],
   ["course", "Verlauf"],
   ["phases", "Phasen"],
   ["end", "Fazit"],
+  ["list", "Züge"],
 ];
 
 /** Swipeable cards of the moments that decided the game; the board follows the card in view. */
@@ -122,9 +125,14 @@ export function PhoneReport({
   onJump,
   onPeek,
   details,
+  part,
+  onPart,
+  onClose,
+  moveView,
+  listView,
 }: {
   gameId: string;
-  review: GameReview;
+  review: GameReview | null;
   moves: MoveData[];
   isWhite: boolean;
   names: { me: string; opp: string };
@@ -136,10 +144,16 @@ export function PhoneReport({
   /** Swiped to a moment: the board moves, the page stays. */
   onPeek: (stop: number) => void;
   details?: ComponentChildren;
+  part: SheetPart;
+  onPart: (p: SheetPart) => void;
+  onClose: () => void;
+  /** The shown move explained, with its engine lines. */
+  moveView: ComponentChildren;
+  /** The list of all moves. */
+  listView: ComponentChildren;
 }) {
-  const [part, setPart] = useState<Part>("sum");
-  const errors = ownErrors(review);
-  const counts = review.move_counts;
+  const errors = review ? ownErrors(review) : 0;
+  const counts = review?.move_counts ?? {};
   const tiles: [string, number, string][] = [
     ["Glanzzüge", (counts.Brilliant ?? 0) + (counts.Great ?? 0), "good"],
     ["Ungenau", counts.Inaccuracy ?? 0, "warn"],
@@ -148,15 +162,22 @@ export function PhoneReport({
   ];
   return (
     <div class="pr">
-      <div class="pr-chips" role="tablist">
-        {PARTS.map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={part === id} class={part === id ? "on" : ""} onClick={() => setPart(id)}>
-            {label}
-          </button>
-        ))}
+      <div class="pr-chips-row">
+        <div class="pr-chips" role="tablist">
+          {PARTS.filter(([id]) => review || id === "move" || id === "list").map(([id, label]) => (
+            <button key={id} role="tab" aria-selected={part === id} class={part === id ? "on" : ""} onClick={() => onPart(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <button class="btn icon small ghost pr-close" aria-label="Schließen" onClick={onClose}>
+          <IconClose />
+        </button>
       </div>
       <div class="pr-body">
-        {part === "sum" && (
+        {part === "move" && <div class="pr-move">{moveView}</div>}
+        {part === "list" && <div class="pr-list">{listView}</div>}
+        {review && part === "sum" && (
           <div class="pr-sum">
             <div class="pr-sum-top">
               <GradeBadge grade={review.grade} size="small" />
@@ -199,8 +220,8 @@ export function PhoneReport({
             </div>
           </div>
         )}
-        {part === "moments" && <Moments review={review} idx={idx} onPeek={onPeek} onJump={onJump} />}
-        {part === "course" && (
+        {review && part === "moments" && <Moments review={review} idx={idx} onPeek={onPeek} onJump={onJump} />}
+        {review && part === "course" && (
           <div class="pr-course">
             <WinChart points={winCurve(moves, isWhite)} plies={moves.length} moments={review.key_moments} turning={review.turning_point} cursor={idx} height={132} />
             <p class="pr-note">Deine Gewinnchance nach jedem Zug.{review.turning_point ? ` Wendepunkt: ${review.turning_point.move_label}.` : ""}</p>
@@ -211,8 +232,8 @@ export function PhoneReport({
             )}
           </div>
         )}
-        {part === "phases" && <PhaseRows review={review} />}
-        {part === "end" && (
+        {review && part === "phases" && <PhaseRows review={review} />}
+        {review && part === "end" && (
           <div class="pr-end">
             <ul class="fd-list">
               {review.positives.map((t) => (
