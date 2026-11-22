@@ -5,29 +5,24 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { type Arrow, Board } from "./Board";
 import { COACH_NAME, CoachAvatar } from "./Coach";
-import { IconCpu, IconInsights, IconTraining } from "./icons";
 import { DEMO_LINE } from "./landingPuzzle";
 
-const HOW: { title: string; text: string; icon: () => preact.JSX.Element }[] = [
+const HOW: { title: string; text: string }[] = [
   {
     title: "Partien holen",
-    text: "Du gibst deinen Namen bei chess.com oder Lichess ein. Ich lade deine öffentlichen Partien direkt auf dein Gerät, ohne Anmeldung.",
-    icon: () => <span class="ld-how-num">1</span>,
+    text: "Du gibst deinen Namen bei chess.com oder Lichess ein. Lucena lädt deine öffentlichen Partien direkt auf dein Gerät, ohne Anmeldung.",
   },
   {
     title: "Jeden Zug prüfen",
     text: "Eine Schach-Engine läuft in deinem Browser und bewertet jeden deiner Züge, vom besten Zug bis zum Patzer. Erst ein schneller Überblick, dann gründlich.",
-    icon: IconCpu,
   },
   {
     title: "Muster erkennen",
     text: "Aus vielen Partien wird dein Profil: in welcher Phase du Punkte verlierst, welche Eröffnungen dir liegen, welche Fehler sich wiederholen.",
-    icon: IconInsights,
   },
   {
     title: "Gezielt trainieren",
     text: "Deine eigenen Fehlstellungen werden zu Aufgaben. Du übst genau das, was dich Partien kostet, statt zufälliger Rätsel.",
-    icon: IconTraining,
   },
 ];
 
@@ -53,7 +48,7 @@ function Demo() {
   }, [ply]);
   const step = ply > 0 ? DEMO_LINE[ply - 1] : null;
   const arrows: Arrow[] = step?.arrow ? [{ ...step.arrow, kind: "threat" }] : [];
-  const say = step ? step.say : "Schau zu, wie ich eine Partie lese.";
+  const say = step ? step.say : "So lese ich eine Partie, Zug für Zug.";
 
   return (
     <div class="ld-demo">
@@ -64,25 +59,24 @@ function Demo() {
         <CoachAvatar mood={step?.badge === "Blunder" ? "sad" : step?.badge === "Best" ? "wow" : "think"} size={48} />
         <p key={ply}>{say}</p>
       </div>
-      <p class="ld-fine ld-demo-note">Beispielpartie zur Veranschaulichung</p>
+      <p class="ld-demo-note">Beispielpartie: die Schäferzug-Falle</p>
     </div>
   );
 }
 
 export function LandingHow() {
   return (
-    <section class="ld-how" aria-labelledby="ld-how-title">
+    <section class="ld-how" id="so-gehts" aria-labelledby="ld-how-title">
       <div class="ld-how-head">
-        <p class="ld-kicker">So funktioniert's</p>
-        <h2 id="ld-how-title">Von deinen Partien zu deinem Trainingsplan.</h2>
-        <p class="ld-lead">{COACH_NAME} liest jede deiner Partien wie ein Trainer, der nie müde wird, und erzählt dir nur, was sich in vielen Partien wirklich zeigt.</p>
+        <h2 id="ld-how-title">So funktioniert's: von deinen Partien zum Trainingsplan.</h2>
+        <p class="ld-lead">Vier Schritte, die meisten davon erledigt {COACH_NAME} für dich. Daneben siehst du, wie sie eine Partie liest.</p>
       </div>
       <div class="ld-how-grid">
         <ol class="ld-how-steps">
-          {HOW.map((h) => (
+          {HOW.map((h, i) => (
             <li class="ld-how-step" key={h.title}>
-              <span class="ld-skill-icon">
-                <h.icon />
+              <span class="ld-how-num" aria-hidden="true">
+                {i + 1}
               </span>
               <div>
                 <h3>{h.title}</h3>
