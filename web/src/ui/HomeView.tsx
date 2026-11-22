@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { enqueue } from "../app/analysisService";
-import { trFilter } from "../domain/i18n";
+import { trFilter, trSpeed } from "../domain/i18n";
 import { getUserColor, inDateFilter, isBulletGame } from "../domain/metrics";
 import { comparePeriods, dailyActivity, focusNotes, type PlayerProfile, trendOf } from "../domain/profile";
 import { CATEGORIES, localDay, type ProgressMap, type PuzzleExercise, puzzleOfTheDay } from "../domain/training";
@@ -13,6 +13,12 @@ import { Calendar } from "./home/Activity";
 import { FocusCard, skillCategory } from "./home/Focus";
 import { FormCurveCard } from "./home/FormCurve";
 import { FormCard, HomeHero, RatingCard } from "./home/HomeTop";
+import { PhoneForm, PhoneToday } from "./home/PhoneHome";
+import { Fold } from "./Fold";
+import { MoreMenu } from "./MoreMenu";
+import { IconBoard, IconFreeBoard, IconPlay, IconSpark, IconUpload } from "./icons";
+import { openStage } from "./stage/store";
+import { Journey } from "./home/Journey";
 import { LeagueTeaser } from "./home/LeagueTeaser";
 import { RecentGames } from "./home/Recent";
 import { Welcome } from "./home/Welcome";
@@ -130,7 +136,24 @@ export function HomeView() {
           ))}
         </div>
       }
-      actions={profile ? <GuideButton id="home" /> : undefined}
+      actions={
+        profile ? (
+          narrow ? (
+            <MoreMenu
+              label="Mehr"
+              items={[
+                profile.recent_games[0] && { label: "Letzte Partie ansehen", icon: <IconBoard />, onSelect: () => navigate({ view: "analysis", gameId: profile.recent_games[0].game_id }) },
+                { label: "Partien importieren", icon: <IconUpload />, onSelect: () => navigate({ view: "games", import: true }) },
+                { label: "Analysebrett", icon: <IconFreeBoard />, onSelect: () => navigate({ view: "board" }) },
+                open.length > 0 && { label: `${open.length} ${open.length === 1 ? "Partie" : "Partien"} analysieren`, icon: <IconPlay />, divider: true, onSelect: () => void enqueue(open) },
+                { label: "Seite erklären", icon: <IconSpark />, divider: true, onSelect: () => openStage({ kind: "page", subject: "home" }) },
+              ]}
+            />
+          ) : (
+            <GuideButton id="home" />
+          )
+        ) : undefined
+      }
     />
   );
 
@@ -224,6 +247,52 @@ export function HomeView() {
       <Calendar daily={daily} today={localDay()} />
     </section>
   );
+
+  if (narrow) {
+    const seriesFull = full?.rating ? (((full.trends.ratings ?? {}) as Record<string, [number, number][]>)[trSpeed(full.rating.speed)] ?? []) : [];
+    return (
+      <div class="home phone-home" style={{ opacity: loading ? 0.6 : 1 }}>
+        {header}
+        <HomeNudge games={games.length} />
+        <div class="ph-stack">
+          <PhoneToday mood={heroMood} title={heroTitle} today={today} />
+          <PhoneForm profile={profile} kpis={cmp.kpis} ratingKpi={cmp.kpis.find((k) => k.key === "rating")} label={comparison.label} />
+          <section class="card ph-recent">
+            <header class="ph-recent-head">
+              <h3>Letzte Partien</h3>
+              <button class="btn small ghost" onClick={() => navigate({ view: "games" })}>
+                Alle
+              </button>
+            </header>
+            <RecentGames profile={profile} limit={4} />
+          </section>
+          {full?.rating && seriesFull.length >= 2 && (
+            <Fold title="Dein Ziel" sub={`${full.rating.rating} · ${trSpeed(full.rating.speed)}`}>
+              <div class="card">
+                <Journey series={seriesFull} speed={trSpeed(full.rating.speed)} lever={lever} />
+              </div>
+            </Fold>
+          )}
+          <Fold title="Stellung des Tages" sub="Aus deinen Partien">
+            <DailyPuzzle ex={puzzle} onResult={(ex, ok) => void recordTrainingResult(ex, ok).then(refreshToday)} />
+          </Fold>
+          <Fold title="Deine Baustellen" sub={topWeakness ? topWeakness.title : undefined}>
+            <FocusCard current={comparison.current} cmp={cmp} label={comparison.label} />
+          </Fold>
+          <Fold title="Liga" sub="Du gegen deine Freunde">
+            <LeagueTeaser games={games} me={names} />
+          </Fold>
+          <Fold title="Entwicklung" sub="Formkurve, Veränderungen, Kalender">
+            <div class="ph-stack">
+              {curveCard}
+              {changesCard}
+              {activityCard}
+            </div>
+          </Fold>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div class="home" style={{ opacity: loading ? 0.6 : 1 }}>
