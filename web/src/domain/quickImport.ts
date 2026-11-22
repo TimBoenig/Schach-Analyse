@@ -6,6 +6,8 @@
 // asked the wrong account and reported "Keine neuen Partien" although the
 // player had new games.
 
+import { t } from "../i18n";
+
 export interface NamedGame {
   white: string;
   black: string;
@@ -49,14 +51,17 @@ export function ownChesscomNames(
 
 /** "a", "a und b", "a, b und c". */
 function joinNames(names: readonly string[]): string {
-  return names.length < 2 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]}`;
+  return names.length < 2 ? (names[0] ?? "") : t("{list} und {last}", { list: names.slice(0, -1).join(", "), last: names[names.length - 1] });
 }
 
-const games = (n: number) => `${n} ${n === 1 ? "Partie" : "Partien"}`;
+const games = (n: number) => (n === 1 ? t("1 Partie") : t("{n} Partien", { n }));
 
 export function failedMonthsNote(failedMonths: number | undefined): string {
   const n = failedMonths ?? 0;
-  return n ? ` ${n === 1 ? "Ein Monat konnte" : `${n} Monate konnten`} nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.` : "";
+  if (!n) return "";
+  return n === 1
+    ? t(" Ein Monat konnte nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.")
+    : t(" {n} Monate konnten nicht geladen werden; hol die Partien später noch einmal, dann kommen die fehlenden dazu.", { n });
 }
 
 export interface QuickImportOutcome {
@@ -72,10 +77,14 @@ export function quickImportMessage({ names, result, queued, failed }: QuickImpor
   const who = joinNames(names);
   const n = result.imported;
   const complete = !result.failed_months && !failed.length;
+  const analysing = !queued ? "" : queued === 1 ? t(", 1 wird jetzt analysiert") : t(", {queued} werden jetzt analysiert", { queued });
   let text = n
-    ? `${n} ${n === 1 ? "neue Partie" : "neue Partien"} von ${who} geholt${queued ? `, ${queued} ${queued === 1 ? "wird" : "werden"} jetzt analysiert` : ""}.`
-    : `Keine neuen Partien von ${who} auf chess.com.${complete ? ` Alle ${games(result.already_known)} der letzten zwei Monate sind schon da.` : ""}`;
-  if (result.skipped.length) text += ` ${games(result.skipped.length)} (Chess960 oder Varianten) kann die App nicht analysieren.`;
+    ? n === 1
+      ? t("1 neue Partie von {who} geholt{analysing}.", { who, analysing })
+      : t("{n} neue Partien von {who} geholt{analysing}.", { n, who, analysing })
+    : t("Keine neuen Partien von {who} auf chess.com.", { who }) +
+      (complete ? t(" Alle {games} der letzten zwei Monate sind schon da.", { games: games(result.already_known) }) : "");
+  if (result.skipped.length) text += t(" {games} (Chess960 oder Varianten) kann die App nicht analysieren.", { games: games(result.skipped.length) });
   text += failedMonthsNote(result.failed_months);
   if (failed.length) text += ` ${failed.join(" ")}`;
   return text;
