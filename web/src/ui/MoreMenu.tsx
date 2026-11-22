@@ -17,7 +17,7 @@ export interface MenuItem {
   onSelect: () => void;
 }
 
-export function MoreMenu({ items, label = "Mehr", class: cls = "" }: { items: (MenuItem | false | null | undefined)[]; label?: string; class?: string }) {
+export function MoreMenu({ items = [], label = "Mehr", class: cls = "", children }: { items?: (MenuItem | false | null | undefined)[]; label?: string; class?: string; children?: ComponentChildren }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,6 +58,7 @@ export function MoreMenu({ items, label = "Mehr", class: cls = "" }: { items: (M
               {it.checked !== undefined && <span class={`more-tick${it.checked ? " on" : ""}`} aria-hidden="true" />}
             </button>
           ))}
+          {children && <div class="more-custom">{children}</div>}
         </div>
       )}
     </div>

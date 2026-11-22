@@ -818,3 +818,72 @@
 .ph .ph-row {
   gap: 4px;
 }
+
+/* ---------- players list (phone) ---------- */
+
+.more-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+.more-custom .btn,
+.more-custom .refresh-all {
+  width: 100%;
+}
+.more-custom .btn {
+  justify-content: flex-start;
+}
+.players-hero.compact {
+  padding: 10px 10px 10px 14px;
+}
+.ph-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ph-line-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+}
+.ph-line-text small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .players-section .section-head {
+    margin: 12px 2px 6px;
+  }
+  .player-grid {
+    gap: 8px;
+  }
+  .player-card {
+    gap: 6px;
+    padding: 12px !important;
+  }
+  .player-card .pl-avatar.lg,
+  .player-card .pl-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  .player-card-head {
+    gap: 10px;
+  }
+  .player-card-name strong {
+    font-size: 15px;
+  }
+  .player-card-name .faint {
+    font-size: 11.5px;
+  }
+  .player-card-stats {
+    gap: 12px;
+    font-size: 13px;
+  }
+  .player-card > .faint.small {
+    display: none;
+  }
+}

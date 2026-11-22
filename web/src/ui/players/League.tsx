@@ -1601,8 +1601,10 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
           <SectionJump sections={LEAGUE_SECTIONS} />
           <div class={`dash${loading ? " busy" : ""}`}>
             <Section section={LEAGUE_SECTIONS[0]} defaultOpen>
+              {/* The table is what a phone visit is for, so it comes first there. */}
+              {narrow && <Standings ranking={ranking} tones={tones} types={view.types} />}
               <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />
-              <Standings ranking={ranking} tones={tones} types={view.types} />
+              {!narrow && <Standings ranking={ranking} tones={tones} types={view.types} />}
               <TournamentCard t={view.tournament} tones={tones} />
               <ClimbCard
                 plan={view.plan}

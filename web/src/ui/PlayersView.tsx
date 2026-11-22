@@ -35,6 +35,8 @@ import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { PageHeader } from "./Layout";
+import { MoreMenu } from "./MoreMenu";
+import { useNarrow } from "./useNarrow";
 import { AreaChart, BarList, RadarChart, ratingSeriesPoints, StackBar } from "./charts";
 import type { BarRow } from "./charts";
 import { Calendar } from "./home/Activity";
@@ -275,6 +277,29 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
   const t = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
   const n = t.w + t.d + t.l;
   const friends = cards.filter((c) => c.player.friend).length;
+  const narrow = useNarrow();
+  if (narrow) {
+    // Phones: one line of facts, adding a player as the one button, the rest in the menu.
+    return (
+      <section class="card players-hero compact">
+        <div class="ph-line">
+          <span class="ph-line-text">
+            <span>
+              <strong class="tnum">{cards.length}</strong> Spieler · <strong class="tnum">{friends}</strong> Freunde
+            </span>
+            <small>{n ? `${pct0(((t.w + t.d / 2) / n) * 100)} deiner Punkte aus ${plural(n, "Direktpartie", "Direktpartien")}` : "noch keine Direktpartie"}</small>
+          </span>
+          <button class="btn primary small" onClick={onAdd}>
+            <IconPlus /> Neu
+          </button>
+          <MoreMenu label="Mehr zu den Spielern">
+            <RefreshAll players={players.filter((p) => !p.hidden)} />
+            <AnalyzeFriends players={players} games={games} />
+          </MoreMenu>
+        </div>
+      </section>
+    );
+  }
   return (
     <section class="card players-hero">
       <div class="players-hero-stats">
