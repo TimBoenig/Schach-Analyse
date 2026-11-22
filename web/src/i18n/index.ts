@@ -126,6 +126,9 @@ export function tr(l: Lang, de: string, params?: Record<string, unknown>): strin
 }
 
 /** Text in the page's language. */
+/** Capital first letter, for a word that starts a label (German nouns already have one). */
+export const cap = (s: string): string => s.charAt(0).toLocaleUpperCase(locale()) + s.slice(1);
+
 export function t(de: string, params?: Record<string, unknown>): string {
   return tr(current, de, params);
 }

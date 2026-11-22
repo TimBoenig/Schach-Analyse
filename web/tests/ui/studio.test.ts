@@ -27,6 +27,8 @@ import { duckedVolume, loopSeconds, synthLoop } from "../../src/ui/studio/music"
 import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
+import { setLangNow } from "../../src/i18n";
+import { EN } from "../../src/i18n/en";
 import { buildAiPrompt, guessPerspective, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
 import { buildProject, defaultAnswers, suggestPerspective, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
@@ -354,6 +356,29 @@ Viel Spaß!`;
     const again = importAiScript(toAiScript(p)).project!;
     expect(again.scenes.map((s) => [s.moves, s.effects, s.speech, s.camera])).toEqual(p.scenes.map((s) => [s.moves, s.effects, s.speech, s.camera]));
     expect(speechSheet(p)).toMatch(/^0:00–0:0\d {2}Szene 1 \(Hook\)/);
+  });
+
+  it("writes the prompt and the export with English field names on an English page, and reads both back", () => {
+    setLangNow("en", EN);
+    try {
+      for (const platform of ["reels", "youtube"] as const) {
+        const prompt = buildAiPrompt({ topic: "Italian", platform, length: 30, notes: "", side: "black" });
+        expect(prompt).toContain('"scenes"');
+        expect(prompt).toContain('"perspective": "black"');
+        expect(prompt).not.toMatch(/"(szenen|zug|untertitel|sprechtext|kamera)"/);
+        const r = importAiScript(prompt);
+        expect(r.errors).toEqual([]);
+        // The long example is deliberately shorter than its stated length, in both languages.
+        expect(r.warnings.length).toBe(platform === "youtube" ? 1 : 0);
+        const p = r.project!;
+        const out = toAiScript(p);
+        expect(out).not.toMatch(/"(szenen|zug|kamera|markierungen|pfeile)"/);
+        const again = importAiScript(out).project!;
+        expect(again.scenes.map((s) => [s.moves, s.camera, s.arrows, s.marks, s.effects, s.badge])).toEqual(p.scenes.map((s) => [s.moves, s.camera, s.arrows, s.marks, s.effects, s.badge]));
+      }
+    } finally {
+      setLangNow("de");
+    }
   });
 });
 

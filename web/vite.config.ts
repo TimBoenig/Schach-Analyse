@@ -5,6 +5,8 @@ import { VitePWA } from "vite-plugin-pwa";
 import { BRAND } from "./src/brand";
 
 export default defineConfig({
+  // The profile worker loads the English texts on demand, which needs a module worker.
+  worker: { format: "es" },
   plugins: [
     preact(),
     VitePWA({

@@ -1049,7 +1049,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     const black = frame.pill.side === "b";
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(t("ZUG VON {0}", { 0: black ? "SCHWARZ" : "WEISS" }), x0, nowTop);
+    ctx.fillText(t("ZUG VON {0}", { 0: black ? t("SCHWARZ") : t("WEISS") }), x0, nowTop);
     ctx.font = `800 ${36 * u}px ${SANS}`;
     ctx.fillStyle = "#ffffff";
     const mw = drawMove(ctx, frame.pill.text, x0, nowTop + 50 * u, 36 * u, assets, black);

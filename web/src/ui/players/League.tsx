@@ -1281,7 +1281,7 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
               <span class="faint small lg-form-sub">
                 {t("{n}{n2}", { n: r.streak && r.streak.count >= 3
                   ? t("{count} {1} in Folge", { count: r.streak.count, 1: r.streak.kind === "win" ? t("Siege") : r.streak.kind === "loss" ? t("Niederlagen") : t("Remis") })
-                  : t("{n} zuletzt", { n: plural(r.recent.games, t("Analyse"), t("Analysen")) }), n2: rating ? t(" · Wertung {signed} ({1})", { signed: signed(rating.delta, 0), 1: SPEED_DE[rating.speed] ?? rating.speed }) : "" })}
+                  : t("{n} zuletzt", { n: (r.recent.games === 1 ? t("1 Analyse") : t("{n} Analysen", { n: r.recent.games })) }), n2: rating ? t(" · Wertung {signed} ({1})", { signed: signed(rating.delta, 0), 1: SPEED_DE[rating.speed] ?? rating.speed }) : "" })}
               </span>
             </div>
           );

@@ -21,7 +21,7 @@ import {
   Z_MULTI,
 } from "./evidence";
 import { buildPrecision, type PrecisionStats, wilsonMargin } from "./precision";
-import { t, dec } from "../../i18n";
+import { cap, t, dec } from "../../i18n";
 
 export interface ScoreBucket {
   key: string;
@@ -223,7 +223,7 @@ export function buildDeepInsights(
   );
   const byPiece: PieceBucket[] = PIECES.map(([p, name]) => ({
     piece: p,
-    ...moveBucket(name, moves.filter((m) => pieceOf(m) === p)),
+    ...moveBucket(cap(name), moves.filter((m) => pieceOf(m) === p)),
   }));
 
   const timed = feats.filter((f) => f.time_known && f.played_at);

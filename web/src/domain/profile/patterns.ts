@@ -11,7 +11,7 @@ import type { GameRef, Pattern } from "./models";
 import { expectedScore } from "./benchmarks";
 import { MIN_ERRORS, MIN_GROUP_GAMES, meansDiffer, ratesDiffer, scoreDeviation, scoresDiffer, shareAtLeast, shareBelow } from "./evidence";
 import { avg, fmtDe } from "./num";
-import { t } from "../../i18n";
+import { cap, t } from "../../i18n";
 
 export const MAX_EXAMPLES = 8;
 // Two games belong to the same session when they start less than 90 minutes apart.
@@ -310,7 +310,7 @@ function hungPiecePattern(analyzed: GameFeatures[]): Pattern[] {
           game_id: f.game_id,
           ply_index: Math.max(0, Math.trunc(Number(h.ply ?? 1)) - 1),
           label: t("{n} gegen {opp_name}", { n: h.san ?? "", opp_name: f.rec.opp_name }),
-          detail: t("{trPiece} eingestellt · {date}", { trPiece: trPiece(piece), date: f.date }),
+          detail: t("{trPiece} eingestellt · {date}", { trPiece: cap(trPiece(piece)), date: f.date }),
         });
         break;
       }

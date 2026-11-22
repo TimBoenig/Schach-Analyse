@@ -190,25 +190,28 @@ export function explainMove(fenBefore: string, san: string, ply: number): Insigh
   const arrows: StudioArrow[] = [];
   const marks: StudioMark[] = [];
   let text: string;
-  if (m.flags.includes("k") || m.flags.includes("q")) text = t("{side} rochiert {1} und bringt den *König in Sicherheit*.", { side, 1: m.flags.includes("k") ? "kurz" : "lang" });
+  if (m.flags.includes("k") || m.flags.includes("q")) text = t("{side} rochiert {1} und bringt den *König in Sicherheit*.", { side, 1: m.flags.includes("k") ? t("kurz") : t("lang") });
   else if (m.captured) {
     text = t("{side} schlägt mit {1} auf *{to}*.", { side, 1: DAT[m.piece], to: m.to });
     marks.push({ square: m.to, tone: "bad" });
-  } else if (m.promotion) text = t("Der Bauer erreicht die letzte Reihe und wird zur *{0}*.", { 0: m.promotion === "q" ? t("Dame") : ACC[m.promotion].replace(/^den |^die /, "") });
+  } else if (m.promotion) text = t("Der Bauer erreicht die letzte Reihe und wird zur *{0}*.", { 0: m.promotion === "q" ? t("Dame") : ACC[m.promotion].replace(/^(den|die|the) /, "") }); // i18n: regex
   else text = t("{side} zieht {1} nach *{to}*.", { side, 1: ACC[m.piece], to: m.to });
-  if (chess.isCheckmate()) text = text.replace(/\.$/, ". *Schachmatt!*");
-  else if (chess.inCheck()) text = text.replace(/\.$/, ". *Schach!*");
+  // Extra clauses replace the sentence's full stop, so each language keeps its own word order.
+  const base = text.replace(/\.$/, "");
+  if (chess.isCheckmate()) text = t("{text}. *Schachmatt!*", { text: base });
+  else if (chess.inCheck()) text = t("{text}. *Schach!*", { text: base });
   else {
     const hits = threats(chess, m);
     const mate = mateThreat(chess, m);
     if (mate) {
-      text = text.replace(/\.$/, ` und *droht Matt* auf ${mate}.`);
+      text = t("{text} und *droht Matt* auf {square}.", { text: base, square: mate });
       arrows.push({ from: m.to, to: mate, tone: "bad" });
     } else if (hits.length) {
-      text = text.replace(/\.$/, ` und greift ${hits.map((h) => `${ACC[h.piece]} auf ${h.square}`).join(" und ")} an.`);
+      const list = hits.map((h) => t("{piece} auf {square}", { piece: ACC[h.piece], square: h.square }));
+      text = t("{text} und greift {targets} an.", { text: base, targets: list.length > 1 ? t("{list} und {last}", { list: list.slice(0, -1).join(", "), last: list[list.length - 1] }) : list[0] });
       for (const h of hits) arrows.push({ from: m.to, to: h.square, tone: "bad" });
-    } else if (ply < 6 && m.piece === "p" && CENTRE.has(m.to)) text = text.replace(/\.$/, " und besetzt das *Zentrum*.");
-    else if (ply < 14 && (m.piece === "n" || m.piece === "b") && (m.from[1] === "1" || m.from[1] === "8")) text = text.replace(/\.$/, " und *entwickelt* eine Figur.");
+    } else if (ply < 6 && m.piece === "p" && CENTRE.has(m.to)) text = t("{text} und besetzt das *Zentrum*.", { text: base });
+    else if (ply < 14 && (m.piece === "n" || m.piece === "b") && (m.from[1] === "1" || m.from[1] === "8")) text = t("{text} und *entwickelt* eine Figur.", { text: base });
   }
   return { text, arrows, marks };
 }

@@ -171,7 +171,7 @@ function speedSource(games: RawGame[], usernames: string[], speedLabel: string):
 
 const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 
-const analyses = (n: number) => plural(n, t("Analyse"), t("Analysen"));
+const analyses = (n: number) => (n === 1 ? t("1 Analyse") : t("{n} Analysen", { n: n }));
 
 export function buildRanking(
   inputs: RankInput[],
