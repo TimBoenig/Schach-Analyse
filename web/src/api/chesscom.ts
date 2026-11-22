@@ -85,6 +85,12 @@ export async function getLastGames(username: string, limit = 20, opts: CallOptio
   }
 }
 
+// The month list and the running month change while a player plays. A copy the
+// browser (or a proxy in between) kept from earlier must never stand in for
+// them, or "Neueste holen" finds nothing new; "no-cache" asks chess.com every
+// time and costs only a 304 when nothing changed.
+const FRESH = "no-cache" as const;
+
 /** Monthly archive URLs of a user, oldest first. */
 export async function getArchiveUrls(username: string, opts: CallOptions = {}): Promise<string[]> {
   const clean = username.trim().toLowerCase();
@@ -92,13 +98,14 @@ export async function getArchiveUrls(username: string, opts: CallOptions = {}): 
   const resp = await makeRequest(`${CHESSCOM_BASE_URL}/player/${encodeURIComponent(clean)}/games/archives`, {
     signal: opts.signal,
     onFail: opts.onFail,
+    cache: FRESH,
   });
   return archivesOf(await safeJson(resp));
 }
 
 /** All games of one monthly archive that carry a PGN. */
 export async function getArchiveGames(archiveUrl: string, opts: CallOptions = {}): Promise<ChesscomGame[]> {
-  const resp = await makeRequest(archiveUrl, { signal: opts.signal, onFail: opts.onFail });
+  const resp = await makeRequest(archiveUrl, { signal: opts.signal, onFail: opts.onFail, cache: FRESH });
   return gamesOf(await safeJson(resp)).filter((g) => typeof g.pgn === "string" && g.pgn);
 }
 
