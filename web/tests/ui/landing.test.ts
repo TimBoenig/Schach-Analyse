@@ -1,7 +1,8 @@
 import { Chess } from "chess.js";
 import { describe, expect, it } from "vitest";
 
-import { DEMO_LINE, PUZZLE_FEN, PUZZLE_HINT } from "../../src/ui/landingPuzzle";
+import { MIN_GAMES, MIN_REPEATS, readSample, SAMPLE_STEPS } from "../../src/ui/landing/patternSample";
+import { PUZZLE_FEN, PUZZLE_HINT } from "../../src/ui/landingPuzzle";
 import { parseHash, toHash } from "../../src/ui/router";
 
 describe("landing page", () => {
@@ -22,12 +23,18 @@ describe("landing page", () => {
   });
 });
 
-describe("landing demo line", () => {
-  it("is legal, marks the move that allows mate and ends in mate", () => {
-    const g = new Chess();
-    for (const step of DEMO_LINE) g.move(step.san);
-    expect(g.isCheckmate()).toBe(true);
-    const blunder = DEMO_LINE.findIndex((s) => s.badge === "Blunder");
-    expect(DEMO_LINE[blunder + 1].san.endsWith("#")).toBe(true);
+describe("landing pattern example", () => {
+  it("misleads after one game and settles on the endgame pattern only with enough games", () => {
+    const one = readSample(1);
+    expect(one.share.opening).toBe(1);
+    expect(one.pattern).toBeNull();
+    // Below the evidence floor Lucena names no pattern, whatever the counts say.
+    expect(readSample(MIN_GAMES - 1).pattern).toBeNull();
+    const all = readSample(SAMPLE_STEPS[SAMPLE_STEPS.length - 1]);
+    expect(all.games).toHaveLength(SAMPLE_STEPS[SAMPLE_STEPS.length - 1]);
+    expect(all.share.endgame).toBeGreaterThan(all.share.middlegame);
+    expect(all.share.middlegame).toBeGreaterThan(all.share.opening);
+    expect(all.pattern?.motif).toBe("Turmendspiel nicht gehalten");
+    expect(all.pattern!.games).toBeGreaterThanOrEqual(MIN_REPEATS);
   });
 });
