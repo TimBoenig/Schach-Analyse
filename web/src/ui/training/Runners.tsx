@@ -26,6 +26,7 @@ import { navigate } from "../router";
 import { BrilliantFx } from "../BrilliantFx";
 import { Coach } from "../Coach";
 import { ENGINE_NAME } from "../../engine/info";
+import { t, tj } from "../../i18n";
 
 export interface RunnerProps<T> {
   ex: T;
@@ -210,7 +211,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
   const finish = (from: string, to: string, cls: Classification, text: string) => {
     setSolved(true);
     setHit({ from, to, cls });
-    setFeedback({ ok: true, text: cls === "Brilliant" ? `Brillant!! ${text}` : text });
+    setFeedback({ ok: true, text: cls === "Brilliant" ? t("Brillant!! {text}", { text }) : text });
     report(!failed.current && !hint);
   };
 
@@ -218,12 +219,12 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
   const correct = (from: string, to: string, san: string, offLine: boolean) => {
     const last = offLine || at + 2 >= positions.length - 1;
     if (last) {
-      const text = at === 0 && !offLine ? `${san} ist der beste Zug.` : offLine ? `${san} ist laut Engine genauso stark.` : `${san} – Aufgabe gelöst!`;
+      const text = at === 0 && !offLine ? t("{san} ist der beste Zug.", { san }) : offLine ? t("{san} ist laut Engine genauso stark.", { san }) : t("{san} – Aufgabe gelöst!", { san });
       finish(from, to, "Best", text);
       return;
     }
     setHit({ from, to, cls: "Best" });
-    setFeedback({ ok: true, text: `${san} – richtig! Weiter …` });
+    setFeedback({ ok: true, text: t("{san} – richtig! Weiter …", { san }) });
     setHint(false);
     setWrong([]);
     const reply = line[at + 1];
@@ -232,7 +233,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       setFen(positions[at + 2]);
       setHit({ from: reply.slice(0, 2), to: reply.slice(2, 4) });
       setAt(at + 2);
-      setFeedback({ ok: true, text: `${san} – richtig! Und jetzt?` });
+      setFeedback({ ok: true, text: t("{san} – richtig! Und jetzt?", { san }) });
     }, 450);
   };
 
@@ -263,7 +264,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
     if (listed || b.isCheckmate()) {
       const offLine = !same(line[at]) && !b.isCheckmate();
       if (at === 0 && offLine) {
-        finish(from, to, "Best", `${san} ist genauso gut wie ${ex.solution_san}.`);
+        finish(from, to, "Best", t("{san} ist genauso gut wie {solution_san}.", { san, solution_san: ex.solution_san }));
       } else {
         correct(from, to, san, b.isCheckmate() && !same(line[at]));
       }
@@ -271,19 +272,19 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       void judgeTried(here, uci, after).then((v) => {
         if (alive.current && v?.classification === "Brilliant") {
           setHit({ from, to, cls: "Brilliant" });
-          setFeedback((f) => (f && f.ok ? { ...f, text: `Brillant!! ${f.text}` } : f));
+          setFeedback((f) => (f && f.ok ? { ...f, text: t("Brillant!! {text}", { text: f.text }) } : f));
         }
       });
       return true;
     }
     // Not the stored answer: let the engine decide, since another move can be just as good.
     setChecking(true);
-    setFeedback({ ok: true, text: `${ENGINE_NAME} prüft ${san} …` });
+    setFeedback({ ok: true, text: t("{ENGINE_NAME} prüft {san} …", { ENGINE_NAME, san }) });
     void judgeTried(here, uci, after).then((v) => {
       if (!alive.current) return;
       setChecking(false);
       if (v && solvesPuzzle(v)) {
-        if (v.classification === "Brilliant") finish(from, to, "Brilliant", `${san} ist laut Engine genauso stark.`);
+        if (v.classification === "Brilliant") finish(from, to, "Brilliant", t("{san} ist laut Engine genauso stark.", { san }));
         else correct(from, to, san, true);
         return;
       }
@@ -291,7 +292,7 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
       setWrong((w) => [...w, { from, to }]);
       setHit({ from, to, cls: (v?.classification as Classification) || "Mistake" });
       // Show why on the board: the move and how the engine punishes it, instead of a paragraph.
-      setFeedback({ ok: false, text: v ? `${san} – ${classLabel(v.classification)}. Versuch es nochmal.` : `${san} ist nicht der gesuchte Zug.` });
+      setFeedback({ ok: false, text: v ? t("{san} – {classLabel}. Versuch es nochmal.", { san, classLabel: classLabel(v.classification) }) : t("{san} ist nicht der gesuchte Zug.", { san }) });
       player.offer(refutationLine(here, uci, v?.reply_pv ?? []));
       window.setTimeout(() => {
         if (!alive.current) return;
@@ -348,9 +349,9 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           <div class="ex-cat">{CATEGORIES[ex.category].label}</div>
           <div class="puzzle-turn">
             <span class={`turn-dot ${userWhite ? "w" : "b"}`} />
-            <h3>{userWhite ? "Weiß" : "Schwarz"} am Zug</h3>
+            <h3>{t("{n} am Zug", { n: userWhite ? t("Weiß") : t("Schwarz") })}</h3>
             {steps > 1 && (
-              <span class="puzzle-steps" aria-label={`Zug ${Math.min(ownStep, steps)} von ${steps}`}>
+              <span class="puzzle-steps" aria-label={t("Zug {0} von {steps}", { 0: Math.min(ownStep, steps), steps })}>
                 {Array.from({ length: steps }, (_, i) => (
                   <span key={i} class={i < at / 2 || solved ? "on" : i === at / 2 && !reveal ? "cur" : ""} />
                 ))}
@@ -358,12 +359,10 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
             )}
           </div>
           <p style={{ marginTop: 0 }}>{ex.prompt}</p>
-          {steps > 1 && at === 0 && !solved && <p class="small muted">Diese Aufgabe hat {steps} Züge: Nach deinem Zug antwortet der Gegner.</p>}
+          {steps > 1 && at === 0 && !solved && <p class="small muted">{t("Diese Aufgabe hat {steps} Züge: Nach deinem Zug antwortet der Gegner.", { steps })}</p>}
           <p class="small muted puzzle-source">
-            Aus deiner Partie gegen <strong>{ex.opponent || "?"}</strong>
-            {ex.date ? ` (${formatDate(ex.date)})` : ""}. Gespielt: <strong>{ex.played_san}</strong> ({trClassification(ex.classification)},{" "}
-            {trPhase(ex.phase)}, −{(ex.wp_loss * 100).toFixed(0)} %).
-          </p>
+            
+            {tj("Aus deiner Partie gegen {x}{n}. Gespielt: {played_san} ({trClassification}, {trPhase}, −{n2} %).", { x: <strong>{ex.opponent || "?"}</strong>, n: ex.date ? ` (${formatDate(ex.date)})` : "", played_san: <strong>{ex.played_san}</strong>, trClassification: trClassification(ex.classification), trPhase: trPhase(ex.phase), n2: (ex.wp_loss * 100).toFixed(0) })}</p>
           {feedback && (
             <Coach mood={feedback.ok ? "wow" : "think"} tone={feedback.ok ? "var(--win)" : "var(--loss)"} title={feedback.text}>
               {feedback.detail}
@@ -371,36 +370,42 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           )}
           {player.pending && !player.line && !solved && !reveal && (
             <button class="btn small consequence-btn" onClick={player.show}>
-              Warum? Konsequenz zeigen
+              
+              {t("Warum? Konsequenz zeigen")}
             </button>
           )}
           {player.line && (
             <div class="refutation">
-              <div class="small muted">{player.playing ? "So wird es bestraft …" : "So wird es bestraft. Tippe auf einen Zug:"}</div>
+              <div class="small muted">{player.playing ? t("So wird es bestraft …") : t("So wird es bestraft. Tippe auf einen Zug:")}</div>
               <LineChips line={player.line} step={player.step} onPick={player.pick} />
               <div class="row">
                 <button class="btn small ghost" onClick={player.replay} disabled={player.playing}>
-                  Nochmal abspielen
+                  
+                  {t("Nochmal abspielen")}
                 </button>
                 <button class="btn small primary" onClick={retry}>
-                  Neuer Versuch
+                  
+                  {t("Neuer Versuch")}
                 </button>
               </div>
             </div>
           )}
           {(solved || reveal) && others.length > 0 && (
             <p class="small">
-              Im ersten Zug ebenfalls richtig: <strong>{others.join(", ")}</strong>
+              
+              {tj("Im ersten Zug ebenfalls richtig: {x}", { x: <strong>{others.join(", ")}</strong> })}
             </p>
           )}
           {(solved || reveal) && ex.line_san.length > 1 && (
             <p class="small">
-              Fortsetzung der Engine: <span class="mono">{ex.line_san.join(" ")}</span>
+              
+              {tj("Fortsetzung der Engine: {x}", { x: <span class="mono">{ex.line_san.join(" ")}</span> })}
             </p>
           )}
           {reveal && !solved && (
             <p>
-              Lösung: <strong>{ex.line_san.slice(0, Math.max(1, positions.length - 1)).join(" ") || ex.solution_san}</strong>
+              
+              {tj("Lösung: {x}", { x: <strong>{ex.line_san.slice(0, Math.max(1, positions.length - 1)).join(" ") || ex.solution_san}</strong> })}
             </p>
           )}
           <div class="row">
@@ -414,10 +419,12 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
                   }}
                   disabled={hint}
                 >
-                  Tipp
+                  
+                  {t("Tipp")}
                 </button>
                 <button class="btn" onClick={showSolution}>
-                  Lösung zeigen
+                  
+                  {t("Lösung zeigen")}
                 </button>
               </>
             )}
@@ -425,7 +432,8 @@ export function PuzzleRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<Pu
           </div>
         </div>
         <button class="btn" onClick={() => navigate({ view: "analysis", gameId: ex.game_id, ply: ex.ply_index })}>
-          Partie an dieser Stelle öffnen
+          
+          {t("Partie an dieser Stelle öffnen")}
         </button>
       </div>
     </div>
@@ -496,7 +504,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
     setFen(b.fen());
     setLast({ from: m.from, to: m.to });
     setBusy(true);
-    setNote({ ok: true, text: `${ENGINE_NAME} prüft ${m.san} …` });
+    setNote({ ok: true, text: t("{ENGINE_NAME} prüft {san} …", { ENGINE_NAME, san: m.san }) });
     void (async () => {
       try {
         const v = await judgeTried(before, uci, b.fen());
@@ -512,7 +520,7 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
           await reply(b);
         } else {
           setUndoFen(null);
-          setNote(cls ? { ok: true, text: cls === "Brilliant" ? `Brillant!! ${m.san}` : `${m.san} – ${classLabel(cls)}` } : null);
+          setNote(cls ? { ok: true, text: cls === "Brilliant" ? t("Brillant!! {san}", { san: m.san }) : `${m.san} – ${classLabel(cls)}` } : null);
           if (!b.isGameOver()) await reply(b);
         }
       } finally {
@@ -549,62 +557,66 @@ function PlayOn({ startFen, userWhite, onExit }: { startFen: string; userWhite: 
       </div>
       <div class="side-panel">
         <div class="card">
-          <div class="ex-cat">Weiterspielen</div>
-          <h3>Ab hier spielst du frei gegen {ENGINE_NAME}</h3>
+          <div class="ex-cat">{t("Weiterspielen")}</div>
+          <h3>{t("Ab hier spielst du frei gegen {ENGINE_NAME}", { ENGINE_NAME })}</h3>
           <p class="small muted" style={{ marginTop: 0 }}>
-            Noch {Math.max(0, PLAY_ON_MOVES - stats.moves)} eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.
+            
+            {t("Noch {n} eigene Züge. Jeder Zug wird bewertet, Fehler zeige ich dir direkt auf dem Brett.", { n: Math.max(0, PLAY_ON_MOVES - stats.moves) })}
           </p>
           <div class="playon-stats tnum">
             <span>
-              <strong>{stats.sound}</strong> gesund
-            </span>
+              {tj("{sound} gesund", { sound: <strong>{stats.sound}</strong> })}</span>
             <span class="bad">
-              <strong>{stats.errors}</strong> Fehler
+              {tj("{errors} Fehler", { errors: <strong>{stats.errors}</strong> })}
             </span>
             {stats.brilliant > 0 && (
               <span class="brill">
-                <strong>{stats.brilliant}</strong> brillant
-              </span>
+                {tj("{brilliant} brillant", { brilliant: <strong>{stats.brilliant}</strong> })}</span>
             )}
           </div>
           {note && <Coach mood={note.ok ? "wow" : "think"} tone={note.ok ? "var(--win)" : "var(--loss)"} title={note.text} />}
           {player.pending && !player.line && (
             <div class="row">
               <button class="btn small consequence-btn" onClick={player.show}>
-                Warum? Konsequenz zeigen
+                
+                {t("Warum? Konsequenz zeigen")}
               </button>
               {undoFen && (
                 <button class="btn small ghost" onClick={takeBack}>
-                  Zug zurücknehmen
+                  
+                  {t("Zug zurücknehmen")}
                 </button>
               )}
             </div>
           )}
           {player.line && (
             <div class="refutation">
-              <div class="small muted">So wird es bestraft:</div>
+              <div class="small muted">{t("So wird es bestraft:")}</div>
               <LineChips line={player.line} step={player.step} onPick={player.pick} />
               <div class="row">
                 <button class="btn small ghost" onClick={player.replay} disabled={player.playing}>
-                  Nochmal abspielen
+                  
+                  {t("Nochmal abspielen")}
                 </button>
                 <button class="btn small primary" onClick={takeBack}>
-                  Zug zurücknehmen
+                  
+                  {t("Zug zurücknehmen")}
                 </button>
                 <button class="btn small ghost" onClick={player.clear}>
-                  Trotzdem weiter
+                  
+                  {t("Trotzdem weiter")}
                 </button>
               </div>
             </div>
           )}
           {over && (
             <p class={stats.errors === 0 ? "feedback-ok" : "feedback-bad"}>
-              {stats.errors === 0 ? "Sauber gespielt, kein einziger Fehler!" : `${stats.sound} von ${stats.moves} Zügen waren gesund.`}
+              {stats.errors === 0 ? t("Sauber gespielt, kein einziger Fehler!") : t("{sound} von {moves} Zügen waren gesund.", { sound: stats.sound, moves: stats.moves })}
             </p>
           )}
           <div class="row">
             <button class={`btn${over ? " primary" : ""}`} onClick={onExit}>
-              {over ? "Fertig" : "Beenden"}
+              {over ? t("Fertig") : t("Beenden")}
             </button>
           </div>
         </div>
@@ -658,8 +670,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
       return;
     }
     if (isUserPly(ply)) return;
-    const t = window.setTimeout(() => setPly((p) => p + 1), DRILL_REPLY_MS);
-    return () => window.clearTimeout(t);
+    const tk = window.setTimeout(() => setPly((p) => p + 1), DRILL_REPLY_MS);
+    return () => window.clearTimeout(tk);
   }, [ply, done, learning]);
 
   const startTest = () => {
@@ -680,13 +692,13 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
       return false;
     }
     if (san === moves[ply]) {
-      setFeedback({ ok: true, text: `${san} – richtig.` });
+      setFeedback({ ok: true, text: t("{san} – richtig.", { san }) });
       setMissesHere(0);
       setPly(ply + 1);
     } else {
       if (!learning) setErrors((e) => e + 1);
       setMissesHere((m) => m + 1);
-      setFeedback({ ok: false, text: learning ? `Nicht ganz: Spiele den Zug mit dem Pfeil.` : `${san} ist nicht der Zug aus deinem Repertoire.` });
+      setFeedback({ ok: false, text: learning ? t("Nicht ganz: Spiele den Zug mit dem Pfeil.") : t("{san} ist nicht der Zug aus deinem Repertoire.", { san }) });
       if (learning) return true;
       // Tell apart "playable, just not your line" from a real opening error.
       const b = new Chess(fen);
@@ -696,8 +708,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
         if (!v || atPly !== plyRef.current) return;
         setFeedback(
           isSoundMove(v.classification)
-            ? { ok: false, text: `${san} ist spielbar (${classLabel(v.classification)}), aber nicht deine Linie.`, detail: `Dein Zug hier: such ihn!` }
-            : { ok: false, text: `${san} – ${classLabel(v.classification)}. Nicht deine Linie und auch schwach.` },
+            ? { ok: false, text: t("{san} ist spielbar ({classLabel}), aber nicht deine Linie.", { san, classLabel: classLabel(v.classification) }), detail: t("Dein Zug hier: such ihn!") }
+            : { ok: false, text: t("{san} – {classLabel}. Nicht deine Linie und auch schwach.", { san, classLabel: classLabel(v.classification) }) },
         );
       });
     }
@@ -731,20 +743,19 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
         <div class="card">
           <div class="ex-cat">{CATEGORIES.repertoire.label}</div>
           <h3>
-            {openingLabel(ex.opening)} mit {userWhite ? "Weiß" : "Schwarz"}
+            {t("{openingLabel} mit {n}", { openingLabel: openingLabel(ex.opening), n: userWhite ? t("Weiß") : t("Schwarz") })}
           </h3>
           <p class="small muted" style={{ marginTop: 0 }}>
-            {ex.library
-              ? "Hauptlinie aus der Eröffnungsbibliothek."
-              : `Deine Hauptvariante aus ${ex.games} Partien${ex.score_pct !== null ? ` (${Math.round(ex.score_pct)} % Punkte)` : ""}.`}{" "}
-            Spiele deine Züge, der Gegner antwortet automatisch.
+            {t("{n} Spiele deine Züge, der Gegner antwortet automatisch.", { n: ex.library
+              ? t("Hauptlinie aus der Eröffnungsbibliothek.")
+              : t("Deine Hauptvariante aus {games} Partien{1}.", { games: ex.games, 1: ex.score_pct !== null ? t(" ({0} % Punkte)", { 0: Math.round(ex.score_pct) }) : "" }) })}
           </p>
-          {ex.idea && <p class="note-box small">Idee: {ex.idea}</p>}
+          {ex.idea && <p class="note-box small">{t("Idee: {idea}", { idea: ex.idea })}</p>}
           <div class={`learn-mode${learning ? " on" : ""}`}>
-            {learning ? "Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach." : "Abfrage: ohne Hilfe."}
+            {learning ? t("Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach.") : t("Abfrage: ohne Hilfe.")}
             {!done && (
               <button class="btn small ghost" onClick={learning ? startTest : () => setLearning(true)}>
-                {learning ? "Ohne Hilfe abfragen" : "Züge zeigen"}
+                {learning ? t("Ohne Hilfe abfragen") : t("Züge zeigen")}
               </button>
             )}
           </div>
@@ -753,8 +764,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
           </div>
           {atCorrection && ex.correction && (
             <p class="note-box small">
-              Achtung: Hier hast du in {ex.correction.games} {ex.correction.games === 1 ? "Partie" : "Partien"} <strong>{ex.correction.played_san}</strong>{" "}
-              gespielt – laut Engine ein Fehler. Finde den besseren Zug.
+              
+              {tj("Achtung: Hier hast du in {games} {n} {played_san} gespielt – laut Engine ein Fehler. Finde den besseren Zug.", { games: ex.correction.games, n: ex.correction.games === 1 ? t("Partie") : t("Partien"), played_san: <strong>{ex.correction.played_san}</strong> })}
             </p>
           )}
           {feedback && !done && (
@@ -762,28 +773,30 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
               {feedback.detail}
             </Coach>
           )}
-          {missesHere >= 2 && !done && !learning && <p class="small muted">Der Pfeil zeigt dir den Zug.</p>}
-          {done && learning && <p class="feedback-ok">Linie einmal mit Hilfe durchgespielt. Jetzt aus dem Gedächtnis!</p>}
+          {missesHere >= 2 && !done && !learning && <p class="small muted">{t("Der Pfeil zeigt dir den Zug.")}</p>}
+          {done && learning && <p class="feedback-ok">{t("Linie einmal mit Hilfe durchgespielt. Jetzt aus dem Gedächtnis!")}</p>}
           {done && !learning && (
             <p class={errors === 0 ? "feedback-ok" : "feedback-bad"}>
-              {errors === 0 ? "Fehlerfrei durchgespielt!" : `Durchgespielt mit ${errors} ${errors === 1 ? "Fehlversuch" : "Fehlversuchen"}. Morgen kommt die Linie wieder.`}
+              {errors === 0 ? t("Fehlerfrei durchgespielt!") : t("Durchgespielt mit {errors} {1}. Morgen kommt die Linie wieder.", { errors, 1: errors === 1 ? t("Fehlversuch") : t("Fehlversuchen") })}
             </p>
           )}
           {done && ex.correction && (
             <p class="small">
-              Merke: <strong>{ex.correction.best_san}</strong> statt {ex.correction.played_san}.
-            </p>
+              
+              {tj("Merke: {best_san} statt {played_san}.", { best_san: <strong>{ex.correction.best_san}</strong>, played_san: ex.correction.played_san })}</p>
           )}
-          <p class="small mono drill-moves">{moveText || "Startstellung"}</p>
+          <p class="small mono drill-moves">{moveText || t("Startstellung")}</p>
           <div class="row">
             {done && learning && (
               <button class="btn primary" onClick={startTest}>
-                Jetzt ohne Hilfe abfragen
+                
+                {t("Jetzt ohne Hilfe abfragen")}
               </button>
             )}
             {done && !learning && (
               <button class="btn" onClick={() => setPlayOn(true)}>
-                Weiterspielen gegen {ENGINE_NAME}
+                
+                {t("Weiterspielen gegen {ENGINE_NAME}", { ENGINE_NAME })}
               </button>
             )}
             {done && !learning && <NextButton onNext={onNext} label={nextLabel} />}
@@ -797,10 +810,10 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
 // ---------- play-out against the engine ----------
 
 const GOAL_TEXT: Record<PlayoutExercise["goal"], string> = {
-  mate: "Ziel: Matt setzen",
-  promote: "Ziel: Bauer umwandeln",
-  win: "Ziel: Vorteil halten",
-  hold: "Ziel: Remis halten",
+  mate: t("Ziel: Matt setzen"),
+  promote: t("Ziel: Bauer umwandeln"),
+  win: t("Ziel: Vorteil halten"),
+  hold: t("Ziel: Remis halten"),
 };
 
 export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<PlayoutExercise>) {
@@ -872,7 +885,7 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
       try {
         const reply = await replyFor(b.fen());
         if (!alive.current || thisRound !== round.current) return;
-        if (!reply) throw new Error("Die Engine hat keinen Zug gefunden.");
+        if (!reply) throw new Error(t("Die Engine hat keinen Zug gefunden."));
         judge();
         // The engine scores for itself (side to move); flip to the player's view.
         state.score = { cp: reply.cp !== null ? -reply.cp : null, mate: reply.mate !== null ? -reply.mate : null };
@@ -924,10 +937,10 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
           <div class="kpi-rows">
             <div>
               <span>{GOAL_TEXT[ex.goal]}</span>
-              <strong>{userColor === "white" ? "Weiß" : "Schwarz"}</strong>
+              <strong>{userColor === "white" ? t("Weiß") : t("Schwarz")}</strong>
             </div>
             <div>
-              <span>Deine Züge</span>
+              <span>{t("Deine Züge")}</span>
               <strong class="tnum">
                 {userMoves} / {ex.max_moves}
               </strong>
@@ -936,21 +949,23 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
           <div class="progress" style={{ margin: "10px 0" }}>
             <div style={{ width: `${(userMoves / ex.max_moves) * 100}%` }} />
           </div>
-          {thinking && <p class="small muted">Die Engine denkt …</p>}
+          {thinking && <p class="small muted">{t("Die Engine denkt …")}</p>}
           {verdict.done && <Coach mood={verdict.success ? "wow" : "sad"} tone={verdict.success ? "var(--win)" : "var(--loss)"} title={verdict.text} />}
           {error && <p class="error small">{error}</p>}
           <div class="row">
             {verdict.done && !verdict.success && (
               <button class="btn" onClick={retry}>
-                Noch einmal
+                
+                {t("Noch einmal")}
               </button>
             )}
             {!verdict.done && (
               <button
                 class="btn ghost"
-                onClick={() => finish({ done: true, success: false, text: "Aufgegeben. Beim nächsten Mal klappt's." })}
+                onClick={() => finish({ done: true, success: false, text: t("Aufgegeben. Beim nächsten Mal klappt's.") })}
               >
-                Aufgeben
+                
+                {t("Aufgeben")}
               </button>
             )}
             {verdict.done && <NextButton onNext={onNext} label={nextLabel} />}
@@ -958,7 +973,8 @@ export function PlayoutRunner({ ex, onResult, onNext, nextLabel }: RunnerProps<P
         </div>
         {ex.game_id && (
           <button class="btn" onClick={() => navigate({ view: "analysis", gameId: ex.game_id, ply: ex.ply_index })}>
-            Partie an dieser Stelle öffnen
+            
+            {t("Partie an dieser Stelle öffnen")}
           </button>
         )}
       </div>

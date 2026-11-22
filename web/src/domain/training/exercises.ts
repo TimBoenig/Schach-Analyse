@@ -10,6 +10,7 @@ import { ERROR_CLASSES, type GameFeatures, type MoveEvent, moveLabel, sanForUci 
 import { openingMain } from "../profile/openings";
 import { LIBRARY_DRILLS } from "./library";
 import { BASIC_ENDGAMES } from "./basics";
+import { t } from "../../i18n";
 
 export type Category =
   | "blunder"
@@ -31,43 +32,43 @@ export interface CategoryInfo {
 
 export const CATEGORIES: Record<Category, CategoryInfo> = {
   blunder: {
-    label: "Blunder-Check",
-    text: "Stellungen, in denen du Material oder die Stellung eingestellt hast. Finde den sicheren Zug.",
+    label: t("Blunder-Check"),
+    text: t("Stellungen, in denen du Material oder die Stellung eingestellt hast. Finde den sicheren Zug."),
     skills: ["safety"],
   },
   chance: {
-    label: "Chancen nutzen",
-    text: "Dein Gegner hat gepatzt und du hast es nicht bestraft. Finde den Zug, der den Fehler ausnutzt.",
+    label: t("Chancen nutzen"),
+    text: t("Dein Gegner hat gepatzt und du hast es nicht bestraft. Finde den Zug, der den Fehler ausnutzt."),
     skills: ["tactics"],
   },
   opening: {
-    label: "Eröffnungsfehler",
-    text: "Stellungen aus der Eröffnung, in denen du vom besten Weg abgekommen bist.",
+    label: t("Eröffnungsfehler"),
+    text: t("Stellungen aus der Eröffnung, in denen du vom besten Weg abgekommen bist."),
     skills: ["opening"],
   },
   repertoire: {
-    label: "Repertoire üben",
-    text: "Spiele deine eigenen Eröffnungen Zug für Zug nach. Deine typischen Fehler sind schon korrigiert.",
+    label: t("Repertoire üben"),
+    text: t("Spiele deine eigenen Eröffnungen Zug für Zug nach. Deine typischen Fehler sind schon korrigiert."),
     skills: ["opening"],
   },
   endgame: {
-    label: "Endspiel-Aufgaben",
-    text: "Endspielstellungen aus deinen Partien, in denen es einen deutlich besseren Zug gab.",
+    label: t("Endspiel-Aufgaben"),
+    text: t("Endspielstellungen aus deinen Partien, in denen es einen deutlich besseren Zug gab."),
     skills: ["endgame"],
   },
   basics: {
-    label: "Endspiel-Grundlagen",
-    text: "Klassische Lehrstellungen gegen die Engine: Mattführung, Opposition, Lucena und Philidor.",
+    label: t("Endspiel-Grundlagen"),
+    text: t("Klassische Lehrstellungen gegen die Engine: Mattführung, Opposition, Lucena und Philidor."),
     skills: ["endgame"],
   },
   conversion: {
-    label: "Vorteil verwerten",
-    text: "Du stehst auf Gewinn. Finde den Zug, der den Vorteil sichert, oder spiele die Stellung gegen die Engine zu Ende.",
+    label: t("Vorteil verwerten"),
+    text: t("Du stehst auf Gewinn. Finde den Zug, der den Vorteil sichert, oder spiele die Stellung gegen die Engine zu Ende."),
     skills: ["conversion"],
   },
   defense: {
-    label: "Zähe Verteidigung",
-    text: "Schlechtere Stellungen aus deinen Partien. Finde den Zug, der am meisten Widerstand leistet.",
+    label: t("Zähe Verteidigung"),
+    text: t("Schlechtere Stellungen aus deinen Partien. Finde den Zug, der am meisten Widerstand leistet."),
     skills: ["defense"],
   },
 };
@@ -84,14 +85,14 @@ export const CATEGORY_ORDER: Category[] = [
 ];
 
 const PROMPTS: Record<Category, string> = {
-  blunder: "Blunder-Check: Welche Schachs, Schläge und Drohungen gibt es? Finde den besten Zug.",
-  chance: "Dein Gegner hat gerade einen Fehler gemacht. Bestrafe ihn!",
-  opening: "Eröffnung: Welcher Zug hält deine Stellung gesund?",
+  blunder: t("Blunder-Check: Welche Schachs, Schläge und Drohungen gibt es? Finde den besten Zug."),
+  chance: t("Dein Gegner hat gerade einen Fehler gemacht. Bestrafe ihn!"),
+  opening: t("Eröffnung: Welcher Zug hält deine Stellung gesund?"),
   repertoire: "",
-  endgame: "Endspiel: Finde den genauesten Zug.",
+  endgame: t("Endspiel: Finde den genauesten Zug."),
   basics: "",
-  conversion: "Du stehst auf Gewinn. Finde den Zug, der den Vorteil sichert.",
-  defense: "Du stehst schlechter. Finde die zäheste Verteidigung.",
+  conversion: t("Du stehst auf Gewinn. Finde den Zug, der den Vorteil sichert."),
+  defense: t("Du stehst schlechter. Finde die zäheste Verteidigung."),
 };
 
 interface Base {
@@ -262,7 +263,7 @@ function puzzle(f: GameFeatures, m: MoveEvent): PuzzleExercise | null {
     id: `p:${f.game_id}:${m.ply_index}`,
     kind: "puzzle",
     category,
-    title: `${label} gegen ${f.rec.opp_name || "?"}`,
+    title: t("{label} gegen {n}", { label, n: f.rec.opp_name || "?" }),
     fen: m.fen_before,
     solution,
     solution_san: san,
@@ -398,11 +399,11 @@ function playouts(analyzed: GameFeatures[]): PlayoutExercise[] {
       id: `w:${f.game_id}:${m.ply_index}`,
       kind: "playout",
       category: "conversion",
-      title: `Gewinnstellung gegen ${f.rec.opp_name || "?"}`,
+      title: t("Gewinnstellung gegen {0}", { 0: f.rec.opp_name || "?" }),
       fen: m.fen_before,
       goal: "win",
       max_moves: 12,
-      text: `Hier hast du ${moveLabel(m.move_number, f.rec.user_color === "white", m.san)} gespielt und den Vorteil aus der Hand gegeben. Spiele die Stellung gegen die Engine zu Ende: nach 12 Zügen musst du noch klar auf Gewinn stehen.`,
+      text: t("Hier hast du {moveLabel} gespielt und den Vorteil aus der Hand gegeben. Spiele die Stellung gegen die Engine zu Ende: nach 12 Zügen musst du noch klar auf Gewinn stehen.", { moveLabel: moveLabel(m.move_number, f.rec.user_color === "white", m.san) }),
       game_id: f.game_id,
       ply_index: m.ply_index,
     });

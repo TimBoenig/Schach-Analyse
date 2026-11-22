@@ -17,6 +17,7 @@ import { useBook } from "./useBook";
 import { usePositionLines, useVerdicts } from "./useLive";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
+import { t } from "../i18n";
 
 const START = new Chess().fen();
 // Per-viewer convenience: the last line on the free board survives a reload.
@@ -143,12 +144,12 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   const last = n > 0 ? { from: ucis[n - 1].slice(0, 2), to: ucis[n - 1].slice(2, 4) } : null;
   const verdict = n > 0 ? verdicts[n - 1] : null;
   const status = board.isCheckmate()
-    ? `Schachmatt – ${board.turn() === "w" ? "Schwarz" : "Weiß"} gewinnt.`
+    ? t("Schachmatt – {0} gewinnt.", { 0: board.turn() === "w" ? t("Schwarz") : t("Weiß") })
     : board.isStalemate()
-      ? "Patt – Remis."
+      ? t("Patt – Remis.")
       : board.isGameOver()
-        ? "Remis."
-        : `${board.turn() === "w" ? "Weiß" : "Schwarz"} am Zug${board.inCheck() ? " (Schach)" : ""}`;
+        ? t("Remis.")
+        : t("{0} am Zug{1}", { 0: board.turn() === "w" ? t("Weiß") : t("Schwarz"), 1: board.inCheck() ? t(" (Schach)") : "" });
 
   return (
     <div>
@@ -156,7 +157,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
         actions={
           <>
             <button class="btn small" onClick={() => reset()}>
-              <IconReset /> Startstellung
+              <IconReset />  {t("Startstellung")}
             </button>
             <GuideButton id="board" />
           </>
@@ -184,27 +185,27 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
             />
           </div>
           <div class="controls" style={{ gridRow: 4 }}>
-            <button class="btn" onClick={() => go(0)} aria-label="Zum Anfang">
+            <button class="btn" onClick={() => go(0)} aria-label={t("Zum Anfang")}>
               <IconFirst />
             </button>
-            <button class="btn" onClick={() => go(n - 1)} aria-label="Zug zurück" disabled={n === 0}>
+            <button class="btn" onClick={() => go(n - 1)} aria-label={t("Zug zurück")} disabled={n === 0}>
               <IconPrev />
             </button>
-            <button class="btn" onClick={() => go(n + 1)} aria-label="Zug vor" disabled={n >= ucis.length}>
+            <button class="btn" onClick={() => go(n + 1)} aria-label={t("Zug vor")} disabled={n >= ucis.length}>
               <IconNext />
             </button>
-            <button class="btn" onClick={() => go(ucis.length)} aria-label="Zum Ende">
+            <button class="btn" onClick={() => go(ucis.length)} aria-label={t("Zum Ende")}>
               <IconLast />
             </button>
-            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label="Brett drehen" title="Brett drehen (F)">
+            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label={t("Brett drehen")} title={t("Brett drehen (F)")}>
               <IconFlip />
             </button>
             <button
               class={`btn${showArrows ? " on" : ""}`}
               onClick={() => setShowArrows((v) => !v)}
               aria-pressed={showArrows}
-              aria-label="Pfeil für den besten Zug ein- oder ausblenden"
-              title="Bester-Zug-Pfeil (A)"
+              aria-label={t("Pfeil für den besten Zug ein- oder ausblenden")}
+              title={t("Bester-Zug-Pfeil (A)")}
             >
               <IconArrow />
             </button>
@@ -214,39 +215,41 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
         <div class="side-panel">
           <OpeningLine fens={fens.slice(0, n + 1)} book={book} />
           <div class="card">
-            <h3>Bewertung</h3>
+            <h3>{t("Bewertung")}</h3>
             {n > 0 ? (
               <VerdictCard san={sans[n - 1]} verdict={verdict} />
             ) : (
               <p class="muted small" style={{ margin: 0 }}>
-                Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von {ENGINE_NAME} bewertet, mit konkreter Begründung.
+                
+                {t("Ziehe eine Figur (antippen oder ziehen). Jeder Zug wird sofort von {ENGINE_NAME} bewertet, mit konkreter Begründung.", { ENGINE_NAME })}
               </p>
             )}
             {live.busy && !live.lines.length ? (
               <p class="muted small" style={{ marginBottom: 0 }}>
-                <span class="dot-wait" /> <EngineWait>{ENGINE_NAME} rechnet …</EngineWait>
+                <span class="dot-wait" /> <EngineWait>{t("{ENGINE_NAME} rechnet …", { ENGINE_NAME })}</EngineWait>
               </p>
             ) : (
-              <EngineLines fen={fen} lines={live.lines} label="Beste Fortsetzungen" onPlay={playLine} max={3} />
+              <EngineLines fen={fen} lines={live.lines} label={t("Beste Fortsetzungen")} onPlay={playLine} max={3} />
             )}
           </div>
 
           <div class="card">
             <div class="tile-head">
-              <h3>Deine Variante</h3>
-              {sans.length > 0 && <span class="tile-sub">{sans.length} Halbzüge</span>}
+              <h3>{t("Deine Variante")}</h3>
+              {sans.length > 0 && <span class="tile-sub">{t("{length} Halbzüge", { length: sans.length })}</span>}
             </div>
             {sans.length ? (
               <LineMoves startFen={line.start} sans={sans} verdicts={verdicts} cursor={n} onPick={go} />
             ) : (
               <p class="muted small" style={{ margin: 0 }}>
-                Noch keine Züge.
+                
+                {t("Noch keine Züge.")}
               </p>
             )}
           </div>
 
           <div class="card">
-            <h3>Stellung laden</h3>
+            <h3>{t("Stellung laden")}</h3>
             <form
               class="fen-form"
               onSubmit={(e) => {
@@ -264,15 +267,16 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
               <input
                 type="text"
                 value={fenInput}
-                placeholder="FEN einfügen, z. B. aus Chess.com oder Lichess"
+                placeholder={t("FEN einfügen, z. B. aus Chess.com oder Lichess")}
                 onInput={(e) => setFenInput((e.target as HTMLInputElement).value)}
                 aria-label="FEN"
               />
               <button class="btn" type="submit">
-                Laden
+                
+                {t("Laden")}
               </button>
             </form>
-            {fenError && <p class="error small">Diese FEN ist keine gültige Stellung.</p>}
+            {fenError && <p class="error small">{t("Diese FEN ist keine gültige Stellung.")}</p>}
             <div class="row" style={{ marginTop: "10px" }}>
               <button
                 class="btn small"
@@ -280,10 +284,12 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
                   void navigator.clipboard?.writeText(fen).catch(() => undefined);
                 }}
               >
-                FEN kopieren
+                
+                {t("FEN kopieren")}
               </button>
               <button class="btn small" onClick={() => navigate({ view: "games" })}>
-                Eigene Partie öffnen
+                
+                {t("Eigene Partie öffnen")}
               </button>
             </div>
           </div>

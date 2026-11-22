@@ -241,7 +241,7 @@ export function detectTacticalMotifs(
   const piece = boardAfter.pieceAt(move.to);
   if (!piece) return [];
   const sliders = ([BISHOP, ROOK, QUEEN] as PieceType[])
-    .flatMap((t) => boardAfter.pieces(t, color))
+    .flatMap((tk) => boardAfter.pieces(tk, color))
     .sort((a, b) => a - b);
   const ctx: MotifCtx = {
     before: boardBefore,

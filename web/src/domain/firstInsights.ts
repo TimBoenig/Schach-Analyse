@@ -4,6 +4,7 @@
 // here is a count or a quote from the user's own games, never a verdict that
 // would need more evidence (no "better than", no "weakness").
 import { Chess } from "chess.js";
+import { locale, t } from "../i18n";
 
 import { getUserColor, isBulletGame } from "./metrics";
 import type { GameAnalysis, MoveData } from "./types";
@@ -13,9 +14,16 @@ const MIN_REPEAT = 3;
 /** Per colour, so a points share is not read off two games. */
 const MIN_PER_COLOR = 5;
 
-const SPEED_LABEL: Record<string, string> = { bullet: "Bullet", blitz: "Blitz", rapid: "Schnellschach", classical: "klassischen Partien", daily: "Fernschach" };
+// One whole sentence per speed, so each language can phrase it its own way.
+const SPEED_SENTENCE: Record<string, (n: string, total: string) => string> = {
+  bullet: (n, total) => t("Die meisten Partien spielst du im Bullet: {n} von {total}.", { n, total }),
+  blitz: (n, total) => t("Die meisten Partien spielst du im Blitz: {n} von {total}.", { n, total }),
+  rapid: (n, total) => t("Die meisten Partien spielst du im Schnellschach: {n} von {total}.", { n, total }),
+  classical: (n, total) => t("Die meisten Partien spielst du mit langer Bedenkzeit: {n} von {total}.", { n, total }),
+  daily: (n, total) => t("Die meisten Partien spielst du im Fernschach: {n} von {total}.", { n, total }),
+};
 
-const n = (v: number) => v.toLocaleString("de-DE");
+const n = (v: number) => v.toLocaleString(locale());
 
 function dateKey(g: GameAnalysis): string {
   return `${g.metadata.date || ""} ${g.metadata.headers?.UTCTime || g.metadata.headers?.EndTime || ""}`;
@@ -47,7 +55,7 @@ export function firstThoughts(games: GameAnalysis[], name: string): string[] {
     if (o && o !== "?") openings.set(o, (openings.get(o) ?? 0) + 1);
   }
   const op = top(openings);
-  if (op && op[1] >= MIN_REPEAT) out.push(`Am häufigsten auf dem Brett: ${op[0]}, in ${n(op[1])} Partien.`);
+  if (op && op[1] >= MIN_REPEAT) out.push(t("Am häufigsten auf dem Brett: {n}, in {n2} Partien.", { n: op[0], n2: n(op[1]) }));
 
   const points = { white: { pts: 0, games: 0 }, black: { pts: 0, games: 0 } };
   for (const { g, color } of mine) {
@@ -58,16 +66,16 @@ export function firstThoughts(games: GameAnalysis[], name: string): string[] {
   }
   if (points.white.games >= MIN_PER_COLOR && points.black.games >= MIN_PER_COLOR) {
     const share = (c: "white" | "black") => Math.round((points[c].pts / points[c].games) * 100);
-    out.push(`Mit Weiß holst du ${share("white")} % der Punkte, mit Schwarz ${share("black")} %.`);
+    out.push(t("Mit Weiß holst du {share} % der Punkte, mit Schwarz {share2} %.", { share: share("white"), share2: share("black") }));
   }
 
   const speeds = new Map<string, number>();
   for (const { g } of mine) {
     const s = (g.metadata.speed_category || "").toLowerCase() || (isBulletGame(g.metadata) ? "bullet" : "");
-    if (SPEED_LABEL[s]) speeds.set(s, (speeds.get(s) ?? 0) + 1);
+    if (SPEED_SENTENCE[s]) speeds.set(s, (speeds.get(s) ?? 0) + 1);
   }
   const sp = top(speeds);
-  if (sp && sp[1] >= MIN_REPEAT && speeds.size > 1) out.push(`Die meisten Partien spielst du im ${SPEED_LABEL[sp[0]]}: ${n(sp[1])} von ${n(mine.length)}.`);
+  if (sp && sp[1] >= MIN_REPEAT && speeds.size > 1) out.push(SPEED_SENTENCE[sp[0]](n(sp[1]), n(mine.length)));
 
   let run = 0;
   let best = 0;
@@ -77,7 +85,7 @@ export function firstThoughts(games: GameAnalysis[], name: string): string[] {
     run = won ? run + 1 : 0;
     best = Math.max(best, run);
   }
-  if (best >= MIN_REPEAT) out.push(`Deine längste Siegesserie hier: ${n(best)} Partien am Stück.`);
+  if (best >= MIN_REPEAT) out.push(t("Deine längste Siegesserie hier: {n} Partien am Stück.", { n: n(best) }));
 
   const rivals = new Map<string, number>();
   for (const { g, color } of mine) {
@@ -85,7 +93,7 @@ export function firstThoughts(games: GameAnalysis[], name: string): string[] {
     if (opp) rivals.set(opp, (rivals.get(opp) ?? 0) + 1);
   }
   const rv = top(rivals);
-  if (rv && rv[1] >= MIN_REPEAT) out.push(`Gegen ${rv[0]} hast du ${n(rv[1])}-mal gespielt. Dein häufigster Gegner.`);
+  if (rv && rv[1] >= MIN_REPEAT) out.push(t("Gegen {n} hast du {n2}-mal gespielt. Dein häufigster Gegner.", { n: rv[0], n2: n(rv[1]) }));
 
   return out;
 }

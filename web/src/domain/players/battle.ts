@@ -12,6 +12,7 @@ import { type Estimate, normalCdf, probBetter, SURE_P } from "./compare";
 import type { HeadToHead } from "./h2h";
 import type { Ranking, RankRow } from "./ranking";
 import { FACTOR_WEIGHTS } from "./weights";
+import { t } from "../../i18n";
 
 /** Chance from which a round counts as won ("knapp"); EDGE/SURE make it "deutlich"/"klar". */
 export const ROUND_P = 0.65;
@@ -26,14 +27,14 @@ export interface RoundDef {
 }
 
 export const BATTLE_ROUNDS: RoundDef[] = [
-  { key: "results", label: "Ergebnisse", crown: "Punktesammler", factors: ["expectation"] },
-  { key: "precision", label: "Präzision", crown: "Präzisionsmaschine", factors: ["accuracy"] },
-  { key: "blunders", label: "Fehlervermeidung", crown: "Fels in der Brandung", factors: ["blunders"] },
-  { key: "opening", label: "Eröffnung", crown: "Eröffnungsprofi", factors: ["opening"] },
-  { key: "tactics", label: "Mittelspiel & Taktik", crown: "Taktik-Ass", factors: ["middlegame", "tactics"] },
-  { key: "endgame", label: "Endspiel & Technik", crown: "Endspiel-Ass", factors: ["endgame", "conversion", "defense"] },
-  { key: "nerves", label: "Nerven & Uhr", crown: "Nervenstark", factors: ["safety", "time"] },
-  { key: "h2h", label: "Direkte Duelle", crown: "Duell-Champion", factors: ["h2h"] },
+  { key: "results", label: t("Ergebnisse"), crown: t("Punktesammler"), factors: ["expectation"] },
+  { key: "precision", label: t("Präzision"), crown: t("Präzisionsmaschine"), factors: ["accuracy"] },
+  { key: "blunders", label: t("Fehlervermeidung"), crown: t("Fels in der Brandung"), factors: ["blunders"] },
+  { key: "opening", label: t("Eröffnung"), crown: t("Eröffnungsprofi"), factors: ["opening"] },
+  { key: "tactics", label: t("Mittelspiel & Taktik"), crown: t("Taktik-Ass"), factors: ["middlegame", "tactics"] },
+  { key: "endgame", label: t("Endspiel & Technik"), crown: t("Endspiel-Ass"), factors: ["endgame", "conversion", "defense"] },
+  { key: "nerves", label: t("Nerven & Uhr"), crown: t("Nervenstark"), factors: ["safety", "time"] },
+  { key: "h2h", label: t("Direkte Duelle"), crown: t("Duell-Champion"), factors: ["h2h"] },
 ];
 
 export type Side = "a" | "b";
@@ -109,7 +110,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
   const rb = ranking.rows.find((r) => r.id === bId);
   if (!ra || !rb || ra === rb) return null;
   const higher = new Map(ranking.factors.map((f) => [f.key, f.higher_is_better]));
-  const total = BATTLE_ROUNDS.reduce((s, r) => s + r.factors.reduce((t, k) => t + (FACTOR_WEIGHTS[k] ?? 0), 0), 0);
+  const total = BATTLE_ROUNDS.reduce((s, r) => s + r.factors.reduce((tk, k) => tk + (FACTOR_WEIGHTS[k] ?? 0), 0), 0);
 
   const rounds: BattleRound[] = BATTLE_ROUNDS.map((def) => {
     const factors: BattleFactor[] = def.factors.map((key) => {
@@ -132,7 +133,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
     const p = wsum ? psum / wsum : null;
     const margin = p === null ? null : marginOf(p);
     const winner: BattleRound["winner"] = p === null ? null : margin === null ? "draw" : p > 0.5 ? "a" : "b";
-    const weight = (def.factors.reduce((t, k) => t + (FACTOR_WEIGHTS[k] ?? 0), 0) / total) * 100;
+    const weight = (def.factors.reduce((tk, k) => tk + (FACTOR_WEIGHTS[k] ?? 0), 0) / total) * 100;
     return { key: def.key, label: def.label, weight, p_a: p, winner, margin, factors };
   });
 
@@ -150,12 +151,12 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
 
   const name = (s: Side) => (s === "a" ? ra.name : rb.name);
   let verdict: string;
-  if (!fought.length) verdict = "Für eine Battle fehlen noch Daten: beide brauchen analysierte Partien oder Partien gegeneinander.";
-  else if (!leader) verdict = `Ausgeglichen: ${wins_a}:${wins_b} Runden, keiner ist insgesamt vorn.`;
+  if (!fought.length) verdict = t("Für eine Battle fehlen noch Daten: beide brauchen analysierte Partien oder Partien gegeneinander.");
+  else if (!leader) verdict = t("Ausgeglichen: {wins_a}:{wins_b} Runden, keiner ist insgesamt vorn.", { wins_a, wins_b });
   else {
     const [mine, theirs] = leader === "a" ? [wins_a, wins_b] : [wins_b, wins_a];
-    const how = mine - theirs >= 3 ? "klar" : mine > theirs ? "knapp" : "nach Stärke";
-    verdict = `${name(leader)} gewinnt ${how} mit ${mine}:${theirs} Runden${tipping ? `, entschieden in „${tipping.r.label}“` : ""}.`;
+    const how = mine - theirs >= 3 ? t("klar") : mine > theirs ? t("knapp") : t("nach Stärke");
+    verdict = t("{name} gewinnt {how} mit {mine}:{theirs} Runden{4}.", { name: name(leader), how, mine, theirs, 4: tipping ? t(", entschieden in „{label}“", { label: tipping.r.label }) : "" });
     // Rounds count wins only; the strength bar weighs every round, open ones
     // included. When the two disagree, say so instead of leaving a 51:49 bar
     // next to a verdict for the other side unexplained.
@@ -164,7 +165,7 @@ export function buildBattle(ranking: Ranking, aId: string, bId: string, h2h?: He
     const strongerSide: Side | null = shownA === 50 ? null : shownA > 50 ? "a" : "b";
     if (strongerSide && strongerSide !== leader) {
       const share = strongerSide === "a" ? shownA : 100 - shownA;
-      verdict += ` Über alle Runden gewogen, auch die offenen, liegt aber ${name(strongerSide)} knapp vorn (${share}:${100 - share}).`;
+      verdict += t(" Über alle Runden gewogen, auch die offenen, liegt aber {name} knapp vorn ({share}:{2}).", { name: name(strongerSide), share, 2: 100 - share });
     }
   }
   return {

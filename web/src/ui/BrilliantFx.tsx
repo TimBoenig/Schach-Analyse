@@ -3,6 +3,7 @@ import { useEffect, useRef } from "preact/hooks";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
 import { fxPrefs, prefersReducedMotion } from "./fxPrefs";
 import { badgeFor } from "./labels";
+import { t } from "../i18n";
 
 /**
  * Celebration over the board when the player finds a brilliant move: ring burst,
@@ -42,7 +43,7 @@ export function BrilliantFx({ square, flipped, san }: { square: string; flipped:
       </div>
       <div class="brilliant-banner">
         <img src={badgeFor("Brilliant") ?? ""} alt="" />
-        <span>Brillant!!</span>
+        <span>{t("Brillant!!")}</span>
       </div>
     </div>
   );

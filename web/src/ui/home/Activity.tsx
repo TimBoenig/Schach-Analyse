@@ -6,21 +6,22 @@ import { useMemo, useState } from "preact/hooks";
 
 import { activityCalendar, type CalendarDay, type DailyRow } from "../../domain/profile";
 import { Foot } from "../kit";
+import { t, tj, locale } from "../../i18n";
 
 const CAL_SPANS = [4, 8, 16] as const;
-const CAL_WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const CAL_MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+const CAL_WEEKDAYS = [t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa"), t("So")];
+const CAL_MONTHS = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
 const calLevel = (n: number) => (n === 0 ? 0 : n <= 1 ? 1 : n <= 3 ? 2 : n <= 6 ? 3 : 4);
 
 function dayLong(day: string): string {
   const [y, m, d] = day.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+  return new Date(y, m - 1, d).toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "long" });
 }
 
 function dayText(d: CalendarDay): string {
-  if (!d.games) return `${dayLong(d.day)}: keine Partie`;
+  if (!d.games) return t("{dayLong}: keine Partie", { dayLong: dayLong(d.day) });
   const wdl = [d.wins && `${d.wins} S`, d.draws && `${d.draws} R`, d.losses && `${d.losses} N`].filter(Boolean).join(" · ");
-  return `${dayLong(d.day)}: ${d.games} ${d.games === 1 ? "Partie" : "Partien"}${wdl ? ` (${wdl})` : ""}${d.score_pct !== null ? `, ${Math.round(d.score_pct)} % Punkte` : ""}`;
+  return `${dayLong(d.day)}: ${d.games} ${d.games === 1 ? t("Partie") : t("Partien")}${wdl ? ` (${wdl})` : ""}${d.score_pct !== null ? t(", {0} % Punkte", { 0: Math.round(d.score_pct) }) : ""}`;
 }
 
 /** `daily` is the full history; the span switch cuts the last 4, 8 or 16 weeks. */
@@ -38,17 +39,17 @@ export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: str
     <div class={`cal cal-w${weeks}`}>
       <div class="cal-top">
         <p class="cal-total">
-          <strong class="tnum">{total}</strong> {total === 1 ? "Partie" : "Partien"} an <strong class="tnum">{active}</strong> von {flat.length} Tagen
+          {tj("{total} {n} an {active} von {length} Tagen", { total: <strong class="tnum">{total}</strong>, n: total === 1 ? t("Partie") : t("Partien"), active: <strong class="tnum">{active}</strong>, length: flat.length })}
         </p>
-        <div class="segmented small-seg" role="group" aria-label="Zeitraum der Aktivität">
+        <div class="segmented small-seg" role="group" aria-label={t("Zeitraum der Aktivität")}>
           {CAL_SPANS.map((w) => (
             <button key={w} class={weeks === w ? "active" : ""} aria-pressed={weeks === w} onClick={() => setWeeks(w)}>
-              {w} Wo.
+              {t("{w} Wo.", { w })}
             </button>
           ))}
         </div>
       </div>
-      <div class="cal-grid" role="grid" aria-label={`${total} Partien an ${active} Tagen in den letzten ${weeks} Wochen`}>
+      <div class="cal-grid" role="grid" aria-label={t("{total} Partien an {active} Tagen in den letzten {weeks} Wochen", { total, active, weeks })}>
         <span />
         {CAL_WEEKDAYS.map((w) => (
           <span key={w} class="cal-wd">
@@ -87,23 +88,23 @@ export function Calendar({ daily, today, note }: { daily: DailyRow[]; today: str
           dayText(shown)
         ) : (
           <span class="muted">
-            {lastPlayed ? `Zuletzt ${dayLong(lastPlayed.day)}` : "Noch keine Partie in diesen Wochen"}
-            {busiest && busiest.games > 1 ? ` · meiste: ${busiest.games} am ${dayLong(busiest.day)}` : ""}
+            {t("{n}{n2}", { n: lastPlayed ? t("Zuletzt {dayLong}", { dayLong: dayLong(lastPlayed.day) }) : t("Noch keine Partie in diesen Wochen"), n2: busiest && busiest.games > 1 ? t(" · meiste: {games} am {dayLong}", { games: busiest.games, dayLong: dayLong(busiest.day) }) : "" })}
           </span>
         )}
       </p>
       <div class="cal-key" aria-hidden="true">
         <span>
-          weniger <i class="l1" />
+          
+          {t("weniger")}{" "}<i class="l1" />
           <i class="l2" />
           <i class="l3" />
-          <i class="l4" /> mehr Partien
+          <i class="l4" />  {t("mehr Partien")}
         </span>
         <span>
-          <i class="dot good" /> gut gepunktet <i class="dot bad" /> schwacher Tag
+          <i class="dot good" /> {" "}{t("gut gepunktet")}{" "}<i class="dot bad" />  {t("schwacher Tag")}
         </span>
       </div>
-      <Foot>Tippe einen Tag an. {note ?? "Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien."}</Foot>
+      <Foot>{t("Tippe einen Tag an. {n}", { n: note ?? t("Regelmäßig wenige Partien mit Nachbereitung bringen mehr als seltene Serien.") })}</Foot>
     </div>
   );
 }

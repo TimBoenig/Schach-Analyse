@@ -35,6 +35,7 @@ import { ELO_MIN, lichessBlitzToElo, toLichessBlitz } from "./fide";
 import type { GameFeatures } from "./features";
 import { ratingSource } from "./benchmarks";
 import { SKILL_NAMES } from "./skills";
+import { t } from "../../i18n";
 
 /** Lichess blitz points per unit of ln(error ratio). See the header. */
 export const ELO_PER_LN_ERRORS = 849;
@@ -187,7 +188,7 @@ function settle(key: string, anchor: number, prior: number, ratio: { ln: number;
   const rating = Math.round(Math.min(STRENGTH_MAX, Math.max(STRENGTH_MIN, elo)) / 10) * 10;
   return {
     key,
-    name: key === "overall" ? "Gesamt" : SKILL_NAMES[key],
+    name: key === "overall" ? t("Gesamt") : SKILL_NAMES[key],
     rating,
     margin,
     capped,

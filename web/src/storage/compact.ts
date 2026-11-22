@@ -14,6 +14,7 @@ import { detectSpeedCategory } from "../domain/metrics/speed";
 import { parsePgnText } from "../domain/pgn";
 import { analyzeGameTactics } from "../domain/tactics";
 import type { Classification, GameSummary, MoveData, PvLine, StoredGame } from "../domain/types";
+import { t } from "../i18n";
 
 export const COMPACT_VERSION = 1;
 /** Plies of the engine's best line kept online (the profile reads up to 8). */
@@ -167,7 +168,7 @@ export async function packMoves(moves: MoveData[]): Promise<PackedMoves> {
 
 async function readTuples(p: PackedMoves): Promise<PackedMove[]> {
   if (p.enc === "json") return p.data as PackedMove[];
-  if (!canGzip()) throw new Error("Dieser Browser kann komprimierte Analysen nicht lesen.");
+  if (!canGzip()) throw new Error(t("Dieser Browser kann komprimierte Analysen nicht lesen."));
   const bytes = await streamBytes(fromBase64(p.data as string), new DecompressionStream("gzip"));
   return JSON.parse(new TextDecoder().decode(bytes)) as PackedMove[];
 }

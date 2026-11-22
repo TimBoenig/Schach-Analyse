@@ -10,6 +10,7 @@ import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
 import { IconBack, IconClose } from "../icons";
 import { isTyping } from "../keys";
 import { useNarrow } from "../useNarrow";
+import { t } from "../../i18n";
 
 const reducedMotion = () => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 
@@ -110,7 +111,7 @@ export function Stage({
   onBack,
   onNext,
   onClose,
-  closeLabel = "Überspringen",
+  closeLabel = t("Überspringen"),
   stepKey,
 }: StageProps) {
   const narrow = useNarrow();
@@ -172,21 +173,21 @@ export function Stage({
           <span>{BRAND}</span>
         </div>
         {phases && phases.length > 1 ? (
-          <ol class="stage-phases" aria-label={`Teil ${phase + 1} von ${phases.length}: ${phases[phase]?.label ?? ""}`}>
+          <ol class="stage-phases" aria-label={t("Teil {0} von {1}: {2}", { 0: phase + 1, 1: phases.length, 2: t(phases[phase]?.label ?? "") })}>
             {phases.map((p, i) => (
               <li key={p.label} data-state={i < phase ? "done" : i === phase ? "on" : "todo"} data-busy={p.busy ? "" : undefined}>
                 <span class="stage-phase-bar">
                   <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, p.fill))})` }} />
                 </span>
                 <span class="stage-phase-label">
-                  {p.label}
+                  {t(p.label)}
                   {p.detail && <span class="tnum"> ({p.detail})</span>}
                 </span>
               </li>
             ))}
           </ol>
         ) : steps !== undefined && steps > 1 && (
-          <ol class="stage-progress" aria-label={`Schritt ${step + 1} von ${steps}`}>
+          <ol class="stage-progress" aria-label={t("Schritt {0} von {steps}", { 0: step + 1, steps })}>
             {Array.from({ length: steps }, (_, i) => (
               <li key={i} data-state={i < step ? "done" : i === step ? "on" : "todo"} />
             ))}
@@ -221,7 +222,8 @@ export function Stage({
         {onBack ? (
           <button class="stage-back" onClick={onBack}>
             <IconBack />
-            Zurück
+            
+            {t("Zurück")}
           </button>
         ) : (
           <span />

@@ -48,6 +48,7 @@ import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
+import { t, tj, tStored } from "../i18n";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -106,7 +107,7 @@ export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: bo
   const pct = Math.round((wc ?? 0.5) * 100);
   const whiteAhead = pct >= 50;
   return (
-    <div class={`evalbar${flipped ? " flipped" : ""}`} style={{ gridRow: "2" }} aria-label={`Bewertung ${label}`}>
+    <div class={`evalbar${flipped ? " flipped" : ""}`} style={{ gridRow: "2" }} aria-label={t("Bewertung {label}", { label })}>
       <div class="white" style={{ height: `${pct}%` }} />
       <div class="mid" />
       <span class={whiteAhead ? "on-white" : "on-black"} style={{ [whiteAhead !== flipped ? "bottom" : "top"]: "5px" }}>
@@ -128,10 +129,10 @@ function clockAt(moves: MoveData[], idx: number, side: Side): number | null {
 
 function formatClock(s: number | null): string {
   if (s === null || !Number.isFinite(s)) return "";
-  const t = Math.max(0, Math.round(s));
-  const h = Math.floor(t / 3600);
-  const m = Math.floor((t % 3600) / 60);
-  const sec = String(t % 60).padStart(2, "0");
+  const tk = Math.max(0, Math.round(s));
+  const h = Math.floor(tk / 3600);
+  const m = Math.floor((tk % 3600) / 60);
+  const sec = String(tk % 60).padStart(2, "0");
   return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
 }
 
@@ -205,7 +206,7 @@ function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves:
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={readonly ? "Bewertungsverlauf" : "Bewertungsverlauf, antippen oder ziehen zum Springen"}
+        aria-label={readonly ? t("Bewertungsverlauf") : t("Bewertungsverlauf, antippen oder ziehen zum Springen")}
         // Drag to scrub through the game, like a video timeline. On a phone the
         // finger belongs to scrolling, so the line is only a picture there.
         onPointerDown={readonly ? undefined : (e) => {
@@ -241,16 +242,16 @@ function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves:
       </svg>
       {shown !== null && (
         <div class="eg-tip" style={{ left: `${Math.max(12, Math.min(88, (shown / n) * 100))}%` }}>
-          <strong>{hm ? `${hm.move_number}${hm.fen_before.split(" ")[1] === "w" ? "." : "..."} ${hm.san}` : "Start"}</strong>
+          <strong>{hm ? `${hm.move_number}${hm.fen_before.split(" ")[1] === "w" ? "." : "..."} ${hm.san}` : t("Start")}</strong>
           {hm?.classification && hm.classification !== "Book" ? ` · ${classLabel(hm.classification)}` : ""}
-          {hwc !== null && <span class="faint"> · Weiß {Math.round(hwc * 100)} %</span>}
+          {hwc !== null && <span class="faint">  {t("· Weiß {n} %", { n: Math.round(hwc * 100) })}</span>}
         </div>
       )}
       <div class="eg-legend faint">
-        <span>Gewinnchance Weiß</span>
-        {bookEnd > 0 && <span>┆ Ende der Theorie</span>}
+        <span>{t("Gewinnchance Weiß")}</span>
+        {bookEnd > 0 && <span>{t("┆ Ende der Theorie")}</span>}
         <span>
-          <i class="eg-key blunder" /> Patzer <i class="eg-key mistake" /> Fehler
+          <i class="eg-key blunder" />  {t("Patzer")} <i class="eg-key mistake" />  {t("Fehler")}
         </span>
       </div>
     </div>
@@ -270,14 +271,14 @@ function ClassTable({ game, idx, onJump }: { game: GameAnalysis; idx: number; on
     const cls = side === "white" ? "w" : "b";
     if (!stops.length) return <span class={cls} style={{ color: CLASS_COLOR[c] }}>{count}</span>;
     const at = stops.indexOf(idx);
-    const who = side === "white" ? "Weiß" : "Schwarz";
+    const who = side === "white" ? t("Weiß") : t("Schwarz");
     return (
       <button
         class={`${cls} cls-jump${at >= 0 ? " on" : ""}`}
         style={{ color: CLASS_COLOR[c] }}
         onClick={() => onJump(nextStop(stops, idx)!)}
-        title="Zum Zug springen"
-        aria-label={`${classLabel(c)}, ${who}: ${count}. Zum ${at >= 0 && stops.length > 1 ? "nächsten " : ""}Zug springen`}
+        title={t("Zum Zug springen")}
+        aria-label={t("{classLabel}, {who}: {count}. Zum {3}Zug springen", { classLabel: classLabel(c), who, count, 3: at >= 0 && stops.length > 1 ? t("nächsten ") : "" })}
       >
         {at >= 0 && stops.length > 1 ? `${at + 1}/${stops.length}` : count}
       </button>
@@ -286,10 +287,10 @@ function ClassTable({ game, idx, onJump }: { game: GameAnalysis; idx: number; on
   return (
     <div class="class-wrap">
       <div class="class-table">
-        <span class="muted small">Zugbewertung</span>
-        <span class="w muted small">Weiß</span>
+        <span class="muted small">{t("Zugbewertung")}</span>
+        <span class="w muted small">{t("Weiß")}</span>
         <span />
-        <span class="b muted small">Schwarz</span>
+        <span class="b muted small">{t("Schwarz")}</span>
         {CLASSIFICATION_ORDER.map((c) => (
           <>
             <span>{classLabel(c)}</span>
@@ -299,7 +300,7 @@ function ClassTable({ game, idx, onJump }: { game: GameAnalysis; idx: number; on
           </>
         ))}
       </div>
-      <p class="faint small class-hint">Tippe auf eine Zahl, um zu diesen Zügen zu springen.</p>
+      <p class="faint small class-hint">{t("Tippe auf eine Zahl, um zu diesen Zügen zu springen.")}</p>
     </div>
   );
 }
@@ -327,7 +328,7 @@ function VariationRow({ line, active, onPick, onDrop }: { line: Explore } & Omit
           );
         })}
       </span>
-      <button class="var-drop" onClick={() => onDrop(line)} aria-label="Variante entfernen" title="Variante entfernen">
+      <button class="var-drop" onClick={() => onDrop(line)} aria-label={t("Variante entfernen")} title={t("Variante entfernen")}>
         ×
       </button>
     </div>
@@ -414,7 +415,7 @@ export function EngineLines({
       {!head && label && (
         <div class="faint small engine-head">
           <span>{label}</span>
-          {onPlay && <span>Antippen zum Nachspielen</span>}
+          {onPlay && <span>{t("Antippen zum Nachspielen")}</span>}
         </div>
       )}
       {lines.slice(0, max).map((l, k) => {
@@ -428,7 +429,7 @@ export function EngineLines({
           </>
         );
         return onPlay && l.pv.length ? (
-          <button class="engine-line" key={k} onClick={() => onPlay(l.pv)} title="Variante auf dem Brett nachspielen">
+          <button class="engine-line" key={k} onClick={() => onPlay(l.pv)} title={t("Variante auf dem Brett nachspielen")}>
             {body}
           </button>
         ) : (
@@ -629,7 +630,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       else if (e.key === "n") jumpError(1);
       else if (e.key === "N" || e.key === "p") jumpError(-1);
       else if (e.key === "a") setShowArrows((v) => !v);
-      else if (e.key === "b" && review) setTab((t) => (t === "report" ? "moves" : "report"));
+      else if (e.key === "b" && review) setTab((tk) => (tk === "report" ? "moves" : "report"));
       else return;
       e.preventDefault();
     };
@@ -703,10 +704,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   if (!row || !game) {
     return (
       <div class="empty">
-        <h3>Noch keine Partie ausgewählt</h3>
-        <p>Wähle eine Partie aus deiner Liste, um sie Zug für Zug durchzugehen.</p>
+        <h3>{t("Noch keine Partie ausgewählt")}</h3>
+        <p>{t("Wähle eine Partie aus deiner Liste, um sie Zug für Zug durchzugehen.")}</p>
         <button class="btn primary" onClick={() => navigate({ view: "games" })}>
-          Partien öffnen
+          
+          {t("Partien öffnen")}
         </button>
       </div>
     );
@@ -760,16 +762,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       ) : null
     ) : (
     <div class="engine-switches">
-      <label class="switch-pill" title={`${ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)`}>
+      <label class="switch-pill" title={t("{ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)", { ENGINE_NAME })}>
         <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
-        <span>{ENGINE_NAME} live</span>
+        <span>{t("{ENGINE_NAME} live", { ENGINE_NAME })}</span>
       </label>
-      <label class="switch-pill" title="Zeigt, was der Gegner droht, wenn du jetzt nichts tust (X)">
+      <label class="switch-pill" title={t("Zeigt, was der Gegner droht, wenn du jetzt nichts tust (X)")}>
         <input type="checkbox" checked={engine.threat} onChange={() => setEngine({ ...engine, threat: !engine.threat })} />
-        <span>Drohung</span>
+        <span>{t("Drohung")}</span>
       </label>
       <span class="faint small engine-depth">
-        {engine.live && busy ? "rechnet …" : lines.length && depthOf(lines) ? `Tiefe ${depthOf(lines)}` : ""}
+        {engine.live && busy ? t("rechnet …") : lines.length && depthOf(lines) ? t("Tiefe {depthOf}", { depthOf: depthOf(lines) }) : ""}
       </span>
     </div>
     );
@@ -777,15 +779,15 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     engine.threat && (exploreFen ?? gameFen) ? (
       <div class="threat-line small">
         {threatFen(exploreFen ?? gameFen) === null ? (
-          <span class="faint">Drohung: im Schach nicht verfügbar</span>
+          <span class="faint">{t("Drohung: im Schach nicht verfügbar")}</span>
         ) : threatLine ? (
           <>
-            <span class="threat-tag">Drohung</span>
+            <span class="threat-tag">{t("Drohung")}</span>
             <strong>{threatLine.pv_san?.split(" ").slice(0, 4).join(" ")}</strong>
             <span class="faint"> {formatEval(lineScoreWhite(threatFen(exploreFen ?? gameFen)!, threatLine).cp, lineScoreWhite(threatFen(exploreFen ?? gameFen)!, threatLine).mate)}</span>
           </>
         ) : (
-          <span class="faint">Drohung wird berechnet …</span>
+          <span class="faint">{t("Drohung wird berechnet …")}</span>
         )}
       </div>
     ) : null;
@@ -883,7 +885,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
                   {highlights.length > 0 && (
                     <>
-                      <h4>Glanzzüge dieser Partie</h4>
+                      <h4>{t("Glanzzüge dieser Partie")}</h4>
                       <div class="glanz-moves">
                         {highlights.map((h) => (
                           <button
@@ -891,7 +893,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                             class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
                             style={{ "--tone": CLASS_COLOR[h.classification] }}
                             onClick={() => jumpTo(h.stop)}
-                            title={`${classLabel(h.classification)}: zum Zug springen`}
+                            title={t("{classLabel}: zum Zug springen", { classLabel: classLabel(h.classification) })}
                           >
                             <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
                             <span class={`side-dot ${h.side}`} />
@@ -912,9 +914,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               {analyzing ? (
                 <>
                   <div class="row" style={{ justifyContent: "space-between", marginBottom: "8px" }}>
-                    <strong>Analyse läuft … {progress} %</strong>
+                    <strong>{t("Analyse läuft … {progress} %", { progress })}</strong>
                     <button class="btn small" onClick={cancelCurrent}>
-                      <IconStop /> Abbrechen
+                      <IconStop />  {t("Abbrechen")}
                     </button>
                   </div>
                   <div class="progress">
@@ -922,16 +924,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   </div>
                   {queue && <LiveDepth queue={queue} />}
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    <EngineWait>{ENGINE_NAME} rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.</EngineWait>
+                    <EngineWait>{t("{ENGINE_NAME} rechnet direkt auf diesem Gerät. Du kannst währenddessen durch die Partie blättern.", { ENGINE_NAME })}</EngineWait>
                   </p>
                 </>
               ) : (
                 <>
                   <p style={{ marginTop: 0 }}>
-                    {status === "paused" ? "Die Analyse wurde unterbrochen." : "Diese Partie ist noch nicht analysiert."}
+                    {status === "paused" ? t("Die Analyse wurde unterbrochen.") : t("Diese Partie ist noch nicht analysiert.")}
                   </p>
                   <button class="btn primary" disabled={queued} onClick={() => enqueue([row.id], { front: true })}>
-                    <IconPlay /> {queued ? "In der Warteschlange" : status === "paused" ? "Analyse fortsetzen" : "Partie analysieren"}
+                    <IconPlay /> {queued ? t("In der Warteschlange") : status === "paused" ? t("Analyse fortsetzen") : t("Partie analysieren")}
                   </button>
                 </>
               )}
@@ -945,17 +947,18 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             {explore ? (
               <>
                 <div class="explore-bar">
-                  <span class="pill accent">Eigene Variante</span>
+                  <span class="pill accent">{t("Eigene Variante")}</span>
                   <span class="spacer" />
                   <button class="btn small" onClick={leaveLine}>
-                    Zurück zur Partie
+                    
+                    {t("Zurück zur Partie")}
                   </button>
                 </div>
                 <LineMoves startFen={explore.fens[0]} sans={explore.sans} verdicts={verdicts} />
                 {explore.sans.length > 0 && <VerdictCard san={explore.sans[explore.sans.length - 1]} verdict={lastVerdict} />}
                 {live.busy && !live.lines.length ? (
                   <p class="muted small" style={{ marginBottom: 0 }}>
-                    <EngineWait>{ENGINE_NAME} rechnet …</EngineWait>
+                    <EngineWait>{t("{ENGINE_NAME} rechnet …", { ENGINE_NAME })}</EngineWait>
                   </p>
                 ) : (
                   <EngineLines
@@ -980,7 +983,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     ) : (
                       // The classifier's own line still says why a top move is special ("Einziger guter Zug!").
                       (!reasons.length || move.classification === "Great" || move.classification === "Brilliant") && (
-                        <div>{move.explanation || (analyzing ? "Ich schaue mir den Zug gerade an …" : "Diesen Zug habe ich noch nicht bewertet.")}</div>
+                        <div>{tStored(move.explanation) || (analyzing ? t("Ich schaue mir den Zug gerade an …") : t("Diesen Zug habe ich noch nicht bewertet."))}</div>
                       )
                     )}
                     {reasons.length > 0 && (
@@ -993,7 +996,8 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                     {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
                     {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
                       <div class="small" style={{ marginTop: "4px" }}>
-                        Besser war: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong>
+                        
+                        {tj("Besser war: {x}", { x: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong> })}
                       </div>
                     )}
                   </div>
@@ -1018,26 +1022,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                       <div class="an-intro-top">
                         <GradeBadge grade={review.grade} size="small" />
                         <div class="an-intro-text">
-                          <span class="eyebrow">Lucena · deine Partie</span>
+                          <span class="eyebrow">{t("Lucena · deine Partie")}</span>
                           <strong>{review.headline}</strong>
                         </div>
                       </div>
                       <div class="an-intro-actions">
                         <button class="btn primary small" onClick={() => openStage({ kind: "report", subject: row.id })}>
-                          <IconPlay /> Lucena erklärt die Partie
+                          <IconPlay />  {t("Lucena erklärt die Partie")}
                         </button>
                         <button class="btn small" onClick={() => setTab("report")}>
-                          Bericht lesen
+                          
+                          {t("Bericht lesen")}
                         </button>
                       </div>
                     </>
                   ) : (
                     <div class="an-intro-text">
-                      <span class="eyebrow">Lucena · deine Partie</span>
-                      <strong>{status === "completed" ? "Geh die Partie Zug für Zug durch." : "Sobald die Partie analysiert ist, sage ich dir zu jedem Zug, wie gut er war."}</strong>
+                      <span class="eyebrow">{t("Lucena · deine Partie")}</span>
+                      <strong>{status === "completed" ? t("Geh die Partie Zug für Zug durch.") : t("Sobald die Partie analysiert ist, sage ich dir zu jedem Zug, wie gut er war.")}</strong>
                     </div>
                   )}
-                  <p class="an-intro-hint">Pfeiltasten oder Wischen übers Brett blättern. Zieh selbst eine Figur, um eine eigene Variante auszuprobieren.</p>
+                  <p class="an-intro-hint">{t("Pfeiltasten oder Wischen übers Brett blättern. Zieh selbst eine Figur, um eine eigene Variante auszuprobieren.")}</p>
                 </div>
                 <EngineLines fen={gameFen} lines={gameLines} max={engine.live ? 3 : 2} head={<>{engineHead(gameLines, liveGame.busy)}{threatInfo}</>} onPlay={playLine} />
               </div>
@@ -1302,10 +1307,12 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           {review && (
             <div class="segmented full">
               <button class={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>
-                Züge
+                
+                {t("Züge")}
               </button>
               <button class={tab === "report" ? "active" : ""} onClick={() => setTab("report")}>
-                Bericht · Note {review.grade.split(" ")[0]}
+                
+                {t("Bericht · Note {n}", { n: review.grade.split(" ")[0] })}
               </button>
             </div>
           )}
@@ -1352,16 +1359,17 @@ function BookNote({ move, next }: { move: MoveData; next: [string, string, strin
     <div>
       {parts ? (
         <>
-          Theorie: <strong>{parts.main}</strong>
+          
+          {tj("Theorie: {main}", { main: <strong>{parts.main}</strong> })}
           {parts.variation && <span class="muted"> · {parts.variation}</span>}
         </>
       ) : (
-        "Ein bekannter Eröffnungszug."
+        t("Ein bekannter Eröffnungszug.")
       )}
       {continuations.length > 0 && (
         <div class="small muted" style={{ marginTop: "4px" }}>
-          Bekannte Fortsetzungen: {continuations.slice(0, 6).join(", ")}
-          {continuations.length > 6 ? " …" : ""}
+          
+          {t("Bekannte Fortsetzungen: {n}{n2}", { n: continuations.slice(0, 6).join(", "), n2: continuations.length > 6 ? " …" : "" })}
         </div>
       )}
     </div>
@@ -1377,10 +1385,10 @@ function DepthNote({ game, queued, onDeeper }: { game: GameAnalysis; queued: boo
   if (!depth && !next) return null;
   return (
     <div class="analysis-depth-note small">
-      <span class="faint">{depth && movetimeMs ? `Analysiert mit ${settingsLabel({ depth, movetimeMs })}` : "Analysetiefe nicht gespeichert"}</span>
+      <span class="faint">{depth && movetimeMs ? t("Analysiert mit {settingsLabel}", { settingsLabel: settingsLabel({ depth, movetimeMs }) }) : t("Analysetiefe nicht gespeichert")}</span>
       {next && (
         <button class="btn small" disabled={queued} onClick={() => onDeeper(next)}>
-          {queued ? "In der Warteschlange" : `Genauer: ${DEPTH_PRESETS[next].name} (Tiefe ${DEPTH_PRESETS[next].settings.depth})`}
+          {queued ? t("In der Warteschlange") : t("Genauer: {name} (Tiefe {depth})", { name: DEPTH_PRESETS[next].name, depth: DEPTH_PRESETS[next].settings.depth })}
         </button>
       )}
     </div>

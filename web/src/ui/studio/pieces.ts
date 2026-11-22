@@ -245,8 +245,8 @@ export function ringSegment(r0: number, r1: number, y0: number, y1: number, a0: 
     quad([[r0 * c1, y0, r0 * s1], [r0 * c1, y1, r0 * s1], [r0 * c0, y1, r0 * s0], [r0 * c0, y0, r0 * s0]], [[-c1, 0, -s1], [-c1, 0, -s1], [-c0, 0, -s0], [-c0, 0, -s0]]);
     quad([[r0 * c0, y1, r0 * s0], [r0 * c1, y1, r0 * s1], [r1 * c1, y1, r1 * s1], [r1 * c0, y1, r1 * s0]], [[0, 1, 0], [0, 1, 0], [0, 1, 0], [0, 1, 0]]);
   }
-  for (const [t, sgn] of [[a0, -1], [a1, 1]] as const) {
-    const [c, sn] = [Math.cos(t), Math.sin(t)];
+  for (const [tk, sgn] of [[a0, -1], [a1, 1]] as const) {
+    const [c, sn] = [Math.cos(tk), Math.sin(tk)];
     const nx = -sn * sgn;
     const nz = c * sgn;
     quad([[r0 * c, y0, r0 * sn], [r0 * c, y1, r0 * sn], [r1 * c, y1, r1 * sn], [r1 * c, y0, r1 * sn]], [[nx, 0, nz], [nx, 0, nz], [nx, 0, nz], [nx, 0, nz]]);

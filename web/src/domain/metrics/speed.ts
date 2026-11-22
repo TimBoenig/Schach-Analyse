@@ -28,7 +28,7 @@ function platformOf(source: string | null | undefined): Platform {
 
 /** The pool a text names ("Rated Blitz game", "casual correspondence game"), or null. */
 function namedSpeed(...texts: string[]): string | null {
-  const has = (k: string) => texts.some((t) => t.includes(k));
+  const has = (k: string) => texts.some((tk) => tk.includes(k));
   if (has("ultrabullet")) return "UltraBullet";
   if (has("bullet")) return "Bullet";
   if (has("blitz")) return "Blitz";

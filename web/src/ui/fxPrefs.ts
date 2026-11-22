@@ -1,6 +1,7 @@
 // How a brilliant move is celebrated. Syncs like other settings; a localStorage
 // mirror keeps reads synchronous, because the celebration starts with the move.
 import { getSetting, onDataChanged, setSetting } from "../storage/db";
+import { t } from "../i18n";
 
 export type BrilliantStyle = "normal" | "ultra";
 
@@ -10,7 +11,7 @@ export interface FxPrefs {
   sound: boolean;
 }
 
-export const BRILLIANT_STYLE_LABELS: Record<BrilliantStyle, string> = { normal: "Normal", ultra: "Ultra" };
+export const BRILLIANT_STYLE_LABELS: Record<BrilliantStyle, string> = { normal: t("Normal"), ultra: "Ultra" };
 
 const MIRROR_KEY = "schach.fx";
 const DEFAULTS: FxPrefs = { brilliant: "normal", sound: false };

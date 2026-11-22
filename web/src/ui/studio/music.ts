@@ -1,14 +1,16 @@
 // Background music made in code (no sound files, so no rights questions): a short
 // loop of chords, bass and drums per mood, written straight into PCM samples.
+import { t } from "../../i18n";
+
 
 export type MusicId = "none" | "lofi" | "tension" | "epic" | "file";
 
 export const MUSIC_LABEL: Record<MusicId, string> = {
-  none: "Keine",
+  none: t("Keine"),
   lofi: "Lo-fi",
-  tension: "Spannung",
-  epic: "Episch",
-  file: "Eigene Datei",
+  tension: t("Spannung"),
+  epic: t("Episch"),
+  file: t("Eigene Datei"),
 };
 
 interface Groove {
@@ -54,14 +56,14 @@ export function synthLoop(id: Exclude<MusicId, "none" | "file">, rate: number): 
   const third = g.minor ? 3 : 4;
   let seed = 11;
   for (let i = 0; i < n; i++) {
-    const t = i / rate;
+    const tk = i / rate;
     const b = Math.floor(i / bar);
     const inBar = (i - b * bar) / bar;
     const root = g.roots[b];
     // Pad: soft triad that swells in and out within each bar, so the loop seam is silent.
     const swell = Math.sin(Math.PI * inBar) ** 2;
     let v = 0;
-    for (const iv of [0, third, 7]) v += osc(g.wave === "saw" ? "triangle" : g.wave, hz(root + iv) * t);
+    for (const iv of [0, third, 7]) v += osc(g.wave === "saw" ? "triangle" : g.wave, hz(root + iv) * tk);
     v *= (g.pad / 3) * swell;
     // Bass on the beats.
     const s = Math.floor(i / step) % 16;

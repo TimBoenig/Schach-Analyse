@@ -23,6 +23,7 @@ import { computeSkills, settleSkills } from "./skills";
 import { buildStyle } from "./style";
 import { buildTrainingPlan } from "./training";
 import type { GameErrorPoint } from "../training/transfer";
+import { t } from "../../i18n";
 
 type Dict = Record<string, any>;
 
@@ -32,27 +33,27 @@ export const MIN_OPENING_GAMES = MIN_LINE_GAMES;
 export const MAX_DIGEST_GAMES = 40;
 
 const STRENGTH_TEXT: Record<string, string> = {
-  opening: "Du kommst gut aus der Eröffnung und legst damit die Basis für deine Partien.",
-  middlegame: "Im Mittelspiel triffst du überwiegend gute Entscheidungen.",
-  endgame: "Im Endspiel spielst du präzise – ein echter Vorteil in langen Partien.",
-  tactics: "Du erkennst taktische Chancen und bestrafst Fehler deiner Gegner konsequent.",
-  safety: "Du stellst selten Figuren ein und machst wenige grobe Patzer.",
-  conversion: "Gewonnene Stellungen bringst du zuverlässig nach Hause.",
-  defense: "Du kämpfst in schlechteren Stellungen und rettest oft noch Punkte.",
-  time: "Du teilst deine Bedenkzeit gut ein.",
-  consistency: "Deine Leistung ist von Partie zu Partie sehr stabil.",
+  opening: t("Du kommst gut aus der Eröffnung und legst damit die Basis für deine Partien."),
+  middlegame: t("Im Mittelspiel triffst du überwiegend gute Entscheidungen."),
+  endgame: t("Im Endspiel spielst du präzise – ein echter Vorteil in langen Partien."),
+  tactics: t("Du erkennst taktische Chancen und bestrafst Fehler deiner Gegner konsequent."),
+  safety: t("Du stellst selten Figuren ein und machst wenige grobe Patzer."),
+  conversion: t("Gewonnene Stellungen bringst du zuverlässig nach Hause."),
+  defense: t("Du kämpfst in schlechteren Stellungen und rettest oft noch Punkte."),
+  time: t("Du teilst deine Bedenkzeit gut ein."),
+  consistency: t("Deine Leistung ist von Partie zu Partie sehr stabil."),
 };
 
 const WEAKNESS_TEXT: Record<string, string> = {
-  opening: "Schon in der Eröffnung verlierst du häufig an Boden.",
-  middlegame: "Im Mittelspiel unterlaufen dir die meisten Ungenauigkeiten.",
-  endgame: "Im Endspiel gibst du oft Vorteile ab oder verlierst ausgeglichene Stellungen.",
-  tactics: "Du übersiehst häufig taktische Chancen – Gegnerfehler bleiben oft unbestraft.",
-  safety: "Eingestellte Figuren und grobe Patzer kosten dich viele Punkte.",
-  conversion: "Gewonnene Stellungen gibst du zu oft noch aus der Hand.",
-  defense: "In schlechteren Stellungen bricht deine Verteidigung schnell zusammen.",
-  time: "Die Zeiteinteilung kostet dich Punkte (Zeitnot oder Zeitverluste).",
-  consistency: "Deine Leistung schwankt stark zwischen guten und schwachen Partien.",
+  opening: t("Schon in der Eröffnung verlierst du häufig an Boden."),
+  middlegame: t("Im Mittelspiel unterlaufen dir die meisten Ungenauigkeiten."),
+  endgame: t("Im Endspiel gibst du oft Vorteile ab oder verlierst ausgeglichene Stellungen."),
+  tactics: t("Du übersiehst häufig taktische Chancen – Gegnerfehler bleiben oft unbestraft."),
+  safety: t("Eingestellte Figuren und grobe Patzer kosten dich viele Punkte."),
+  conversion: t("Gewonnene Stellungen gibst du zu oft noch aus der Hand."),
+  defense: t("In schlechteren Stellungen bricht deine Verteidigung schnell zusammen."),
+  time: t("Die Zeiteinteilung kostet dich Punkte (Zeitnot oder Zeitverluste)."),
+  consistency: t("Deine Leistung schwankt stark zwischen guten und schwachen Partien."),
 };
 
 function scoreOf(feats: GameFeatures[]): number {
@@ -272,21 +273,21 @@ function strengthsWeaknesses(skills: SkillScore[], rating: number | null): [Insi
   weaknesses = weaknesses.filter((w) => !strengths.includes(w));
   const vs = (s: SkillScore) =>
     rating !== null && s.typical !== null && s.typical !== undefined
-      ? ` · ${fmtDe(s.score, 0)} Punkte, ${s.typical_from === "opponents" ? "deine Gegner" : `typisch für ${rating}`}: ${fmtDe(s.typical, 0)}`
+      ? t(" · {fmtDe} Punkte, {1}: {fmtDe2}", { fmtDe: fmtDe(s.score, 0), 1: s.typical_from === "opponents" ? t("deine Gegner") : t("typisch für {rating}", { rating }), fmtDe2: fmtDe(s.typical, 0) })
       : "";
   return [
     strengths.map((s) => ({
       key: s.key,
       title: s.name,
       text: `${STRENGTH_TEXT[s.key] ?? ""} (${s.detail}${vs(s)})`,
-      category: "Fähigkeit",
+      category: t("Fähigkeit"),
       strength: delta(s),
     })),
     weaknesses.map((s) => ({
       key: s.key,
       title: s.name,
       text: `${WEAKNESS_TEXT[s.key] ?? ""} (${s.detail}${vs(s)})`,
-      category: "Fähigkeit",
+      category: t("Fähigkeit"),
       strength: -delta(s),
     })),
   ];
@@ -350,12 +351,12 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
       const [better, worse] = sw > sb ? ["white", "black"] : ["black", "white"];
       profile.weaknesses.push({
         key: `color_${worse}`,
-        title: `Ergebnisse mit ${trColor(worse)}`,
+        title: t("Ergebnisse mit {trColor}", { trColor: trColor(worse) }),
         text:
-          `Mit ${trColor(worse)} holst du ${fmtDe(Math.min(sw, sb), 0)} % der Punkte, mit ` +
-          `${trColor(better)} ${fmtDe(Math.max(sw, sb), 0)} %. Dein Repertoire mit ` +
-          `${trColor(worse)} verdient Aufmerksamkeit.`,
-        category: "Farbe",
+          t("Mit {trColor} holst du {fmtDe} % der Punkte, mit ", { trColor: trColor(worse), fmtDe: fmtDe(Math.min(sw, sb), 0) }) +
+          t("{trColor} {fmtDe} %. Dein Repertoire mit ", { trColor: trColor(better), fmtDe: fmtDe(Math.max(sw, sb), 0) }) +
+          t("{trColor} verdient Aufmerksamkeit.", { trColor: trColor(worse) }),
+        category: t("Farbe"),
         strength: Math.abs(sw - sb) / 2,
       });
     }
@@ -366,11 +367,11 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
     if (o.score_pct >= 60) {
       profile.strengths.push({
         key: "opening_best",
-        title: `Erfolgseröffnung: ${o.name}`,
+        title: t("Erfolgseröffnung: {name}", { name: o.name }),
         text:
-          `Mit ${trColor(o.color)} holst du hier ${fmtDe(o.score_pct, 0)} % der Punkte ` +
-          `(${o.games} Partien, Ø ${fmtDe(o.avg_accuracy, 1)} % Genauigkeit).`,
-        category: "Eröffnung",
+          t("Mit {trColor} holst du hier {fmtDe} % der Punkte ", { trColor: trColor(o.color), fmtDe: fmtDe(o.score_pct, 0) }) +
+          t("({games} Partien, Ø {fmtDe} % Genauigkeit).", { games: o.games, fmtDe: fmtDe(o.avg_accuracy, 1) }),
+        category: t("Eröffnung"),
         strength: (o.score_pct - 50) / 2,
       });
     }
@@ -380,14 +381,14 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
     if (o.score_pct <= 40) {
       profile.weaknesses.push({
         key: "opening_worst",
-        title: `Problemeröffnung: ${o.name}`,
+        title: t("Problemeröffnung: {name}", { name: o.name }),
         text:
-          `Mit ${trColor(o.color)} holst du hier nur ${fmtDe(o.score_pct, 0)} % der Punkte ` +
-          `(${o.games} Partien).` +
+          t("Mit {trColor} holst du hier nur {fmtDe} % der Punkte ", { trColor: trColor(o.color), fmtDe: fmtDe(o.score_pct, 0) }) +
+          t("({games} Partien).", { games: o.games }) +
           (o.first_error_move
-            ? ` Der erste schwere Fehler kommt im Schnitt in Zug ${fmtDe(o.first_error_move, 0)}.`
+            ? t(" Der erste schwere Fehler kommt im Schnitt in Zug {fmtDe}.", { fmtDe: fmtDe(o.first_error_move, 0) })
             : ""),
-        category: "Eröffnung",
+        category: t("Eröffnung"),
         strength: (50 - o.score_pct) / 2,
       });
     }
@@ -419,11 +420,11 @@ function contextInsights(profile: PlayerProfile, feats: GameFeatures[]): void {
       if (ab - aw >= 4 && meansDiffer(accsOf.get(bestK) as number[], accsOf.get(worstK) as number[], z, MIN_ANALYZED)) {
         profile.strengths.push({
           key: "speed_best",
-          title: `Stärkste Bedenkzeit: ${trSpeed(bestK)}`,
+          title: t("Stärkste Bedenkzeit: {trSpeed}", { trSpeed: trSpeed(bestK) }),
           text:
-            `In ${trSpeed(bestK)} spielst du mit Ø ${fmtDe(ab, 1)} % am ` +
-            `genauesten, in ${trSpeed(worstK)} nur mit ${fmtDe(aw, 1)} %.`,
-          category: "Bedenkzeit",
+            t("In {trSpeed} spielst du mit Ø {fmtDe} % am ", { trSpeed: trSpeed(bestK), fmtDe: fmtDe(ab, 1) }) +
+            t("genauesten, in {trSpeed} nur mit {fmtDe} %.", { trSpeed: trSpeed(worstK), fmtDe: fmtDe(aw, 1) }),
+          category: t("Bedenkzeit"),
           strength: (ab - aw) / 2,
         });
       }
@@ -546,19 +547,19 @@ function breakdowns(feats: GameFeatures[]): Dict {
     .map(([k, v]) => row(trSpeed(k), v));
 
   const buckets = new Map<string, GameFeatures[]>([
-    ["Stärkere Gegner (+100)", []],
-    ["Ähnlich stark (±100)", []],
-    ["Schwächere Gegner (−100)", []],
+    [t("Stärkere Gegner (+100)"), []],
+    [t("Ähnlich stark (±100)"), []],
+    [t("Schwächere Gegner (−100)"), []],
   ]);
   for (const f of feats) {
     if (!countsForRating(f) || !f.opp_rating) continue;
     const diff = f.opp_rating - f.user_rating;
     const key =
       diff >= 100
-        ? "Stärkere Gegner (+100)"
+        ? t("Stärkere Gegner (+100)")
         : diff <= -100
-          ? "Schwächere Gegner (−100)"
-          : "Ähnlich stark (±100)";
+          ? t("Schwächere Gegner (−100)")
+          : t("Ähnlich stark (±100)");
     (buckets.get(key) as GameFeatures[]).push(f);
   }
   const byOpponent = [...buckets.entries()].filter(([, v]) => v.length).map(([k, v]) => row(k, v));

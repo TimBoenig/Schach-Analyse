@@ -125,17 +125,17 @@ export class StudioAudio {
     }
     if (kind === "sparkle") {
       for (let i = 0; i < 6; i++) {
-        const t = at + i * 0.06;
+        const tk = at + i * 0.06;
         const o = c.createOscillator();
         o.type = "triangle";
         o.frequency.value = 1600 + ((i * 7) % 5) * 380;
         const g = c.createGain();
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.09, t + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        g.gain.setValueAtTime(0, tk);
+        g.gain.linearRampToValueAtTime(0.09, tk + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.001, tk + 0.25);
         o.connect(g).connect(this.out);
-        o.start(t);
-        o.stop(t + 0.3);
+        o.start(tk);
+        o.stop(tk + 0.3);
         this.live.push(o);
       }
     }

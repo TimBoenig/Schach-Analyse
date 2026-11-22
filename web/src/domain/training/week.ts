@@ -7,6 +7,7 @@
 
 import { CATEGORIES, type Category } from "./exercises";
 import { addDays } from "./progress";
+import { t } from "../../i18n";
 
 export type DayTheme = Category | "review";
 
@@ -60,5 +61,5 @@ export function weekOutdated(week: WeekPlan | null, today: string): boolean {
 }
 
 export function themeLabel(theme: DayTheme): string {
-  return theme === "review" ? "Wiederholung & Partien" : CATEGORIES[theme].label;
+  return theme === "review" ? t("Wiederholung & Partien") : CATEGORIES[theme].label;
 }

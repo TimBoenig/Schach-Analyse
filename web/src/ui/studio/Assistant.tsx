@@ -6,7 +6,7 @@ import { Chess, type Square } from "chess.js";
 import { useMemo, useState } from "preact/hooks";
 
 import { Board } from "../Board";
-import { ENV_LABEL, germanSan, PLATFORM_LABEL, START_FEN, validFen, type Environment, type Platform, type StudioProject } from "./model";
+import { ENV_LABEL, displaySan, PLATFORM_LABEL, START_FEN, validFen, type Environment, type Platform, type StudioProject } from "./model";
 import {
   buildProject,
   defaultAnswers,
@@ -26,6 +26,7 @@ import {
   type VideoKind,
   suggestPerspective,
 } from "./wizard";
+import { t, tj } from "../../i18n";
 
 // ---------- move recorder ----------
 
@@ -36,7 +37,7 @@ function moveName(tree: GameTree, line: number | "main", index: number, san: str
   const ply = base + (startBlack ? 1 : 0);
   const no = fullmove + Math.floor(ply / 2);
   const white = ply % 2 === 0;
-  return white ? `${no}. ${germanSan(san)}` : index === 0 || line !== "main" ? `${no}… ${germanSan(san)}` : germanSan(san);
+  return white ? `${no}. ${displaySan(san)}` : index === 0 || line !== "main" ? `${no}… ${displaySan(san)}` : displaySan(san);
 }
 
 export function MoveRecorder({
@@ -104,37 +105,38 @@ export function MoveRecorder({
           legalTargets={(from) => chess.moves({ square: from as Square, verbose: true }).map((m) => m.to)}
         />
         <div class="rec-nav">
-          <button onClick={() => onChange(tree, { line: "main", ply: 0 })} title="Zum Anfang">
+          <button onClick={() => onChange(tree, { line: "main", ply: 0 })} title={t("Zum Anfang")}>
             ⏮
           </button>
-          <button onClick={() => step(-1)} title="Zurück">
+          <button onClick={() => step(-1)} title={t("Zurück")}>
             ◀
           </button>
-          <button onClick={() => step(1)} title="Vor">
+          <button onClick={() => step(1)} title={t("Vor")}>
             ▶
           </button>
-          <button onClick={() => onChange(tree, { line: "main", ply: tree.main.length })} title="Zum Ende">
+          <button onClick={() => onChange(tree, { line: "main", ply: tree.main.length })} title={t("Zum Ende")}>
             ⏭
           </button>
-          <button onClick={() => setFlipped(!flipped)} title="Brett drehen">
+          <button onClick={() => setFlipped(!flipped)} title={t("Brett drehen")}>
             ⇅
           </button>
           <button class="rec-undo" onClick={() => {
             const r = takeBack(tree, cursor);
             onChange(r.tree, r.cursor);
           }}>
-            Zug löschen
+            
+            {t("Zug löschen")}
           </button>
         </div>
       </div>
       <div class="rec-side">
         <p class="rec-hint">
-          Zieh die Figuren. Gehst du zurück und spielst einen anderen Zug, entsteht automatisch eine <b>Variante</b>.
-        </p>
+          
+          {tj("Zieh die Figuren. Gehst du zurück und spielst einen anderen Zug, entsteht automatisch eine {x}.", { x: <b>{t("Variante")}</b> })}</p>
         <div class="rec-line">
-          <span class="rec-line-name">Hauptvariante</span>
+          <span class="rec-line-name">{t("Hauptvariante")}</span>
           <div class="rec-moves">
-            {tree.main.length === 0 && <span class="faint">Noch keine Züge</span>}
+            {tree.main.length === 0 && <span class="faint">{t("Noch keine Züge")}</span>}
             {tree.main.map((san, i) => (
               <button
                 key={i}
@@ -148,14 +150,14 @@ export function MoveRecorder({
         </div>
         {tree.variations.map((v, vi) => (
           <div class="rec-line var" key={vi}>
-            <span class="rec-line-name">Variante {vi + 1}</span>
+            <span class="rec-line-name">{t("Variante {n}", { n: vi + 1 })}</span>
             <div class="rec-moves">
               {v.moves.map((san, i) => (
                 <button key={i} class={cursor.line === vi && cursor.ply === i + 1 ? "on" : ""} onClick={() => onChange(tree, { line: vi, ply: i + 1 })}>
                   {moveName(tree, vi, i, san)}
                 </button>
               ))}
-              <button class="rec-x" title="Variante löschen" onClick={() => onChange({ ...tree, variations: tree.variations.filter((_, k) => k !== vi) }, { line: "main", ply: v.from })}>
+              <button class="rec-x" title={t("Variante löschen")} onClick={() => onChange({ ...tree, variations: tree.variations.filter((_, k) => k !== vi) }, { line: "main", ply: v.from })}>
                 ✕
               </button>
             </div>
@@ -167,22 +169,23 @@ export function MoveRecorder({
             disabled={!onMain || cursor.ply >= tree.main.length}
             onClick={() => onChange({ ...tree, keyPly: tree.keyPly === cursor.ply ? -1 : cursor.ply }, cursor)}
           >
-            {tree.keyPly === cursor.ply && onMain ? "★ Schlüsselzug entfernen" : "★ Nächster Zug ist der Schlüsselzug"}
+            {tree.keyPly === cursor.ply && onMain ? t("★ Schlüsselzug entfernen") : t("★ Nächster Zug ist der Schlüsselzug")}
           </button>
         )}
         <details class="rec-more" open={pgnOpen} onToggle={(e) => setPgnOpen((e.currentTarget as HTMLDetailsElement).open)}>
-          <summary>PGN oder Zugliste einfügen</summary>
-          <textarea rows={3} value={pgn} onInput={(e) => setPgn(e.currentTarget.value)} placeholder="1. e4 e5 2. Sf3 Sc6 3. Lb5" spellcheck={false} />
-          {pgnError && <p class="bad small">Ab „{pgnError}“ geht es nicht weiter.</p>}
+          <summary>{t("PGN oder Zugliste einfügen")}</summary>
+          <textarea rows={3} value={pgn} onInput={(e) => setPgn(e.currentTarget.value)} placeholder={t("1. e4 e5 2. Sf3 Sc6 3. Lb5")} spellcheck={false} />
+          {pgnError && <p class="bad small">{t("Ab „{pgnError}“ geht es nicht weiter.", { pgnError })}</p>}
           <button class="btn ghost" onClick={loadPgn}>
-            Übernehmen
+            
+            {t("Übernehmen")}
           </button>
         </details>
         {allowFen && (
           <details class="rec-more">
-            <summary>Andere Startstellung (FEN)</summary>
-            <input value={fenDraft} placeholder="Grundstellung" onInput={(e) => setStart(e.currentTarget.value)} spellcheck={false} />
-            {fenDraft.trim() && !validFen(fenDraft.trim()) && <p class="bad small">Diese FEN ist ungültig.</p>}
+            <summary>{t("Andere Startstellung (FEN)")}</summary>
+            <input value={fenDraft} placeholder={t("Grundstellung")} onInput={(e) => setStart(e.currentTarget.value)} spellcheck={false} />
+            {fenDraft.trim() && !validFen(fenDraft.trim()) && <p class="bad small">{t("Diese FEN ist ungültig.")}</p>}
           </details>
         )}
       </div>
@@ -192,7 +195,7 @@ export function MoveRecorder({
 
 // ---------- assistant ----------
 
-const STEPS = ["Art", "Züge", "Fragen", "Skript"] as const;
+const STEPS = [t("Art"), t("Züge"), t("Fragen"), t("Skript")] as const;
 
 function Chips<T extends string | number>({ value, options, onChange }: { value: T; options: [T, string, string?][]; onChange: (v: T) => void }) {
   return (
@@ -208,16 +211,16 @@ function Chips<T extends string | number>({ value, options, onChange }: { value:
 }
 
 const KIND_HINT: Record<VideoKind, string> = {
-  opening: "Zug für Zug mit Ideen",
-  trap: "Falle zeigen, Zuschauer raten lassen",
-  puzzle: "Stellung, Countdown, Lösung",
-  game: "Der beste Moment einer Partie",
+  opening: t("Zug für Zug mit Ideen"),
+  trap: t("Falle zeigen, Zuschauer raten lassen"),
+  puzzle: t("Stellung, Countdown, Lösung"),
+  game: t("Der beste Moment einer Partie"),
 };
 
 export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: (p: StudioProject) => void; onClose: () => void; onTemplates: () => void; onAi: () => void }) {
   const [stepIndex, setStep] = useState(0);
   const [answers, setAnswers] = useState<Answers>(defaultAnswers());
-  const [tree, setTree] = useState<GameTree>(() => treeFromPgn("1. e4 e5 2. Sf3 Sc6 3. Lb5").tree);
+  const [tree, setTree] = useState<GameTree>(() => treeFromPgn(t("1. e4 e5 2. Sf3 Sc6 3. Lb5")).tree);
   const [cursor, setCursor] = useState<Cursor>({ line: "main", ply: 5 });
   const set = (patch: Partial<Answers>) => setAnswers((a) => ({ ...a, ...patch }));
   const hooks = hookIdeas(answers.kind, answers.name, answers.length);
@@ -231,7 +234,7 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
     <div class="studio-modal" role="dialog" aria-modal="true">
       <div class="studio-modal-card wizard">
         <header class="wz-head">
-          <h3>Neues Video</h3>
+          <h3>{t("Neues Video")}</h3>
           <ol class="wz-steps">
             {STEPS.map((s, i) => (
               <li key={s} class={i === stepIndex ? "on" : i < stepIndex ? "done" : ""}>
@@ -242,7 +245,7 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
               </li>
             ))}
           </ol>
-          <button class="wz-close" onClick={onClose} aria-label="Schließen">
+          <button class="wz-close" onClick={onClose} aria-label={t("Schließen")}>
             ✕
           </button>
         </header>
@@ -250,18 +253,19 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
         <div class="wz-body">
           {stepIndex === 0 && (
             <div class="studio-form">
-              <h4 class="wz-q">Was für ein Video wird es?</h4>
+              <h4 class="wz-q">{t("Was für ein Video wird es?")}</h4>
               <Chips<VideoKind>
                 value={answers.kind}
                 options={(Object.keys(KIND_LABEL) as VideoKind[]).map((k) => [k, KIND_LABEL[k], KIND_HINT[k]])}
                 onChange={(kind) => set({ ...defaultAnswers(kind), platform: answers.platform, name: answers.name })}
               />
-              <h4 class="wz-q">Wo lädst du es hoch?</h4>
+              <h4 class="wz-q">{t("Wo lädst du es hoch?")}</h4>
               <Chips<Platform> value={answers.platform} options={(Object.keys(PLATFORM_LABEL) as Platform[]).map((p) => [p, PLATFORM_LABEL[p]])} onChange={(platform) => set({ platform })} />
-              <h4 class="wz-q">Worum geht es? (Name der Eröffnung, Falle, Partie)</h4>
-              <input class="wz-input" value={answers.name} onInput={(e) => set({ name: e.currentTarget.value, hook: "" })} placeholder="z. B. Spanische Eröffnung" />
+              <h4 class="wz-q">{t("Worum geht es? (Name der Eröffnung, Falle, Partie)")}</h4>
+              <input class="wz-input" value={answers.name} onInput={(e) => set({ name: e.currentTarget.value, hook: "" })} placeholder={t("z. B. Spanische Eröffnung")} />
               <p class="studio-hint">
-                Lieber ohne Assistent? <button class="studio-link" onClick={onAi}>Von einer KI schreiben lassen</button> oder <button class="studio-link" onClick={onTemplates}>Fertige Vorlage öffnen</button>
+                
+                {t("Lieber ohne Assistent?")} <button class="studio-link" onClick={onAi}>{t("Von einer KI schreiben lassen")}</button> {" "}{t("oder")}{" "}<button class="studio-link" onClick={onTemplates}>{t("Fertige Vorlage öffnen")}</button>
               </p>
             </div>
           )}
@@ -270,17 +274,17 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
             <>
               <p class="wz-lead">
                 {answers.kind === "puzzle"
-                  ? "Spiel die Züge bis zur Rätselstellung, dann die Lösung. Markier den ersten Zug der Lösung als Schlüsselzug."
+                  ? t("Spiel die Züge bis zur Rätselstellung, dann die Lösung. Markier den ersten Zug der Lösung als Schlüsselzug.")
                   : answers.kind === "trap"
-                    ? "Spiel die Falle vor und markier den entscheidenden Zug als Schlüsselzug: davor dürfen die Zuschauer raten."
-                    : "Spiel die Züge vor. Pfeile und Erklärungen entstehen danach automatisch."}
+                    ? t("Spiel die Falle vor und markier den entscheidenden Zug als Schlüsselzug: davor dürfen die Zuschauer raten.")
+                    : t("Spiel die Züge vor. Pfeile und Erklärungen entstehen danach automatisch.")}
               </p>
               <MoveRecorder
                 tree={tree}
                 cursor={cursor}
                 keyMove={answers.kind !== "opening"}
-                onChange={(t, c) => {
-                  setTree(t);
+                onChange={(tk, c) => {
+                  setTree(tk);
                   setCursor(c);
                 }}
               />
@@ -289,28 +293,28 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
 
           {stepIndex === 2 && (
             <div class="studio-form">
-              <h4 class="wz-q">Wie lang soll das Video werden?</h4>
+              <h4 class="wz-q">{t("Wie lang soll das Video werden?")}</h4>
               <Chips<Answers["length"]> value={answers.length} options={[[15, "15 s"], [30, "30 s"], [45, "45 s"], [60, "60 s"]]} onChange={(length) => set({ length })} />
-              <h4 class="wz-q">Welcher Stil?</h4>
+              <h4 class="wz-q">{t("Welcher Stil?")}</h4>
               <Chips<Vibe>
                 value={answers.vibe}
                 options={[
-                  ["viral", VIBE_LABEL.viral, "schnelle Schnitte, Neon"],
-                  ["calm", VIBE_LABEL.calm, "Zeit zum Mitdenken"],
-                  ["elegant", VIBE_LABEL.elegant, "Holz, Serifenschrift"],
+                  ["viral", VIBE_LABEL.viral, t("schnelle Schnitte, Neon")],
+                  ["calm", VIBE_LABEL.calm, t("Zeit zum Mitdenken")],
+                  ["elegant", VIBE_LABEL.elegant, t("Holz, Serifenschrift")],
                 ]}
                 onChange={(vibe) => set({ vibe, environment: vibe === "viral" ? "neon" : vibe === "calm" ? "podium" : "library" })}
               />
-              <h4 class="wz-q">Für wen?</h4>
+              <h4 class="wz-q">{t("Für wen?")}</h4>
               <Chips<Answers["level"]>
                 value={answers.level}
                 options={[
-                  ["beginner", "Einsteiger"],
-                  ["advanced", "Fortgeschrittene"],
+                  ["beginner", t("Einsteiger")],
+                  ["advanced", t("Fortgeschrittene")],
                 ]}
                 onChange={(level) => set({ level })}
               />
-              <h4 class="wz-q">Erster Satz (der Hook)</h4>
+              <h4 class="wz-q">{t("Erster Satz (der Hook)")}</h4>
               <div class="wz-hooks">
                 {hooks.map((h) => (
                   <button key={h} class={hook === h ? "on" : ""} onClick={() => set({ hook: h })}>
@@ -322,22 +326,22 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
               <label class="studio-toggle">
                 <input type="checkbox" checked={answers.poll} onChange={() => set({ poll: !answers.poll })} />
                 <span class="studio-switch" aria-hidden="true" />
-                <span>Zuschauer vor dem Schlüsselzug raten lassen (Umfrage A/B/C)</span>
+                <span>{t("Zuschauer vor dem Schlüsselzug raten lassen (Umfrage A/B/C)")}</span>
               </label>
-              {answers.poll && tree.keyPly < 0 && answers.kind !== "puzzle" && <p class="studio-hint">Markier dafür im Schritt „Züge“ einen Schlüsselzug.</p>}
-              <h4 class="wz-q">Wie soll es enden?</h4>
+              {answers.poll && tree.keyPly < 0 && answers.kind !== "puzzle" && <p class="studio-hint">{t("Markier dafür im Schritt „Züge“ einen Schlüsselzug.")}</p>}
+              <h4 class="wz-q">{t("Wie soll es enden?")}</h4>
               <Chips<Ending> value={answers.ending} options={(Object.keys(ENDING_LABEL) as Ending[]).map((e) => [e, ENDING_LABEL[e]])} onChange={(ending) => set({ ending })} />
-              <h4 class="wz-q">Aus wessen Sicht schaut man aufs Brett?</h4>
+              <h4 class="wz-q">{t("Aus wessen Sicht schaut man aufs Brett?")}</h4>
               <Chips<Answers["perspective"]>
                 value={answers.perspective}
                 options={[
-                  ["auto", "Automatisch", tree.keyPly >= 0 ? `wer den Schlüsselzug spielt: ${suggestPerspective(tree) === "white" ? "Weiß" : "Schwarz"}` : "Weiß"],
-                  ["white", "Weiß", "Weiß unten"],
-                  ["black", "Schwarz", "Schwarz unten, z. B. für Sizilianisch"],
+                  ["auto", t("Automatisch"), tree.keyPly >= 0 ? t("wer den Schlüsselzug spielt: {0}", { 0: suggestPerspective(tree) === "white" ? t("Weiß") : t("Schwarz") }) : t("Weiß")],
+                  ["white", t("Weiß"), t("Weiß unten")],
+                  ["black", t("Schwarz"), t("Schwarz unten, z. B. für Sizilianisch")],
                 ]}
                 onChange={(perspective) => set({ perspective })}
               />
-              <h4 class="wz-q">Wo steht das Brett?</h4>
+              <h4 class="wz-q">{t("Wo steht das Brett?")}</h4>
               <Chips<Environment> value={answers.environment} options={(Object.keys(ENV_LABEL) as Environment[]).map((e) => [e, ENV_LABEL[e]])} onChange={(environment) => set({ environment })} />
             </div>
           )}
@@ -345,12 +349,13 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
           {stepIndex === 3 && (
             <div class="studio-form">
               <p class="wz-lead">
-                Hast du schon ein Skript? Füg es ein: Sätze, die einen Zug nennen (z. B. „Mit Lb5 …“), landen genau bei diesem Zug, der Rest verteilt sich der Reihe nach. Ohne Skript schreibt das Studio
-                kurze Erklärungen selbst.
+                
+                {t("Hast du schon ein Skript? Füg es ein: Sätze, die einen Zug nennen (z. B. „Mit Lb5 …“), landen genau bei diesem Zug, der Rest verteilt sich der Reihe nach. Ohne Skript schreibt das Studio kurze Erklärungen selbst.")}
               </p>
-              <textarea class="wz-script" rows={9} value={answers.script} onInput={(e) => set({ script: e.currentTarget.value })} placeholder={"Heute lernst du die Spanische Eröffnung.\nNach e4 und e5 kämpfen beide ums Zentrum.\nMit Lb5 greift Weiß den Verteidiger von e5 an.\nFolge für Teil zwei!"} />
+              <textarea class="wz-script" rows={9} value={answers.script} onInput={(e) => set({ script: e.currentTarget.value })} placeholder={t("Heute lernst du die Spanische Eröffnung.\nNach e4 und e5 kämpfen beide ums Zentrum.\nMit Lb5 greift Weiß den Verteidiger von e5 an.\nFolge für Teil zwei!")} />
               <label class="btn ghost wz-file">
-                Textdatei hochladen
+                
+                {t("Textdatei hochladen")}
                 <input type="file" accept=".txt,.md,text/plain" hidden onChange={(e) => e.currentTarget.files?.[0] && void readFile(e.currentTarget.files[0])} />
               </label>
             </div>
@@ -360,19 +365,21 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
         <footer class="wz-foot">
           {stepIndex > 0 && (
             <button class="btn ghost" onClick={() => setStep(stepIndex - 1)}>
-              Zurück
+              
+              {t("Zurück")}
             </button>
           )}
           <span class="wz-summary">
-            {tree.main.length} Züge{tree.variations.length ? `, ${tree.variations.length} Variante${tree.variations.length > 1 ? "n" : ""}` : ""} · {PLATFORM_LABEL[answers.platform]} · {answers.length} s
-          </span>
+            {t("{length} Züge{n} · {n2} · {length2} s", { length: tree.main.length, n: tree.variations.length ? t(", {length} Variante{1}", { length: tree.variations.length, 1: tree.variations.length > 1 ? "n" : "" }) : "", n2: PLATFORM_LABEL[answers.platform], length2: answers.length })}</span>
           {stepIndex < STEPS.length - 1 ? (
             <button class="btn primary" disabled={stepIndex === 1 && !ready} onClick={() => setStep(stepIndex + 1)}>
-              Weiter
+              
+              {t("Weiter")}
             </button>
           ) : null}
           <button class={`btn ${stepIndex === STEPS.length - 1 ? "primary" : "ghost"}`} disabled={!ready} onClick={create}>
-            Video erstellen
+            
+            {t("Video erstellen")}
           </button>
         </footer>
       </div>

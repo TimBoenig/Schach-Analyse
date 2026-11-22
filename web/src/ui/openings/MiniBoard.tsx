@@ -1,6 +1,8 @@
 // Static board picture for cards and lists. Many of them share one page, so a
 // plain SVG (squares from the board theme's colours, the same piece set) is
 // far cheaper than a full interactive board each.
+import { t } from "../../i18n";
+
 
 const PIECES: Record<string, string> = { p: "pawn", n: "knight", b: "bishop", r: "rook", q: "queen", k: "king" };
 
@@ -49,7 +51,7 @@ export function MiniBoard({
   });
   const last = lastMove && lastMove.length >= 4 ? [lastMove.slice(0, 2), lastMove.slice(2, 4)] : [];
   return (
-    <svg class="mini-board" viewBox="0 0 8 8" role="img" aria-label={label ?? "Stellung"}>
+    <svg class="mini-board" viewBox="0 0 8 8" role="img" aria-label={label ?? t("Stellung")}>
       {Array.from({ length: 64 }, (_, i) => {
         const x = i % 8;
         const y = Math.floor(i / 8);

@@ -6,6 +6,7 @@
 import { StudioAudio, type AudioMix } from "./audio";
 import { muxMp4, type Mp4Sample, type Mp4Track } from "./mp4";
 import type { Timeline } from "./timeline";
+import { t } from "../../i18n";
 
 const VIDEO_CODECS = ["avc1.640033", "avc1.4d0033", "avc1.640028", "avc1.42003e", "avc1.42001f"];
 const SAMPLE_RATE = 48000;
@@ -14,7 +15,7 @@ export interface FastJob {
   canvas: HTMLCanvasElement;
   fps: number;
   duration: number;
-  paint: (t: number) => void;
+  paint: (tk: number) => void;
   timeline: Timeline;
   mix: AudioMix | null;
   onProgress?: (k: number) => void;
@@ -116,7 +117,7 @@ async function encodeAudio(job: FastJob, config: AudioEncoderConfig): Promise<Mp
 export async function exportFast(job: FastJob): Promise<Blob | null> {
   const { canvas, fps } = job;
   const vConfig = await videoConfig(canvas.width, canvas.height, fps);
-  if (!vConfig) throw new Error("Schneller Export geht in diesem Browser nicht.");
+  if (!vConfig) throw new Error(t("Schneller Export geht in diesem Browser nicht."));
   const aConfig = job.mix ? await audioConfig() : null;
   // Sound first: it takes a moment and is shown as the first bit of progress.
   const audio = aConfig ? await encodeAudio(job, aConfig) : null;
@@ -157,7 +158,7 @@ export async function exportFast(job: FastJob): Promise<Blob | null> {
   await enc.flush();
   enc.close();
   if (failed) throw failed;
-  if (!desc) throw new Error("Der Video-Encoder hat keine Daten geliefert.");
+  if (!desc) throw new Error(t("Der Video-Encoder hat keine Daten geliefert."));
   const tracks: Mp4Track[] = [{ kind: "video", timescale, config: desc, samples, width: canvas.width, height: canvas.height }];
   if (audio) tracks.push(audio);
   job.onProgress?.(1);

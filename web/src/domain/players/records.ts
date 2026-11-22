@@ -19,9 +19,10 @@ import { toLichessBlitz } from "../profile/fide";
 import { fmt as fmtDot } from "../profile/num";
 import { headToHead } from "./h2h";
 import { eloText, performanceMle } from "./strength";
+import { t, locale, dec } from "../../i18n";
 
 // German decimal comma: "92,5".
-const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", ",");
+const fmt = (x: number, digits: number) => fmtDot(x, digits).replace(".", dec());
 
 export interface RecordMember {
   id: string;
@@ -74,7 +75,7 @@ interface Game {
   opp: number | null;
 }
 
-const dateDe = (at: number | null) => (at === null ? "" : new Date(at * 1000).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }));
+const dateDe = (at: number | null) => (at === null ? "" : new Date(at * 1000).toLocaleDateString(locale(), { day: "2-digit", month: "2-digit", year: "numeric" }));
 const opponent = (x: Game) => String((x.color === "white" ? x.g.black : x.g.white) ?? "?");
 const speedOf = (g: RawGame) => (g.chess960 ? "Chess960" : (g.speed_category || "").trim() || detectSpeedCategory(g.time_control, g.event, g.source) || "Other");
 const elo = (v: unknown) => {
@@ -129,19 +130,19 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     return x.color === "white" ? Math.ceil(plies / 2) : Math.floor(plies / 2);
   };
   const notMuchWeaker = (x: Game) => x.own === null || x.opp === null || x.opp >= x.own - WEAKER_OK;
-  const vs = (c: Candidate) => `gegen ${opponent(c.x)} · ${dateDe(c.x.at)}`;
-  const until = (c: Candidate) => `bis ${dateDe(c.x.at)}`;
+  const vs = (c: Candidate) => t("gegen {opponent} · {dateDe}", { opponent: opponent(c.x), dateDe: dateDe(c.x.at) });
+  const until = (c: Candidate) => t("bis {dateDe}", { dateDe: dateDe(c.x.at) });
 
   // Each record: every member's personal best (ties: earlier game), then the group's.
   const defs: { def: Def; best: (list: Game[]) => Candidate[] }[] = [
     {
       def: {
         key: "peak",
-        title: "Stärkste Phase",
-        bar: `ab ${PEAK_GAMES} gewerteten Partien`,
+        title: t("Stärkste Phase"),
+        bar: t("ab {PEAK_GAMES} gewerteten Partien", { PEAK_GAMES }),
         higher: true,
-        text: (v) => `Leistung Elo ${eloText(v)}`,
-        detail: (c) => `über ${PEAK_GAMES} Partien in Folge, ${until(c)}`,
+        text: (v) => t("Leistung Elo {eloText}", { eloText: eloText(v) }),
+        detail: (c) => t("über {PEAK_GAMES} Partien in Folge, {until}", { PEAK_GAMES, until: until(c) }),
       },
       best: (list) => {
         const rated = list.filter((x) => x.result !== null && x.opp !== null);
@@ -157,10 +158,10 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "upset",
-        title: "Größter Coup",
-        bar: `ein Sieg gegen jemanden ${UPSET_BAR}+ Punkte stärker`,
+        title: t("Größter Coup"),
+        bar: t("ein Sieg gegen jemanden {UPSET_BAR}+ Punkte stärker", { UPSET_BAR }),
         higher: true,
-        text: (v) => `Sieg gegen ${fmt(v, 0)} Punkte Stärkere`,
+        text: (v) => t("Sieg gegen {fmt} Punkte Stärkere", { fmt: fmt(v, 0) }),
         detail: vs,
       },
       best: (list) =>
@@ -172,10 +173,10 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "streak",
-        title: "Siegesserie",
-        bar: `ab ${STREAK_BAR} Siegen in Folge`,
+        title: t("Siegesserie"),
+        bar: t("ab {STREAK_BAR} Siegen in Folge", { STREAK_BAR }),
         higher: true,
-        text: (v) => `${v} Siege in Folge`,
+        text: (v) => t("{v} Siege in Folge", { v }),
         detail: until,
       },
       best: (list) => {
@@ -192,11 +193,11 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "comeback",
-        title: "Aufholjagd",
-        bar: `ein Sieg aus höchstens ${fmt(COMEBACK_BAR * 100, 0)} % Gewinnchance`,
+        title: t("Aufholjagd"),
+        bar: t("ein Sieg aus höchstens {fmt} % Gewinnchance", { fmt: fmt(COMEBACK_BAR * 100, 0) }),
         higher: false,
-        text: (v) => `aus ${v < 0.01 ? "unter 1" : fmt(v * 100, 0)} % gewonnen`,
-        detail: (c) => `Gewinnchance zwischendurch, ${vs(c)}`,
+        text: (v) => t("aus {0} % gewonnen", { 0: v < 0.01 ? t("unter 1") : fmt(v * 100, 0) }),
+        detail: (c) => t("Gewinnchance zwischendurch, {vs}", { vs: vs(c) }),
       },
       best: (list) =>
         list
@@ -214,11 +215,11 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "best_game",
-        title: "Partie des Lebens",
-        bar: `${ACCURACY_BAR} %+ Genauigkeit in einem Sieg über ${ACCURACY_MOVES}+ Züge`,
+        title: t("Partie des Lebens"),
+        bar: t("{ACCURACY_BAR} %+ Genauigkeit in einem Sieg über {ACCURACY_MOVES}+ Züge", { ACCURACY_BAR, ACCURACY_MOVES }),
         higher: true,
-        text: (v) => `${fmt(v, 1)} % Genauigkeit`,
-        detail: (c) => `im Sieg ${vs(c)}`,
+        text: (v) => t("{fmt} % Genauigkeit", { fmt: fmt(v, 1) }),
+        detail: (c) => t("im Sieg {vs}", { vs: vs(c) }),
       },
       best: (list) =>
         list
@@ -229,10 +230,10 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "mate",
-        title: "Kurzer Prozess",
-        bar: `ein Matt in höchstens ${MATE_BAR} Zügen`,
+        title: t("Kurzer Prozess"),
+        bar: t("ein Matt in höchstens {MATE_BAR} Zügen", { MATE_BAR }),
         higher: false,
-        text: (v) => `Matt im ${v}. Zug`,
+        text: (v) => t("Matt im {v}. Zug", { v }),
         detail: vs,
       },
       best: (list) =>
@@ -244,11 +245,11 @@ export function groupRecords(members: RecordMember[], games: RawGame[], format =
     {
       def: {
         key: "clean",
-        title: "Ohne Patzer",
-        bar: `ab ${CLEAN_BAR} analysierten Partien in Folge ohne Patzer`,
+        title: t("Ohne Patzer"),
+        bar: t("ab {CLEAN_BAR} analysierten Partien in Folge ohne Patzer", { CLEAN_BAR }),
         higher: true,
-        text: (v) => `${v} Partien ohne Patzer`,
-        detail: (c) => `in Folge, ${until(c)}`,
+        text: (v) => t("{v} Partien ohne Patzer", { v }),
+        detail: (c) => t("in Folge, {until}", { until: until(c) }),
       },
       best: (list) => {
         // Unanalysed games do not break the run: there is nothing to judge.
@@ -287,7 +288,7 @@ function pick(cands: Candidate[], higher: boolean): Candidate | null {
 function finish(def: Def, personal: Candidate[]): GroupRecord {
   const sorted = [...personal].sort((a, b) => (def.higher ? b.v - a.v : a.v - b.v) || a.x.at - b.x.at);
   const [top, next] = sorted;
-  if (!top) return { key: def.key, title: def.title, bar: def.bar, holder: null, value: null, text: "noch offen", detail: def.bar, runner_up: null, tied: false, game_id: null, played_at: null };
+  if (!top) return { key: def.key, title: def.title, bar: def.bar, holder: null, value: null, text: t("noch offen"), detail: def.bar, runner_up: null, tied: false, game_id: null, played_at: null };
   return {
     key: def.key,
     title: def.title,
@@ -307,10 +308,10 @@ function finish(def: Def, personal: Candidate[]): GroupRecord {
 function duelStreak(members: RecordMember[], games: RawGame[], format: string, date: string): GroupRecord {
   const def: Def = {
     key: "duel",
-    title: "Angstgegner",
-    bar: `ab ${DUEL_STREAK_BAR} Siegen in Folge gegen denselben Freund`,
+    title: t("Angstgegner"),
+    bar: t("ab {DUEL_STREAK_BAR} Siegen in Folge gegen denselben Freund", { DUEL_STREAK_BAR }),
     higher: true,
-    text: (v) => `${v} Siege in Folge`,
+    text: (v) => t("{v} Siege in Folge", { v }),
     detail: () => "",
   };
   const personal: (Candidate & { rival: string })[] = [];
@@ -332,6 +333,6 @@ function duelStreak(members: RecordMember[], games: RawGame[], format: string, d
   }
   const rec = finish(def, personal);
   const top = personal.find((p) => rec.holder && p.x.member.id === rec.holder.id);
-  if (top) rec.detail = `gegen ${top.rival}, bis ${dateDe(top.x.at)}`;
+  if (top) rec.detail = t("gegen {rival}, bis {dateDe}", { rival: top.rival, dateDe: dateDe(top.x.at) });
   return rec;
 }

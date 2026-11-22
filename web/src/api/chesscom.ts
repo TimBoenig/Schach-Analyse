@@ -120,8 +120,8 @@ export async function getUserGamesByDate(username: string, date: Date, opts: Cal
     const start = Date.UTC(y, m, d) / 1000;
     const end = start + 86400 - 1e-6;
     return games.filter((g) => {
-      const t = num(g.end_time);
-      return t && start <= t && t <= end;
+      const tk = num(g.end_time);
+      return tk && start <= tk && tk <= end;
     });
   } catch (err) {
     if (opts.signal?.aborted) throw err;

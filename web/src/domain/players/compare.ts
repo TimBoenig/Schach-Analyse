@@ -19,6 +19,7 @@ import { PRIOR_MARGIN, SKILL_NAMES } from "../profile/skills";
 import { ADJUST_SE_SHARE, FAIRNESS_NOTE, type SpeedAdjust } from "./fairness";
 import type { HeadToHead } from "./h2h";
 import { FACTOR_WEIGHTS } from "./weights";
+import { t } from "../../i18n";
 
 export interface Estimate {
   value: number;
@@ -48,8 +49,8 @@ const BAND_Z = 1.2816;
 /** Standard normal cumulative distribution (Abramowitz–Stegun 7.1.26, error < 1e-7). */
 export function normalCdf(z: number): number {
   const x = Math.abs(z) / Math.SQRT2;
-  const t = 1 / (1 + 0.3275911 * x);
-  const poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+  const tk = 1 / (1 + 0.3275911 * x);
+  const poly = tk * (0.254829592 + tk * (-0.284496736 + tk * (1.421413741 + tk * (-1.453152027 + tk * 1.061405429))));
   const erf = 1 - poly * Math.exp(-x * x);
   return z >= 0 ? (1 + erf) / 2 : (1 - erf) / 2;
 }
@@ -255,14 +256,14 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
   if (!elo) {
     // Ratings from a game between the two are on the same platform by definition.
     const g = h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null && (!speed || x.speed === speed)) ?? h2h.recent.find((x) => x.rating_a !== null && x.rating_b !== null);
-    if (g) elo = { me: g.rating_a as number, them: g.rating_b as number, speed: trSpeed(g.speed), from: "letzte Partie" };
+    if (g) elo = { me: g.rating_a as number, them: g.rating_b as number, speed: trSpeed(g.speed), from: "letzte Partie" }; // i18n: id
   }
   if (quality === null && !h2h.games) return null;
   const eloP = elo ? expectedScore(elo.me, elo.them) : null;
   const f = forecastScore(quality, h2h);
   const parts: string[] = [];
-  if (f.start !== null) parts.push("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)");
-  if (h2h.games) parts.push(plural(h2h.games, "direkten Partie", "direkten Partien"));
+  if (f.start !== null) parts.push(t("eurem Spiel (Ergebnisse, Genauigkeit, Patzer, Fähigkeiten)"));
+  if (h2h.games) parts.push(plural(h2h.games, t("direkten Partie"), t("direkten Partien")));
   return {
     pct: f.p * 100,
     low: f.low * 100,
@@ -271,7 +272,7 @@ function predict(me: PlayerProfile | null, them: PlayerProfile, h2h: HeadToHead,
     elo_pct: eloP === null ? null : eloP * 100,
     quality_pct: f.start === null ? null : f.start * 100,
     h2h_games: h2h.games,
-    basis: `Aus ${parts.join(" und ")}. Die Wertung zählt nicht mit.`,
+    basis: t("Aus {parts}. Die Wertung zählt nicht mit.", { parts: parts.join(t(" und ")) }),
   };
 }
 
@@ -294,15 +295,15 @@ export function buildMatchup(
     rows.push({ key, label, group, higher_is_better: higher, me: a?.value ?? null, them: b?.value ?? null, p_me: pMe, ...edgeOf(pMe) });
   };
   if (me) {
-    add("expectation", "Über Erwartung", "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them));
-    add("accuracy", "Genauigkeit", "Spielqualität", true, shifted(accuracyEstimate(me), adjust?.[0].accuracy ?? 0), shifted(accuracyEstimate(them), adjust?.[1].accuracy ?? 0));
-    add("blunders", "Patzer pro Partie", "Spielqualität", false, shifted(blunderEstimate(me), adjust?.[0].blunders ?? 0), shifted(blunderEstimate(them), adjust?.[1].blunders ?? 0));
+    add("expectation", t("Über Erwartung"), "Ergebnisse", true, expectationEstimate(me), expectationEstimate(them)); // i18n: id
+    add("accuracy", t("Genauigkeit"), "Spielqualität", true, shifted(accuracyEstimate(me), adjust?.[0].accuracy ?? 0), shifted(accuracyEstimate(them), adjust?.[1].accuracy ?? 0)); // i18n: id
+    add("blunders", t("Patzer pro Partie"), "Spielqualität", false, shifted(blunderEstimate(me), adjust?.[0].blunders ?? 0), shifted(blunderEstimate(them), adjust?.[1].blunders ?? 0)); // i18n: id
     for (const k of SKILL_KEYS) {
       const ok = (p: PlayerProfile) => p.analyzed_games >= MIN_COMPARE_ANALYZED;
       const a = ok(me) ? me.skills.find((s) => s.key === k) : undefined;
       const b = ok(them) ? them.skills.find((s) => s.key === k) : undefined;
       const prior = skillPrior([a, b]);
-      add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior));
+      add(k, SKILL_NAMES[k], "Fähigkeiten", true, skillEstimate(a, prior), skillEstimate(b, prior)); // i18n: id
     }
   }
   const known = rows.filter((r) => r.p_me !== null);
@@ -311,7 +312,7 @@ export function buildMatchup(
   if (prediction?.elo?.from === "Wertung") {
     rows.unshift({
       key: "rating",
-      label: `Wertung (${prediction.elo.speed})`,
+      label: t("Wertung ({speed})", { speed: prediction.elo.speed }),
       group: "Ergebnisse",
       higher_is_better: true,
       me: prediction.elo.me,

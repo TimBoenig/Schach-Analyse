@@ -47,8 +47,8 @@ export function toStoredGame(game: GameAnalysis, timestamp?: number): StoredGame
     meta.termination = meta.termination_description;
   }
 
-  const count = (t: Record<string, any>, c: string) =>
-    ((t.brilliancies ?? []) as { classification?: string }[]).filter((b) => b.classification === c).length;
+  const count = (tk: Record<string, any>, c: string) =>
+    ((tk.brilliancies ?? []) as { classification?: string }[]).filter((b) => b.classification === c).length;
 
   return {
     id: game.game_id,

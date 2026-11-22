@@ -32,6 +32,7 @@ import {
 import { fmt, fmtDe } from "../profile/num";
 import { edgeOf, MIN_COMPARE_ANALYZED, probBetter, skillEstimate, skillPrior } from "./compare";
 import type { HeadToHead } from "./h2h";
+import { t } from "../../i18n";
 
 export type TipKind = "Eröffnung" | "Taktik" | "Strategie" | "Zeit" | "Psychologie";
 
@@ -99,31 +100,31 @@ const MAX_TIPS = 6;
 
 const shrunk = (pct: number | null, n: number, base: number) => (pct === null ? base : (pct * n + base * PRIOR_GAMES) / (n + PRIOR_GAMES));
 const p0 = (v: number) => `${fmtDe(v, 0)} %`;
-const games = (n: number) => `${n} ${n === 1 ? "Partie" : "Partien"}`;
+const games = (n: number) => `${n} ${n === 1 ? t("Partie") : t("Partien")}`;
 
 const LOSS_LABELS: Record<string, string> = {
-  Checkmate: "Matt",
-  Resignation: "Aufgabe",
-  Time: "Zeit",
-  Abandon: "Abbruch",
+  Checkmate: t("Matt"),
+  Resignation: t("Aufgabe"),
+  Time: t("Zeit"),
+  Abandon: t("Abbruch"),
 };
 
 // Dative forms for "mit dem Springer" etc.; labels come from the error map.
 const WITH_PIECE: Record<string, string> = {
-  Bauer: "dem Bauern",
-  Springer: "dem Springer",
-  Läufer: "dem Läufer",
-  Turm: "dem Turm",
-  Dame: "der Dame",
-  König: "dem König",
+  Bauer: t("dem Bauern"),
+  Springer: t("dem Springer"),
+  Läufer: t("dem Läufer"),
+  Turm: t("dem Turm"),
+  Dame: t("der Dame"),
+  König: t("dem König"),
 };
 
 const PIECE_DE: Record<string, string> = {
-  pawn: "Bauern",
-  knight: "Springer",
-  bishop: "Läufer",
-  rook: "Türme",
-  queen: "Damen",
+  pawn: t("Bauern"),
+  knight: t("Springer"),
+  bishop: t("Läufer"),
+  rook: t("Türme"),
+  queen: t("Damen"),
 };
 
 /** How far a skill sits below/above the yardstick (typical for the rating, else 50). */
@@ -135,74 +136,74 @@ type TipText = (name: string, s: SkillScore, p: PlayerProfile) => { title: strin
 
 const EXPLOIT: Record<string, TipText> = {
   opening: (n, s) => ({
-    kind: "Eröffnung",
-    title: "Früh Fragen stellen",
-    text: `${n} verliert schon in der Eröffnung an Boden (${s.detail}). Spiel aktive, prinzipielle Eröffnungen und stell früh konkrete Drohungen, statt ruhig aufzubauen.`,
+    kind: "Eröffnung", // i18n: id
+    title: t("Früh Fragen stellen"),
+    text: t("{n} verliert schon in der Eröffnung an Boden ({detail}). Spiel aktive, prinzipielle Eröffnungen und stell früh konkrete Drohungen, statt ruhig aufzubauen.", { n, detail: s.detail }),
   }),
   middlegame: (n, s) => ({
     kind: "Strategie",
-    title: "Komplexes Mittelspiel suchen",
-    text: `Im Mittelspiel unterlaufen ${n} die meisten Fehler (${s.detail}). Halte Figuren auf dem Brett und vermeide frühe Abtausche.`,
+    title: t("Komplexes Mittelspiel suchen"),
+    text: t("Im Mittelspiel unterlaufen {n} die meisten Fehler ({detail}). Halte Figuren auf dem Brett und vermeide frühe Abtausche.", { n, detail: s.detail }),
   }),
   endgame: (n, s) => ({
     kind: "Strategie",
-    title: "Ins Endspiel abwickeln",
-    text: `Im Endspiel spielt ${n} schwach (${s.detail}). Bei ausgeglichener Stellung abtauschen, vor allem die Damen, und das Endspiel lange weiterspielen.`,
+    title: t("Ins Endspiel abwickeln"),
+    text: t("Im Endspiel spielt {n} schwach ({detail}). Bei ausgeglichener Stellung abtauschen, vor allem die Damen, und das Endspiel lange weiterspielen.", { n, detail: s.detail }),
   }),
   tactics: (n, s) => ({
     kind: "Taktik",
-    title: "Komplikationen riskieren",
-    text: `${n} bestraft gegnerische Fehler selten (${s.detail}). Scharfe Stellungen und Angriffe lohnen sich, auch wenn sie nicht ganz korrekt sind.`,
+    title: t("Komplikationen riskieren"),
+    text: t("{n} bestraft gegnerische Fehler selten ({detail}). Scharfe Stellungen und Angriffe lohnen sich, auch wenn sie nicht ganz korrekt sind.", { n, detail: s.detail }),
   }),
   safety: (n, s, p) => {
     const by = (p.statistics.hanging_stats?.by_piece ?? {}) as Record<string, number>;
     const top = Object.entries(by).sort((a, b) => b[1] - a[1])[0];
-    const piece = top && top[1] > 0 ? ` Am häufigsten hängen ${PIECE_DE[top[0]] ?? top[0]}.` : "";
+    const piece = top && top[1] > 0 ? t(" Am häufigsten hängen {0}.", { 0: PIECE_DE[top[0]] ?? top[0] }) : "";
     return {
       kind: "Taktik",
-      title: "Doppelangriffe und Drohungen",
-      text: `${n} lässt oft Figuren ungedeckt (${s.detail}).${piece} Prüfe nach jedem Zug, was ungedeckt steht, und suche Gabeln, Spieße und Abzugsangriffe.`,
+      title: t("Doppelangriffe und Drohungen"),
+      text: t("{n} lässt oft Figuren ungedeckt ({detail}).{piece} Prüfe nach jedem Zug, was ungedeckt steht, und suche Gabeln, Spieße und Abzugsangriffe.", { n, detail: s.detail, piece }),
     };
   },
   conversion: (n, s) => ({
     kind: "Psychologie",
-    title: "Nie früh aufgeben",
-    text: `Gewonnene Stellungen bringt ${n} oft nicht nach Hause (${s.detail}). Bleib in schlechteren Stellungen zäh und stell weiter Probleme, die Partie kippt häufig noch.`,
+    title: t("Nie früh aufgeben"),
+    text: t("Gewonnene Stellungen bringt {n} oft nicht nach Hause ({detail}). Bleib in schlechteren Stellungen zäh und stell weiter Probleme, die Partie kippt häufig noch.", { n, detail: s.detail }),
   }),
   defense: (n, s) => ({
     kind: "Strategie",
-    title: "Im Vorteil weiter drücken",
-    text: `In schlechteren Stellungen bricht ${n} schnell ein (${s.detail}). Sobald du besser stehst: weiter angreifen und Druck halten, statt nur abzusichern.`,
+    title: t("Im Vorteil weiter drücken"),
+    text: t("In schlechteren Stellungen bricht {n} schnell ein ({detail}). Sobald du besser stehst: weiter angreifen und Druck halten, statt nur abzusichern.", { n, detail: s.detail }),
   }),
   time: (n, s) => ({
     kind: "Zeit",
-    title: "Über die Uhr gewinnen",
-    text: `${n} hat Probleme mit der Bedenkzeit (${s.detail}). Spiel zügig, hol dir einen Zeitvorsprung und stell in der Zeitnot einfache, aber unangenehme Fragen.`,
+    title: t("Über die Uhr gewinnen"),
+    text: t("{n} hat Probleme mit der Bedenkzeit ({detail}). Spiel zügig, hol dir einen Zeitvorsprung und stell in der Zeitnot einfache, aber unangenehme Fragen.", { n, detail: s.detail }),
   }),
 };
 
 const CAUTION: Record<string, (name: string, s: SkillScore) => string> = {
-  opening: (n) => `${n} kennt sich in der Eröffnung gut aus. Weiche mit einer Nebenvariante früh von der Theorie ab.`,
-  middlegame: (n) => `${n} spielt das Mittelspiel stark. Vereinfache, wenn du gleich stehst, statt das Mittelspiel lange zu halten.`,
-  endgame: (n) => `${n} ist im Endspiel stark. Such die Entscheidung im Mittelspiel und tausch nicht ohne Not ab.`,
-  tactics: (n) => `${n} ist taktisch stark und bestraft Fehler. Halte deine Figuren gedeckt und meide unnötig offene Stellungen.`,
-  safety: (n) => `${n} stellt kaum etwas ein. Billige Fallen bringen hier wenig, setz auf langfristigen Druck.`,
-  conversion: (n) => `${n} verwertet Vorteile sicher. Gerate früh nicht in Nachteil, Aufholjagden sind schwer.`,
-  defense: (n) => `${n} verteidigt sich zäh. Verwerte einen Vorteil geduldig und sauber statt hektisch.`,
-  time: (n) => `${n} teilt die Bedenkzeit gut ein. Hoffe nicht auf Zeitnot, sondern spiel auf die Stellung.`,
+  opening: (n) => t("{n} kennt sich in der Eröffnung gut aus. Weiche mit einer Nebenvariante früh von der Theorie ab.", { n }),
+  middlegame: (n) => t("{n} spielt das Mittelspiel stark. Vereinfache, wenn du gleich stehst, statt das Mittelspiel lange zu halten.", { n }),
+  endgame: (n) => t("{n} ist im Endspiel stark. Such die Entscheidung im Mittelspiel und tausch nicht ohne Not ab.", { n }),
+  tactics: (n) => t("{n} ist taktisch stark und bestraft Fehler. Halte deine Figuren gedeckt und meide unnötig offene Stellungen.", { n }),
+  safety: (n) => t("{n} stellt kaum etwas ein. Billige Fallen bringen hier wenig, setz auf langfristigen Druck.", { n }),
+  conversion: (n) => t("{n} verwertet Vorteile sicher. Gerate früh nicht in Nachteil, Aufholjagden sind schwer.", { n }),
+  defense: (n) => t("{n} verteidigt sich zäh. Verwerte einen Vorteil geduldig und sauber statt hektisch.", { n }),
+  time: (n) => t("{n} teilt die Bedenkzeit gut ein. Hoffe nicht auf Zeitnot, sondern spiel auf die Stellung.", { n }),
 };
 
 // What to steer towards when the user is clearly better in a skill, even if
 // the player is not weak there by the standard of the rating.
 const STEER: Record<string, (name: string) => { title: string; text: string; kind: TipKind }> = {
-  opening: (n) => ({ kind: "Eröffnung", title: "Eröffnung zuspitzen", text: `Hol dir den Vorteil früh: Spiel deine Hauptvarianten und zwing ${n} in Theorie, die du besser kennst.` }),
-  middlegame: (n) => ({ kind: "Strategie", title: "Mittelspiel ausspielen", text: `Halte die Figuren auf dem Brett und tausch nicht vorschnell ab, im Mittelspiel liegt dein Plus gegen ${n}.` }),
-  endgame: (n) => ({ kind: "Strategie", title: "Ins Endspiel abwickeln", text: `Bei ausgeglichener Stellung abtauschen, vor allem die Damen: Im Endspiel bist du ${n} überlegen.` }),
-  tactics: (n) => ({ kind: "Taktik", title: "Scharf spielen", text: `Such offene, taktische Stellungen: Du siehst Taktik klar besser als ${n}.` }),
-  safety: (n) => ({ kind: "Taktik", title: "Stellung spannend halten", text: `Du stellst seltener etwas ein als ${n}. Halte die Stellung lange voller Spannung, dann passiert ${n} eher der Fehler.` }),
-  conversion: (n) => ({ kind: "Psychologie", title: "Kleine Vorteile reichen", text: `Du verwertest Vorteile sicherer als ${n}. Nimm auch einen kleinen Vorteil mit und spiel ihn ruhig aus.` }),
-  defense: (n) => ({ kind: "Psychologie", title: "Schlechte Stellungen halten", text: `Du verteidigst zäher als ${n}. Gib schlechtere Stellungen nicht auf, ${n} lässt oft noch etwas zu.` }),
-  time: (n) => ({ kind: "Zeit", title: "Tempo machen", text: `Du teilst die Zeit besser ein als ${n}. Spiel zügig und lass ${n} die Uhr spüren.` }),
+  opening: (n) => ({ kind: "Eröffnung", title: t("Eröffnung zuspitzen"), text: t("Hol dir den Vorteil früh: Spiel deine Hauptvarianten und zwing {n} in Theorie, die du besser kennst.", { n }) }), // i18n: id
+  middlegame: (n) => ({ kind: "Strategie", title: t("Mittelspiel ausspielen"), text: t("Halte die Figuren auf dem Brett und tausch nicht vorschnell ab, im Mittelspiel liegt dein Plus gegen {n}.", { n }) }),
+  endgame: (n) => ({ kind: "Strategie", title: t("Ins Endspiel abwickeln"), text: t("Bei ausgeglichener Stellung abtauschen, vor allem die Damen: Im Endspiel bist du {n} überlegen.", { n }) }),
+  tactics: (n) => ({ kind: "Taktik", title: t("Scharf spielen"), text: t("Such offene, taktische Stellungen: Du siehst Taktik klar besser als {n}.", { n }) }),
+  safety: (n) => ({ kind: "Taktik", title: t("Stellung spannend halten"), text: t("Du stellst seltener etwas ein als {n}. Halte die Stellung lange voller Spannung, dann passiert {n2} eher der Fehler.", { n, n2: n }) }),
+  conversion: (n) => ({ kind: "Psychologie", title: t("Kleine Vorteile reichen"), text: t("Du verwertest Vorteile sicherer als {n}. Nimm auch einen kleinen Vorteil mit und spiel ihn ruhig aus.", { n }) }),
+  defense: (n) => ({ kind: "Psychologie", title: t("Schlechte Stellungen halten"), text: t("Du verteidigst zäher als {n}. Gib schlechtere Stellungen nicht auf, {n2} lässt oft noch etwas zu.", { n, n2: n }) }),
+  time: (n) => ({ kind: "Zeit", title: t("Tempo machen"), text: t("Du teilst die Zeit besser ein als {n}. Spiel zügig und lass {n2} die Uhr spüren.", { n, n2: n }) }),
 };
 
 const n0 = (v: number) => fmt(v, 0);
@@ -221,27 +222,27 @@ function skillTips(name: string, p: PlayerProfile, me: PlayerProfile | null): { 
     const pMe = a && b && mine?.reliable ? probBetter(a, b) : null;
     const { edge, sure } = edgeOf(pMe);
     // The same values as the comparison table on the friend page (rating-free shared prior).
-    const vs = mine && a && b ? ` (du ${n0(a.value)}, ${name} ${n0(b.value)})` : "";
+    const vs = mine && a && b ? t(" (du {n0}, {name} {n02})", { n0: n0(a.value), name, n02: n0(b.value) }) : "";
     const g = gap(s);
     // A gap inside the skill's own uncertainty is no reason to change the plan.
     const clearGap = s.reliable && Math.abs(g) >= (s.margin ?? 0) / 2;
     if (clearGap && (g <= -8 || s.score < 35) && EXPLOIT[s.key]) {
       const tip = EXPLOIT[s.key](name, s, p);
       const bonus = edge === "me" ? 10 : edge === "them" ? -5 : 0;
-      const extra = edge === "me" ? ` Hier bist du selbst klar stärker${vs}.` : "";
+      const extra = edge === "me" ? t(" Hier bist du selbst klar stärker{vs}.", { vs }) : "";
       plan.push({ key: `skill_${s.key}`, ...tip, text: tip.text + extra, weight: Math.max(-g, 35 - s.score, 8) + bonus });
     } else if (edge === "me" && sure && mine && STEER[s.key] && mine.score - s.score >= 10) {
       const tip = STEER[s.key](name);
       plan.push({ key: `edge_${s.key}`, ...tip, text: `${tip.text} ${s.name}${vs}.`, weight: 6 + (mine.score - s.score) / 2 });
     } else if (clearGap && (g >= 8 || s.score >= 70) && CAUTION[s.key]) {
-      const extra = edge === "them" ? ` ${name} ist hier klar stärker als du${vs}.` : "";
+      const extra = edge === "them" ? t(" {name} ist hier klar stärker als du{vs}.", { name, vs }) : "";
       cautions.push({ key: `strong_${s.key}`, kind: "Strategie", title: s.name, text: CAUTION[s.key](name, s) + extra, weight: Math.max(g, s.score - 70, 8) + (edge === "them" ? 10 : 0) });
     } else if (edge === "them" && sure && mine && CAUTION[s.key] && s.score - mine.score >= 10) {
       cautions.push({
         key: `strong_${s.key}`,
         kind: "Strategie",
         title: s.name,
-        text: `${CAUTION[s.key](name, s)} ${name} ist hier klar stärker als du${vs}.`,
+        text: t("{0} {name} ist hier klar stärker als du{vs}.", { 0: CAUTION[s.key](name, s), name, vs }),
         weight: 6 + (s.score - mine.score) / 2,
       });
     }
@@ -259,8 +260,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
     tips.push({
       key: "loses_on_time",
       kind: "Zeit",
-      title: "Über die Uhr gewinnen",
-      text: `${name} verliert ${p0((onTime / losses) * 100)} der Niederlagen auf Zeit (${onTime} von ${losses}). Spiel zügig und halte die Stellung kompliziert, wenn die Uhr knapp wird.`,
+      title: t("Über die Uhr gewinnen"),
+      text: t("{name} verliert {p0} der Niederlagen auf Zeit ({onTime} von {losses}). Spiel zügig und halte die Stellung kompliziert, wenn die Uhr knapp wird.", { name, p0: p0((onTime / losses) * 100), onTime, losses }),
       weight: (onTime / losses) * 40,
     });
   }
@@ -275,8 +276,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
       tips.push({
         key: "color_gap",
         kind: "Strategie",
-        title: `Mit ${weak.label} verwundbar`,
-        text: `Mit ${weak.label} holt ${name} nur ${p0(weak.score_pct)}, mit ${strong.label} ${p0(strong.score_pct)}. Hat ${name} ${weak.label}, spiel auf Gewinn, hat ${name} ${strong.label}, reicht oft ein solides Remis.`,
+        title: t("Mit {label} verwundbar", { label: weak.label }),
+        text: t("Mit {label} holt {name} nur {p0}, mit {label2} {p02}. Hat {name2} {label3}, spiel auf Gewinn, hat {name3} {label4}, reicht oft ein solides Remis.", { label: weak.label, name, p0: p0(weak.score_pct), label2: strong.label, p02: p0(strong.score_pct), name2: name, label3: weak.label, name3: name, label4: strong.label }),
         weight: Math.abs(d) / 2,
       });
     }
@@ -291,8 +292,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
       tips.push({
         key: "speed_gap",
         kind: "Zeit",
-        title: `${lo.label} ist die Schwachstelle`,
-        text: `In ${lo.label} holt ${name} nur ${p0(lo.score_pct)}, in ${hi.label} ${p0(hi.score_pct)}. Fordere ${name} am besten in ${lo.label} heraus.`,
+        title: t("{label} ist die Schwachstelle", { label: lo.label }),
+        text: t("In {label} holt {name} nur {p0}, in {label2} {p02}. Fordere {name2} am besten in {label3} heraus.", { label: lo.label, name, p0: p0(lo.score_pct), label2: hi.label, p02: p0(hi.score_pct), name2: name, label3: lo.label }),
         weight: (hi.score_pct - lo.score_pct) / 2,
       });
     }
@@ -316,8 +317,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
       tips.push({
         key: "tilt",
         kind: "Psychologie",
-        title: "Revanche sofort spielen",
-        text: `Nach einer Niederlage holt ${name} nur ${p0(afterLoss.score_pct)} statt ${p0(overall)}. Eine direkte Revanche nach einem Sieg lohnt sich.`,
+        title: t("Revanche sofort spielen"),
+        text: t("Nach einer Niederlage holt {name} nur {p0} statt {p02}. Eine direkte Revanche nach einem Sieg lohnt sich.", { name, p0: p0(afterLoss.score_pct), p02: p0(overall) }),
         weight: (overall - afterLoss.score_pct) / 2,
       });
     }
@@ -335,8 +336,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
       tips.push({
         key: "error_window",
         kind: "Strategie",
-        title: `Kritische Phase: Zug ${peak.label}`,
-        text: `Zwischen Zug ${peak.label} macht ${name} die meisten schweren Fehler (${fmtDe(peak.per100 as number, 1)} pro 100 Züge, sonst ${fmtDe(avgRate, 1)}). Halte die Stellung bis dahin spannend und rechne in dieser Phase besonders genau.`,
+        title: t("Kritische Phase: Zug {label}", { label: peak.label }),
+        text: t("Zwischen Zug {label} macht {name} die meisten schweren Fehler ({fmtDe} pro 100 Züge, sonst {fmtDe2}). Halte die Stellung bis dahin spannend und rechne in dieser Phase besonders genau.", { label: peak.label, name, fmtDe: fmtDe(peak.per100 as number, 1), fmtDe2: fmtDe(avgRate, 1) }),
         weight: ((peak.per100 as number) / avgRate - 1) * 15,
       });
     }
@@ -355,8 +356,8 @@ function resultTips(name: string, p: PlayerProfile): ScoutTip[] {
       tips.push({
         key: "error_piece",
         kind: "Taktik",
-        title: `Schwachpunkt: Züge mit ${withPiece}`,
-        text: `Mit ${withPiece} unterlaufen ${name} deutlich mehr Fehler (${fmtDe(worstPiece.per100 as number, 1)} pro 100 Züge) als mit anderen Figuren. Stellungen, in denen diese Figur viel ziehen muss, sind unangenehm für ${name}.`,
+        title: t("Schwachpunkt: Züge mit {withPiece}", { withPiece }),
+        text: t("Mit {withPiece} unterlaufen {name} deutlich mehr Fehler ({fmtDe} pro 100 Züge) als mit anderen Figuren. Stellungen, in denen diese Figur viel ziehen muss, sind unangenehm für {name2}.", { withPiece, name, fmtDe: fmtDe(worstPiece.per100 as number, 1), name2: name }),
         weight: ((worstPiece.per100 as number) / pieceAvg - 1) * 10,
       });
     }
@@ -369,7 +370,7 @@ function myLine(me: PlayerProfile | null, color: "white" | "black", name: string
 }
 
 function mine(stat: { games: number; score_pct: number | null } | undefined): string {
-  return stat && stat.games >= MIN_LINE_GAMES && stat.score_pct !== null ? ` Du selbst holst damit ${p0(stat.score_pct)} (${games(stat.games)}).` : "";
+  return stat && stat.games >= MIN_LINE_GAMES && stat.score_pct !== null ? t(" Du selbst holst damit {p0} ({games}).", { p0: p0(stat.score_pct), games: games(stat.games) }) : "";
 }
 
 /**
@@ -386,7 +387,7 @@ function usual(them: PlayerProfile, games: number, pct: number | null): number {
 /** " Sonst holt Max 62 %." when the line is clearly below the player's usual level. */
 function vsUsual(name: string, them: PlayerProfile, n: number, pct: number | null): string {
   const u = usual(them, n, pct);
-  return pct !== null && u - pct >= 5 ? ` Sonst holt ${name} ${p0(u)}.` : "";
+  return pct !== null && u - pct >= 5 ? t(" Sonst holt {name} {p0}.", { name, p0: p0(u) }) : "";
 }
 
 /** How much worse the player does in a line than usual, plus a bonus when the user scores well in it. */
@@ -411,8 +412,8 @@ function whitePicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
       key: `w1_${v.san}`,
       title: `1. ${v.san}`,
       text:
-        `Gegen 1. ${v.san} holt ${name} mit Schwarz ${p0(v.score_pct)} (${games(v.games)})` +
-        (top ? ` und antwortet meist ${reply("1…", top.san)}.` : ".") +
+        t("Gegen 1. {san} holt {name} mit Schwarz {p0} ({games})", { san: v.san, name, p0: p0(v.score_pct), games: games(v.games) }) +
+        (top ? t(" und antwortet meist {reply}.", { reply: reply("1…", top.san) }) : ".") +
         vsUsual(name, them, v.games, v.score_pct) +
         mine(my),
       games: v.games,
@@ -423,7 +424,7 @@ function whitePicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
       usual_pct: usual(them, v.games, v.score_pct),
     });
   }
-  for (const l of o.black) picks.push(linePick(name, them, l, myLine(me, "white", l.name), "Schwarz"));
+  for (const l of o.black) picks.push(linePick(name, them, l, myLine(me, "white", l.name), t("Schwarz")));
   return rank(picks);
 }
 
@@ -438,11 +439,11 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
     for (const r of first.replies) {
       if (r.games < MIN_LINE_GAMES || r.score_pct === null) continue;
       const my = mineVs?.replies.find((x) => x.san === r.san);
-      const only = r.score_pct <= 45 ? "nur " : "";
+      const only = r.score_pct <= 45 ? t("nur ") : "";
       picks.push({
         key: `b1_${first.san}_${r.san}`,
         title: `1. ${first.san} ${r.san}`,
-        text: `Auf 1. ${first.san} mit ${reply("1…", r.san)} antworten: dagegen holt ${name} ${only}${p0(r.score_pct)} (${games(r.games)}).${vsUsual(name, them, r.games, r.score_pct)}${mine(my)}`,
+        text: t("Auf 1. {san} mit {reply} antworten: dagegen holt {name} {only}{p0} ({games}).{vsUsual}{mine}", { san: first.san, reply: reply("1…", r.san), name, only, p0: p0(r.score_pct), games: games(r.games), vsUsual: vsUsual(name, them, r.games, r.score_pct), mine: mine(my) }),
         games: r.games,
         their_score_pct: r.score_pct,
         my_games: my?.games ?? 0,
@@ -453,21 +454,21 @@ function blackPicks(name: string, them: PlayerProfile, me: PlayerProfile | null)
       });
     }
   }
-  for (const l of o.white) picks.push(linePick(name, them, l, myLine(me, "black", l.name), "Weiß"));
+  for (const l of o.white) picks.push(linePick(name, them, l, myLine(me, "black", l.name), t("Weiß")));
   return rank(picks);
 }
 
 function linePick(name: string, them: PlayerProfile, l: OpeningStat, my: OpeningStat | undefined, colorDe: string): OpeningPick {
   const extra: string[] = [];
-  if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(`der erste schwere Fehler kommt im Schnitt in Zug ${fmtDe(l.first_error_move, 0)}`);
+  if (l.first_error_move !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED)) extra.push(t("der erste schwere Fehler kommt im Schnitt in Zug {fmtDe}", { fmtDe: fmtDe(l.first_error_move, 0) }));
   if (l.wp_after_opening !== null && l.analyzed >= Math.min(MIN_LINE_GAMES, MIN_ANALYZED) && l.wp_after_opening <= 45) {
-    extra.push(`nach der Eröffnung steht ${name} meist schlechter (${p0(l.wp_after_opening)} Gewinnchance)`);
+    extra.push(t("nach der Eröffnung steht {name} meist schlechter ({p0} Gewinnchance)", { name, p0: p0(l.wp_after_opening) }));
   }
   return {
     key: `line_${l.color}_${l.name}`,
     title: openingLabel(l.name),
     text:
-      `Mit ${colorDe} in dieser Eröffnung holt ${name} ${p0(l.score_pct ?? 0)} (${games(l.games)})` +
+      t("Mit {colorDe} in dieser Eröffnung holt {name} {p0} ({games})", { colorDe, name, p0: p0(l.score_pct ?? 0), games: games(l.games) }) +
       (extra.length ? `; ${extra.join(", ")}.` : ".") +
       vsUsual(name, them, l.games, l.score_pct) +
       mine(my),
@@ -496,8 +497,8 @@ function openingTip(side: "white" | "black", picks: OpeningPick[]): ScoutTip | n
   if (!best) return null;
   return {
     key: `opening_${side}`,
-    kind: "Eröffnung",
-    title: side === "white" ? `Mit Weiß: ${best.title}` : `Mit Schwarz: ${best.title}`,
+    kind: "Eröffnung", // i18n: id
+    title: side === "white" ? t("Mit Weiß: {title}", { title: best.title }) : t("Mit Schwarz: {title}", { title: best.title }),
     text: best.text,
     weight: best.value,
   };
@@ -508,7 +509,7 @@ export function buildScoutReport(name: string, them: PlayerProfile, me: PlayerPr
   const as_black = blackPicks(name, them, me);
   const { plan, cautions } = skillTips(name, them, me);
   plan.push(...resultTips(name, them));
-  for (const t of [openingTip("white", as_white), openingTip("black", as_black)]) if (t) plan.push(t);
+  for (const tk of [openingTip("white", as_white), openingTip("black", as_black)]) if (tk) plan.push(tk);
   plan.sort((a, b) => b.weight - a.weight);
   cautions.sort((a, b) => b.weight - a.weight);
 

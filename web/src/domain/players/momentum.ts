@@ -61,8 +61,8 @@ function speedOf(g: RawGame): string {
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : null);
 
-function mondayOf(t: number): number {
-  const day = Math.floor(t / 86400);
+function mondayOf(tk: number): number {
+  const day = Math.floor(tk / 86400);
   // 1970-01-01 was a Thursday: days since the last Monday.
   const back = (day + 3) % 7;
   return (day - back) * 86400;

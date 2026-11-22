@@ -14,8 +14,9 @@ import { navigate } from "../router";
 import { openStage } from "../stage/store";
 import { Level } from "../viz/Bars";
 import { WinChart } from "./WinChart";
+import { t, tj, dec } from "../../i18n";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 
 /** School grades in the app's signal colours: 1–2 good, 2,5–3,5 neutral, 4 a warning, 5–6 bad. */
@@ -39,8 +40,8 @@ export function practiseGame(gameId: string): void {
 export function GradeBadge({ grade, size = "big" }: { grade: string; size?: "tiny" | "small" | "big" | "huge" }) {
   const g = parseGrade(grade);
   return (
-    <div class={`rp-grade ${size} tone-${gradeTone(g.value)}`} aria-label={`Note ${g.text} ${g.word}`}>
-      <span class="rp-grade-label">Note</span>
+    <div class={`rp-grade ${size} tone-${gradeTone(g.value)}`} aria-label={t("Note {text} {word}", { text: g.text, word: g.word })}>
+      <span class="rp-grade-label">{t("Note")}</span>
       <strong class="tnum">{g.text}</strong>
       <span class="rp-grade-word">{g.word}</span>
     </div>
@@ -49,11 +50,11 @@ export function GradeBadge({ grade, size = "big" }: { grade: string; size?: "tin
 
 export function StandingLine({ standing, speed }: { standing: Standing | null; speed: string | null }) {
   if (!standing) return null;
-  const kind = speed ? `${trSpeed(speed)}partien` : "Partien";
+  const kind = speed ? `${trSpeed(speed)}partien` : t("Partien");
   return (
     <p class="rp-standing">
-      Genauer als <strong class="tnum">{Math.round(standing.better_than)} %</strong> deiner {standing.games} anderen {kind}{" "}
-      <span class="faint tnum">(dein Schnitt {de(standing.average)} %)</span>
+      
+      {tj("Genauer als {x} deiner {games} anderen {kind} {x2}", { x: <strong class="tnum">{Math.round(standing.better_than)} %</strong>, games: standing.games, kind, x2: <span class="faint tnum">{t("(dein Schnitt {n} %)", { n: de(standing.average) })}</span> })}
     </p>
   );
 }
@@ -65,7 +66,7 @@ export function PhaseRows({ review }: { review: GameReview }) {
         <div key={p.phase} class={`rp-phase${p.accuracy === null ? " empty" : ""}`}>
           <span class="rp-phase-name">
             <strong>{p.name}</strong>
-            <small class="tnum">{p.moves ? `${p.moves} Züge${p.errors ? ` · ${p.errors} ${p.errors === 1 ? "grober" : "grobe"} Fehler` : ""}` : "–"}</small>
+            <small class="tnum">{p.moves ? t("{moves} Züge{1}", { moves: p.moves, 1: p.errors ? (p.errors === 1 ? t(" · 1 grober Fehler") : t(" · {errors} grobe Fehler", { errors: p.errors })) : "" }) : "–"}</small>
           </span>
           <Level value={p.accuracy} tone={p.errors >= 2 ? "bad" : p.accuracy !== null && p.accuracy >= 85 && !p.errors ? "good" : "accent"} />
           <b class="tnum">{p.accuracy !== null ? `${de(p.accuracy, 0)} %` : "–"}</b>
@@ -87,7 +88,7 @@ export function MomentRow({ k, onPick, active }: { k: GameReview["key_moments"][
         <strong>{k.title.includes(k.move_label) ? k.title : `${k.move_label} ${k.title}`}</strong>
         <small>{k.text}</small>
       </span>
-      <span class={`rp-m-swing ${up ? "up" : "down"}`} title="Deine Gewinnchance vor und nach dem Zug">
+      <span class={`rp-m-swing ${up ? "up" : "down"}`} title={t("Deine Gewinnchance vor und nach dem Zug")}>
         <span class="tnum">{pct(k.wp_before)}</span>
         <IconChevron />
         <b class="tnum">{pct(k.wp_after)}</b>
@@ -153,16 +154,16 @@ export function ReportPanel({
             <Level value={review.opponent_accuracy || null} tone="quiet" />
             <b class="tnum">{review.opponent_accuracy ? `${de(review.opponent_accuracy)} %` : "–"}</b>
           </div>
-          <small class="faint">Genauigkeit: wie nah die Züge an denen der Engine lagen. Die Note folgt allein aus deiner.</small>
+          <small class="faint">{t("Genauigkeit: wie nah die Züge an denen der Engine lagen. Die Note folgt allein aus deiner.")}</small>
         </div>
         <div class="rp-actions">
           <button class="btn primary rp-story" onClick={() => openStage({ kind: "report", subject: gameId })}>
             <CoachAvatar mood="happy" size={22} />
-            {COACH_NAME} erklärt die Partie
+            {t("{COACH_NAME} erklärt die Partie", { COACH_NAME })}
           </button>
           {errors > 0 && (
             <button class="btn" onClick={() => practiseGame(gameId)}>
-              <IconPlay /> Fehler üben
+              <IconPlay />  {t("Fehler üben")}
             </button>
           )}
         </div>
@@ -171,16 +172,16 @@ export function ReportPanel({
       <section class="card rp-course">
         <header class="card-head">
           <div>
-            <h3>Verlauf</h3>
-            <p class="card-sub">Deine Gewinnchance nach jedem Zug. Tippe, um zur Stelle zu springen.</p>
+            <h3>{t("Verlauf")}</h3>
+            <p class="card-sub">{t("Deine Gewinnchance nach jedem Zug. Tippe, um zur Stelle zu springen.")}</p>
           </div>
         </header>
         <WinChart points={winCurve(moves, isWhite)} plies={moves.length} moments={review.key_moments} turning={turning} cursor={idx} onPick={onJump} />
         {turning && (
           <button class="rp-turn" onClick={() => onJump(turning.ply_index + 1)}>
-            <span class="rp-turn-tag">Wendepunkt</span>
+            <span class="rp-turn-tag">{t("Wendepunkt")}</span>
             <span>
-              <strong>{turning.move_label}</strong> · {pct(turning.wp_before)} auf {pct(turning.wp_after)}
+              {tj("{move_label} · {n} auf {n2}", { move_label: <strong>{turning.move_label}</strong>, n: pct(turning.wp_before), n2: pct(turning.wp_after) })}
             </span>
             <IconChevron />
           </button>
@@ -191,20 +192,19 @@ export function ReportPanel({
         <section class="card rp-pair">
           {best && (
             <button class="rp-pair-cell good" onClick={() => onJump(best.ply_index + 1)}>
-              <span class="eyebrow">Dein bester Moment</span>
+              <span class="eyebrow">{t("Dein bester Moment")}</span>
               <strong>{best.move_label}</strong>
               <small>
-                {classLabel(best.classification as never)} · {pct(best.wp_before)} auf {pct(best.wp_after)}
+                {t("{classLabel} · {n} auf {n2}", { classLabel: classLabel(best.classification as never), n: pct(best.wp_before), n2: pct(best.wp_after) })}
               </small>
             </button>
           )}
           {worst && (
             <button class="rp-pair-cell bad" onClick={() => onJump(worst.ply_index + 1)}>
-              <span class="eyebrow">Am teuersten</span>
+              <span class="eyebrow">{t("Am teuersten")}</span>
               <strong>{worst.move_label}</strong>
               <small>
-                {classLabel(worst.classification as never)}
-                {worst.best_move_san ? ` · besser ${worst.best_move_san}` : ""}
+                {t("{classLabel}{n}", { classLabel: classLabel(worst.classification as never), n: worst.best_move_san ? t(" · besser {best_move_san}", { best_move_san: worst.best_move_san }) : "" })}
               </small>
             </button>
           )}
@@ -215,8 +215,8 @@ export function ReportPanel({
         <section class="card rp-moments">
           <header class="card-head">
             <div>
-              <h3>Schlüsselmomente</h3>
-              <p class="card-sub">Die Züge, die die Partie am stärksten bewegt haben.</p>
+              <h3>{t("Schlüsselmomente")}</h3>
+              <p class="card-sub">{t("Die Züge, die die Partie am stärksten bewegt haben.")}</p>
             </div>
           </header>
           {review.key_moments.map((k) => (
@@ -229,8 +229,8 @@ export function ReportPanel({
         <section class="card">
           <header class="card-head">
             <div>
-              <h3>Partiephasen</h3>
-              <p class="card-sub">Genauigkeit und Note je Phase.</p>
+              <h3>{t("Partiephasen")}</h3>
+              <p class="card-sub">{t("Genauigkeit und Note je Phase.")}</p>
             </div>
           </header>
           <PhaseRows review={review} />
@@ -242,30 +242,30 @@ export function ReportPanel({
       <section class="card rp-sum">
         <header class="card-head">
           <div>
-            <h3>Fazit</h3>
+            <h3>{t("Fazit")}</h3>
           </div>
         </header>
         <div class="fd-cols rp-cols">
           <ul class="fd-list">
-            {review.positives.map((t) => (
-              <li class="fd-item pos" key={t}>
+            {review.positives.map((tk) => (
+              <li class="fd-item pos" key={tk}>
                 <span class="fd-mark" aria-hidden="true" />
-                <div>{t}</div>
+                <div>{tk}</div>
               </li>
             ))}
           </ul>
           <ul class="fd-list">
-            {review.negatives.map((t) => (
-              <li class="fd-item neg" key={t}>
+            {review.negatives.map((tk) => (
+              <li class="fd-item neg" key={tk}>
                 <span class="fd-mark" aria-hidden="true" />
-                <div>{t}</div>
+                <div>{tk}</div>
               </li>
             ))}
           </ul>
         </div>
         {review.lessons.length > 0 && (
           <div class="rp-lessons">
-            <span class="eyebrow">Was du mitnehmen kannst</span>
+            <span class="eyebrow">{t("Was du mitnehmen kannst")}</span>
             <ol>
               {review.lessons.map((l) => (
                 <li key={l}>{l}</li>
@@ -275,7 +275,7 @@ export function ReportPanel({
         )}
         {errors > 0 && (
           <button class="btn small rp-train" onClick={() => practiseGame(gameId)}>
-            <IconPlay /> Die Fehler dieser Partie als Übung
+            <IconPlay />  {t("Die Fehler dieser Partie als Übung")}
           </button>
         )}
       </section>

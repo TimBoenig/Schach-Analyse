@@ -50,11 +50,11 @@ export function parseHash(hash: string): Route {
     case "import":
       return { view: "games", import: true };
     case "training": {
-      const tab = (["heute", "uebungen", "fortschritt"] as const).find((t) => t === parts[1]);
+      const tab = (["heute", "uebungen", "fortschritt"] as const).find((tk) => tk === parts[1]);
       return { view: "training", tab, category: tab === "uebungen" ? parts[2] : undefined };
     }
     case "einstellungen": {
-      const tab = (["analyse", "daten"] as const).find((t) => t === parts[1]);
+      const tab = (["analyse", "daten"] as const).find((tk) => tk === parts[1]);
       return tab ? { view: "settings", tab } : { view: "settings" };
     }
     case "konto":
@@ -65,7 +65,7 @@ export function parseHash(hash: string): Route {
     case "hallo":
       return { view: "landing" };
     case "rechtliches": {
-      const tab = (["impressum", "datenschutz", "lizenzen"] as const).find((t) => t === parts[1]);
+      const tab = (["impressum", "datenschutz", "lizenzen"] as const).find((tk) => tk === parts[1]);
       return { view: "legal", tab };
     }
     default:
@@ -132,14 +132,14 @@ export function useRoute(): Route {
       };
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
       if (doc.startViewTransition && !reduced && prev.view !== next.view) {
-        const t = doc.startViewTransition(() => {
+        const tk = doc.startViewTransition(() => {
           setRoute(next);
           // Preact renders on the next microtask; let it commit before the snapshot.
           return new Promise((r) => setTimeout(r, 0));
         });
         // Quick clicks skip the running transition; that rejection is expected, not an error.
-        t?.ready?.catch(() => undefined);
-        t?.finished?.catch(() => undefined);
+        tk?.ready?.catch(() => undefined);
+        tk?.finished?.catch(() => undefined);
       } else {
         setRoute(next);
       }

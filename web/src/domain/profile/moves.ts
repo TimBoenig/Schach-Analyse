@@ -9,6 +9,7 @@
 import { parseSummary } from "../metrics/models";
 import { type GameFeatures, moveLabel } from "./features";
 import { MIN_GROUP_GAMES, ratesDiffer, Z_MULTI } from "./evidence";
+import { t, dec } from "../../i18n";
 
 /** Classifications best to worst, as the move list shows them. */
 export const TALLY_CLASSES = [
@@ -112,9 +113,9 @@ export interface MoveTally {
 }
 
 const PHASE_NAMES: [string, string][] = [
-  ["opening", "Eröffnung"],
-  ["middlegame", "Mittelspiel"],
-  ["endgame", "Endspiel"],
+  ["opening", t("Eröffnung")],
+  ["middlegame", t("Mittelspiel")],
+  ["endgame", t("Endspiel")],
 ];
 
 export function emptyCounts(): Counts {
@@ -159,7 +160,7 @@ function addCounts(into: Counts, from: Counts): void {
 }
 
 const per100 = (n: number, moves: number) => (moves ? (n / moves) * 100 : 0);
-const de1 = (v: number) => v.toFixed(1).replace(".", ",");
+const de1 = (v: number) => v.toFixed(1).replace(".", dec());
 
 /** Chronological order; games without a time keep their stored order at the start. */
 function chronological(fs: GameFeatures[]): GameFeatures[] {
@@ -291,48 +292,48 @@ export function buildMoveTally(feats: GameFeatures[]): MoveTally | null {
 }
 
 /** Evidence-checked sentences about the tally (empty when nothing is clear). */
-function tallyFindings(t: MoveTally, perGame: { f: GameFeatures; c: Counts }[]): TallyFinding[] {
+function tallyFindings(tk: MoveTally, perGame: { f: GameFeatures; c: Counts }[]): TallyFinding[] {
   const out: TallyFinding[] = [];
 
   // 1. Against the opponents of the same games.
-  if (t.opponents) {
-    const o = t.opponents;
-    const mine = sumOf(t.counts, SERIOUS_CLASSES);
+  if (tk.opponents) {
+    const o = tk.opponents;
+    const mine = sumOf(tk.counts, SERIOUS_CLASSES);
     const theirs = sumOf(o.counts, SERIOUS_CLASSES);
-    if (ratesDiffer(mine, t.moves, theirs, o.moves)) {
-      const fewer = per100(mine, t.moves) < per100(theirs, o.moves);
+    if (ratesDiffer(mine, tk.moves, theirs, o.moves)) {
+      const fewer = per100(mine, tk.moves) < per100(theirs, o.moves);
       out.push({
         key: "vs_opp_errors",
-        title: fewer ? "Weniger grobe Fehler als die Gegner" : "Mehr grobe Fehler als die Gegner",
-        text: `Du machst ${de1(per100(mine, t.moves))} Fehler, Patzer und verpasste Chancen pro 100 Züge, die Gegner ${de1(per100(theirs, o.moves))}.`,
+        title: fewer ? t("Weniger grobe Fehler als die Gegner") : t("Mehr grobe Fehler als die Gegner"),
+        text: t("Du machst {de1} Fehler, Patzer und verpasste Chancen pro 100 Züge, die Gegner {de12}.", { de1: de1(per100(mine, tk.moves)), de12: de1(per100(theirs, o.moves)) }),
         tone: fewer ? "pos" : "neg",
       });
     }
-    const myTop = sumOf(t.counts, TOP_CLASSES);
+    const myTop = sumOf(tk.counts, TOP_CLASSES);
     const theirTop = sumOf(o.counts, TOP_CLASSES);
-    if (ratesDiffer(myTop, t.moves, theirTop, o.moves)) {
-      const more = per100(myTop, t.moves) > per100(theirTop, o.moves);
+    if (ratesDiffer(myTop, tk.moves, theirTop, o.moves)) {
+      const more = per100(myTop, tk.moves) > per100(theirTop, o.moves);
       out.push({
         key: "vs_opp_top",
-        title: more ? "Öfter den besten Zug als die Gegner" : "Seltener den besten Zug als die Gegner",
-        text: `${Math.round(per100(myTop, t.moves))} % deiner Züge sind brillant, großartig oder der beste Zug, bei den Gegnern ${Math.round(per100(theirTop, o.moves))} %.`,
+        title: more ? t("Öfter den besten Zug als die Gegner") : t("Seltener den besten Zug als die Gegner"),
+        text: t("{0} % deiner Züge sind brillant, großartig oder der beste Zug, bei den Gegnern {1} %.", { 0: Math.round(per100(myTop, tk.moves)), 1: Math.round(per100(theirTop, o.moves)) }),
         tone: more ? "pos" : "neg",
       });
     }
   }
 
   // 2. The phase with clearly the most serious errors; picking the worst of three needs Z_MULTI.
-  const rated = t.phases.filter((p) => p.moves);
+  const rated = tk.phases.filter((p) => p.moves);
   const rate = (p: TallyBlock) => per100(sumOf(p.counts, SERIOUS_CLASSES), p.moves);
   const worst = [...rated].sort((a, b) => rate(b) - rate(a))[0];
   if (worst && rated.length >= 2) {
-    const restMoves = t.moves - worst.moves;
-    const restErr = sumOf(t.counts, SERIOUS_CLASSES) - sumOf(worst.counts, SERIOUS_CLASSES);
+    const restMoves = tk.moves - worst.moves;
+    const restErr = sumOf(tk.counts, SERIOUS_CLASSES) - sumOf(worst.counts, SERIOUS_CLASSES);
     if (ratesDiffer(sumOf(worst.counts, SERIOUS_CLASSES), worst.moves, restErr, restMoves, Z_MULTI)) {
       out.push({
         key: "phase_errors",
-        title: `Die meisten groben Fehler im ${worst.label === "Eröffnung" ? "Eröffnungsteil" : worst.label}`,
-        text: `Dort machst du ${de1(rate(worst))} pro 100 Züge, im Rest der Partie ${de1(per100(restErr, restMoves))}.`,
+        title: t("Die meisten groben Fehler im {0}", { 0: worst.label === "Eröffnung" ? t("Eröffnungsteil") : worst.label }),
+        text: t("Dort machst du {de1} pro 100 Züge, im Rest der Partie {de12}.", { de1: de1(rate(worst)), de12: de1(per100(restErr, restMoves)) }),
         tone: "neg",
       });
     }
@@ -349,8 +350,8 @@ function tallyFindings(t: MoveTally, perGame: { f: GameFeatures; c: Counts }[]):
       const better = per100(rE, rM) < per100(bE, bM);
       out.push({
         key: "trend_errors",
-        title: better ? "Weniger grobe Fehler als früher" : "Mehr grobe Fehler als früher",
-        text: `In den letzten ${recent.length} Partien ${de1(per100(rE, rM))} pro 100 Züge, davor ${de1(per100(bE, bM))}.`,
+        title: better ? t("Weniger grobe Fehler als früher") : t("Mehr grobe Fehler als früher"),
+        text: t("In den letzten {length} Partien {de1} pro 100 Züge, davor {de12}.", { length: recent.length, de1: de1(per100(rE, rM)), de12: de1(per100(bE, bM)) }),
         tone: better ? "pos" : "neg",
       });
     }

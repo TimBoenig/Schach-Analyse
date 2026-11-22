@@ -12,11 +12,12 @@ import { md5 } from "./md5";
 import { detectSpeedCategory } from "./metrics/speed";
 import { STANDARD_START_FEN, applyNullMove, detectTermination, loadChess } from "./termination";
 import { type GameAnalysis, type MoveData, emptyMetadata, emptyMove } from "./types";
+import { t } from "../i18n";
 
 export const CHESS960_UNSUPPORTED =
-  "Chess960-Partien (Fischer Random) werden in der Web-App noch nicht unterstützt.";
+  t("Chess960-Partien (Fischer Random) werden in der Web-App noch nicht unterstützt.");
 export const VARIANT_UNSUPPORTED =
-  "Schachvarianten (z. B. Crazyhouse, Atomic) können nicht analysiert werden.";
+  t("Schachvarianten (z. B. Crazyhouse, Atomic) können nicht analysiert werden.");
 
 const TAG_ROSTER = ["Event", "Site", "Date", "Round", "White", "Black", "Result"] as const;
 const TAG_REGEX = /^\[([A-Za-z0-9][A-Za-z0-9_+#=:-]*)\s+"([^\r]*)"\]\s*$/;
@@ -507,8 +508,8 @@ function exportGame(game: RawGame): string {
   const lines: string[] = [];
   let current = "";
   let forceMoveNumber = true;
-  const writeToken = (t: string) => {
-    current += t;
+  const writeToken = (tk: string) => {
+    current += tk;
   };
   const writeLine = (l = "") => {
     if (current) lines.push(current.trimEnd());
@@ -581,8 +582,8 @@ export function parseClk(comment: string | null | undefined): [string | null, nu
 
 /** python float() for the restricted inputs a TimeControl header carries. */
 function pyFloat(text: string): number | null {
-  const t = text.trim();
-  return /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(t) ? Number(t) : null;
+  const tk = text.trim();
+  return /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(tk) ? Number(tk) : null;
 }
 
 function initialClockSeconds(timeControl: string | undefined): number | null {

@@ -4,6 +4,7 @@
 import type { KeyMoment, WinPoint } from "../../domain/profile";
 import { useWidth } from "../charts";
 import { CLASS_COLOR } from "../labels";
+import { t } from "../../i18n";
 
 const PAD = { top: 12, right: 10, bottom: 22, left: 34 };
 
@@ -49,7 +50,7 @@ export function WinChart({
   };
   return (
     <div class="wc" ref={ref}>
-      <svg width={w} height={height} role="img" aria-label="Deine Gewinnchance im Verlauf der Partie" onPointerDown={pick} class={onPick ? "wc-pick" : ""}>
+      <svg width={w} height={height} role="img" aria-label={t("Deine Gewinnchance im Verlauf der Partie")} onPointerDown={pick} class={onPick ? "wc-pick" : ""}>
         <defs>
           <clipPath id={`${id}-up`}>
             <rect x={0} y={0} width={w} height={mid} />
@@ -66,9 +67,9 @@ export function WinChart({
             {Math.round(v * 100)}
           </text>
         ))}
-        {ticks.map((t) => (
-          <text key={t} class="wc-axis" x={x(t)} y={height - 6} text-anchor="middle">
-            {t / 2}
+        {ticks.map((tk) => (
+          <text key={tk} class="wc-axis" x={x(tk)} y={height - 6} text-anchor="middle">
+            {tk / 2}
           </text>
         ))}
         <path class="wc-area up" d={area} clip-path={`url(#${id}-up)`} />
@@ -101,7 +102,8 @@ export function WinChart({
         })}
         {turning && (
           <text class="wc-turn-label" x={Math.min(w - PAD.right - 4, Math.max(PAD.left + 4, x(turning.ply_index + 1)))} y={turning.wp_after > 0.5 ? y(turning.wp_after) + 22 : y(turning.wp_after) - 14} text-anchor={x(turning.ply_index + 1) > w * 0.7 ? "end" : x(turning.ply_index + 1) < w * 0.3 ? "start" : "middle"}>
-            Wendepunkt
+            
+            {t("Wendepunkt")}
           </text>
         )}
       </svg>

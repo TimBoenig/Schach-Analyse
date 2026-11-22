@@ -1,5 +1,6 @@
 import { openingLabel, openingMain } from "../domain/profile/openings";
 import type { Classification, MoveData } from "../domain/types";
+import { t } from "../i18n";
 
 const BADGE_FILE: Partial<Record<Classification, string>> = {
   Brilliant: "brilliant.svg",
@@ -15,16 +16,16 @@ const BADGE_FILE: Partial<Record<Classification, string>> = {
 };
 
 export const CLASSIFICATION_DE: Record<Exclude<Classification, "">, string> = {
-  Brilliant: "Brillant",
-  Great: "Großartig",
-  Best: "Bester Zug",
-  Excellent: "Exzellent",
-  Good: "Gut",
-  Book: "Buchzug",
-  Inaccuracy: "Ungenauigkeit",
-  Mistake: "Fehler",
-  Miss: "Verpasst",
-  Blunder: "Patzer",
+  Brilliant: t("Brillant"),
+  Great: t("Großartig"),
+  Best: t("Bester Zug"),
+  Excellent: t("Exzellent"),
+  Good: t("Gut"),
+  Book: t("Buchzug"),
+  Inaccuracy: t("Ungenauigkeit"),
+  Mistake: t("Fehler"),
+  Miss: t("Verpasst"),
+  Blunder: t("Patzer"),
 };
 
 export const CLASSIFICATION_ORDER: Exclude<Classification, "">[] = [
@@ -85,11 +86,11 @@ export function formatDate(date: string): string {
 export const SPEED_DE: Record<string, string> = {
   Bullet: "Bullet",
   Blitz: "Blitz",
-  Rapid: "Schnellschach",
-  Classical: "Klassisch",
-  Daily: "Fernschach",
-  Correspondence: "Fernschach",
-  Untimed: "Ohne Zeitangabe",
+  Rapid: t("Schnellschach"),
+  Classical: t("Klassisch"),
+  Daily: t("Fernschach"),
+  Correspondence: t("Fernschach"),
+  Untimed: t("Ohne Zeitangabe"),
 };
 
 /** Colour class for an accuracy value, matching the classification colours. */
@@ -110,19 +111,19 @@ export function shortOpening(name: string | null | undefined): string {
   return openingLabel(main) + short.slice(main.length);
 }
 
-const MONTHS_DE = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const MONTHS_DE = [t("Januar"), t("Februar"), t("März"), t("April"), t("Mai"), t("Juni"), t("Juli"), t("August"), t("September"), t("Oktober"), t("November"), t("Dezember")];
 
 /** PGN date "2026.04.03" → "April 2026"; unknown dates group under "Ohne Datum". */
 export function monthLabel(date: string): string {
   const m = /^(\d{4})\.(\d{2})/.exec(date ?? "");
-  if (!m || m[2] === "??") return "Ohne Datum";
+  if (!m || m[2] === "??") return t("Ohne Datum");
   const month = Number(m[2]);
   return month >= 1 && month <= 12 ? `${MONTHS_DE[month - 1]} ${m[1]}` : m[1];
 }
 
 /** "1 Sieg · 2 Remis · 1 Niederlage": the balance in words, with the singular where it applies. */
 export function balanceText(wins: number, draws: number, losses: number, sep = " · "): string {
-  return [`${wins} ${wins === 1 ? "Sieg" : "Siege"}`, `${draws} Remis`, `${losses} ${losses === 1 ? "Niederlage" : "Niederlagen"}`].join(sep);
+  return [`${wins} ${wins === 1 ? t("Sieg") : t("Siege")}`, t("{draws} Remis", { draws }), `${losses} ${losses === 1 ? t("Niederlage") : t("Niederlagen")}`].join(sep);
 }
 
 /**
@@ -135,7 +136,7 @@ export function streakText(scores: (number | null)[]): string | null {
   let n = 0;
   while (n < scores.length && scores[n] === first) n++;
   if (n < 2) return null;
-  return `${n} ${first === 1 ? "Siege" : first === 0 ? "Niederlagen" : "Remis"} in Folge`;
+  return t("{n} {1} in Folge", { n, 1: first === 1 ? t("Siege") : first === 0 ? t("Niederlagen") : t("Remis") });
 }
 
 export type Outcome = "win" | "loss" | "draw" | null;
@@ -149,11 +150,11 @@ export function outcomeFor(result: string, color: "white" | "black" | null): Out
 
 // Move quality folded into five steps, best to worst, in the classification colours.
 const QUALITY_GROUPS: { label: string; keys: Classification[]; color: string }[] = [
-  { label: "Brillant & bester Zug", keys: ["Brilliant", "Great", "Best"], color: "var(--best)" },
-  { label: "Exzellent, gut & Buch", keys: ["Excellent", "Good", "Book"], color: "var(--good)" },
-  { label: "Ungenauigkeiten", keys: ["Inaccuracy"], color: "var(--inacc)" },
-  { label: "Fehler & Verpasstes", keys: ["Mistake", "Miss"], color: "var(--mistake)" },
-  { label: "Patzer", keys: ["Blunder"], color: "var(--blunder)" },
+  { label: t("Brillant & bester Zug"), keys: ["Brilliant", "Great", "Best"], color: "var(--best)" },
+  { label: t("Exzellent, gut & Buch"), keys: ["Excellent", "Good", "Book"], color: "var(--good)" },
+  { label: t("Ungenauigkeiten"), keys: ["Inaccuracy"], color: "var(--inacc)" },
+  { label: t("Fehler & Verpasstes"), keys: ["Mistake", "Miss"], color: "var(--mistake)" },
+  { label: t("Patzer"), keys: ["Blunder"], color: "var(--blunder)" },
 ];
 
 /** Classification counts grouped for the quality distribution bar. */
@@ -168,14 +169,14 @@ export function qualitySegments(counts: Partial<Record<string, number>>): { labe
 // Finer split for the move tally: every class with its own colour; the two
 // pairs that share a colour in the move list are folded together.
 const DETAIL_GROUPS: { label: string; keys: Classification[]; color: string }[] = [
-  { label: "Brillant", keys: ["Brilliant"], color: "var(--brilliant)" },
-  { label: "Großartig", keys: ["Great"], color: "var(--great)" },
-  { label: "Bester Zug & exzellent", keys: ["Best", "Excellent"], color: "var(--best)" },
-  { label: "Gut", keys: ["Good"], color: "var(--good)" },
-  { label: "Buchzug", keys: ["Book"], color: "var(--book)" },
-  { label: "Ungenauigkeit", keys: ["Inaccuracy"], color: "var(--inacc)" },
-  { label: "Fehler", keys: ["Mistake"], color: "var(--mistake)" },
-  { label: "Patzer & verpasst", keys: ["Blunder", "Miss"], color: "var(--blunder)" },
+  { label: t("Brillant"), keys: ["Brilliant"], color: "var(--brilliant)" },
+  { label: t("Großartig"), keys: ["Great"], color: "var(--great)" },
+  { label: t("Bester Zug & exzellent"), keys: ["Best", "Excellent"], color: "var(--best)" },
+  { label: t("Gut"), keys: ["Good"], color: "var(--good)" },
+  { label: t("Buchzug"), keys: ["Book"], color: "var(--book)" },
+  { label: t("Ungenauigkeit"), keys: ["Inaccuracy"], color: "var(--inacc)" },
+  { label: t("Fehler"), keys: ["Mistake"], color: "var(--mistake)" },
+  { label: t("Patzer & verpasst"), keys: ["Blunder", "Miss"], color: "var(--blunder)" },
 ];
 
 /** Classification counts in eight colour groups (donut of the move tally). */
@@ -192,25 +193,25 @@ export function moveVerdict(move: Pick<MoveData, "move_number" | "fen_before" | 
   const m = `${move.move_number}${move.fen_before.split(" ")[1] === "w" ? "." : "..."} ${move.san}`;
   switch (move.classification) {
     case "Brilliant":
-      return `Wow, ${m} ist brillant!`;
+      return t("Wow, {m} ist brillant!", { m });
     case "Great":
-      return `${m} ist ein großartiger Zug!`;
+      return t("{m} ist ein großartiger Zug!", { m });
     case "Best":
-      return `${m} ist der beste Zug.`;
+      return t("{m} ist der beste Zug.", { m });
     case "Excellent":
-      return `${m} ist exzellent.`;
+      return t("{m} ist exzellent.", { m });
     case "Good":
-      return `${m} ist ein guter Zug.`;
+      return t("{m} ist ein guter Zug.", { m });
     case "Book":
-      return `${m} ist ein Theoriezug.`;
+      return t("{m} ist ein Theoriezug.", { m });
     case "Inaccuracy":
-      return `${m} ist ungenau.`;
+      return t("{m} ist ungenau.", { m });
     case "Mistake":
-      return `${m} ist ein Fehler.`;
+      return t("{m} ist ein Fehler.", { m });
     case "Miss":
-      return `${m} verpasst eine Chance.`;
+      return t("{m} verpasst eine Chance.", { m });
     case "Blunder":
-      return `Autsch, ${m} ist ein Patzer.`;
+      return t("Autsch, {m} ist ein Patzer.", { m });
     default:
       return m;
   }
@@ -218,12 +219,12 @@ export function moveVerdict(move: Pick<MoveData, "move_number" | "fen_before" | 
 
 /** "heute", "gestern", "vor 5 Tagen": how fresh a player's games are. */
 export function loadedAgo(ms: number | null, now = Date.now()): string {
-  if (!ms) return "noch nie geladen";
-  const day = (t: number) => Math.floor((t - new Date(t).getTimezoneOffset() * 60_000) / 86_400_000);
+  if (!ms) return t("noch nie geladen");
+  const day = (tk: number) => Math.floor((tk - new Date(tk).getTimezoneOffset() * 60_000) / 86_400_000);
   const d = day(now) - day(ms);
-  if (d <= 0) return "heute geladen";
-  if (d === 1) return "gestern geladen";
-  return `vor ${d} Tagen geladen`;
+  if (d <= 0) return t("heute geladen");
+  if (d === 1) return t("gestern geladen");
+  return t("vor {d} Tagen geladen", { d });
 }
 
 /**

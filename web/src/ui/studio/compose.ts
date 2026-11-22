@@ -13,6 +13,7 @@ const SAFE: Record<Platform, { top: number; bottom: number; right: number }> = {
   youtube: { top: 0, bottom: 0, right: 0 },
 };
 import type { Frame } from "./timeline";
+import { t } from "../../i18n";
 
 export interface Assets {
   logo: HTMLImageElement | null;
@@ -65,7 +66,7 @@ export function tokens(text: string): Token[] {
   return out;
 }
 
-const gap = (t: Token, k: number, space: number) => (k && !t.glue ? space : 0);
+const gap = (tq: Token, k: number, space: number) => (k && !tq.glue ? space : 0);
 
 function wrap(ctx: CanvasRenderingContext2D, list: Token[], max: number, emphFont?: string): Token[][] {
   const lines: Token[][] = [];
@@ -73,17 +74,17 @@ function wrap(ctx: CanvasRenderingContext2D, list: Token[], max: number, emphFon
   let width = 0;
   const space = ctx.measureText(" ").width;
   const base = ctx.font;
-  for (const t of list) {
-    if (t.emph && emphFont) ctx.font = emphFont;
-    const w = ctx.measureText(t.word).width;
+  for (const tq of list) {
+    if (tq.emph && emphFont) ctx.font = emphFont;
+    const w = ctx.measureText(tq.word).width;
     ctx.font = base;
-    if (line.length && !t.glue && width + space + w > max) {
+    if (line.length && !tq.glue && width + space + w > max) {
       lines.push(line);
       line = [];
       width = 0;
     }
-    width += (line.length && !t.glue ? space : 0) + w;
-    line.push(t);
+    width += (line.length && !tq.glue ? space : 0) + w;
+    line.push(tq);
   }
   if (line.length) lines.push(line);
   return lines;
@@ -207,16 +208,16 @@ function animatedText(
   ctx.textAlign = "left";
   let i = 0;
   lines.forEach((line, li) => {
-    const width = line.reduce((s, t, k) => s + ctx.measureText(t.word).width + gap(t, k, space), 0);
+    const width = line.reduce((s, tq, k) => s + ctx.measureText(tq.word).width + gap(tq, k, space), 0);
     let x = o.cx - width / 2;
     const y = o.top + lh * li + size * 0.86;
-    for (const [k, t] of line.entries()) {
-      x += gap(t, k, space);
+    for (const [k, tq] of line.entries()) {
+      x += gap(tq, k, space);
       const rise = easeOut((o.age - i * 0.045) / 0.5);
       ctx.globalAlpha = o.alpha * rise;
-      ctx.fillStyle = t.emph ? o.accent : o.color;
-      ctx.fillText(t.word, x, y + (1 - rise) * 28 * o.u);
-      x += ctx.measureText(t.word).width;
+      ctx.fillStyle = tq.emph ? o.accent : o.color;
+      ctx.fillText(tq.word, x, y + (1 - rise) * 28 * o.u);
+      x += ctx.measureText(tq.word).width;
       i += 1;
     }
   });
@@ -245,7 +246,7 @@ export function layout(W: number, H: number): Layout {
 const SANS = '"Geist", -apple-system, "Segoe UI", sans-serif';
 const SERIF = '"Instrument Serif", Georgia, serif';
 
-function background(ctx: CanvasRenderingContext2D, W: number, H: number, p: StudioProject, t: number): void {
+function background(ctx: CanvasRenderingContext2D, W: number, H: number, p: StudioProject, tq: number): void {
   const st = p.style;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, st.bgTop);
@@ -260,8 +261,8 @@ function background(ctx: CanvasRenderingContext2D, W: number, H: number, p: Stud
   // Slow floating light specks: always the same for the same second, so preview and export match.
   const u = Math.min(W, H) / 1080;
   for (let i = 0; i < 22; i++) {
-    const sx = ((Math.sin(i * 91.7) * 0.5 + 0.5) * W + Math.sin(t * 0.13 + i) * 40 * u + W) % W;
-    const sy = ((Math.cos(i * 37.3) * 0.5 + 0.5) * H - t * (6 + (i % 5) * 3) * u + H * 4) % H;
+    const sx = ((Math.sin(i * 91.7) * 0.5 + 0.5) * W + Math.sin(tq * 0.13 + i) * 40 * u + W) % W;
+    const sy = ((Math.cos(i * 37.3) * 0.5 + 0.5) * H - tq * (6 + (i % 5) * 3) * u + H * 4) % H;
     const rad = (8 + (i % 7) * 7) * u;
     const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, rad);
     sg.addColorStop(0, rgba(i % 3 ? "#ffffff" : st.accent, 0.07));
@@ -514,7 +515,7 @@ export function compose(
     ctx.textBaseline = "middle";
     drawMove(ctx, frame.pill.text, dx + dot / 2 + 14 * u, 2 * u, 54 * u, assets, black);
     if (v.plainMoves && frame.pill.plain) {
-      const words = `${black ? "Schwarz" : "Weiß"}: ${frame.pill.plain}`;
+      const words = `${black ? t("Schwarz") : t("Weiß")}: ${frame.pill.plain}`;
       // The pill is scaled while it pops in; measure against the frame's width at full size.
       const size = fitLine(ctx, words, W - 90 * u, 34 * u, (sz) => `700 ${sz}px ${SANS}`);
       ctx.font = `700 ${size}px ${SANS}`;
@@ -687,7 +688,7 @@ export function compose(
     ctx.font = `600 ${24 * u}px ${SANS}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`Hier liegen die Knöpfe von ${PLATFORM_LABEL[v.platform]}`, W / 2, H - z.bottom * u / 2);
+    ctx.fillText(t("Hier liegen die Knöpfe von {0}", { 0: PLATFORM_LABEL[v.platform] }), W / 2, H - z.bottom * u / 2);
     ctx.restore();
   }
 }
@@ -716,7 +717,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
     ctx.save();
     ctx.shadowColor = "rgba(0,0,0,0.55)";
     ctx.shadowBlur = 40 * u;
-    const kicker = `${BRAND} erklärt`;
+    const kicker = t("{BRAND} erklärt", { BRAND });
     ctx.font = `600 ${30 * u}px ${SANS}`;
     ctx.fillStyle = st.accent;
     ctx.globalAlpha = a * clamp01(age / 0.4);
@@ -883,7 +884,7 @@ function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioPr
   // Call-to-action button.
   const bk = easeOut((age - 0.9) / 0.5);
   if (bk > 0) {
-    const label = `Jetzt kostenlos auf ${BRAND_DOMAIN}`;
+    const label = t("Jetzt kostenlos auf {BRAND_DOMAIN}", { BRAND_DOMAIN });
     ctx.save();
     ctx.globalAlpha = a * bk;
     ctx.font = `700 ${38 * u}px ${SANS}`;
@@ -997,7 +998,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
   ctx.fillStyle = "#ffffff";
   for (const line of tFit.lines) {
     y += tFit.size * 1.15;
-    ctx.fillText(line.map((t, k) => (k && !t.glue ? " " : "") + t.word).join(""), x0, y);
+    ctx.fillText(line.map((tq, k) => (k && !tq.glue ? " " : "") + tq.word).join(""), x0, y);
   }
   y += 26 * u;
   ctx.globalAlpha = base * 0.4;
@@ -1048,7 +1049,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     const black = frame.pill.side === "b";
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(`ZUG VON ${black ? "SCHWARZ" : "WEISS"}`, x0, nowTop);
+    ctx.fillText(t("ZUG VON {0}", { 0: black ? t("SCHWARZ") : t("WEISS") }), x0, nowTop);
     ctx.font = `800 ${36 * u}px ${SANS}`;
     ctx.fillStyle = "#ffffff";
     const mw = drawMove(ctx, frame.pill.text, x0, nowTop + 50 * u, 36 * u, assets, black);
@@ -1065,7 +1066,7 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     const top = listTop;
     ctx.font = `600 ${20 * u}px ${SANS}`;
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText("ZÜGE", x0, top);
+    ctx.fillText(t("ZÜGE"), x0, top);
     const msize = 28 * u;
     ctx.font = `600 ${msize}px ${SANS}`;
     let x = x0;

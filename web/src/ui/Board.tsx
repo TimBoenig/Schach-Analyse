@@ -20,6 +20,7 @@ import {
   squareAtFraction,
   type PlacedPiece,
 } from "./board/geometry";
+import { t } from "../i18n";
 
 const PROMOTIONS = ["q", "r", "b", "n"] as const;
 export type Promotion = (typeof PROMOTIONS)[number];
@@ -340,7 +341,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
             key={p}
             class="promo-choice"
             style={{ left: pct(col), top: pct(atTop ? k : 7 - k) }}
-            aria-label={`Umwandeln in ${PIECE_NAME[p]}`}
+            aria-label={t("Umwandeln in {0}", { 0: PIECE_NAME[p] })}
             onPointerDown={(e) => {
               e.stopPropagation();
               const chosen = promo;
@@ -362,7 +363,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       ref={rootRef}
       class={`board${movable ? " interactive" : ""}${drag ? " is-dragging" : ""}`}
       role="img"
-      aria-label="Schachbrett"
+      aria-label={t("Schachbrett")}
       onPointerDown={(e) => {
         lastPointer.current = [e.clientX, e.clientY];
         onPointerDown(e);
@@ -375,17 +376,17 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       onPointerCancel={cancelPick}
       onContextMenu={(e) => annotate && e.preventDefault()}
       onTouchStart={(e) => {
-        const t = e.touches[0];
-        const sq = t ? squareAt(t.clientX, t.clientY) : null;
-        swipeStart.current = t && !(sq && placement.has(sq)) ? { x: t.clientX, y: t.clientY } : null;
+        const tk = e.touches[0];
+        const sq = tk ? squareAt(tk.clientX, tk.clientY) : null;
+        swipeStart.current = tk && !(sq && placement.has(sq)) ? { x: tk.clientX, y: tk.clientY } : null;
       }}
       onTouchEnd={(e) => {
         const s = swipeStart.current;
-        const t = e.changedTouches[0];
+        const tk = e.changedTouches[0];
         swipeStart.current = null;
-        if (!s || !t || !onSwipe) return;
-        const dx = t.clientX - s.x;
-        const dy = t.clientY - s.y;
+        if (!s || !tk || !onSwipe) return;
+        const dx = tk.clientX - s.x;
+        const dy = tk.clientY - s.y;
         if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? "left" : "right");
       }}
     >

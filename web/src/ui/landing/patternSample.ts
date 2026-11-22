@@ -4,6 +4,8 @@
 // read, the closer it comes to the truth. Plainly marked as an example on the
 // page: nothing here belongs to a real person.
 
+import { t } from "../../i18n";
+
 export type Phase = "opening" | "middlegame" | "endgame";
 
 export interface SampleGame {
@@ -12,7 +14,7 @@ export interface SampleGame {
   mistakes: { phase: Phase; motif: string }[];
 }
 
-export const PHASE_LABEL: Record<Phase, string> = { opening: "Eröffnung", middlegame: "Mittelspiel", endgame: "Endspiel" };
+export const PHASE_LABEL: Record<Phase, string> = { opening: t("Eröffnung"), middlegame: t("Mittelspiel"), endgame: t("Endspiel") };
 export const PHASES: Phase[] = ["opening", "middlegame", "endgame"];
 
 /** How many games the slider offers. */
@@ -23,9 +25,9 @@ export const MIN_GAMES = 20;
 export const MIN_REPEATS = 5;
 
 const MOTIFS: Record<Phase, string[]> = {
-  opening: ["Gambit falsch angenommen", "Rochade zu spät"],
-  middlegame: ["Gabel übersehen", "Figur hängen gelassen", "Grundreihe offen"],
-  endgame: ["Turmendspiel nicht gehalten", "Turmendspiel nicht gehalten", "König zu passiv"],
+  opening: [t("Gambit falsch angenommen"), t("Rochade zu spät")],
+  middlegame: [t("Gabel übersehen"), t("Figur hängen gelassen"), t("Grundreihe offen")],
+  endgame: [t("Turmendspiel nicht gehalten"), t("Turmendspiel nicht gehalten"), t("König zu passiv")],
 };
 
 /** Deterministic, so the page shows the same example on every visit and in tests. */
@@ -41,7 +43,7 @@ function build(): SampleGame[] {
   const next = rng(7);
   const pick = <T>(list: readonly T[]) => list[Math.floor(next() * list.length)];
   // The newest game, the one a player looks at right after playing it.
-  const games: SampleGame[] = [{ result: "loss", mistakes: [{ phase: "opening", motif: "Gambit falsch angenommen" }] }];
+  const games: SampleGame[] = [{ result: "loss", mistakes: [{ phase: "opening", motif: t("Gambit falsch angenommen") }] }];
   for (let i = 1; i < SAMPLE_STEPS[SAMPLE_STEPS.length - 1]; i++) {
     const count = next() < 0.25 ? 0 : next() < 0.6 ? 1 : 2;
     const mistakes = Array.from({ length: count }, () => {

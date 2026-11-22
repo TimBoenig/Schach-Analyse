@@ -5,7 +5,7 @@
 import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
-  germanSan,
+  displaySan,
   spellNotation,
   parseMoves,
   POLL_COLOURS,
@@ -20,6 +20,7 @@ import {
   type StudioProject,
   type Tone,
 } from "./model";
+import { t } from "../../i18n";
 
 export interface PieceState {
   id: number;
@@ -193,7 +194,7 @@ function piecesOf(fen: string, next: () => number): PieceState[] {
   return out;
 }
 
-const PIECE_WORD: Record<PieceSymbol, string> = { p: "Bauer", n: "Springer", b: "Läufer", r: "Turm", q: "Dame", k: "König" };
+const PIECE_WORD: Record<PieceSymbol, string> = { p: t("Bauer"), n: t("Springer"), b: t("Läufer"), r: t("Turm"), q: t("Dame"), k: t("König") };
 
 /**
  * The move for people who don't read notation: "Springer von g1 nach f3",
@@ -201,22 +202,22 @@ const PIECE_WORD: Record<PieceSymbol, string> = { p: "Bauer", n: "Springer", b: 
  * Naming the start square and the captured piece lets a beginner find both on the board.
  */
 export function plainMove(m: Move): string {
-  const mark = m.san.includes("#") ? ", Matt" : m.san.includes("+") ? ", Schach" : "";
-  if (m.flags.includes("k")) return `Kurze Rochade: König nach ${m.to}${mark}`;
-  if (m.flags.includes("q")) return `Lange Rochade: König nach ${m.to}${mark}`;
+  const mark = m.san.includes("#") ? t(", Matt") : m.san.includes("+") ? t(", Schach") : "";
+  if (m.flags.includes("k")) return t("Kurze Rochade: König nach {to}{mark}", { to: m.to, mark });
+  if (m.flags.includes("q")) return t("Lange Rochade: König nach {to}{mark}", { to: m.to, mark });
   const who = PIECE_WORD[m.piece];
   let s: string;
-  if (m.flags.includes("e")) s = `${who} schlägt Bauer en passant auf ${m.to}`;
-  else if (m.captured) s = `${who} schlägt ${PIECE_WORD[m.captured]} auf ${m.to}`;
-  else s = `${who} von ${m.from} nach ${m.to}`;
-  if (m.promotion) s += ` und wird ${PIECE_WORD[m.promotion]}`;
+  if (m.flags.includes("e")) s = t("{who} schlägt Bauer en passant auf {to}", { who, to: m.to });
+  else if (m.captured) s = t("{who} schlägt {1} auf {to}", { who, 1: PIECE_WORD[m.captured], to: m.to });
+  else s = t("{who} von {from} nach {to}", { who, from: m.from, to: m.to });
+  if (m.promotion) s += t(" und wird {0}", { 0: PIECE_WORD[m.promotion] });
   return s + mark;
 }
 
 /** "3. Lb5" or "3… a6": the move pill always says which move it is. */
 function moveLabel(m: Move, fenBefore: string): string {
   const no = Number(fenBefore.split(" ")[5]) || 1;
-  return `${no}${m.color === "w" ? "." : "…"} ${germanSan(m.san)}`;
+  return `${no}${m.color === "w" ? "." : "…"} ${displaySan(m.san)}`;
 }
 
 const MOVE = 0.85;
@@ -233,7 +234,7 @@ export function compile(project: StudioProject): Timeline {
   const sounds: Timeline["sounds"] = [];
   let board: PieceState[] = piecesOf(positions[0]?.before ?? project.startFen, next);
   let prevFen = positions[0]?.before ?? project.startFen;
-  let t = 0;
+  let tk = 0;
 
   project.scenes.forEach((s, index) => {
     const pos = positions[index];
@@ -340,9 +341,9 @@ export function compile(project: StudioProject): Timeline {
       }
       threats = [...new Set(threats)].slice(0, 6);
     }
-    if (mate) sounds.push({ t: t + fxAt + 0.85, kind: "boom" });
-    if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: t + Math.max(0, fxAt - 0.15), kind: "whoosh" });
-    if (s.effects.includes("confetti")) sounds.push({ t: t + fxAt, kind: "sparkle" });
+    if (mate) sounds.push({ t: tk + fxAt + 0.85, kind: "boom" });
+    if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: tk + Math.max(0, fxAt - 0.15), kind: "whoosh" });
+    if (s.effects.includes("confetti")) sounds.push({ t: tk + fxAt, kind: "sparkle" });
     // Each poll answer that is a legal move here gets its own coloured arrow.
     const poll: CompiledScene["poll"] = [];
     if (s.card === "poll") {
@@ -353,16 +354,16 @@ export function compile(project: StudioProject): Timeline {
         if (mv) poll.push({ from: mv.from, to: mv.to, colour: POLL_COLOURS[k % POLL_COLOURS.length], letter: m ? m[1].toUpperCase() : String.fromCharCode(65 + k) });
       });
     }
-    scenes.push({ scene: s, start: t, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
-    t += dur;
+    scenes.push({ scene: s, start: tk, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
+    tk += dur;
     prevFen = pos.after;
   });
-  return { scenes, total: t, sounds, flip: project.video.perspective === "black" };
+  return { scenes, total: tk, sounds, flip: project.video.perspective === "black" };
 }
 
-export function sceneAt(timeline: Timeline, t: number): number {
+export function sceneAt(timeline: Timeline, tk: number): number {
   const list = timeline.scenes;
-  for (let i = list.length - 1; i >= 0; i--) if (t >= list[i].start) return i;
+  for (let i = list.length - 1; i >= 0; i--) if (tk >= list[i].start) return i;
   return 0;
 }
 
@@ -464,9 +465,9 @@ export function cameraAt(timeline: Timeline, index: number, local: number, intro
 const arrowKey = (a: { from: string; to: string; tone: Tone }) => `${a.from}${a.to}${a.tone}`;
 const markKey = (m: StudioMark) => `${m.square}${m.tone}`;
 
-export function frameAt(timeline: Timeline, project: StudioProject, t: number): Frame | null {
+export function frameAt(timeline: Timeline, project: StudioProject, tk: number): Frame | null {
   if (!timeline.scenes.length) return null;
-  const time = Math.max(0, Math.min(t, Math.max(0, timeline.total - 1e-4)));
+  const time = Math.max(0, Math.min(tk, Math.max(0, timeline.total - 1e-4)));
   const index = sceneAt(timeline, time);
   const c = timeline.scenes[index];
   const prev = timeline.scenes[index - 1];

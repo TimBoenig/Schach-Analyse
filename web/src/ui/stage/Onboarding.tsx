@@ -21,18 +21,19 @@ import { Illus } from "./Illus";
 import { backStep, canAdvance, type ImportPhase, onboardPath, onboardPhases, type SitePick, tourStop } from "./script";
 import { Stage, StagePoint } from "./Stage";
 import { markSeen } from "./store";
+import { t, tj, locale } from "../../i18n";
 
 const SITE_LABEL: Record<Site, string> = { chesscom: "chess.com", lichess: "Lichess" };
 
 const SITES: { key: SitePick; label: string; sub: string; mark: string }[] = [
-  { key: "chesscom", label: "chess.com", sub: "Ich hole deine Partien der letzten drei Monate.", mark: "C" },
-  { key: "lichess", label: "Lichess", sub: "Ich hole deine letzten 100 Partien.", mark: "L" },
-  { key: "none", label: "Noch nirgends", sub: "Oder ich habe meine Partien als PGN-Datei.", mark: "?" },
+  { key: "chesscom", label: "chess.com", sub: t("Ich hole deine Partien der letzten drei Monate."), mark: "C" },
+  { key: "lichess", label: "Lichess", sub: t("Ich hole deine letzten 100 Partien."), mark: "L" },
+  { key: "none", label: t("Noch nirgends"), sub: t("Oder ich habe meine Partien als PGN-Datei."), mark: "?" },
 ];
 
 type Load = { phase: "idle" } | { phase: "busy"; label: string; found: number } | { phase: "done"; look: FirstLook; queued: boolean } | { phase: "empty" } | { phase: "error"; message: string };
 
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString(locale())} ${n === 1 ? one : many}`;
 
 function useQueue(): QueueState | null {
   const [q, setQ] = useState<QueueState | null>(null);
@@ -73,12 +74,11 @@ function Thoughts({ lines }: { lines: string[] }) {
   return (
     <div class="stage-thought" aria-live="polite">
       <span class="stage-thought-head">
-        <span class="stage-thought-dots" aria-hidden="true">
+        {tj("{x}Lucena denkt …", { x: <span class="stage-thought-dots" aria-hidden="true">
           <i />
           <i />
           <i />
-        </span>
-        Lucena denkt …
+        </span> })}
       </span>
       <p key={k}>{lines[k]}</p>
     </div>
@@ -92,10 +92,10 @@ function AnalysisPanel({ p, done }: { p: BatchProgress | null; done: boolean }) 
   return (
     <div class="stage-panel">
       <div class="stage-row">
-        <strong>{done ? "Erste Runde fertig" : running ? `Partie ${p!.index} von ${p!.games}` : "Die Engine startet …"}</strong>
+        <strong>{done ? t("Erste Runde fertig") : running ? t("Partie {index} von {games}", { index: p!.index, games: p!.games }) : t("Die Engine startet …")}</strong>
         <span class="faint tnum">{running ? `${pct} %` : ""}</span>
       </div>
-      <div class={`stage-meter${running || done ? "" : " busy"}`} style={{ marginTop: "12px" }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Fortschritt der Analyse">
+      <div class={`stage-meter${running || done ? "" : " busy"}`} style={{ marginTop: "12px" }} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={t("Fortschritt der Analyse")}>
         <span style={running || done ? { width: `${Math.max(3, pct)}%` } : undefined} />
       </div>
     </div>
@@ -134,34 +134,34 @@ function FindingCard({ f, onOpen }: { f: FirstFinding; onOpen: (gameId: string, 
     <div class="stage-finding">
       <div class="stage-finding-head">
         <IconInsights />
-        <span>Erster Befund aus {plural(f.analysed, "Partie", "Partien")}</span>
+        <span>{t("Erster Befund aus {n}", { n: plural(f.analysed, t("Partie"), t("Partien")) })}</span>
       </div>
       <div class="stage-stats">
         <div class="stage-stat bad">
           <b>
             <CountUp value={f.blunders} />
           </b>
-          <span>Patzer</span>
+          <span>{t("Patzer")}</span>
         </div>
         <div class="stage-stat">
           <b>
             <CountUp value={f.mistakes} />
           </b>
-          <span>Fehler</span>
+          <span>{t("Fehler")}</span>
         </div>
         <div class="stage-stat good">
           <b>{f.bestGame ? <CountUp value={f.bestGame.accuracy} format={(v) => pct(Math.round(v))} /> : "–"}</b>
-          <span>beste Genauigkeit</span>
+          <span>{t("beste Genauigkeit")}</span>
         </div>
       </div>
       {c && (
         <div class="stage-costly">
           <p>
-            <b>Dein teuerster Zug:</b> {c.moveNumber}
-            {c.white ? "." : "..."} {c.san} gegen {c.opponent}. Deine Gewinnchance fiel von {pct(c.before)} auf {pct(c.after)}.{c.better ? ` Besser war ${c.better}.` : ""}
+            {tj("{label} {move} {san} gegen {opponent}. Deine Gewinnchance fiel von {before} auf {after}.{better}", { label: <b>{t("Dein teuerster Zug:")}</b>, move: `${c.moveNumber}${c.white ? "." : "..."}`, san: c.san, opponent: c.opponent, before: pct(c.before), after: pct(c.after), better: c.better ? t(" Besser war {better}.", { better: c.better }) : "" })}
           </p>
           <button class="btn" onClick={() => onOpen(c.gameId, c.ply)}>
-            Diese Stelle ansehen
+            
+            {t("Diese Stelle ansehen")}
             <IconChevron />
           </button>
         </div>
@@ -216,7 +216,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     const who = name.trim();
     if (!who) return;
     setIndex(path.indexOf("import"));
-    setLoad({ phase: "busy", label: "Ich suche dein Konto …", found: 0 });
+    setLoad({ phase: "busy", label: t("Ich suche dein Konto …"), found: 0 });
     let found = 0;
     const arrived: GameAnalysis[] = [];
     try {
@@ -290,19 +290,21 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         {...common}
         layout="center"
         mood="happy"
-        say="Hi, ich bin Lucena."
+        say={t("Hi, ich bin Lucena.")}
         sub={
           <p>
-            Ich lese deine Partien, finde heraus, wo du wirklich Punkte liegen lässt, und baue dir daraus ein Training. In zwei Minuten zeige ich dir alles.
+            
+            {t("Ich lese deine Partien, finde heraus, wo du wirklich Punkte liegen lässt, und baue dir daraus ein Training. In zwei Minuten zeige ich dir alles.")}
           </p>
         }
-        closeLabel="Ich kenne mich aus"
+        closeLabel={t("Ich kenne mich aus")}
         actions={
           <>
             <span class="stage-hint">
-              Weiter mit <kbd>Enter</kbd>
+              
+              {tj("Weiter mit {x}", { x: <kbd>{t("Enter")}</kbd> })}
             </span>
-            {nextButton("Los geht's")}
+            {nextButton(t("Los geht's"))}
           </>
         }
       />
@@ -311,8 +313,8 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
 
   if (step === "site") {
     return (
-      <Stage {...common} mood={pick ? "wow" : "think"} say="Wo spielst du Schach?" sub={<p>Ich hole nur deine öffentlichen Partien. Sie bleiben auf deinem Gerät.</p>} actions={nextButton("Weiter", !ok)}>
-        <div class="stage-choices" role="group" aria-label="Wo spielst du?">
+      <Stage {...common} mood={pick ? "wow" : "think"} say={t("Wo spielst du Schach?")} sub={<p>{t("Ich hole nur deine öffentlichen Partien. Sie bleiben auf deinem Gerät.")}</p>} actions={nextButton(t("Weiter"), !ok)}>
+        <div class="stage-choices" role="group" aria-label={t("Wo spielst du?")}>
           {SITES.map((s) => (
             <button
               key={s.key}
@@ -343,15 +345,16 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       <Stage
         {...common}
         mood="happy"
-        say="Kein Problem, wir fangen trotzdem an."
-        sub={<p>Sobald du online spielst, holst du deine Partien mit einem Tipp. Hast du Partien als PGN-Datei, lade sie gleich hoch.</p>}
+        say={t("Kein Problem, wir fangen trotzdem an.")}
+        sub={<p>{t("Sobald du online spielst, holst du deine Partien mit einem Tipp. Hast du Partien als PGN-Datei, lade sie gleich hoch.")}</p>}
         actions={
           <>
             <button class="btn" onClick={() => finish(() => navigate({ view: "games", import: true }))}>
               <IconUpload />
-              PGN-Datei laden
+              
+              {t("PGN-Datei laden")}
             </button>
-            {nextButton("Zeig mir die App")}
+            {nextButton(t("Zeig mir die App"))}
           </>
         }
       >
@@ -363,7 +366,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   if (step === "name") {
     const site = SITE_LABEL[pick as Site];
     return (
-      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={`Wie heißt du bei ${site}?`} sub={<p>Dein Benutzername reicht, kein Passwort. Ein Konto bei {BRAND} brauchst du nicht.</p>} actions={nextButton("Partien holen", !ok)}>
+      <Stage {...common} mood={name.trim() ? "happy" : "think"} say={t("Wie heißt du bei {site}?", { site })} sub={<p>{t("Dein Benutzername reicht, kein Passwort. Ein Konto bei {BRAND} brauchst du nicht.", { BRAND })}</p>} actions={nextButton(t("Partien holen"), !ok)}>
         <form
           class="stage-field"
           onSubmit={(e) => {
@@ -375,15 +378,15 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
             ref={input}
             value={name}
             onInput={(e) => setName((e.target as HTMLInputElement).value)}
-            placeholder="Dein Benutzername"
+            placeholder={t("Dein Benutzername")}
             autocomplete="username"
             autocapitalize="off"
             spellcheck={false}
             enterkeyhint="go"
-            aria-label={`Benutzername bei ${site}`}
+            aria-label={t("Benutzername bei {site}", { site })}
           />
         </form>
-        <p class="stage-note">Ich lese nur, was bei {site} öffentlich zu sehen ist.</p>
+        <p class="stage-note">{t("Ich lese nur, was bei {site} öffentlich zu sehen ist.", { site })}</p>
       </Stage>
     );
   }
@@ -393,16 +396,17 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
     const failed = load.phase === "error" || load.phase === "empty";
     const look = load.phase === "done" ? load.look : null;
     const mood: Mood = failed ? "sad" : look ? "wow" : "think";
-    const say = load.phase === "error" ? "Das hat nicht geklappt." : load.phase === "empty" ? "Ich habe keine Partien gefunden." : look ? `${plural(look.games, "Partie", "Partien")} sind da.` : "Ich hole deine Partien …";
+    const say = load.phase === "error" ? t("Das hat nicht geklappt.") : load.phase === "empty" ? t("Ich habe keine Partien gefunden.") : look ? t("{n} sind da.", { n: plural(look.games, t("Partie"), t("Partien")) }) : t("Ich hole deine Partien …");
     const sub =
       load.phase === "error" ? (
         <p>{load.message}</p>
       ) : load.phase === "empty" ? (
         <p>
-          Unter „{name.trim()}“ gibt es bei {site} in den letzten Monaten keine Partien. Stimmt der Name?
+          
+          {t("Unter „{n}“ gibt es bei {site} in den letzten Monaten keine Partien. Stimmt der Name?", { n: name.trim(), site })}
         </p>
       ) : look ? (
-        <p>Das ist deine Bilanz, bevor die Engine einen einzigen Zug gesehen hat.</p>
+        <p>{t("Das ist deine Bilanz, bevor die Engine einen einzigen Zug gesehen hat.")}</p>
       ) : (
         <p>{load.phase === "busy" ? load.label : ""}</p>
       );
@@ -415,7 +419,8 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
         actions={
           failed ? (
             <button class="btn primary" onClick={retryName}>
-              Namen ändern
+              
+              {t("Namen ändern")}
             </button>
           ) : (
             nextButton("Weiter", !ok)
@@ -426,7 +431,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           <div class="stage-panel">
             <div class="stage-row">
               <strong>
-                <CountUp value={load.found} /> {load.found === 1 ? "Partie" : "Partien"} gefunden
+                <CountUp value={load.found} /> {t("{n} gefunden", { n: load.found === 1 ? t("Partie") : t("Partien") })}
               </strong>
             </div>
             <div class="stage-meter busy" style={{ marginTop: "12px" }}>
@@ -442,19 +447,19 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
                 <b>
                   <CountUp value={look.wins} />
                 </b>
-                <span>{look.wins === 1 ? "Sieg" : "Siege"}</span>
+                <span>{look.wins === 1 ? t("Sieg") : t("Siege")}</span>
               </div>
               <div class="stage-stat">
                 <b>
                   <CountUp value={look.draws} />
                 </b>
-                <span>Remis</span>
+                <span>{t("Remis")}</span>
               </div>
               <div class="stage-stat bad">
                 <b>
                   <CountUp value={look.losses} />
                 </b>
-                <span>{look.losses === 1 ? "Niederlage" : "Niederlagen"}</span>
+                <span>{look.losses === 1 ? t("Niederlage") : t("Niederlagen")}</span>
               </div>
             </div>
             <div class="stage-panel">
@@ -465,9 +470,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               </div>
               <div class="stage-row" style={{ marginTop: "12px" }}>
                 <span>
-                  {plural(look.white, "Partie", "Partien")} mit Weiß, {look.games - look.white} mit Schwarz
+                  {t("{n} mit Weiß, {n2} mit Schwarz", { n: plural(look.white, t("Partie"), t("Partien")), n2: look.games - look.white })}
                 </span>
-                {look.bullet > 0 && <span class="faint">davon {look.bullet} Bullet</span>}
+                {look.bullet > 0 && <span class="faint">{t("davon {bullet} Bullet", { bullet: look.bullet })}</span>}
               </div>
             </div>
             <Thoughts lines={thoughts} />
@@ -482,9 +487,9 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       <Stage
         {...common}
         mood={finding?.costliest ? "wow" : "think"}
-        say={finding ? "Die ersten Partien sind durch." : "Jetzt schaue ich mir jeden Zug an."}
-        sub={<p>{finding ? "Hier ist, was ich bisher sehe. Mit jeder weiteren Partie wird das Bild genauer." : "Erst ein schneller Überblick über alle Partien, danach gehe ich alles noch einmal gründlich durch."}</p>}
-        actions={nextButton(passDone ? "Zeig mir die App" : "Weiter, die Analyse läuft mit")}
+        say={finding ? t("Die ersten Partien sind durch.") : t("Jetzt schaue ich mir jeden Zug an.")}
+        sub={<p>{finding ? t("Hier ist, was ich bisher sehe. Mit jeder weiteren Partie wird das Bild genauer.") : t("Erst ein schneller Überblick über alle Partien, danach gehe ich alles noch einmal gründlich durch.")}</p>}
+        actions={nextButton(passDone ? t("Zeig mir die App") : t("Weiter, die Analyse läuft mit"))}
       >
         <AnalysisPanel p={pass} done={passDone} />
         {finding ? (
@@ -493,11 +498,13 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
           <>
             <Thoughts lines={thoughts} />
             <div class="stage-points">
-              <StagePoint icon={<IconBolt />} title="Erste Ergebnisse in wenigen Minuten">
-                Sobald die erste Partie durch ist, zeige ich dir hier deinen ersten Befund.
+              <StagePoint icon={<IconBolt />} title={t("Erste Ergebnisse in wenigen Minuten")}>
+                
+                {t("Sobald die erste Partie durch ist, zeige ich dir hier deinen ersten Befund.")}
               </StagePoint>
-              <StagePoint icon={<IconCpu />} title="Alles bleibt auf deinem Gerät">
-                Die Engine rechnet in deinem Browser. Du kannst die App währenddessen normal benutzen.
+              <StagePoint icon={<IconCpu />} title={t("Alles bleibt auf deinem Gerät")}>
+                
+                {t("Die Engine rechnet in deinem Browser. Du kannst die App währenddessen normal benutzen.")}
               </StagePoint>
             </div>
           </>
@@ -509,7 +516,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   const stop = tourStop(step);
   if (stop) {
     return (
-      <Stage {...common} mood="happy" say={stop.say} sub={<p>{stop.sub}</p>} actions={nextButton("Weiter")}>
+      <Stage {...common} mood="happy" say={stop.say} sub={<p>{stop.sub}</p>} actions={nextButton(t("Weiter"))}>
         <Illus kind={stop.illus} />
         <div class="stage-points">
           {stop.points.map((p) => (
@@ -530,33 +537,35 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
       {...common}
       layout={wow ? "split" : "center"}
       mood="wow"
-      say={wow ? (finding.costliest ? "Hier verlierst du Punkte." : "Dein erster Befund ist da.") : imported ? "Dein Profil füllt sich gerade." : "Das war's. Viel Spaß!"}
+      say={wow ? (finding.costliest ? t("Hier verlierst du Punkte.") : t("Dein erster Befund ist da.")) : imported ? t("Dein Profil füllt sich gerade.") : t("Das war's. Viel Spaß!")}
       sub={
         <p>
           {wow
-            ? "Das ist erst der Anfang: Die Analyse läuft im Hintergrund weiter, und aus jedem Fehler baue ich eine Aufgabe für dein Training."
+            ? t("Das ist erst der Anfang: Die Analyse läuft im Hintergrund weiter, und aus jedem Fehler baue ich eine Aufgabe für dein Training.")
             : imported
-            ? "Die Analyse läuft im Hintergrund weiter. Je mehr Partien fertig sind, desto genauer werden deine Stärken und Schwächen. Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst."
-            : "Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst. Den Rundgang findest du jederzeit in der Seitenleiste wieder."}
+            ? t("Die Analyse läuft im Hintergrund weiter. Je mehr Partien fertig sind, desto genauer werden deine Stärken und Schwächen. Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst.")
+            : t("Auf jeder Seite erkläre ich dir beim ersten Besuch, was du siehst. Den Rundgang findest du jederzeit in der Seitenleiste wieder.")}
         </p>
       }
-      closeLabel="Schließen"
+      closeLabel={t("Schließen")}
       children={wow ? <FindingCard f={finding} onOpen={openSpot} /> : undefined}
       actions={
         <>
           {imported && (
             <button class="btn" onClick={() => finish(() => navigate({ view: "games" }))}>
               <IconGames />
-              Meine Partien
+              
+              {t("Meine Partien")}
             </button>
           )}
           {!imported && (
             <button class="btn" onClick={() => finish(() => navigate({ view: "training" }))}>
               <IconTraining />
-              Zum Training
+              
+              {t("Zum Training")}
             </button>
           )}
-          {nextButton("Zur Startseite")}
+          {nextButton(t("Zur Startseite"))}
         </>
       }
     />

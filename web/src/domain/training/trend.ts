@@ -79,8 +79,8 @@ export function trainingTrends(log: TrainingLog, today: string, days = 14): { ov
   );
   const byCategory: Partial<Record<Category, Trend>> = {};
   for (const c of CATEGORY_ORDER) {
-    const t = compareRates(span(log, today, 0, days, (d) => d.by_category[c]), span(log, today, days, days, (d) => d.by_category[c]));
-    if (t.recent[1] || t.before[1]) byCategory[c] = t;
+    const tk = compareRates(span(log, today, 0, days, (d) => d.by_category[c]), span(log, today, days, days, (d) => d.by_category[c]));
+    if (tk.recent[1] || tk.before[1]) byCategory[c] = tk;
   }
   return { overall, byCategory };
 }

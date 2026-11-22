@@ -7,6 +7,7 @@ import { movesText, type OpeningStat, openingLabel } from "../../domain/profile"
 import { MIN_LINE_GAMES } from "../../domain/profile/evidence";
 import { StackBar, useWidth } from "../charts";
 import { MiniBoard } from "./MiniBoard";
+import { t } from "../../i18n";
 
 const pctText = (v: number | null) => (v === null ? "–" : `${Math.round(v)} %`);
 
@@ -44,14 +45,14 @@ export function OpeningCard({ o, selected, onSelect }: { o: OpeningStat; selecte
   return (
     <button class={`rep-card tone-${tone}${selected ? " selected" : ""}`} onClick={onSelect} aria-pressed={selected}>
       <div class="rep-card-board">
-        <MiniBoard fen={o.fen} flipped={o.color === "black"} label={`Typische Stellung: ${openingLabel(o.name)}`} />
+        <MiniBoard fen={o.fen} flipped={o.color === "black"} label={t("Typische Stellung: {openingLabel}", { openingLabel: openingLabel(o.name) })} />
       </div>
       <div class="rep-card-body">
         <div class="rep-card-top">
           <div class="rep-card-title">
             <strong>{openingLabel(o.name)}</strong>
             <span class="small faint">
-              {o.eco && <span class="op-eco">{o.eco}</span>} {o.games === 1 ? "1 Partie" : `${o.games} Partien`}
+              {o.eco && <span class="op-eco">{o.eco}</span>} {o.games === 1 ? t("1 Partie") : t("{games} Partien", { games: o.games })}
             </span>
           </div>
           <ScoreRing value={o.score_pct} tone={tone} />
@@ -61,16 +62,16 @@ export function OpeningCard({ o, selected, onSelect }: { o: OpeningStat; selecte
           height={6}
           legend={false}
           segments={[
-            { label: "Siege", value: o.wins, color: "var(--win)" },
-            { label: "Remis", value: o.draws, color: "var(--draw)" },
-            { label: "Niederlagen", value: o.losses, color: "var(--loss)" },
+            { label: t("Siege"), value: o.wins, color: "var(--win)" },
+            { label: t("Remis"), value: o.draws, color: "var(--draw)" },
+            { label: t("Niederlagen"), value: o.losses, color: "var(--loss)" },
           ]}
         />
         <div class="rep-card-foot small faint">
           <span>
             {o.wins} S · {o.draws} R · {o.losses} N
           </span>
-          {o.book_exit_move !== null && <span>Theorie bis Zug {Math.round(o.book_exit_move)}</span>}
+          {o.book_exit_move !== null && <span>{t("Theorie bis Zug {n}", { n: Math.round(o.book_exit_move) })}</span>}
         </div>
       </div>
     </button>
@@ -80,10 +81,10 @@ export function OpeningCard({ o, selected, onSelect }: { o: OpeningStat; selecte
 // ---------- repertoire map ----------
 
 const QUADRANTS = [
-  { x: "right", y: "top", label: "Stützen", hint: "oft gespielt, läuft gut" },
-  { x: "right", y: "bottom", label: "Baustellen", hint: "oft gespielt, läuft schlecht" },
-  { x: "left", y: "top", label: "Geheimtipps", hint: "selten, läuft gut" },
-  { x: "left", y: "bottom", label: "Nebenschauplätze", hint: "selten, läuft schlecht" },
+  { x: "right", y: "top", label: t("Stützen"), hint: t("oft gespielt, läuft gut") },
+  { x: "right", y: "bottom", label: t("Baustellen"), hint: t("oft gespielt, läuft schlecht") },
+  { x: "left", y: "top", label: t("Geheimtipps"), hint: t("selten, läuft gut") },
+  { x: "left", y: "bottom", label: t("Nebenschauplätze"), hint: t("selten, läuft schlecht") },
 ] as const;
 
 /**
@@ -145,12 +146,12 @@ export function RepertoireMap({
       break;
     }
   }
-  const ticks = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter((t) => t <= maxGames * 1.25);
+  const ticks = [1, 2, 5, 10, 20, 50, 100, 200, 500].filter((tk) => tk <= maxGames * 1.25);
   const active = hover ?? selected;
 
   return (
     <div class="rep-map" ref={ref}>
-      <svg width={w} height={h} role="img" aria-label="Repertoire-Landkarte: Häufigkeit gegen Punkte-Quote">
+      <svg width={w} height={h} role="img" aria-label={t("Repertoire-Landkarte: Häufigkeit gegen Punkte-Quote")}>
         <rect x={xs} y={pad.t} width={w - pad.r - xs} height={y(50) - pad.t} class="rep-map-q good" />
         <rect x={xs} y={y(50)} width={w - pad.r - xs} height={h - pad.b - y(50)} class="rep-map-q bad" />
         {[0, 25, 50, 75, 100].map((s) => (
@@ -163,12 +164,12 @@ export function RepertoireMap({
         ))}
         {average !== null && (
           <line x1={pad.l} x2={w - pad.r} y1={y(average)} y2={y(average)} class="rep-map-avg">
-            <title>Dein Schnitt {Math.round(average)} %</title>
+            <title>{t("Dein Schnitt {n} %", { n: Math.round(average) })}</title>
           </line>
         )}
-        {ticks.map((t) => (
-          <text key={t} x={x(t)} y={h - 10} text-anchor="middle" class="chart-axis">
-            {t}
+        {ticks.map((tk) => (
+          <text key={tk} x={x(tk)} y={h - 10} text-anchor="middle" class="chart-axis">
+            {tk}
           </text>
         ))}
         {QUADRANTS.map((q) => (
@@ -221,30 +222,31 @@ export function RepertoireMap({
                   </text>
                 )}
                 <title>
-                  {openingLabel(l.name)}: {pctText(l.score_pct)} aus {l.games} {l.games === 1 ? "Partie" : "Partien"}
+                  {t("{openingLabel}: {pctText} aus {games} {n}", { openingLabel: openingLabel(l.name), pctText: pctText(l.score_pct), games: l.games, n: l.games === 1 ? t("Partie") : t("Partien") })}
                 </title>
               </g>
             );
           })}
       </svg>
       <div class="rep-map-axes small faint">
-        <span>↑ Punkte-Quote in %</span>
-        <span>Partien (log.) →</span>
+        <span>{t("↑ Punkte-Quote in %")}</span>
+        <span>{t("Partien (log.) →")}</span>
       </div>
       <div class="legend">
         <span class="legend-item">
           <span class="legend-key" style={{ background: "var(--win)", borderRadius: "50%" }} />
-          ab {MIN_LINE_GAMES} Partien
+          {t("ab {MIN_LINE_GAMES} Partien", { MIN_LINE_GAMES })}
         </span>
         <span class="legend-item">
           <span class="legend-key dashed" style={{ borderColor: "var(--text-3)", borderRadius: "50%" }} />
-          noch zu wenige Partien
+          
+          {t("noch zu wenige Partien")}
         </span>
         {average !== null && (
           <span class="legend-item">
             <span class="legend-key dashed" style={{ borderColor: "var(--text-3)" }} />
-            dein Schnitt {Math.round(average)} %
-          </span>
+            
+            {t("dein Schnitt {n} %", { n: Math.round(average) })}</span>
         )}
       </div>
     </div>
@@ -257,7 +259,7 @@ export function RepertoireMap({
 export function TheoryTimeline({ lines, onSelect }: { lines: OpeningStat[]; onSelect: (name: string) => void }) {
   const rows = lines.filter((l) => l.book_exit_move !== null || l.first_error_move !== null).slice(0, 8);
   if (!rows.length) {
-    return <p class="muted small">Analysiere ein paar Partien, dann zeige ich dir, wann du die Theorie verlässt und wann der erste Fehler kommt.</p>;
+    return <p class="muted small">{t("Analysiere ein paar Partien, dann zeige ich dir, wann du die Theorie verlässt und wann der erste Fehler kommt.")}</p>;
   }
   // Averages are fractions: round up so the scale ends on a whole move.
   const maxMove = Math.ceil(Math.max(20, ...rows.map((r) => Math.max(r.book_exit_move ?? 0, r.first_error_move ?? 0) + 2)));
@@ -279,7 +281,7 @@ export function TheoryTimeline({ lines, onSelect }: { lines: OpeningStat[]; onSe
                   style={{ left: pos(Math.min(book, err)), width: `calc(${pos(Math.abs(err - book))})` }}
                 />
               )}
-              {err !== null && <span class={`theory-err${early ? " early" : ""}`} style={{ left: pos(err) }} title={`Erster schwerer Fehler: Zug ${Math.round(err)}`} />}
+              {err !== null && <span class={`theory-err${early ? " early" : ""}`} style={{ left: pos(err) }} title={t("Erster schwerer Fehler: Zug {0}", { 0: Math.round(err) })} />}
             </span>
             <span class="theory-val small tnum">
               {book !== null ? Math.round(book) : "–"} / <span class={early ? "bad" : ""}>{err !== null ? Math.round(err) : "–"}</span>
@@ -288,18 +290,20 @@ export function TheoryTimeline({ lines, onSelect }: { lines: OpeningStat[]; onSe
         );
       })}
       <div class="theory-scale small faint">
-        <span>Zug 1</span>
-        <span>Zug {Math.round(maxMove / 2)}</span>
-        <span>Zug {maxMove}</span>
+        <span>{t("Zug 1")}</span>
+        <span>{t("Zug {n}", { n: Math.round(maxMove / 2) })}</span>
+        <span>{t("Zug {maxMove}", { maxMove })}</span>
       </div>
       <div class="legend">
         <span class="legend-item">
           <span class="legend-key" style={{ background: "var(--book)" }} />
-          Theorie
+          
+          {t("Theorie")}
         </span>
         <span class="legend-item">
           <span class="legend-key" style={{ background: "var(--blunder)", borderRadius: "50%" }} />
-          erster schwerer Fehler (Ø)
+          
+          {t("erster schwerer Fehler (Ø)")}
         </span>
       </div>
     </div>

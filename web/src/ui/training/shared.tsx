@@ -1,5 +1,6 @@
 // Small pieces the three training pages share.
 import { type ExerciseState, type SessionPart, STATE_LABEL } from "../../domain/training";
+import { t } from "../../i18n";
 
 /** What a session runs: a title and the exercises, optionally in the parts of the daily plan. */
 export interface SessionSpec {
@@ -11,9 +12,9 @@ export interface SessionSpec {
 
 export type StartSession = (spec: SessionSpec) => void;
 
-const WEEKDAY = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-const WEEKDAY_LONG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
-const MONTH = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+const WEEKDAY = [t("So"), t("Mo"), t("Di"), t("Mi"), t("Do"), t("Fr"), t("Sa")];
+const WEEKDAY_LONG = [t("Sonntag"), t("Montag"), t("Dienstag"), t("Mittwoch"), t("Donnerstag"), t("Freitag"), t("Samstag")];
+const MONTH = [t("Januar"), t("Februar"), t("März"), t("April"), t("Mai"), t("Juni"), t("Juli"), t("August"), t("September"), t("Oktober"), t("November"), t("Dezember")];
 
 /** Local Date of a "YYYY-MM-DD" day key (noon, so a time change never shifts the day). */
 export function dayDate(day: string): Date {
@@ -47,7 +48,7 @@ export function StateTag({ state }: { state: ExerciseState }) {
 /** Five steps of the repetition ladder; from the third on a line counts as safe. */
 export function Ladder({ box, max = 5 }: { box: number; max?: number }) {
   return (
-    <span class="tn-ladder" role="img" aria-label={`Stufe ${box} von ${max}`}>
+    <span class="tn-ladder" role="img" aria-label={t("Stufe {box} von {max}", { box, max })}>
       {Array.from({ length: max }, (_, i) => (
         <i key={i} class={i < box ? "on" : ""} />
       ))}

@@ -6,10 +6,11 @@ import { exportForAi } from "../app/exporter";
 import { AI_EXPORT_LIMITS, AI_EXPORT_PROMPT, type AiExportDetail } from "../domain/aiExport";
 import { PAGE_PERIODS } from "../domain/periods";
 import { PeriodSelect } from "./useProfile";
+import { t } from "../i18n";
 
 const DETAIL_HINT: Record<AiExportDetail, string> = {
-  full: "für ChatGPT, Claude, Gemini (bezahlt oder aktuell)",
-  compact: "für kostenlose Versionen und lokale Modelle",
+  full: t("für ChatGPT, Claude, Gemini (bezahlt oder aktuell)"),
+  compact: t("für kostenlose Versionen und lokale Modelle"),
 };
 
 export function AiExportCard() {
@@ -26,11 +27,11 @@ export function AiExportCard() {
     try {
       const r = await exportForAi(period, detail);
       if (!r.games) {
-        setMsg({ text: "Keine eigenen Partien im Zeitraum. Prüfe deine Benutzernamen unten oder wähle einen längeren Zeitraum.", error: true });
+        setMsg({ text: t("Keine eigenen Partien im Zeitraum. Prüfe deine Benutzernamen unten oder wähle einen längeren Zeitraum."), error: true });
       } else if (!r.analyzed) {
-        setMsg({ text: `Datei mit ${r.games} Partien erstellt. Noch keine davon ist analysiert, die KI sieht daher nur Ergebnisse und Eröffnungen, keine Fehler.` });
+        setMsg({ text: t("Datei mit {games} Partien erstellt. Noch keine davon ist analysiert, die KI sieht daher nur Ergebnisse und Eröffnungen, keine Fehler.", { games: r.games }) });
       } else {
-        setMsg({ text: `Datei mit ${r.games} Partien erstellt, ${r.analyzed} davon mit Engine-Analyse.` });
+        setMsg({ text: t("Datei mit {games} Partien erstellt, {analyzed} davon mit Engine-Analyse.", { games: r.games, analyzed: r.analyzed }) });
       }
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
@@ -46,21 +47,20 @@ export function AiExportCard() {
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2500);
       })
-      .catch(() => setMsg({ text: `Kopieren nicht möglich. Schreibe der KI: „${AI_EXPORT_PROMPT}“` }));
+      .catch(() => setMsg({ text: t("Kopieren nicht möglich. Schreibe der KI: „{AI_EXPORT_PROMPT}“", { AI_EXPORT_PROMPT }) }));
   };
 
   return (
     <div class="card" id="ki-export">
-      <h3>Für KI exportieren</h3>
+      <h3>{t("Für KI exportieren")}</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
-        Eine Textdatei mit allem, was eine KI für eine ausführliche Analyse deines Schachs braucht: den Auftrag mit der
-        gewünschten Gliederung, eine Legende zu allen Werten, deine Statistiken, Fähigkeiten, Stärken, Schwächen und
-        Eröffnungen sowie die teuersten Züge deiner Partien mit Stellung, besserem Zug und konkreter Begründung.
+        
+        {t("Eine Textdatei mit allem, was eine KI für eine ausführliche Analyse deines Schachs braucht: den Auftrag mit der gewünschten Gliederung, eine Legende zu allen Werten, deine Statistiken, Fähigkeiten, Stärken, Schwächen und Eröffnungen sowie die teuersten Züge deiner Partien mit Stellung, besserem Zug und konkreter Begründung.")}
       </p>
       <div class="filters">
         <PeriodSelect value={period} onChange={setPeriod} />
       </div>
-      <div class="segmented" role="radiogroup" aria-label="Umfang" style={{ marginBottom: "6px" }}>
+      <div class="segmented" role="radiogroup" aria-label={t("Umfang")} style={{ marginBottom: "6px" }}>
         {(Object.keys(AI_EXPORT_LIMITS) as AiExportDetail[]).map((k) => (
           <button key={k} role="radio" aria-checked={detail === k} class={detail === k ? "active" : ""} onClick={() => setDetail(k)}>
             {AI_EXPORT_LIMITS[k].label}
@@ -68,21 +68,20 @@ export function AiExportCard() {
         ))}
       </div>
       <p class="small faint" style={{ margin: "0 0 12px" }}>
-        {AI_EXPORT_LIMITS[detail].label} {DETAIL_HINT[detail]}: kritische Momente der neuesten {AI_EXPORT_LIMITS[detail].moments}{" "}
-        analysierten Partien, {AI_EXPORT_LIMITS[detail].annotated} davon Zug für Zug kommentiert.
+        {t("{label} {n}: kritische Momente der neuesten {moments} analysierten Partien, {annotated} davon Zug für Zug kommentiert.", { label: AI_EXPORT_LIMITS[detail].label, n: DETAIL_HINT[detail], moments: AI_EXPORT_LIMITS[detail].moments, annotated: AI_EXPORT_LIMITS[detail].annotated })}
       </p>
       <div class="row">
         <button class="btn primary" disabled={busy} onClick={() => void run()}>
-          {busy ? "Wird erstellt …" : "KI-Datei herunterladen"}
+          {busy ? t("Wird erstellt …") : t("KI-Datei herunterladen")}
         </button>
         <button class="btn" onClick={copy}>
-          {copied ? "Kopiert ✓" : "Nachricht für die KI kopieren"}
+          {copied ? t("Kopiert ✓") : t("Nachricht für die KI kopieren")}
         </button>
       </div>
       <ol class="small muted" style={{ margin: "12px 0 0", paddingLeft: "20px", lineHeight: 1.6 }}>
-        <li>KI-Datei herunterladen (endet auf .md, ist normaler Text).</li>
-        <li>In ChatGPT, Claude oder Gemini über die Büroklammer bzw. das Plus hochladen.</li>
-        <li>Die kopierte Nachricht dazuschreiben und abschicken.</li>
+        <li>{t("KI-Datei herunterladen (endet auf .md, ist normaler Text).")}</li>
+        <li>{t("In ChatGPT, Claude oder Gemini über die Büroklammer bzw. das Plus hochladen.")}</li>
+        <li>{t("Die kopierte Nachricht dazuschreiben und abschicken.")}</li>
       </ol>
       {msg && <p class={`small ${msg.error ? "error" : "ok"}`}>{msg.text}</p>}
     </div>

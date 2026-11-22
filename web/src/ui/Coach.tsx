@@ -8,6 +8,7 @@ import type { Mood } from "./coach/net";
 import { Orb } from "./coach/orb";
 import { IconClose } from "./icons";
 import { navigate } from "./router";
+import { t } from "../i18n";
 
 export const COACH_NAME = "Lucena";
 
@@ -148,8 +149,8 @@ export function CoachTip({
         <button
           class="coach-close"
           onClick={close}
-          aria-label="Hinweis schließen"
-          title="Verstanden"
+          aria-label={t("Hinweis schließen")}
+          title={t("Verstanden")}
         >
           <IconClose />
         </button>
@@ -163,16 +164,17 @@ export function NeedNames({ what }: { what: string }) {
   return (
     <div class="empty">
       <CoachAvatar size={96} mood="think" />
-      <h3>Wer bist du?</h3>
+      <h3>{t("Wer bist du?")}</h3>
       <p>
-        Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne.
-        Dann {what}
+        
+        {t("Sag mir zuerst deinen Spielernamen, damit ich deine Partien erkenne. Dann {what}", { what })}
       </p>
       <button
         class="btn primary big"
         onClick={() => navigate({ view: "settings" })}
       >
-        Namen eintragen
+        
+        {t("Namen eintragen")}
       </button>
     </div>
   );

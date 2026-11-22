@@ -1,5 +1,7 @@
 // Python-compatible numeric helpers so ported scores match the desktop app.
 
+import { dec } from "../../i18n";
+
 /**
  * Python's round(): ties go to the even neighbour ("banker's rounding").
  * Matters for school grades (e.g. round(2.5) == 2) and 0.1-step scores.
@@ -38,5 +40,5 @@ export function fmt(x: number, digits: number): string {
 
 /** `fmt` with a German decimal comma, for every number shown in a sentence ("87,8 %"). */
 export function fmtDe(x: number, digits: number): string {
-  return fmt(x, digits).replace(".", ",");
+  return fmt(x, digits).replace(".", dec());
 }

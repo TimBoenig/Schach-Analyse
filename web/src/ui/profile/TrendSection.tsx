@@ -11,11 +11,12 @@ import { Foot } from "../kit";
 import { type ProfileFilters, useAllTimeProfile } from "../useProfile";
 import { Delta, RangeChips } from "../viz/Range";
 import { TrendChart, type TrendPoint } from "../viz/TrendChart";
+import { t, locale, dec } from "../../i18n";
 
 const DAY = 86400;
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
-const dateText = (t: number) => new Date(t * 1000).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" });
-const plural = (n: number, one: string, many: string) => `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`;
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
+const dateText = (tk: number) => new Date(tk * 1000).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
+const plural = (n: number, one: string, many: string) => `${n.toLocaleString(locale())} ${n === 1 ? one : many}`;
 
 interface Trends {
   ratings: Record<string, RatingSeries>;
@@ -27,8 +28,8 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
   // Rating lines and daily accuracy over every game; null while the worker still builds them.
   const trends = useMemo((): Trends | null => {
     if (full.loading) return null;
-    const t = (full.profile?.trends ?? {}) as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
-    return { ratings: t.ratings ?? {}, daily: t.daily ?? [] };
+    const tk = (full.profile?.trends ?? {}) as { ratings?: Record<string, RatingSeries>; daily?: DayRow[] };
+    return { ratings: tk.ratings ?? {}, daily: tk.daily ?? [] };
   }, [full]);
   const [pool, setPool] = useState<string | null>(null);
   const [range, setRange] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
   // Both charts share one span, measured over everything the section holds.
   const spanDays = useMemo(() => {
     if (!trends) return 0;
-    const times = [...Object.values(trends.ratings).flatMap((s) => s.map(([t]) => t)), ...trends.daily.map((d) => dayStart(d.day))];
+    const times = [...Object.values(trends.ratings).flatMap((s) => s.map(([tk]) => tk)), ...trends.daily.map((d) => dayStart(d.day))];
     return times.length ? (Math.max(...times) - Math.min(...times)) / DAY : 0;
   }, [trends]);
   const choices = rangeChoices(spanDays);
@@ -50,9 +51,9 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
   const rh = useMemo(() => ratingHistory(series, current.days), [series, current.days]);
   const ah = useMemo(() => (trends ? accuracyHistory(trends.daily, current.days) : null), [trends, current.days]);
 
-  const ratingPoints: TrendPoint[] = (rh?.points ?? []).map((p) => ({ t: p.t, value: p.value, label: dateText(p.t), detail: plural(p.games, "Partie an dem Tag", "Partien an dem Tag") }));
-  const accPoints: TrendPoint[] = (ah?.points ?? []).map((p) => ({ t: p.t, value: p.value, label: bucketLabel(p.key, p.bucket), detail: plural(p.games, "Partie", "Partien"), weight: p.games }));
-  const step = ah ? { day: "pro Tag", week: "pro Woche", month: "pro Monat", quarter: "pro Quartal" }[ah.bucket] : "";
+  const ratingPoints: TrendPoint[] = (rh?.points ?? []).map((p) => ({ t: p.t, value: p.value, label: dateText(p.t), detail: plural(p.games, t("Partie an dem Tag"), t("Partien an dem Tag")) }));
+  const accPoints: TrendPoint[] = (ah?.points ?? []).map((p) => ({ t: p.t, value: p.value, label: bucketLabel(p.key, p.bucket), detail: plural(p.games, t("Partie"), t("Partien")), weight: p.games }));
+  const step = ah ? { day: t("pro Tag"), week: t("pro Woche"), month: t("pro Monat"), quarter: t("pro Quartal") }[ah.bucket] : "";
   const spanText = current.text;
   // Best and weakest step of the span; a step with a single game is too thin to name.
   const solid = (ah?.points ?? []).filter((p) => p.games >= 3);
@@ -63,8 +64,8 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
     <>
       <div class="span-12 sec-head" id="s-verlauf">
         <div>
-          <h2>Verlauf</h2>
-          <p>Wertung und Genauigkeit über deine ganze Geschichte, unabhängig vom Zeitraum oben.</p>
+          <h2>{t("Verlauf")}</h2>
+          <p>{t("Wertung und Genauigkeit über deine ganze Geschichte, unabhängig vom Zeitraum oben.")}</p>
         </div>
         <RangeChips choices={choices} value={current.key} onChange={setRange} />
       </div>
@@ -72,7 +73,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
       <section class="card span-7 tr">
         <header class="card-head">
           <div>
-            <h3>Wertung</h3>
+            <h3>{t("Wertung")}</h3>
             {rh ? (
               <p class="tr-figure">
                 <strong class="tnum">{rh.last}</strong>
@@ -80,11 +81,11 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
                 <span class="faint">{spanText}</span>
               </p>
             ) : (
-              <p class="card-sub">{trends ? "Keine gewerteten Partien in diesem Zeitraum." : "Lädt …"}</p>
+              <p class="card-sub">{trends ? t("Keine gewerteten Partien in diesem Zeitraum.") : t("Lädt …")}</p>
             )}
           </div>
           {pools.length > 3 ? (
-            <select class="tr-pool" value={shownPool} onChange={(e) => setPool((e.target as HTMLSelectElement).value)} aria-label="Bedenkzeit und Plattform">
+            <select class="tr-pool" value={shownPool} onChange={(e) => setPool((e.target as HTMLSelectElement).value)} aria-label={t("Bedenkzeit und Plattform")}>
               {pools.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -92,7 +93,7 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
               ))}
             </select>
           ) : pools.length > 1 ? (
-            <div class="segmented small-seg" role="group" aria-label="Bedenkzeit und Plattform">
+            <div class="segmented small-seg" role="group" aria-label={t("Bedenkzeit und Plattform")}>
               {pools.map((p) => (
                 <button key={p} class={p === shownPool ? "active" : ""} aria-pressed={p === shownPool} onClick={() => setPool(p)}>
                   {p}
@@ -101,60 +102,61 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
             </div>
           ) : null}
         </header>
-        <TrendChart points={ratingPoints} label={`Wertung ${shownPool ?? ""}`} bounds={{ lo: 0, minSpan: 100 }} />
+        <TrendChart points={ratingPoints} label={t("Wertung {0}", { 0: shownPool ?? "" })} bounds={{ lo: 0, minSpan: 100 }} />
         {rh && rh.points.length > 1 && (
           <dl class="tr-facts">
             <div>
-              <dt>Bestwert</dt>
+              <dt>{t("Bestwert")}</dt>
               <dd class="tnum">
                 {rh.peak.value} <span class="faint">{dateText(rh.peak.t)}</span>
               </dd>
             </div>
             <div>
-              <dt>Tiefstwert</dt>
+              <dt>{t("Tiefstwert")}</dt>
               <dd class="tnum">
                 {rh.low.value} <span class="faint">{dateText(rh.low.t)}</span>
               </dd>
             </div>
             <div>
-              <dt>Gewertete Partien</dt>
-              <dd class="tnum">{rh.games.toLocaleString("de-DE")}</dd>
+              <dt>{t("Gewertete Partien")}</dt>
+              <dd class="tnum">{rh.games.toLocaleString(locale())}</dd>
             </div>
           </dl>
         )}
         <Foot>
-          Ein Punkt je Spieltag: die Wertung nach der letzten Partie des Tages. Jede Bedenkzeit und Plattform hat ihre eigene Linie, weil deren Wertungen nicht vergleichbar sind. Partien ohne eigene Wertungsliste (etwa gegen den Coach von chess.com) und Partien gegen Bots zählen nicht mit. In den ersten Partien eines Kontos und nach langen Pausen springt die Wertung stärker, weil die Plattform sie dann noch einpendelt.
+          
+          {t("Ein Punkt je Spieltag: die Wertung nach der letzten Partie des Tages. Jede Bedenkzeit und Plattform hat ihre eigene Linie, weil deren Wertungen nicht vergleichbar sind. Partien ohne eigene Wertungsliste (etwa gegen den Coach von chess.com) und Partien gegen Bots zählen nicht mit. In den ersten Partien eines Kontos und nach langen Pausen springt die Wertung stärker, weil die Plattform sie dann noch einpendelt.")}
         </Foot>
       </section>
 
       <section class="card span-5 tr">
         <header class="card-head">
           <div>
-            <h3>Genauigkeit</h3>
+            <h3>{t("Genauigkeit")}</h3>
             {ah ? (
               <p class="tr-figure">
                 <strong class="tnum">{de(ah.average)}</strong>
                 <span class="faint">
-                  Ø {spanText} · {plural(ah.games, "Partie", "Partien")}
+                  {t("Ø {spanText} · {n}", { spanText, n: plural(ah.games, t("Partie"), t("Partien")) })}
                 </span>
               </p>
             ) : (
-              <p class="card-sub">{trends ? "Noch keine analysierten Partien in diesem Zeitraum." : "Lädt …"}</p>
+              <p class="card-sub">{trends ? t("Noch keine analysierten Partien in diesem Zeitraum.") : t("Lädt …")}</p>
             )}
           </div>
           {step && <span class="card-tag">{step}</span>}
         </header>
-        <TrendChart points={accPoints} label="Genauigkeit" color="var(--win)" dots format={(v) => de(v, v % 1 ? 1 : 0)} bounds={{ lo: 0, hi: 100, minSpan: 20 }} reference={rating ? { value: rating.typical_accuracy, label: typicalLabel(rating) } : null} />
+        <TrendChart points={accPoints} label={t("Genauigkeit")} color="var(--win)" dots format={(v) => de(v, v % 1 ? 1 : 0)} bounds={{ lo: 0, hi: 100, minSpan: 20 }} reference={rating ? { value: rating.typical_accuracy, label: typicalLabel(rating) } : null} />
         {best && worst && best.key !== worst.key && (
           <dl class="tr-facts">
             <div>
-              <dt>Bester Abschnitt</dt>
+              <dt>{t("Bester Abschnitt")}</dt>
               <dd class="tnum">
                 {de(best.value)} <span class="faint">{bucketLabel(best.key, best.bucket)}</span>
               </dd>
             </div>
             <div>
-              <dt>Schwächster Abschnitt</dt>
+              <dt>{t("Schwächster Abschnitt")}</dt>
               <dd class="tnum">
                 {de(worst.value)} <span class="faint">{bucketLabel(worst.key, worst.bucket)}</span>
               </dd>
@@ -162,7 +164,8 @@ export function TrendSection({ games, usernames, filters, excludeBullet, rating 
           </dl>
         )}
         <Foot>
-          Der Durchschnitt deiner analysierten Partien je Abschnitt; jede Partie zählt gleich. Die Säulen am unteren Rand zeigen, wie viele Partien dahinterstehen; bester und schwächster Abschnitt nennen nur Abschnitte mit mindestens 3 Partien. Je kürzer der Zeitraum, desto feiner die Abschnitte: Tage, Wochen, Monate oder Quartale.
+          
+          {t("Der Durchschnitt deiner analysierten Partien je Abschnitt; jede Partie zählt gleich. Die Säulen am unteren Rand zeigen, wie viele Partien dahinterstehen; bester und schwächster Abschnitt nennen nur Abschnitte mit mindestens 3 Partien. Je kürzer der Zeitraum, desto feiner die Abschnitte: Tage, Wochen, Monate oder Quartale.")}
         </Foot>
       </section>
     </>
