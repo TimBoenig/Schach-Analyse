@@ -88,6 +88,8 @@ describe("importChesscomGames", () => {
       archives[2],
       archives[1],
     ]);
+    // A copy the browser kept must never stand in for the running month.
+    expect(calls.map((c) => c.init?.cache)).toEqual(["no-cache", "no-cache", "no-cache"]);
     expect(batch.result).toMatchObject({ found: 2, imported: 1, already_known: 1 });
     expect(batch.games[0].metadata.source).toBe("chesscom");
     expect(db.ids.size).toBe(1);
