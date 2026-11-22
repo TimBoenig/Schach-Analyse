@@ -188,16 +188,15 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
   const step = path[Math.min(index, path.length - 1)];
   const phase: ImportPhase = load.phase;
 
-  // The name used on the picked site before is offered again; never the other
-  // site's name, which on chess.com can belong to a stranger.
-  const remembered = useRef<Record<string, string>>({});
-  useEffect(() => {
-    void getSetting<Record<string, string>>("import.lastUser", {}).then((u) => (remembered.current = u));
-  }, []);
+  // A name the import dialog used before is offered again, for the site picked:
+  // a Lichess name sent to chess.com was stored as the chess.com name from then on.
   useEffect(() => {
     if (pick !== "chesscom" && pick !== "lichess") return;
-    const known = Object.values(remembered.current);
-    setName((n) => (!n.trim() || known.includes(n.trim()) ? (remembered.current[pick] ?? "") : n));
+    void getSetting<Record<string, string>>("import.lastUser", {}).then((u) => {
+      if (!alive.current) return;
+      const remembered = new Set(Object.values(u).map((v) => v.trim()));
+      setName((n) => (!n.trim() || remembered.has(n.trim()) ? (u[pick] ?? "") : n));
+    });
   }, [pick]);
   useEffect(() => {
     if (step === "name") window.setTimeout(() => input.current?.focus({ preventScroll: true }), 420);
