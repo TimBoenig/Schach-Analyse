@@ -17,7 +17,11 @@ import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../st
 import { fromStoredGame } from "../storage/rows";
 import { BrilliantFx } from "./BrilliantFx";
 import { Board, type Arrow, type Promotion } from "./Board";
-import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
+import { IconArrow, IconBack, IconBolt, IconSpark, IconChevron, IconFreeBoard, IconFirst, IconFlip, IconInfo, IconLast, IconNext, IconPlay, IconPrev, IconSearch, IconStop, IconTrash } from "./icons";
+import { useHoldRepeat } from "./hold";
+import { MoreMenu } from "./MoreMenu";
+import { useNarrow } from "./useNarrow";
+import { PhoneReport } from "./report/PhoneReport";
 import {
   CLASSIFICATION_ORDER,
   accClass,
@@ -163,7 +167,7 @@ function explainStored(move: MoveData, next: MoveData | undefined, previous: Mov
 
 
 
-function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null }) {
+function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null; readonly?: boolean }) {
   const dragging = useRef(false);
   const [hover, setHover] = useState<number | null>(null);
   const n = moves.length;
@@ -195,27 +199,28 @@ function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: 
   const hwc = shown !== null ? winChanceAt(moves, shown) : null;
   const userSide = userColor === "black" ? "b" : "w";
   return (
-    <div class="eval-graph-wrap">
+    <div class={`eval-graph-wrap${readonly ? " ro" : ""}`}>
       <svg
         class="eval-graph"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label="Bewertungsverlauf, antippen oder ziehen zum Springen"
-        // Drag to scrub through the game, like a video timeline.
-        onPointerDown={(e) => {
+        aria-label={readonly ? "Bewertungsverlauf" : "Bewertungsverlauf, antippen oder ziehen zum Springen"}
+        // Drag to scrub through the game, like a video timeline. On a phone the
+        // finger belongs to scrolling, so the line is only a picture there.
+        onPointerDown={readonly ? undefined : (e) => {
           dragging.current = true;
           (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
           onPick(indexAt(e));
         }}
-        onPointerMove={(e) => {
+        onPointerMove={readonly ? undefined : (e) => {
           const i = indexAt(e);
           if (e.pointerType === "mouse") setHover(i);
           if (dragging.current) onPick(i);
         }}
-        onPointerLeave={() => setHover(null)}
-        onPointerUp={() => (dragging.current = false)}
-        onPointerCancel={() => (dragging.current = false)}
+        onPointerLeave={readonly ? undefined : () => setHover(null)}
+        onPointerUp={readonly ? undefined : () => (dragging.current = false)}
+        onPointerCancel={readonly ? undefined : () => (dragging.current = false)}
       >
         <rect class="eg-bg" x="0" y="0" width={W} height={H} />
         <path class="eg-area" d={area} />
@@ -470,6 +475,7 @@ function MoveStrip({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onP
 }
 
 export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number }) {
+  const narrow = useNarrow();
   const [row, setRow] = useState<StoredGame | null | undefined>(undefined);
   const [queue, setQueue] = useState<QueueState | null>(null);
   const [idx, setIdx] = useState(ply ?? 0);
@@ -590,6 +596,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     if (target !== undefined) goTo(target + 1);
   };
   const errorPos = errorPlies.indexOf(idx - 1);
+  // Holding a step button runs through the moves and stops at the end of the game (or the line).
+  const canStep = (d: 1 | -1) => (explore ? (d === -1 ? true : explore.pending.length > 0) : d === -1 ? clamp(idx) > 0 : clamp(idx) < n);
+  const holdBack = useHoldRepeat(() => {
+    if (!canStep(-1)) return false;
+    step(-1);
+  });
+  const holdNext = useHoldRepeat(() => {
+    if (!canStep(1)) return false;
+    step(1);
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -725,7 +741,18 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   bestPv.current = (explore ? live.lines[0]?.pv : gameLines[0]?.pv) ?? [];
   const depthOf = (lines: PvLine[]) => Math.max(0, ...lines.map((l) => Number(l.depth) || 0));
   const threatLine = threat.lines[0];
-  const engineHead = (lines: PvLine[], busy: boolean) => (
+  const engineHead = (lines: PvLine[], busy: boolean) =>
+    narrow ? (
+      // The switches live in the three-dot menu on a phone; only the depth stays.
+      engine.live || lines.length ? (
+        <div class="engine-switches slim">
+          <span class="faint small engine-depth">
+            {engine.live ? `${ENGINE_NAME} live · ` : ""}
+            {engine.live && busy ? "rechnet …" : lines.length && depthOf(lines) ? `Tiefe ${depthOf(lines)}` : ""}
+          </span>
+        </div>
+      ) : null
+    ) : (
     <div class="engine-switches">
       <label class="switch-pill" title={`${ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)`}>
         <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
@@ -739,7 +766,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         {engine.live && busy ? "rechnet …" : lines.length && depthOf(lines) ? `Tiefe ${depthOf(lines)}` : ""}
       </span>
     </div>
-  );
+    );
   const threatInfo =
     engine.threat && (exploreFen ?? gameFen) ? (
       <div class="threat-line small">
@@ -845,6 +872,33 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     for (const at of detail.squares) circles.push({ at, kind: "user" });
   }
 
+  const reportDetails = (
+                <>
+                  <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
+                  {highlights.length > 0 && (
+                    <>
+                      <h4>Glanzzüge dieser Partie</h4>
+                      <div class="glanz-moves">
+                        {highlights.map((h) => (
+                          <button
+                            key={h.stop}
+                            class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
+                            style={{ "--tone": CLASS_COLOR[h.classification] }}
+                            onClick={() => jumpTo(h.stop)}
+                            title={`${classLabel(h.classification)}: zum Zug springen`}
+                          >
+                            <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
+                            <span class={`side-dot ${h.side}`} />
+                            {h.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
+                </>
+  );
+
   const playerLine = (c: Side, r: number) => (
     <div class="player-line" style={{ gridRow: r }}>
       <span class="who">
@@ -867,7 +921,49 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
 
   return (
-    <div>
+    <div class={`an-page${narrow ? " phone" : ""}`}>
+      {narrow ? (
+        <header class="an-bar">
+          <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
+            <IconBack />
+          </button>
+          <div class="an-bar-title">
+            <strong class="an-result tnum">{resultText(game.metadata.result)}</strong>
+            <span class="an-bar-sub">
+              {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+          {review && (
+            <button class={`btn icon ghost an-lupe${tab === "report" ? " on" : ""}`} onClick={() => setTab((t) => (t === "report" ? "moves" : "report"))} aria-label="Bericht zur Partie" aria-pressed={tab === "report"}>
+              <IconSearch />
+            </button>
+          )}
+          <MoreMenu
+            label="Mehr zur Partie"
+            items={[
+              { label: "Brett drehen", icon: <IconFlip />, onSelect: () => setFlipped((f) => !f) },
+              { label: "Pfeile zeigen", icon: <IconArrow />, checked: showArrows, onSelect: () => setShowArrows((v) => !v) },
+              { label: `${ENGINE_NAME} live`, icon: <IconBolt />, checked: engine.live, onSelect: () => setEngine({ ...engine, live: !engine.live }) },
+              { label: "Drohung zeigen", icon: <IconInfo />, checked: engine.threat, onSelect: () => setEngine({ ...engine, threat: !engine.threat }) },
+              errorPlies.length > 0 && !explore && { label: "Voriger Fehler", icon: <IconPrev />, divider: true, disabled: !errorPlies.some((p) => p + 1 < idx), onSelect: () => jumpError(-1) },
+              errorPlies.length > 0 && !explore && { label: "Nächster Fehler", icon: <IconNext />, disabled: !errorPlies.some((p) => p + 1 > idx), onSelect: () => jumpError(1) },
+              { label: "Zum Anfang", icon: <IconFirst />, divider: true, onSelect: () => goTo(0) },
+              { label: "Zum Ende", icon: <IconLast />, onSelect: () => goTo(n) },
+              { label: "Im Analysebrett", icon: <IconFreeBoard />, divider: true, onSelect: () => navigate({ view: "board", fen }) },
+              { label: "Seite erklären", icon: <IconSpark />, onSelect: () => openStage({ kind: "page", subject: "analysis" }) },
+              {
+                label: "Partie löschen",
+                icon: <IconTrash />,
+                danger: true,
+                divider: true,
+                onSelect: () => {
+                  if (confirm(`Partie ${game.metadata.white} – ${game.metadata.black} löschen?`)) void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+                },
+              },
+            ]}
+          />
+        </header>
+      ) : (
       <header class="an-head">
         <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label="Zurück zur Liste">
           <IconBack />
@@ -910,6 +1006,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           </button>
         </div>
       </header>
+      )}
       <div class="analysis">
         <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
@@ -933,14 +1030,27 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             )}
           </div>
           {playerLine(bottom, 3)}
+          {narrow ? (
+            <div class="pc-controls" style={{ gridRow: 4 }}>
+              <button class="btn pc-step" aria-label="Zug zurück" disabled={!canStep(-1)} {...holdBack}>
+                <IconPrev />
+              </button>
+              <span class="pc-pos tnum" aria-live="polite">
+                {explore ? "Eigene Variante" : i === 0 ? `Start · ${n} Züge` : `Zug ${i} von ${n}`}
+              </span>
+              <button class="btn pc-step" aria-label="Zug vor" disabled={!canStep(1)} {...holdNext}>
+                <IconNext />
+              </button>
+            </div>
+          ) : (
           <div class="controls" style={{ gridRow: 4 }}>
             <button class="btn" onClick={() => goTo(0)} aria-label="Zum Anfang">
               <IconFirst />
             </button>
-            <button class="btn" onClick={() => step(-1)} aria-label="Zug zurück">
+            <button class="btn" aria-label="Zug zurück" {...holdBack}>
               <IconPrev />
             </button>
-            <button class="btn" onClick={() => step(1)} aria-label="Zug vor" disabled={Boolean(explore && !explore.pending.length)}>
+            <button class="btn" aria-label="Zug vor" disabled={!canStep(1)} {...holdNext}>
               <IconNext />
             </button>
             <button class="btn" onClick={() => goTo(n)} aria-label="Zum Ende">
@@ -972,6 +1082,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </div>
             )}
           </div>
+          )}
           <div class="strip-row" style={{ gridRow: 5 }}>
             <MoveStrip moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
           </div>
@@ -1010,7 +1121,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </div>
           ) : null}
 
-          <div class="card">
+          <div class={`card${narrow ? " an-card" : ""}`} hidden={narrow && tab === "report" && Boolean(review) && !explore}>
             {explore ? (
               <>
                 <div class="explore-bar">
@@ -1073,7 +1184,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               <div>
                 <div class="an-intro">
                   {/* With the report open below, its grade, headline and story button stand there; here only the hint. */}
-                  {review && tab === "report" ? null : review ? (
+                  {review && tab === "report" ? null : review && narrow ? (
+                    <button class="an-intro-lite" onClick={() => setTab("report")}>
+                      <GradeBadge grade={review.grade} size="tiny" />
+                      <span class="an-intro-text">
+                        <strong>{review.headline}</strong>
+                        <span class="faint">Bericht ansehen</span>
+                      </span>
+                      <IconChevron />
+                    </button>
+                  ) : review ? (
                     <>
                       <div class="an-intro-top">
                         <GradeBadge grade={review.grade} size="small" />
@@ -1104,7 +1224,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             )}
           </div>
 
-          {review && (
+          {review && !narrow && (
             <div class="segmented full">
               <button class={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>
                 Züge
@@ -1117,14 +1237,40 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
           {tab === "moves" || !review ? (
             <>
-              <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} />
-              <MoveList
-                moves={game.moves}
-                idx={explore ? -1 : i}
-                onPick={goTo}
-                variations={{ lines: shownSideLines, active: activeIn(shownSideLines, explore), onPick: pickSideLine, onDrop: dropSideLine }}
-              />
+              <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} readonly={narrow} />
+              {narrow ? (
+                <details class="an-list">
+                  <summary>Alle Züge</summary>
+                  <MoveList
+                    moves={game.moves}
+                    idx={explore ? -1 : i}
+                    onPick={goTo}
+                    variations={{ lines: shownSideLines, active: activeIn(shownSideLines, explore), onPick: pickSideLine, onDrop: dropSideLine }}
+                  />
+                </details>
+              ) : (
+                <MoveList
+                  moves={game.moves}
+                  idx={explore ? -1 : i}
+                  onPick={goTo}
+                  variations={{ lines: shownSideLines, active: activeIn(shownSideLines, explore), onPick: pickSideLine, onDrop: dropSideLine }}
+                />
+              )}
             </>
+          ) : narrow ? (
+            <PhoneReport
+              gameId={row.id}
+              review={review}
+              moves={game.moves}
+              isWhite={userColor !== "black"}
+              names={{ me: nameOf(userColor ?? "white"), opp: nameOf(userColor === "black" ? "white" : "black") }}
+              speed={row.speed_category}
+              standing={standing}
+              idx={explore ? explore.base : i}
+              onJump={jumpTo}
+              onPeek={goTo}
+              details={reportDetails}
+            />
           ) : (
             <ReportPanel
               gameId={row.id}
@@ -1136,32 +1282,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               standing={standing}
               idx={explore ? explore.base : i}
               onJump={jumpTo}
-              details={
-                <>
-                  <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
-                  {highlights.length > 0 && (
-                    <>
-                      <h4>Glanzzüge dieser Partie</h4>
-                      <div class="glanz-moves">
-                        {highlights.map((h) => (
-                          <button
-                            key={h.stop}
-                            class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
-                            style={{ "--tone": CLASS_COLOR[h.classification] }}
-                            onClick={() => jumpTo(h.stop)}
-                            title={`${classLabel(h.classification)}: zum Zug springen`}
-                          >
-                            <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
-                            <span class={`side-dot ${h.side}`} />
-                            {h.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
-                </>
-              }
+              details={reportDetails}
             />
           )}
         </div>

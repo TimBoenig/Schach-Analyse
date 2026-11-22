@@ -36,7 +36,7 @@ export function practiseGame(gameId: string): void {
   navigate({ view: "training", tab: "uebungen", category: `partie-${gameId}` });
 }
 
-export function GradeBadge({ grade, size = "big" }: { grade: string; size?: "small" | "big" | "huge" }) {
+export function GradeBadge({ grade, size = "big" }: { grade: string; size?: "tiny" | "small" | "big" | "huge" }) {
   const g = parseGrade(grade);
   return (
     <div class={`rp-grade ${size} tone-${gradeTone(g.value)}`} aria-label={`Note ${g.text} ${g.word}`}>
