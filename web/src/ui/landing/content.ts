@@ -17,16 +17,13 @@ export const QUOTES: Quote[] = [];
 
 /** What the app costs today. */
 export const PRICE = {
-  headline: "Kostenlos.",
-  text: t("Analyse, Statistik, Training und Liga: alles, was du hier siehst, ist heute kostenlos. Kein Abo, keine Werbung, keine Kreditkarte."),
-  points: [t("Unbegrenzt viele Partien analysieren"), t("Tägliches Training aus deinen Fehlern"), t("Liga und Vergleich mit Freunden"), t("Konto nur, wenn du mehrere Geräte nutzen willst")],
+  text: t("Analyse, Statistik, Training und Liga sind heute kostenlos. Kein Abo, keine Werbung, keine Kreditkarte, unbegrenzt viele Partien."),
 };
 
-/** Who is behind the site; the same person as in the Impressum. */
+/** Who is behind the site; the same person as in the Impressum. Shown only when the visitor opens it. */
 export const MAKER = {
   name: "Tim Bönig", // i18n: name
   initials: "TB",
   place: "Hamburg",
-  text: t("EndGameKing ist ein Projekt von Tim aus Hamburg. Kein Konzern und keine Werbeplattform, sondern ein Schachwerkzeug, das ein Mensch baut und pflegt. Fragen, Ideen und Fehlermeldungen landen direkt bei ihm."),
-  source: "https://github.com/TimBoenig/Schach-Analyse",
+  text: t("EndGameKing ist ein Projekt von Tim aus Hamburg. Kein Konzern und keine Werbeplattform, sondern ein Schachwerkzeug, das ein Mensch baut und pflegt, weil er selbst wissen wollte, woran er arbeiten muss. Fragen, Ideen und Fehlermeldungen landen direkt bei ihm."),
 };

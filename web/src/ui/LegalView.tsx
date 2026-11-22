@@ -62,7 +62,7 @@ function Impressum() {
       <h3>{t("Haftung für Links")}</h3>
       <p>
         
-        {t("Für Inhalte verlinkter Seiten (zum Beispiel chess.com, Lichess, GitHub) sind ausschließlich deren Betreiber verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar. Werden uns solche bekannt, entfernen wir den Link umgehend.")}
+        {t("Für Inhalte verlinkter Seiten (zum Beispiel chess.com und Lichess) sind ausschließlich deren Betreiber verantwortlich. Zum Zeitpunkt der Verlinkung waren keine Rechtsverstöße erkennbar. Werden uns solche bekannt, entfernen wir den Link umgehend.")}
       </p>
       <h3>{t("Urheberrecht")}</h3>
       <p>

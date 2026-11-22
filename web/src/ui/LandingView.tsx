@@ -1,17 +1,24 @@
 // The front door: what new visitors see first (at "/" on a fresh device, and
-// at /hello from social media). It shows the product before asking for
-// anything, says plainly what it costs, where the data stays and who builds
-// it, and leads into Lucena's guided start with one button.
+// at /hello from social media). It lets them try the product before asking for
+// anything: Lucena sets a puzzle in the hero, a slider shows why many games
+// beat one, the sample report and the 3D king and cup show what they get.
+// Price, privacy and the person behind it are answered where a visitor looks
+// for them; the founder only shows when someone opens that question.
+import type { ComponentChildren } from "preact";
+
 import { BRAND, SUPPORT_EMAIL } from "../brand";
-import { COACH_NAME } from "./Coach";
-import { IconBolt, IconChevron, IconCloud, IconCpu, IconInsights, IconShield, IconTraining, IconTrophy } from "./icons";
+import { COACH_NAME, CoachAvatar } from "./Coach";
+import { IconBolt, IconChevron, IconShield } from "./icons";
 import { MAKER, PRICE, QUOTES } from "./landing/content";
+import { HeroStage } from "./landing/HeroStage";
+import { CompareTable, PatternLab } from "./landing/PatternLab";
+import { Privacy } from "./landing/Privacy";
 import { Specimen } from "./landing/Specimen";
-import { LandingHow } from "./LandingHow";
+import { Model3D } from "./Model3D";
+import { LangToggle } from "./LangSwitch";
 import { navigate } from "./router";
 import { markSeen, openStage } from "./stage/store";
-import { t, tj } from "../i18n";
-import { LangToggle } from "./LangSwitch";
+import { t } from "../i18n";
 
 /** Marks the front door as seen, so the next visit at "/" opens the app. */
 function openApp(): void {
@@ -30,17 +37,24 @@ function scrollTo(id: string): void {
   document.getElementById(id)?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
 
-const BENEFITS: { icon: () => preact.JSX.Element; title: string; text: string }[] = [
-  { icon: IconInsights, title: t("Muster statt Einzelpartien"), text: t("Aus all deinen Partien wird ein Profil: in welcher Phase du Punkte verlierst, welche Eröffnungen dir liegen, welche Fehler wiederkommen.") },
-  { icon: IconTraining, title: t("Aufgaben aus deinen Stellungen"), text: t("Wo du danebengegriffen hast, wird eine Aufgabe. Sie kommt wieder, bis sie sitzt. Ein paar Minuten am Tag reichen.") },
-  { icon: IconShield, title: t("Nur was belegt ist"), text: t("Jede Aussage nennt, auf wie vielen Partien sie beruht. Sind es zu wenige, sagt Lucena lieber nichts.") },
-  { icon: IconTrophy, title: t("Liga mit Freunden"), text: t("Vergleiche dich fair mit Freunden, nach Zugqualität und Ergebnissen, auch bei verschiedenen Bedenkzeiten.") },
+const STEPS: { title: string; text: string }[] = [
+  { title: t("Namen eingeben"), text: t("Dein Benutzername bei chess.com oder Lichess. Kein Passwort, keine Anmeldung.") },
+  { title: t("Partien lesen lassen"), text: t("{COACH_NAME} lädt deine Partien und prüft jeden Zug, erst schnell, dann gründlich.", { COACH_NAME }) },
+  { title: t("Ersten Befund ansehen"), text: t("Nach wenigen Minuten siehst du deinen teuersten Fehler und was sich wiederholt.") },
+  { title: t("Gezielt trainieren"), text: t("Aus deinen Fehlstellungen werden Aufgaben, ein paar Minuten am Tag.") },
 ];
 
-const COMPARE = {
-  them: [t("Zeigt eine Partie auf einmal"), t("Markiert Patzer, das Muster suchst du selbst"), t("Rätsel aus fremden Partien")],
-  us: [t("Liest alle deine Partien zusammen"), t("Zeigt, was sich wiederholt und wie oft"), t("Aufgaben aus deinen eigenen Stellungen, mit Wochenplan")],
-};
+function Faq({ q, children, open = false }: { q: string; children: ComponentChildren; open?: boolean }) {
+  return (
+    <details class="ld-faq-item" open={open}>
+      <summary>
+        <span>{q}</span>
+        <IconChevron />
+      </summary>
+      <div class="ld-faq-body">{children}</div>
+    </details>
+  );
+}
 
 export function LandingView() {
   return (
@@ -50,119 +64,102 @@ export function LandingView() {
           <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span>{BRAND}</span>
         </a>
-        <nav class="ld-nav" aria-label="Abschnitte">
-          <button onClick={() => scrollTo("so-gehts")}>{t("So funktioniert's")}</button>
+        <nav class="ld-nav" aria-label={t("Abschnitte")}>
+          <button onClick={() => scrollTo("vergleich")}>{t("Vergleich")}</button>
           <button onClick={() => scrollTo("datenschutz")}>{t("Datenschutz")}</button>
-          <button onClick={() => scrollTo("preis")}>{t("Preis")}</button>
+          <button onClick={() => scrollTo("fragen")}>{t("Fragen")}</button>
         </nav>
         <LangToggle class="ld-lang" />
         <button class="btn ld-open" onClick={openApp}>
-          
           {t("Zur App")}
         </button>
       </header>
 
       <section class="ld-hero">
         <div class="ld-hero-text">
-          <h1>{t("Trainiere die Fehler, die du wirklich machst.")}</h1>
+          <h1>{t("Dein Schach hat ein Muster. {COACH_NAME} findet es.", { COACH_NAME })}</h1>
           <p class="ld-lead">
-            {t("{BRAND} liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und baut daraus dein tägliches Training. Keine zufälligen Rätsel, sondern deine eigenen Stellungen.", { BRAND })}
+            {t("{BRAND} liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und macht daraus dein Training. Mit deinen eigenen Stellungen statt zufälliger Rätsel.", { BRAND })}
           </p>
           <div class="ld-cta-row">
             <button class="btn primary big ld-cta" onClick={startAnalysis}>
               <IconBolt />
-              
               {t("Meine Partien analysieren")}
             </button>
-            <button class="btn big ld-ghost" onClick={() => scrollTo("so-gehts")}>
-              
-              {t("So funktioniert's")}
+            <button class="btn big ld-ghost" onClick={() => scrollTo("vergleich")}>
+              {t("Warum viele Partien?")}
             </button>
           </div>
           <p class="ld-assure">
             <IconShield />
-            <span>{t("Kostenlos und ohne Anmeldung. Die Analyse läuft auf deinem Gerät.")}</span>
+            <span>{t("Kostenlos. Ohne Anmeldung. Die Analyse läuft auf deinem Gerät.")}</span>
           </p>
+        </div>
+        <HeroStage />
+      </section>
+
+      <section class="ld-why" id="vergleich" aria-labelledby="ld-why-title">
+        <div class="ld-why-head">
+          <h2 id="ld-why-title">{t("Eine Partie zeigt dir einen Fehler. Viele Partien zeigen dir dein Muster.")}</h2>
+          <p class="ld-lead">{t("Die Analyse nach der Partie ist gut für den Moment. Woran du arbeiten solltest, sieht man erst über viele Partien. Wähl, wie viele Partien gelesen werden, und schau, wie sich das Bild verändert.")}</p>
+        </div>
+        <div class="ld-why-grid">
+          <PatternLab />
+          <CompareTable />
+        </div>
+      </section>
+
+      <section class="ld-get" aria-labelledby="ld-get-title">
+        <div class="ld-get-text">
+          <h2 id="ld-get-title">{t("Dein Profil, aus jeder Partie, die du gespielt hast.")}</h2>
+          <p class="ld-lead">{t("In welcher Phase du Punkte verlierst, welche Eröffnungen dir liegen, welcher Zug dich am meisten gekostet hat. Jede Aussage nennt, auf wie vielen Partien sie beruht.")}</p>
+          <div class="ld-get-king">
+            <Model3D kind="king" size={150} label={t("Schachkönig in 3D, zum Drehen ziehen")} />
+            <span>{t("Zieh am König, er dreht sich.")}</span>
+          </div>
         </div>
         <Specimen />
       </section>
 
-      <section class="ld-problem" aria-labelledby="ld-problem-title">
-        <h2 id="ld-problem-title">{t("Du schaust dir nach jeder Partie die Analyse an. Und weißt trotzdem nicht, woran du arbeiten sollst.")}</h2>
-        <p class="ld-lead">{t("Eine Analyse zeigt dir eine Partie. Deine Schwächen zeigen sich erst über viele: dasselbe Endspiel, dieselbe Eröffnung, dieselbe übersehene Gabel. Genau dort setzt {COACH_NAME} an.", { COACH_NAME })}</p>
-        <div class="ld-compare">
-          <div class="ld-col them">
-            <h3>{t("Analyse nach der Partie")}</h3>
-            <ul>
-              {COMPARE.them.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </div>
-          <div class="ld-col us">
-            <h3>{BRAND}</h3>
-            <ul>
-              {COMPARE.us.map((t) => (
-                <li key={t}>{t}</li>
-              ))}
-            </ul>
-          </div>
+      <section class="ld-league" aria-labelledby="ld-league-title">
+        <div class="ld-league-cup">
+          <Model3D kind="trophy" size={220} label={t("Pokal in 3D, zum Drehen ziehen")} />
+        </div>
+        <div class="ld-league-text">
+          <h2 id="ld-league-title">{t("Spiel um den Pokal, gegen deine Freunde.")}</h2>
+          <p class="ld-lead">{t("Füge Freunde hinzu und ihr spielt eine eigene Liga. Gewertet werden Ergebnisse und Zugqualität, fair gerechnet, auch wenn einer nur Blitz und der andere Schnellschach spielt.")}</p>
+          <ul class="ld-league-points">
+            <li>{t("Tabelle mit Spielstärke, Form und Rekorden")}</li>
+            <li>{t("Duell-Seite für jeden Freund: wer wo besser ist")}</li>
+            <li>{t("Was dir für den nächsten Platz fehlt")}</li>
+          </ul>
         </div>
       </section>
 
-      <section class="ld-benefits" aria-label={t("Was du bekommst")}>
-        {BENEFITS.map((b) => (
-          <div class="ld-benefit" key={b.title}>
-            <span class="ld-icon">
-              <b.icon />
-            </span>
-            <h3>{b.title}</h3>
-            <p>{b.text}</p>
-          </div>
-        ))}
+      <section class="ld-steps" aria-labelledby="ld-steps-title">
+        <h2 id="ld-steps-title">{t("In wenigen Minuten zum ersten Befund.")}</h2>
+        <ol>
+          {STEPS.map((s, i) => (
+            <li key={s.title}>
+              <span class="ld-step-no" aria-hidden="true">
+                {i + 1}
+              </span>
+              <h3>{s.title}</h3>
+              <p>{s.text}</p>
+            </li>
+          ))}
+        </ol>
       </section>
-
-      <LandingHow />
 
       <section class="ld-private" id="datenschutz" aria-labelledby="ld-private-title">
         <div class="ld-private-text">
-          <h2 id="ld-private-title">{t("Deine Partien bleiben auf deinem Gerät.")}</h2>
-          <p class="ld-lead">{t("Die Schach-Engine rechnet in deinem Browser. Wir sehen weder deine Partien noch deine Fehler, und du brauchst kein Konto.")}</p>
-          <ul class="ld-facts">
-            <li>
-              <IconCpu />
-              <span>
-                {tj("{x} Sie läuft auch offline weiter, wenn die Partien einmal geladen sind.", { x: <b>{t("Analyse im Browser.")}</b> })}
-              </span>
-            </li>
-            <li>
-              <IconShield />
-              <span>
-                {tj("{x} Dein Benutzername bei chess.com oder Lichess reicht, wir lesen nur öffentliche Partien.", { x: <b>{t("Kein Passwort, kein Konto.")}</b> })}
-              </span>
-            </li>
-            <li>
-              <IconCloud />
-              <span>
-                {tj("{x} Damit hast du deine Analysen auf allen Geräten, gespeichert in Frankfurt.", { x: <b>{t("Konto nur, wenn du willst.")}</b> })}
-              </span>
-            </li>
-          </ul>
+          <h2 id="ld-private-title">{t("Deine Partien gehören dir.")}</h2>
+          <p class="ld-lead">{t("Die Schach-Engine rechnet in deinem Browser. Ein Konto brauchst du nur, wenn du deine Analysen auf mehreren Geräten haben willst.")}</p>
           <a class="ld-link" href="#/rechtliches/datenschutz">
-            
             {t("Datenschutzerklärung lesen")}
           </a>
         </div>
-        <div class="ld-flow" aria-hidden="true">
-          <div class="ld-node">{t("chess.com und Lichess")}</div>
-          <span class="ld-pipe" />
-          <div class="ld-node device">
-            <b>{t("Dein Gerät")}</b>
-            <span>{t("Engine, Statistik, Training")}</span>
-          </div>
-          <span class="ld-pipe cut" />
-          <div class="ld-node off">{t("Unser Server bekommt nichts davon")}</div>
-        </div>
+        <Privacy />
       </section>
 
       {QUOTES.length > 0 && (
@@ -176,46 +173,44 @@ export function LandingView() {
         </section>
       )}
 
-      <section class="ld-trust">
-        <div class="ld-price" id="preis">
-          <h2>{t("Was kostet das?")}</h2>
-          <p class="ld-price-big">{PRICE.headline}</p>
-          <p>{PRICE.text}</p>
-          <ul>
-            {PRICE.points.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
-        <div class="ld-maker">
-          <h2>{t("Wer dahintersteckt")}</h2>
-          <div class="ld-maker-who">
-            <span class="ld-maker-mark" aria-hidden="true">
-              {MAKER.initials}
-            </span>
-            <div>
-              <b>{MAKER.name}</b>
-              <span>{MAKER.place}</span>
+      <section class="ld-faq" id="fragen" aria-labelledby="ld-faq-title">
+        <h2 id="ld-faq-title">{t("Fragen, bevor du loslegst")}</h2>
+        <div class="ld-faq-list">
+          <Faq q={t("Was kostet das?")} open>
+            <p>{PRICE.text}</p>
+          </Faq>
+          <Faq q={t("Brauche ich ein Konto?")}>
+            <p>{t("Nein. Dein Benutzername bei chess.com oder Lichess reicht. Ein Konto ist freiwillig und nur dafür da, deine Analysen auf Handy und PC gleich zu haben.")}</p>
+          </Faq>
+          <Faq q={t("Wie lange dauert die erste Analyse?")}>
+            <p>{t("Den ersten Überblick hast du nach wenigen Minuten. Danach prüft die Engine im Hintergrund gründlicher, während du dich schon umsiehst.")}</p>
+          </Faq>
+          <Faq q={t("Funktioniert das auf dem Handy?")}>
+            <p>{t("Ja. {BRAND} läuft im Browser auf Handy, Tablet und PC und lässt sich wie eine App auf den Startbildschirm legen.", { BRAND })}</p>
+          </Faq>
+          <Faq q={t("Wer steckt dahinter?")}>
+            <div class="ld-maker">
+              <span class="ld-maker-mark" aria-hidden="true">
+                {MAKER.initials}
+              </span>
+              <div>
+                <b>{MAKER.name}</b>
+                <span>{MAKER.place}</span>
+              </div>
             </div>
-          </div>
-          <p>{MAKER.text}</p>
-          <div class="ld-maker-links">
+            <p>{MAKER.text}</p>
             <a class="ld-link" href={`mailto:${SUPPORT_EMAIL}`}>
               {SUPPORT_EMAIL}
             </a>
-            <a class="ld-link" href={MAKER.source} target="_blank" rel="noopener">
-              
-              {t("Quellcode auf GitHub")}
-            </a>
-          </div>
+          </Faq>
         </div>
       </section>
 
       <section class="ld-final">
+        <CoachAvatar mood="happy" size={96} />
         <h2>{t("Finde heraus, was dich Punkte kostet.")}</h2>
-        <p class="ld-lead">{t("Benutzername eingeben, {COACH_NAME} holt deine Partien und zeigt dir nach wenigen Minuten den ersten Befund.", { COACH_NAME })}</p>
+        <p class="ld-lead">{t("Namen eingeben, {COACH_NAME} holt deine Partien und zeigt dir den ersten Befund.", { COACH_NAME })}</p>
         <button class="btn primary big ld-cta" onClick={startAnalysis}>
-          
           {t("Meine Partien analysieren")}
           <IconChevron />
         </button>
