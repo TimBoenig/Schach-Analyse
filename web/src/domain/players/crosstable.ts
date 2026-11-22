@@ -125,12 +125,12 @@ export interface CrossHighlight {
  * MIN_PAIR_GAMES games on), the closest rivalry with the most games, and the
  * longest winning run going on right now.
  */
-export function crossHighlights(t: Crosstable): CrossHighlight[] {
+export function crossHighlights(tk: Crosstable): CrossHighlight[] {
   const out: CrossHighlight[] = [];
-  const me = t.members.findIndex((m) => m.is_me);
-  const pair = (i: number, j: number) => ({ a: t.members[i], b: t.members[j], cell: t.cells[i][j] as CrossCell });
+  const me = tk.members.findIndex((m) => m.is_me);
+  const pair = (i: number, j: number) => ({ a: tk.members[i], b: tk.members[j], cell: tk.cells[i][j] as CrossCell });
   if (me >= 0) {
-    const mine = t.cells[me]
+    const mine = tk.cells[me]
       .map((c, j) => ({ c, j }))
       .filter((x): x is { c: CrossCell; j: number } => x.c !== null && x.c.games >= MIN_PAIR_GAMES && x.c.score_pct !== null);
     const worst = [...mine].sort((x, y) => (x.c.score_pct as number) - (y.c.score_pct as number) || y.c.games - x.c.games)[0];
@@ -144,9 +144,9 @@ export function crossHighlights(t: Crosstable): CrossHighlight[] {
   }
   let rival: { i: number; j: number; c: CrossCell } | null = null;
   let streak: { i: number; j: number; c: CrossCell } | null = null;
-  for (let i = 0; i < t.members.length; i++) {
-    for (let j = i + 1; j < t.members.length; j++) {
-      const c = t.cells[i][j] as CrossCell;
+  for (let i = 0; i < tk.members.length; i++) {
+    for (let j = i + 1; j < tk.members.length; j++) {
+      const c = tk.cells[i][j] as CrossCell;
       if (c.games >= MIN_RIVALRY_GAMES && c.score_pct !== null && Math.abs(c.score_pct - 50) <= CLOSE_PCT) {
         if (!rival || c.games > rival.c.games || (c.games === rival.c.games && Math.abs(c.score_pct - 50) < Math.abs((rival.c.score_pct as number) - 50))) {
           rival = { i, j, c };
@@ -157,9 +157,9 @@ export function crossHighlights(t: Crosstable): CrossHighlight[] {
         [i, j],
         [j, i],
       ]) {
-        const s = (t.cells[a][b] as CrossCell).streak;
+        const s = (tk.cells[a][b] as CrossCell).streak;
         if (s && s.kind === "win" && s.count >= 3 && (!streak || s.count > (streak.c.streak as { count: number }).count)) {
-          streak = { i: a, j: b, c: t.cells[a][b] as CrossCell };
+          streak = { i: a, j: b, c: tk.cells[a][b] as CrossCell };
         }
       }
     }

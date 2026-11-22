@@ -2,6 +2,7 @@
 // player's perspective: positive = the player is better.
 
 import type { PlayoutGoal } from "./exercises";
+import { t, dec } from "../../i18n";
 
 export interface PlayoutState {
   userMoves: number;
@@ -31,37 +32,37 @@ export function scoreCp(s: PlayoutState["score"]): number | null {
   return s.cp;
 }
 
-const pawns = (cp: number) => (Math.abs(cp) >= MATE_CP ? "Matt" : `${cp > 0 ? "+" : ""}${(cp / 100).toFixed(1).replace(".", ",")}`);
+const pawns = (cp: number) => (Math.abs(cp) >= MATE_CP ? t("Matt") : `${cp > 0 ? "+" : ""}${(cp / 100).toFixed(1).replace(".", dec())}`);
 
 export function judgePlayout(goal: PlayoutGoal, s: PlayoutState): Verdict {
-  if (s.over === "won") return { done: true, success: true, text: "Matt! Aufgabe gelöst." };
-  if (s.over === "lost") return { done: true, success: false, text: "Du wurdest mattgesetzt." };
+  if (s.over === "won") return { done: true, success: true, text: t("Matt! Aufgabe gelöst.") };
+  if (s.over === "lost") return { done: true, success: false, text: t("Du wurdest mattgesetzt.") };
   if (s.over === "draw") {
     return goal === "hold"
-      ? { done: true, success: true, text: "Remis gehalten. Stark verteidigt!" }
-      : { done: true, success: false, text: "Remis – der Gewinn ist dir entglitten." };
+      ? { done: true, success: true, text: t("Remis gehalten. Stark verteidigt!") }
+      : { done: true, success: false, text: t("Remis – der Gewinn ist dir entglitten.") };
   }
   const cp = scoreCp(s.score);
   if (goal === "promote" && s.promoted && cp !== null && cp >= PROMOTE_KEPT_CP) {
-    return { done: true, success: true, text: "Umgewandelt und die neue Dame ist sicher. Aufgabe gelöst." };
+    return { done: true, success: true, text: t("Umgewandelt und die neue Dame ist sicher. Aufgabe gelöst.") };
   }
   if (goal !== "hold" && cp !== null && cp < WIN_LOST_CP) {
-    return { done: true, success: false, text: `Der Vorteil ist weg (Bewertung ${pawns(cp)}).` };
+    return { done: true, success: false, text: t("Der Vorteil ist weg (Bewertung {pawns}).", { pawns: pawns(cp) }) };
   }
   if (goal === "hold" && cp !== null && cp <= HOLD_LOST_CP) {
-    return { done: true, success: false, text: `Die Stellung ist jetzt verloren (Bewertung ${pawns(cp)}).` };
+    return { done: true, success: false, text: t("Die Stellung ist jetzt verloren (Bewertung {pawns}).", { pawns: pawns(cp) }) };
   }
   if (s.userMoves < s.maxMoves) return { done: false };
   switch (goal) {
     case "hold":
-      return { done: true, success: true, text: `${s.maxMoves} Züge gehalten. Aufgabe gelöst.` };
+      return { done: true, success: true, text: t("{maxMoves} Züge gehalten. Aufgabe gelöst.", { maxMoves: s.maxMoves }) };
     case "win":
       return cp !== null && cp >= WIN_KEPT_CP
-        ? { done: true, success: true, text: `Vorteil sicher verwertet (Bewertung ${pawns(cp)}).` }
-        : { done: true, success: false, text: `Nach ${s.maxMoves} Zügen reicht der Vorteil nicht mehr (Bewertung ${cp !== null ? pawns(cp) : "?"}).` };
+        ? { done: true, success: true, text: t("Vorteil sicher verwertet (Bewertung {pawns}).", { pawns: pawns(cp) }) }
+        : { done: true, success: false, text: t("Nach {maxMoves} Zügen reicht der Vorteil nicht mehr (Bewertung {1}).", { maxMoves: s.maxMoves, 1: cp !== null ? pawns(cp) : "?" }) };
     case "mate":
-      return { done: true, success: false, text: `Nicht in ${s.maxMoves} Zügen mattgesetzt. Versuch es noch einmal.` };
+      return { done: true, success: false, text: t("Nicht in {maxMoves} Zügen mattgesetzt. Versuch es noch einmal.", { maxMoves: s.maxMoves }) };
     case "promote":
-      return { done: true, success: false, text: `In ${s.maxMoves} Zügen keine sichere Umwandlung geschafft.` };
+      return { done: true, success: false, text: t("In {maxMoves} Zügen keine sichere Umwandlung geschafft.", { maxMoves: s.maxMoves }) };
   }
 }

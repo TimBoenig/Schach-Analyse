@@ -50,14 +50,14 @@ function rng(seed: number): () => number {
 /** A room seen from inside: floor, four walls and a ceiling. */
 function room(size: number, height: number, floorY: number, wall: Material, floor: Material, ceiling: Material): Mesh[] {
   const h = size / 2;
-  const t = 0.4;
+  const tk = 0.4;
   return [
-    box([0, floorY - t / 2, 0], [size, t, size], floor),
-    box([0, floorY + height + t / 2, 0], [size, t, size], ceiling),
-    box([0, floorY + height / 2, -h], [size, height, t], wall),
-    box([0, floorY + height / 2, h], [size, height, t], wall),
-    box([-h, floorY + height / 2, 0], [t, height, size], wall),
-    box([h, floorY + height / 2, 0], [t, height, size], wall),
+    box([0, floorY - tk / 2, 0], [size, tk, size], floor),
+    box([0, floorY + height + tk / 2, 0], [size, tk, size], ceiling),
+    box([0, floorY + height / 2, -h], [size, height, tk], wall),
+    box([0, floorY + height / 2, h], [size, height, tk], wall),
+    box([-h, floorY + height / 2, 0], [tk, height, size], wall),
+    box([h, floorY + height / 2, 0], [tk, height, size], wall),
   ];
 }
 

@@ -15,8 +15,10 @@ import { CompareTable, PatternLab } from "./landing/PatternLab";
 import { Privacy } from "./landing/Privacy";
 import { Specimen } from "./landing/Specimen";
 import { Model3D } from "./Model3D";
+import { LangToggle } from "./LangSwitch";
 import { navigate } from "./router";
 import { markSeen, openStage } from "./stage/store";
+import { t } from "../i18n";
 
 /** Marks the front door as seen, so the next visit at "/" opens the app. */
 function openApp(): void {
@@ -36,10 +38,10 @@ function scrollTo(id: string): void {
 }
 
 const STEPS: { title: string; text: string }[] = [
-  { title: "Namen eingeben", text: "Dein Benutzername bei chess.com oder Lichess. Kein Passwort, keine Anmeldung." },
-  { title: "Partien lesen lassen", text: `${COACH_NAME} lädt deine Partien und prüft jeden Zug, erst schnell, dann gründlich.` },
-  { title: "Ersten Befund ansehen", text: "Nach wenigen Minuten siehst du deinen teuersten Fehler und was sich wiederholt." },
-  { title: "Gezielt trainieren", text: "Aus deinen Fehlstellungen werden Aufgaben, ein paar Minuten am Tag." },
+  { title: t("Namen eingeben"), text: t("Dein Benutzername bei chess.com oder Lichess. Kein Passwort, keine Anmeldung.") },
+  { title: t("Partien lesen lassen"), text: t("{COACH_NAME} lädt deine Partien und prüft jeden Zug, erst schnell, dann gründlich.", { COACH_NAME }) },
+  { title: t("Ersten Befund ansehen"), text: t("Nach wenigen Minuten siehst du deinen teuersten Fehler und was sich wiederholt.") },
+  { title: t("Gezielt trainieren"), text: t("Aus deinen Fehlstellungen werden Aufgaben, ein paar Minuten am Tag.") },
 ];
 
 function Faq({ q, children, open = false }: { q: string; children: ComponentChildren; open?: boolean }) {
@@ -62,34 +64,35 @@ export function LandingView() {
           <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span>{BRAND}</span>
         </a>
-        <nav class="ld-nav" aria-label="Abschnitte">
-          <button onClick={() => scrollTo("vergleich")}>Vergleich</button>
-          <button onClick={() => scrollTo("datenschutz")}>Datenschutz</button>
-          <button onClick={() => scrollTo("fragen")}>Fragen</button>
+        <nav class="ld-nav" aria-label={t("Abschnitte")}>
+          <button onClick={() => scrollTo("vergleich")}>{t("Vergleich")}</button>
+          <button onClick={() => scrollTo("datenschutz")}>{t("Datenschutz")}</button>
+          <button onClick={() => scrollTo("fragen")}>{t("Fragen")}</button>
         </nav>
+        <LangToggle class="ld-lang" />
         <button class="btn ld-open" onClick={openApp}>
-          Zur App
+          {t("Zur App")}
         </button>
       </header>
 
       <section class="ld-hero">
         <div class="ld-hero-text">
-          <h1>Dein Schach hat ein Muster. Lucena findet es.</h1>
+          <h1>{t("Dein Schach hat ein Muster. {COACH_NAME} findet es.", { COACH_NAME })}</h1>
           <p class="ld-lead">
-            {BRAND} liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und macht daraus dein Training. Mit deinen eigenen Stellungen statt zufälliger Rätsel.
+            {t("{BRAND} liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und macht daraus dein Training. Mit deinen eigenen Stellungen statt zufälliger Rätsel.", { BRAND })}
           </p>
           <div class="ld-cta-row">
             <button class="btn primary big ld-cta" onClick={startAnalysis}>
               <IconBolt />
-              Meine Partien analysieren
+              {t("Meine Partien analysieren")}
             </button>
             <button class="btn big ld-ghost" onClick={() => scrollTo("vergleich")}>
-              Warum viele Partien?
+              {t("Warum viele Partien?")}
             </button>
           </div>
           <p class="ld-assure">
             <IconShield />
-            <span>{PRICE.headline} Ohne Anmeldung. Die Analyse läuft auf deinem Gerät.</span>
+            <span>{t("Kostenlos. Ohne Anmeldung. Die Analyse läuft auf deinem Gerät.")}</span>
           </p>
         </div>
         <HeroStage />
@@ -97,8 +100,8 @@ export function LandingView() {
 
       <section class="ld-why" id="vergleich" aria-labelledby="ld-why-title">
         <div class="ld-why-head">
-          <h2 id="ld-why-title">Eine Partie zeigt dir einen Fehler. Viele Partien zeigen dir dein Muster.</h2>
-          <p class="ld-lead">Die Analyse nach der Partie ist gut für den Moment. Woran du arbeiten solltest, sieht man erst über viele Partien. Wähl, wie viele Partien gelesen werden, und schau, wie sich das Bild verändert.</p>
+          <h2 id="ld-why-title">{t("Eine Partie zeigt dir einen Fehler. Viele Partien zeigen dir dein Muster.")}</h2>
+          <p class="ld-lead">{t("Die Analyse nach der Partie ist gut für den Moment. Woran du arbeiten solltest, sieht man erst über viele Partien. Wähl, wie viele Partien gelesen werden, und schau, wie sich das Bild verändert.")}</p>
         </div>
         <div class="ld-why-grid">
           <PatternLab />
@@ -108,11 +111,11 @@ export function LandingView() {
 
       <section class="ld-get" aria-labelledby="ld-get-title">
         <div class="ld-get-text">
-          <h2 id="ld-get-title">Dein Profil, aus jeder Partie, die du gespielt hast.</h2>
-          <p class="ld-lead">In welcher Phase du Punkte verlierst, welche Eröffnungen dir liegen, welcher Zug dich am meisten gekostet hat. Jede Aussage nennt, auf wie vielen Partien sie beruht.</p>
+          <h2 id="ld-get-title">{t("Dein Profil, aus jeder Partie, die du gespielt hast.")}</h2>
+          <p class="ld-lead">{t("In welcher Phase du Punkte verlierst, welche Eröffnungen dir liegen, welcher Zug dich am meisten gekostet hat. Jede Aussage nennt, auf wie vielen Partien sie beruht.")}</p>
           <div class="ld-get-king">
-            <Model3D kind="king" size={150} label="Schachkönig in 3D, zum Drehen ziehen" />
-            <span>Zieh am König, er dreht sich.</span>
+            <Model3D kind="king" size={150} label={t("Schachkönig in 3D, zum Drehen ziehen")} />
+            <span>{t("Zieh am König, er dreht sich.")}</span>
           </div>
         </div>
         <Specimen />
@@ -120,21 +123,21 @@ export function LandingView() {
 
       <section class="ld-league" aria-labelledby="ld-league-title">
         <div class="ld-league-cup">
-          <Model3D kind="trophy" size={220} label="Pokal in 3D, zum Drehen ziehen" />
+          <Model3D kind="trophy" size={220} label={t("Pokal in 3D, zum Drehen ziehen")} />
         </div>
         <div class="ld-league-text">
-          <h2 id="ld-league-title">Spiel um den Pokal, gegen deine Freunde.</h2>
-          <p class="ld-lead">Füge Freunde hinzu und ihr spielt eine eigene Liga. Gewertet werden Ergebnisse und Zugqualität, fair gerechnet, auch wenn einer nur Blitz und der andere Schnellschach spielt.</p>
+          <h2 id="ld-league-title">{t("Spiel um den Pokal, gegen deine Freunde.")}</h2>
+          <p class="ld-lead">{t("Füge Freunde hinzu und ihr spielt eine eigene Liga. Gewertet werden Ergebnisse und Zugqualität, fair gerechnet, auch wenn einer nur Blitz und der andere Schnellschach spielt.")}</p>
           <ul class="ld-league-points">
-            <li>Tabelle mit Spielstärke, Form und Rekorden</li>
-            <li>Duell-Seite für jeden Freund: wer wo besser ist</li>
-            <li>Was dir für den nächsten Platz fehlt</li>
+            <li>{t("Tabelle mit Spielstärke, Form und Rekorden")}</li>
+            <li>{t("Duell-Seite für jeden Freund: wer wo besser ist")}</li>
+            <li>{t("Was dir für den nächsten Platz fehlt")}</li>
           </ul>
         </div>
       </section>
 
       <section class="ld-steps" aria-labelledby="ld-steps-title">
-        <h2 id="ld-steps-title">In wenigen Minuten zum ersten Befund.</h2>
+        <h2 id="ld-steps-title">{t("In wenigen Minuten zum ersten Befund.")}</h2>
         <ol>
           {STEPS.map((s, i) => (
             <li key={s.title}>
@@ -150,17 +153,17 @@ export function LandingView() {
 
       <section class="ld-private" id="datenschutz" aria-labelledby="ld-private-title">
         <div class="ld-private-text">
-          <h2 id="ld-private-title">Deine Partien gehören dir.</h2>
-          <p class="ld-lead">Die Schach-Engine rechnet in deinem Browser. Ein Konto brauchst du nur, wenn du deine Analysen auf mehreren Geräten haben willst.</p>
+          <h2 id="ld-private-title">{t("Deine Partien gehören dir.")}</h2>
+          <p class="ld-lead">{t("Die Schach-Engine rechnet in deinem Browser. Ein Konto brauchst du nur, wenn du deine Analysen auf mehreren Geräten haben willst.")}</p>
           <a class="ld-link" href="#/rechtliches/datenschutz">
-            Datenschutzerklärung lesen
+            {t("Datenschutzerklärung lesen")}
           </a>
         </div>
         <Privacy />
       </section>
 
       {QUOTES.length > 0 && (
-        <section class="ld-quotes" aria-label="Was Spieler sagen">
+        <section class="ld-quotes" aria-label={t("Was Spieler sagen")}>
           {QUOTES.map((q) => (
             <blockquote key={q.who}>
               <p>{q.text}</p>
@@ -171,21 +174,21 @@ export function LandingView() {
       )}
 
       <section class="ld-faq" id="fragen" aria-labelledby="ld-faq-title">
-        <h2 id="ld-faq-title">Fragen, bevor du loslegst</h2>
+        <h2 id="ld-faq-title">{t("Fragen, bevor du loslegst")}</h2>
         <div class="ld-faq-list">
-          <Faq q="Was kostet das?" open>
+          <Faq q={t("Was kostet das?")} open>
             <p>{PRICE.text}</p>
           </Faq>
-          <Faq q="Brauche ich ein Konto?">
-            <p>Nein. Dein Benutzername bei chess.com oder Lichess reicht. Ein Konto ist freiwillig und nur dafür da, deine Analysen auf Handy und PC gleich zu haben.</p>
+          <Faq q={t("Brauche ich ein Konto?")}>
+            <p>{t("Nein. Dein Benutzername bei chess.com oder Lichess reicht. Ein Konto ist freiwillig und nur dafür da, deine Analysen auf Handy und PC gleich zu haben.")}</p>
           </Faq>
-          <Faq q="Wie lange dauert die erste Analyse?">
-            <p>Den ersten Überblick hast du nach wenigen Minuten. Danach prüft die Engine im Hintergrund gründlicher, während du dich schon umsiehst.</p>
+          <Faq q={t("Wie lange dauert die erste Analyse?")}>
+            <p>{t("Den ersten Überblick hast du nach wenigen Minuten. Danach prüft die Engine im Hintergrund gründlicher, während du dich schon umsiehst.")}</p>
           </Faq>
-          <Faq q="Funktioniert das auf dem Handy?">
-            <p>Ja. {BRAND} läuft im Browser auf Handy, Tablet und PC und lässt sich wie eine App auf den Startbildschirm legen.</p>
+          <Faq q={t("Funktioniert das auf dem Handy?")}>
+            <p>{t("Ja. {BRAND} läuft im Browser auf Handy, Tablet und PC und lässt sich wie eine App auf den Startbildschirm legen.", { BRAND })}</p>
           </Faq>
-          <Faq q="Wer steckt dahinter?">
+          <Faq q={t("Wer steckt dahinter?")}>
             <div class="ld-maker">
               <span class="ld-maker-mark" aria-hidden="true">
                 {MAKER.initials}
@@ -205,18 +208,18 @@ export function LandingView() {
 
       <section class="ld-final">
         <CoachAvatar mood="happy" size={96} />
-        <h2>Finde heraus, was dich Punkte kostet.</h2>
-        <p class="ld-lead">Namen eingeben, {COACH_NAME} holt deine Partien und zeigt dir den ersten Befund.</p>
+        <h2>{t("Finde heraus, was dich Punkte kostet.")}</h2>
+        <p class="ld-lead">{t("Namen eingeben, {COACH_NAME} holt deine Partien und zeigt dir den ersten Befund.", { COACH_NAME })}</p>
         <button class="btn primary big ld-cta" onClick={startAnalysis}>
-          Meine Partien analysieren
+          {t("Meine Partien analysieren")}
           <IconChevron />
         </button>
       </section>
 
       <footer class="ld-foot">
-        <a href="#/rechtliches">Impressum</a>
-        <a href="#/rechtliches/datenschutz">Datenschutz</a>
-        <button onClick={openApp}>{BRAND} öffnen</button>
+        <a href="#/rechtliches">{t("Impressum")}</a>
+        <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a>
+        <button onClick={openApp}>{t("{BRAND} öffnen", { BRAND })}</button>
       </footer>
     </div>
   );

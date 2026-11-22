@@ -29,6 +29,7 @@ import { startSeenSync } from "./stage/seenSync";
 import { currentShow, markSeen, onSeenChange, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
+import { t } from "../i18n";
 
 // Local changes reach the cloud this long after the last edit (batch imports
 // and analysis write many records in a row).
@@ -120,7 +121,7 @@ export function App() {
   // Stored games are put right first (rating pool, double records, opening
   // names) so repair and analysis never write the same game at once.
   useEffect(() => {
-    const t = window.setTimeout(
+    const tk = window.setTimeout(
       () =>
         void repairGames()
           .catch(() => null)
@@ -131,7 +132,7 @@ export function App() {
           .catch(() => undefined),
       2500,
     );
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(tk);
   }, []);
 
   // A new page starts at the top, like a native app; moving within a game keeps the scroll.
@@ -166,7 +167,7 @@ export function App() {
   // The hidden video studio fills the whole window, like the landing page.
   if (route.view === "studio")
     return (
-      <ErrorBoundary area="Das Videostudio">
+      <ErrorBoundary area={t("Das Videostudio")}>
         <StudioRoute />
       </ErrorBoundary>
     );
@@ -174,7 +175,7 @@ export function App() {
   // The social-media landing page stands alone, without sidebar or tab bar.
   if (route.view === "landing" || (frontDoor && route.view === "home"))
     return (
-      <ErrorBoundary area="Die Startseite">
+      <ErrorBoundary area={t("Die Startseite")}>
         <LandingView />
         <StageHost />
       </ErrorBoundary>
@@ -212,10 +213,10 @@ export function App() {
           </ErrorBoundary>
           {/* Where the sidebar shows no text, the legal links sit under every page. */}
           <footer class="page-legal faint small">
-            <a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a>
+            <a href="#/rechtliches">{t("Impressum")}</a> · <a href="#/rechtliches/datenschutz">{t("Datenschutz")}</a>
           </footer>
         </main>
-        <ErrorBoundary area="Das Menü">
+        <ErrorBoundary area={t("Das Menü")}>
           {overlay === "palette" && <CommandPalette onClose={() => setOverlay(null)} onShortcuts={() => setOverlay("keys")} />}
           {overlay === "keys" && <ShortcutHelp onClose={() => setOverlay(null)} />}
         </ErrorBoundary>

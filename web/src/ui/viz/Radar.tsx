@@ -1,5 +1,7 @@
 // A compact skills web: the player's shape, the reference shape as a dashed
 // line, and one axis lit up when its row in the table next to it is hovered.
+import { t } from "../../i18n";
+
 export interface RadarSpoke {
   key: string;
   label: string;
@@ -33,7 +35,7 @@ export function Radar({ spokes, size = 260, active, onActive }: { spokes: RadarS
       .join(" ");
   const hasRef = spokes.every((s) => typeof s.reference === "number");
   return (
-    <svg class="radar" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Fähigkeiten: ${spokes.map((s) => `${s.label} ${Math.round(s.value)}`).join(", ")}`}>
+    <svg class="radar" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={t("Fähigkeiten: {0}", { 0: spokes.map((s) => `${s.label} ${Math.round(s.value)}`).join(", ") })}>
       {RINGS.map((ring) => (
         <polygon key={ring} class={`radar-ring${ring === 100 ? " outer" : ""}`} points={spokes.map((_, i) => at(i, ring).map((c) => c.toFixed(1)).join(",")).join(" ")} />
       ))}

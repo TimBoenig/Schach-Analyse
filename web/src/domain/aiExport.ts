@@ -25,6 +25,7 @@ import { classifyGamePhase } from "./tactics/phase";
 import { CATEGORIES } from "./training/exercises";
 import { summarizeTraining, type ProgressMap, type TrainingLog } from "./training";
 import type { MoveData, StoredGame } from "./types";
+import { t, tStored, dec } from "../i18n";
 
 export type AiExportDetail = "full" | "compact";
 
@@ -34,8 +35,8 @@ export type AiExportDetail = "full" | "compact";
  * the smaller context of free tiers and local models.
  */
 export const AI_EXPORT_LIMITS: Record<AiExportDetail, { label: string; table: number; moments: number; annotated: number; errorsPerGame: number }> = {
-  full: { label: "Ausführlich", table: 300, moments: 60, annotated: 12, errorsPerGame: 3 },
-  compact: { label: "Kompakt", table: 60, moments: 15, annotated: 3, errorsPerGame: 2 },
+  full: { label: t("Ausführlich"), table: 300, moments: 60, annotated: 12, errorsPerGame: 3 },
+  compact: { label: t("Kompakt"), table: 60, moments: 15, annotated: 3, errorsPerGame: 2 },
 };
 
 export interface AiExportInput {
@@ -57,13 +58,13 @@ export interface AiExportResult {
 
 /** The short message to paste next to the uploaded file. */
 export const AI_EXPORT_PROMPT =
-  `Im Anhang ist der Export meiner Schachpartien aus ${BRAND}. Lies die ganze Datei und erstelle die ausführliche Analyse, ` +
-  "die in Abschnitt 1 („Auftrag an die KI“) beschrieben ist. Halte dich an die Legende in Abschnitt 2.";
+  t("Im Anhang ist der Export meiner Schachpartien aus {BRAND}. Lies die ganze Datei und erstelle die ausführliche Analyse, ", { BRAND }) +
+  t("die in Abschnitt 1 („Auftrag an die KI“) beschrieben ist. Halte dich an die Legende in Abschnitt 2.");
 
 // ---- formatting ----
 
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (v: unknown) => {
   const n = num(v);
   return n === null ? "–" : `${Math.round(n)} %`;
@@ -76,7 +77,7 @@ const signed = (v: number, digits = 1) => `${v > 0 ? "+" : v < 0 ? "−" : "±"}
 const cell = (v: unknown) => (v === null || v === undefined || v === "" ? "–" : String(v).replace(/\|/g, "/").replace(/\s+/g, " ").trim());
 
 function table(head: string[], rows: unknown[][]): string {
-  if (!rows.length) return "_Keine Daten._";
+  if (!rows.length) return t("_Keine Daten._");
   return [
     `| ${head.join(" | ")} |`,
     `| ${head.map(() => "---").join(" | ")} |`,
@@ -88,7 +89,7 @@ const bullets = (items: string[]) => items.filter(Boolean).map((s) => `- ${s}`).
 
 /** Engine score from White's view in pawns ("+1.3", "#-2"); "Matt" once the game is over. */
 function evalText(cp: number | null | undefined, mate: number | null | undefined, san = ""): string {
-  if (san.endsWith("#")) return "Matt";
+  if (san.endsWith("#")) return t("Matt");
   if (mate !== null && mate !== undefined && mate !== 0) return mate > 0 ? `#${mate}` : `#-${-mate}`;
   if (cp === null || cp === undefined) return "?";
   const v = cp / 100;
@@ -151,7 +152,7 @@ const mine = <T,>(it: GameItem, white: T, black: T): T => (it.color === "white" 
 
 function resultWord(it: GameItem): string {
   const o = outcomeFor(it.game.result, it.color);
-  return o === "win" ? "Sieg" : o === "draw" ? "Remis" : o === "loss" ? "Niederlage" : "offen";
+  return o === "win" ? t("Sieg") : o === "draw" ? t("Remis") : o === "loss" ? t("Niederlage") : "offen";
 }
 
 function sideAccuracy(it: GameItem, side: "white" | "black"): number | null {
@@ -187,9 +188,9 @@ function gameTitle(it: GameItem): string {
   const opp = opponentOf(it);
   const oppElo = ratingOf(mine(it, g.black_elo, g.white_elo));
   const ownElo = ratingOf(mine(it, g.white_elo, g.black_elo));
-  const t = terminationOf(it);
-  const term = t ? ` (${t})` : "";
-  return `${it.nr} · ${dateOf(it)} · ${trSpeed(g.speed_category) || "?"}${g.time_control ? ` ${g.time_control}` : ""} · ${trColor(it.color)}${ownElo ? ` (${ownElo})` : ""} gegen ${opp || "?"}${oppElo ? ` (${oppElo})` : ""} · ${resultWord(it)}${term}`;
+  const tk = terminationOf(it);
+  const term = tk ? ` (${tk})` : "";
+  return t("{nr} · {dateOf} · {2}{3} · {trColor}{5} gegen {6}{7} · {resultWord}{term}", { nr: it.nr, dateOf: dateOf(it), 2: trSpeed(g.speed_category) || "?", 3: g.time_control ? ` ${g.time_control}` : "", trColor: trColor(it.color), 5: ownElo ? ` (${ownElo})` : "", 6: opp || "?", 7: oppElo ? ` (${oppElo})` : "", resultWord: resultWord(it), term });
 }
 
 // ---- sections ----
@@ -198,109 +199,62 @@ function header(input: AiExportInput, items: GameItem[], profile: PlayerProfile 
   const nowSec = input.now / 1000;
   const w = dateWindow(input.dateFilter, nowSec);
   const iso = (s: number) => new Date(s * 1000).toISOString().slice(0, 10);
-  const range = w ? ` (${w.start != null ? iso(w.start) : "Anfang"} bis ${iso(w.end ?? nowSec)})` : "";
+  const range = w ? t(" ({0} bis {iso})", { 0: w.start != null ? iso(w.start) : t("Anfang"), iso: iso(w.end ?? nowSec) }) : "";
   const analyzed = items.filter((i) => i.analyzed).length;
   return [
-    `# ${BRAND}: Datenpaket für eine KI-Auswertung`,
+    t("# {BRAND}: Datenpaket für eine KI-Auswertung", { BRAND }),
     "",
-    `> Erstellt am ${input.today} mit ${BRAND} (${BRAND_DOMAIN}) aus Engine-Analysen der eigenen Partien.`,
-    `> Spieler: **${input.usernames.join(", ") || "?"}** · Zeitraum: ${trFilter(input.dateFilter || "All Time")}${range}`,
-    `> ${items.length} eigene Partien, davon ${analyzed} mit der Engine analysiert${profile?.rating ? ` · aktuelle Wertung ${profile.rating.rating} (${trSpeed(profile.rating.speed)})` : ""}.`,
+    t("> Erstellt am {today} mit {BRAND} ({BRAND_DOMAIN}) aus Engine-Analysen der eigenen Partien.", { today: input.today, BRAND, BRAND_DOMAIN }),
+    t("> Spieler: **{0}** · Zeitraum: {trFilter}{range}", { 0: input.usernames.join(", ") || "?", trFilter: trFilter(input.dateFilter || "All Time"), range }),
+    t("> {length} eigene Partien, davon {analyzed} mit der Engine analysiert{2}.", { length: items.length, analyzed, 2: profile?.rating ? t(" · aktuelle Wertung {rating} ({trSpeed})", { rating: profile.rating.rating, trSpeed: trSpeed(profile.rating.speed) }) : "" }),
     ">",
-    "> **So benutzt du die Datei:** Lade sie in ChatGPT, Claude, Gemini oder eine andere KI hoch und schreibe dazu:",
+    t("> **So benutzt du die Datei:** Lade sie in ChatGPT, Claude, Gemini oder eine andere KI hoch und schreibe dazu:"),
     `> „${AI_EXPORT_PROMPT}“`,
     "",
-    "Inhalt: 1 Auftrag · 2 Legende · 3 Überblick · 4 Wertung · 5 Aufschlüsselung · 6 Phasen · 7 Zugqualität · " +
-      "8 Fähigkeiten · 9 Stärken, Schwächen, Muster · 10 Spielstil · 11 Fehleranalyse · 12 Vorteile, Material, Taktik · " +
-      "13 Eröffnungen · 14 Entwicklung · 15 Training · 16 Partienliste · 17 Kritische Momente · 18 Partien mit Engine-Kommentaren",
+    t("Inhalt: 1 Auftrag · 2 Legende · 3 Überblick · 4 Wertung · 5 Aufschlüsselung · 6 Phasen · 7 Zugqualität · ") +
+      t("8 Fähigkeiten · 9 Stärken, Schwächen, Muster · 10 Spielstil · 11 Fehleranalyse · 12 Vorteile, Material, Taktik · ") +
+      t("13 Eröffnungen · 14 Entwicklung · 15 Training · 16 Partienliste · 17 Kritische Momente · 18 Partien mit Engine-Kommentaren"),
     "",
-    `Umfang der Partie-Abschnitte: Partienliste bis ${limits.table} Partien, kritische Momente für die neuesten ${limits.moments} analysierten Partien, ` +
-      `vollständige kommentierte Notation für die neuesten ${limits.annotated}. Alle Statistiken (Abschnitte 3–15) beruhen auf allen Partien des Zeitraums.`,
+    t("Umfang der Partie-Abschnitte: Partienliste bis {table} Partien, kritische Momente für die neuesten {moments} analysierten Partien, ", { table: limits.table, moments: limits.moments }) +
+      t("vollständige kommentierte Notation für die neuesten {annotated}. Alle Statistiken (Abschnitte 3–15) beruhen auf allen Partien des Zeitraums.", { annotated: limits.annotated }),
   ].join("\n");
 }
 
-const TASK = `## 1. Auftrag an die KI
+const TASK = t("## 1. Auftrag an die KI\n\nDu bist ein erfahrener Schachtrainer und analysierst die Partien deines Schülers. Die Daten in dieser Datei stammen aus einer Engine-Analyse seiner eigenen Online-Partien und wurden von der App bereits ausgewertet.\n\n**Regeln**\n- Antworte auf Deutsch und sprich den Spieler mit „du“ an.\n- Stütze dich nur auf diese Daten. Erfinde keine Partien, Züge, Varianten oder Zahlen. Wenn du eine Stellung beurteilst, nutze FEN, Engine-Linie und die Begründung, die zu jedem kritischen Moment angegeben sind, statt selbst Varianten zu rechnen.\n- Belege jede Aussage mit einer Zahl aus den Daten und, wo möglich, mit einer Beispielpartie im Format „P007, Zug 23… Lxf7“.\n- Achte auf die Stichprobe: Werte mit wenigen Partien (n < 10) oder dem Vermerk „wenig Daten“ sind nur Hinweise, keine Befunde. Sag das dazu.\n- Gewichte nach Wirkung: Was kostet die meisten Punkte? Häufige mittlere Probleme sind oft wichtiger als ein einzelner spektakulärer Patzer.\n- Suche nach Ursachen hinter den Fehlern (z. B. übersehene Gabeln, Zeitnot, Fehler direkt nach der Eröffnungstheorie, Probleme in Gewinnstellungen), nicht nur nach Symptomen.\n\n**Gewünschte Analyse (mit genau diesen Überschriften)**\n1. **Dein Schach in Kürze**: Spielstärke, Spielstil und Gesamteindruck in 4–6 Sätzen, verglichen mit dem, was für die Wertung typisch ist.\n2. **Die drei größten Punktefresser**: jeweils Ursache, Zahlen, zwei konkrete Beispielpartien (Zug, besserer Zug, Idee dahinter) und das Muster, das sich wiederholt.\n3. **Deine Stärken**: was gut funktioniert und wie du es öfter nutzt.\n4. **Eröffnungen**: was du behalten, was du ändern solltest; konkrete Züge oder Systeme als Empfehlung, passend zu den Ergebnissen und zum Stil.\n5. **Mittelspiel, Endspiel und Zeiteinteilung**: Befunde je Phase und zur Bedenkzeit.\n6. **Psychologie und Rahmen**: Tageszeit, Serien, Spiele nach Niederlagen, Gegnerstärke. Nur mit belastbaren Daten.\n7. **Trainingsplan für 4 Wochen**: Woche für Woche, 20–40 Minuten pro Tag, mit konkreten Übungen (Taktikmotive, Endspieltypen, Eröffnungslinien, eigene Partien nacharbeiten).\n8. **Messbare Ziele für die nächsten 30 Partien**: 3 Ziele mit Zahl (z. B. „Patzer pro Partie von 1,4 auf unter 1,0“).\n\nBiete am Ende an, einzelne Partien (per Nummer) oder eine Eröffnung vertieft zu besprechen.");
 
-Du bist ein erfahrener Schachtrainer und analysierst die Partien deines Schülers. Die Daten in dieser Datei stammen aus einer Engine-Analyse seiner eigenen Online-Partien und wurden von der App bereits ausgewertet.
-
-**Regeln**
-- Antworte auf Deutsch und sprich den Spieler mit „du“ an.
-- Stütze dich nur auf diese Daten. Erfinde keine Partien, Züge, Varianten oder Zahlen. Wenn du eine Stellung beurteilst, nutze FEN, Engine-Linie und die Begründung, die zu jedem kritischen Moment angegeben sind, statt selbst Varianten zu rechnen.
-- Belege jede Aussage mit einer Zahl aus den Daten und, wo möglich, mit einer Beispielpartie im Format „P007, Zug 23… Lxf7“.
-- Achte auf die Stichprobe: Werte mit wenigen Partien (n < 10) oder dem Vermerk „wenig Daten“ sind nur Hinweise, keine Befunde. Sag das dazu.
-- Gewichte nach Wirkung: Was kostet die meisten Punkte? Häufige mittlere Probleme sind oft wichtiger als ein einzelner spektakulärer Patzer.
-- Suche nach Ursachen hinter den Fehlern (z. B. übersehene Gabeln, Zeitnot, Fehler direkt nach der Eröffnungstheorie, Probleme in Gewinnstellungen), nicht nur nach Symptomen.
-
-**Gewünschte Analyse (mit genau diesen Überschriften)**
-1. **Dein Schach in Kürze**: Spielstärke, Spielstil und Gesamteindruck in 4–6 Sätzen, verglichen mit dem, was für die Wertung typisch ist.
-2. **Die drei größten Punktefresser**: jeweils Ursache, Zahlen, zwei konkrete Beispielpartien (Zug, besserer Zug, Idee dahinter) und das Muster, das sich wiederholt.
-3. **Deine Stärken**: was gut funktioniert und wie du es öfter nutzt.
-4. **Eröffnungen**: was du behalten, was du ändern solltest; konkrete Züge oder Systeme als Empfehlung, passend zu den Ergebnissen und zum Stil.
-5. **Mittelspiel, Endspiel und Zeiteinteilung**: Befunde je Phase und zur Bedenkzeit.
-6. **Psychologie und Rahmen**: Tageszeit, Serien, Spiele nach Niederlagen, Gegnerstärke. Nur mit belastbaren Daten.
-7. **Trainingsplan für 4 Wochen**: Woche für Woche, 20–40 Minuten pro Tag, mit konkreten Übungen (Taktikmotive, Endspieltypen, Eröffnungslinien, eigene Partien nacharbeiten).
-8. **Messbare Ziele für die nächsten 30 Partien**: 3 Ziele mit Zahl (z. B. „Patzer pro Partie von 1,4 auf unter 1,0“).
-
-Biete am Ende an, einzelne Partien (per Nummer) oder eine Eröffnung vertieft zu besprechen.`;
-
-const LEGEND = `## 2. Legende: So liest du die Daten
-
-- **Perspektive**: „GC“ = Gewinnchance in Prozent, immer **aus Sicht des Spielers** (50 % = ausgeglichen, 100 % = sicher gewonnen). Engine-Bewertungen in Bauerneinheiten sind dagegen **aus Sicht von Weiß** (+1.5 = Weiß steht anderthalb Bauern besser, #3 = Weiß setzt in 3 Zügen matt, #-3 = Schwarz setzt matt).
-- **Genauigkeit** (0–100 %): aus dem Verlust an Gewinnchance je Zug, nach der Lichess-Formel, aber strenger (Abklingkonstante 0,06 statt 0,04354) und mit eigener Engine gemessen. Deshalb nicht direkt mit Lichess- oder Chess.com-Werten vergleichbar; der faire Vergleich mit den Gegnern derselben Partien steht in Abschnitt 4.
-- **Punktequote**: (Siege + ½ · Remis) / Partien. **Erwartet**: Punktequote, die die Elo-Formel gegen dieselben Gegner vorhersagt. Darüber = besser als die Wertung.
-- **Zugklassen** (nach Verlust an Gewinnchance des Ziehenden, chess.com-Skala):
-
-| Klasse | Zeichen | Bedeutung |
-| --- | --- | --- |
-| Brillant | !! | bester Zug mit Figurenopfer |
-| Großartig | ! | einziger guter Zug oder starke Wende |
-| Bester Zug | | erste Wahl der Engine oder gleichwertig |
-| Exzellent / Gut | | weniger als 2 bzw. 5 Prozentpunkte GC verloren |
-| Buchzug | | Eröffnungstheorie |
-| Ungenauigkeit | ?! | 5–10 Prozentpunkte GC verloren |
-| Fehler | ? | 10–20 Prozentpunkte GC verloren |
-| Patzer | ?? | mehr als 20 Prozentpunkte GC verloren |
-| Verpasst | ? | klare Chance ausgelassen (z. B. Gegnerfehler nicht bestraft, Matt übersehen) |
-
-- **Schwere Fehler** = Fehler + Patzer + Verpasst. „je 100 Züge“ zählt nur die eigenen Züge.
-- **Phasen**: Eröffnung bis zum Ende der Theorie bzw. der Entwicklung, Endspiel bei wenig Figurenmaterial, dazwischen Mittelspiel.
-- **Fähigkeiten** (0–100): aus vielen Zügen geschätzte Teilstärken; „Vergleich“ = was die Gegner in denselben Partien erreicht haben (ab 10 analysierten Partien, sonst grober Richtwert für die Wertung), „±“ = Unsicherheit, „wenig Daten“ = noch nicht belastbar.
-- **Elo je Bereich**: Fehlerquote im Verhältnis zu den Gegnern derselben Partien, ausgehend von deren Wertung; zur eigenen Wertung hin geglättet, mit 95-%-Unsicherheit. Alle Elo-Zahlen stehen auf der ${ELO_SCALE_LABEL} (Lichess-Wertungen umgerechnet), ohne Untergrenze bei 1400; es sind keine FIDE-Elo.
-- **Stichprobe**: Die App nennt Stärken, Schwächen und Befunde nur mit genug Partien und einem statistischen Test. Die Rohdaten-Tabellen enthalten aber auch kleine Gruppen; achte auf die Spalte n bzw. Partien.
-- **Partie-Nummern**: P001 ist die neueste Partie. Dieselbe Nummer gilt in allen Abschnitten.
-- **Notation**: Züge in englischer Kurznotation (N = Springer, B = Läufer, R = Turm, Q = Dame, K = König). Stellungen als FEN.`;
+const LEGEND = t("## 2. Legende: So liest du die Daten\n\n- **Perspektive**: „GC“ = Gewinnchance in Prozent, immer **aus Sicht des Spielers** (50 % = ausgeglichen, 100 % = sicher gewonnen). Engine-Bewertungen in Bauerneinheiten sind dagegen **aus Sicht von Weiß** (+1.5 = Weiß steht anderthalb Bauern besser, #3 = Weiß setzt in 3 Zügen matt, #-3 = Schwarz setzt matt).\n- **Genauigkeit** (0–100 %): aus dem Verlust an Gewinnchance je Zug, nach der Lichess-Formel, aber strenger (Abklingkonstante 0,06 statt 0,04354) und mit eigener Engine gemessen. Deshalb nicht direkt mit Lichess- oder Chess.com-Werten vergleichbar; der faire Vergleich mit den Gegnern derselben Partien steht in Abschnitt 4.\n- **Punktequote**: (Siege + ½ · Remis) / Partien. **Erwartet**: Punktequote, die die Elo-Formel gegen dieselben Gegner vorhersagt. Darüber = besser als die Wertung.\n- **Zugklassen** (nach Verlust an Gewinnchance des Ziehenden, chess.com-Skala):\n\n| Klasse | Zeichen | Bedeutung |\n| --- | --- | --- |\n| Brillant | !! | bester Zug mit Figurenopfer |\n| Großartig | ! | einziger guter Zug oder starke Wende |\n| Bester Zug | | erste Wahl der Engine oder gleichwertig |\n| Exzellent / Gut | | weniger als 2 bzw. 5 Prozentpunkte GC verloren |\n| Buchzug | | Eröffnungstheorie |\n| Ungenauigkeit | ?! | 5–10 Prozentpunkte GC verloren |\n| Fehler | ? | 10–20 Prozentpunkte GC verloren |\n| Patzer | ?? | mehr als 20 Prozentpunkte GC verloren |\n| Verpasst | ? | klare Chance ausgelassen (z. B. Gegnerfehler nicht bestraft, Matt übersehen) |\n\n- **Schwere Fehler** = Fehler + Patzer + Verpasst. „je 100 Züge“ zählt nur die eigenen Züge.\n- **Phasen**: Eröffnung bis zum Ende der Theorie bzw. der Entwicklung, Endspiel bei wenig Figurenmaterial, dazwischen Mittelspiel.\n- **Fähigkeiten** (0–100): aus vielen Zügen geschätzte Teilstärken; „Vergleich“ = was die Gegner in denselben Partien erreicht haben (ab 10 analysierten Partien, sonst grober Richtwert für die Wertung), „±“ = Unsicherheit, „wenig Daten“ = noch nicht belastbar.\n- **Elo je Bereich**: Fehlerquote im Verhältnis zu den Gegnern derselben Partien, ausgehend von deren Wertung; zur eigenen Wertung hin geglättet, mit 95-%-Unsicherheit. Alle Elo-Zahlen stehen auf der {ELO_SCALE_LABEL} (Lichess-Wertungen umgerechnet), ohne Untergrenze bei 1400; es sind keine FIDE-Elo.\n- **Stichprobe**: Die App nennt Stärken, Schwächen und Befunde nur mit genug Partien und einem statistischen Test. Die Rohdaten-Tabellen enthalten aber auch kleine Gruppen; achte auf die Spalte n bzw. Partien.\n- **Partie-Nummern**: P001 ist die neueste Partie. Dieselbe Nummer gilt in allen Abschnitten.\n- **Notation**: Züge in englischer Kurznotation (N = Springer, B = Läufer, R = Turm, Q = Dame, K = König). Stellungen als FEN.", { ELO_SCALE_LABEL });
 
 function overviewSection(p: PlayerProfile): string {
   const o = p.overview;
   const q = (o.quality_counts ?? {}) as Record<string, number>;
   const rows: unknown[][] = [
-    ["Partien (analysiert)", `${p.total_games} (${p.analyzed_games})`],
-    ["Bilanz", `${o.wins} Siege, ${o.draws} Remis, ${o.losses} Niederlagen`],
-    ["Punktequote", pct1(o.score_pct)],
-    ["Ø Genauigkeit", `${pct1(o.avg_accuracy)}${num(o.accuracy_sd) !== null ? ` (Streuung ± ${de(o.accuracy_sd)})` : ""}`],
-    ["Partien ohne schweren Fehler", pct1(o.clean_games_pct)],
-    ["Form (letzte 20 vs. 20 davor)", num(o.form_delta) !== null ? `${signed(o.form_delta)} Prozentpunkte Genauigkeit` : "–"],
-    ["Aktuelle Wertungen", Object.entries((o.ratings ?? {}) as Record<string, number>).map(([k, v]) => `${k} ${v}`).join(", ")],
-    ["Höchster besiegter Gegner", o.best_win && o.best_win !== "N/A" ? o.best_win : "–"],
-    ["Brillante / großartige Züge", `${q.Brilliant ?? 0} / ${q.Great ?? 0}`],
+    [t("Partien (analysiert)"), `${p.total_games} (${p.analyzed_games})`],
+    [t("Bilanz"), t("{wins} Siege, {draws} Remis, {losses} Niederlagen", { wins: o.wins, draws: o.draws, losses: o.losses })],
+    [t("Punktequote"), pct1(o.score_pct)],
+    [t("Ø Genauigkeit"), `${pct1(o.avg_accuracy)}${num(o.accuracy_sd) !== null ? t(" (Streuung ± {de})", { de: de(o.accuracy_sd) }) : ""}`],
+    [t("Partien ohne schweren Fehler"), pct1(o.clean_games_pct)],
+    [t("Form (letzte 20 vs. 20 davor)"), num(o.form_delta) !== null ? t("{signed} Prozentpunkte Genauigkeit", { signed: signed(o.form_delta) }) : "–"],
+    [t("Aktuelle Wertungen"), Object.entries((o.ratings ?? {}) as Record<string, number>).map(([k, v]) => `${k} ${v}`).join(", ")],
+    [t("Höchster besiegter Gegner"), o.best_win && o.best_win !== "N/A" ? o.best_win : "–"],
+    [t("Brillante / großartige Züge"), `${q.Brilliant ?? 0} / ${q.Great ?? 0}`],
   ];
-  return `## 3. Überblick\n\n${table(["Kennzahl", "Wert"], rows)}`;
+  return t("## 3. Überblick\n\n{table}", { table: table([t("Kennzahl"), t("Wert")], rows) });
 }
 
 function ratingSection(p: PlayerProfile): string {
   const rc = p.rating;
-  if (!rc) return "## 4. Wertung und Erwartung\n\n_Keine Wertungen in den Partien._";
+  if (!rc) return t("## 4. Wertung und Erwartung\n\n_Keine Wertungen in den Partien._");
   const own = (p.overview.phase_accuracy ?? {}) as Record<string, number>;
-  const refName = rc.reference === "opponents" ? `Ø Gegner (${rc.reference_games} Partien, gleiche Engine)` : "grober Richtwert";
+  const refName = rc.reference === "opponents" ? t("Ø Gegner ({reference_games} Partien, gleiche Engine)", { reference_games: rc.reference_games }) : t("grober Richtwert");
   const rows: unknown[][] = [
-    ["Wertung (meistgespielte Bedenkzeit)", `${rc.rating} (${sourceName(rc.source)}, ${trSpeed(rc.speed)})`],
-    [`Dieselbe Wertung als Elo (${ELO_SCALE_LABEL}, ChessGoals-Umfrage 2026)`, `≈ ${rc.elo}`],
-    ["Partien mit beiden Wertungen", rc.rated_games],
-    [`Ø Gegnerwertung (${sourceName(rc.source)}, ${trSpeed(rc.speed)}, ${rc.line_games} Partien)`, rc.avg_opponent ?? "–"],
-    ["Performance (dieselben Partien)", rc.performance ?? "–"],
-    ["Punkte geholt / erwartet", `${de(rc.score, 1)} / ${rc.expected_score !== null ? de(rc.expected_score, 1) : "–"}`],
-    [`Genauigkeit eigen / ${refName}`, `${pct1(p.overview.avg_accuracy)} / ${pct1(rc.typical_accuracy)}`],
-    ...Object.entries(rc.typical_phase_accuracy ?? {}).map(([k, v]) => [`Genauigkeit ${trPhase(k)} eigen / ${refName}`, `${pct1(own[k])} / ${pct1(v)}`]),
+    [t("Wertung (meistgespielte Bedenkzeit)"), `${rc.rating} (${sourceName(rc.source)}, ${trSpeed(rc.speed)})`],
+    [t("Dieselbe Wertung als Elo ({ELO_SCALE_LABEL}, ChessGoals-Umfrage 2026)", { ELO_SCALE_LABEL }), `≈ ${rc.elo}`],
+    [t("Partien mit beiden Wertungen"), rc.rated_games],
+    [t("Ø Gegnerwertung ({sourceName}, {trSpeed}, {line_games} Partien)", { sourceName: sourceName(rc.source), trSpeed: trSpeed(rc.speed), line_games: rc.line_games }), rc.avg_opponent ?? "–"],
+    [t("Performance (dieselben Partien)"), rc.performance ?? "–"],
+    [t("Punkte geholt / erwartet"), `${de(rc.score, 1)} / ${rc.expected_score !== null ? de(rc.expected_score, 1) : "–"}`],
+    [t("Genauigkeit eigen / {refName}", { refName }), `${pct1(p.overview.avg_accuracy)} / ${pct1(rc.typical_accuracy)}`],
+    ...Object.entries(rc.typical_phase_accuracy ?? {}).map(([k, v]) => [t("Genauigkeit {trPhase} eigen / {refName}", { trPhase: trPhase(k), refName }), `${pct1(own[k])} / ${pct1(v)}`]),
   ];
   const ratings = (p.trends?.ratings ?? {}) as Record<string, Array<[number, number]>>;
   const course = Object.entries(ratings).map(([speed, pts]) => {
@@ -309,10 +263,10 @@ function ratingSection(p: PlayerProfile): string {
     return [speed, pts.length, `${vals[0]} (${day(pts[0][0])})`, `${vals[vals.length - 1]} (${day(pts[pts.length - 1][0])})`, Math.min(...vals), Math.max(...vals)];
   });
   return [
-    "## 4. Wertung und Erwartung",
+    t("## 4. Wertung und Erwartung"),
     "",
-    table(["Kennzahl", "Wert"], rows),
-    course.length ? `\n**Wertungsverlauf**\n\n${table(["Bedenkzeit", "Partien", "Erste", "Letzte", "Tief", "Hoch"], course)}` : "",
+    table([t("Kennzahl"), t("Wert")], rows),
+    course.length ? t("\n**Wertungsverlauf**\n\n{table}", { table: table([t("Bedenkzeit"), t("Partien"), t("Erste"), t("Letzte"), t("Tief"), t("Hoch")], course) }) : "",
   ].join("\n");
 }
 
@@ -322,11 +276,11 @@ function breakdownSection(p: PlayerProfile): string {
   const b = (p.breakdowns ?? {}) as Record<string, BreakdownRow[]>;
   const rows = (k: string) =>
     (b[k] ?? []).map((r) => [r.label, r.games, `${r.wins}/${r.draws}/${r.losses}`, pct(r.score_pct), r.expected_pct !== null ? pct(r.expected_pct) : "–", r.avg_accuracy ? pct1(r.avg_accuracy) : "–"]);
-  const head = ["Gruppe", "Partien", "S/R/N", "Punkte", "Erwartet", "Genauigkeit"];
-  const parts = ["## 5. Aufschlüsselung", "", "**Nach Farbe**", "", table(head, rows("color")), "", "**Nach Bedenkzeit**", "", table(head, rows("speed")), "", "**Nach Gegnerstärke**", "", table(head, rows("opponent"))];
+  const head = [t("Gruppe"), t("Partien"), "S/R/N", t("Punkte"), t("Erwartet"), t("Genauigkeit")];
+  const parts = [t("## 5. Aufschlüsselung"), "", t("**Nach Farbe**"), "", table(head, rows("color")), "", t("**Nach Bedenkzeit**"), "", table(head, rows("speed")), "", t("**Nach Gegnerstärke**"), "", table(head, rows("opponent"))];
   const d = p.deep;
   if (d?.game_types?.length) {
-    parts.push("", "**Nach Partieverlauf**", "", table(["Partietyp", "Beschreibung", "Partien", "Anteil", "Punkte", "Genauigkeit"], d.game_types.map((t) => [t.label, t.description, t.games, pct(t.share), pct(t.score_pct), pct1(t.accuracy)])));
+    parts.push("", t("**Nach Partieverlauf**"), "", table([t("Partietyp"), t("Beschreibung"), t("Partien"), t("Anteil"), t("Punkte"), t("Genauigkeit")], d.game_types.map((tk) => [tk.label, tk.description, tk.games, pct(tk.share), pct(tk.score_pct), pct1(tk.accuracy)])));
   }
   return parts.join("\n");
 }
@@ -345,23 +299,23 @@ function phaseSection(p: PlayerProfile): string {
     num(time[ph]?.avg_time) ? `${de(time[ph].avg_time as number)} s` : "–",
   ]);
   const tally = p.moves?.phases ?? [];
-  const tallyRows = tally.map((t) => {
-    const serious = (t.counts.Mistake ?? 0) + (t.counts.Miss ?? 0) + (t.counts.Blunder ?? 0);
-    return [t.label, t.games, t.moves, t.moves ? de((serious / t.moves) * 100) : "–", t.counts.Inaccuracy ?? 0, t.counts.Mistake ?? 0, t.counts.Miss ?? 0, t.counts.Blunder ?? 0];
+  const tallyRows = tally.map((tk) => {
+    const serious = (tk.counts.Mistake ?? 0) + (tk.counts.Miss ?? 0) + (tk.counts.Blunder ?? 0);
+    return [tk.label, tk.games, tk.moves, tk.moves ? de((serious / tk.moves) * 100) : "–", tk.counts.Inaccuracy ?? 0, tk.counts.Mistake ?? 0, tk.counts.Miss ?? 0, tk.counts.Blunder ?? 0];
   });
   return [
-    "## 6. Phasen",
+    t("## 6. Phasen"),
     "",
-    table(["Phase", "Genauigkeit", p.rating?.reference === "opponents" ? "Ø Gegner" : "Richtwert für Wertung", "Patzer gesamt", "Ø Zeit pro Zug"], rows),
-    tallyRows.length ? `\n${table(["Phase", "Partien", "Eigene Züge", "Schwere Fehler je 100", "Ungenau", "Fehler", "Verpasst", "Patzer"], tallyRows)}` : "",
+    table([t("Phase"), t("Genauigkeit"), p.rating?.reference === "opponents" ? t("Ø Gegner") : t("Richtwert für Wertung"), t("Patzer gesamt"), t("Ø Zeit pro Zug")], rows),
+    tallyRows.length ? `\n${table([t("Phase"), t("Partien"), t("Eigene Züge"), t("Schwere Fehler je 100"), t("Ungenau"), t("Fehler"), t("Verpasst"), t("Patzer")], tallyRows)}` : "",
   ].join("\n");
 }
 
 function moveQualitySection(p: PlayerProfile): string {
-  const t = p.moves;
-  if (!t) return "## 7. Zugqualität\n\n_Noch keine analysierten Partien._";
-  const opp = t.opponents;
-  const rows = t.classes.map((c) => [
+  const tk = p.moves;
+  if (!tk) return t("## 7. Zugqualität\n\n_Noch keine analysierten Partien._");
+  const opp = tk.opponents;
+  const rows = tk.classes.map((c) => [
     trClassification(c.key),
     c.count,
     de(c.per_game, 2),
@@ -369,17 +323,17 @@ function moveQualitySection(p: PlayerProfile): string {
     c.games_with,
     opp && opp.moves ? de(((opp.counts[c.key] ?? 0) / opp.moves) * 100) : "–",
   ]);
-  const r = t.records;
+  const r = tk.records;
   return [
-    "## 7. Zugqualität",
+    t("## 7. Zugqualität"),
     "",
-    `${t.games} analysierte Partien, ${t.moves} eigene Züge${opp ? `, ${opp.moves} Züge der Gegner` : ""}.`,
+    t("{games} analysierte Partien, {moves} eigene Züge{2}.", { games: tk.games, moves: tk.moves, 2: opp ? t(", {moves} Züge der Gegner", { moves: opp.moves }) : "" }),
     "",
-    table(["Klasse", "Anzahl", "Je Partie", "Je 100 Züge", "Partien mit", "Gegner je 100 Züge"], rows),
+    table([t("Klasse"), t("Anzahl"), t("Je Partie"), t("Je 100 Züge"), t("Partien mit"), t("Gegner je 100 Züge")], rows),
     "",
     bullets([
-      `Partien ohne Patzer: ${r.blunder_free_games}; längste Serie ohne Patzer: ${r.longest_blunder_free}; aktuelle Serie: ${r.current_blunder_free}.`,
-      ...t.findings.map((f) => `${f.title}: ${f.text}`),
+      t("Partien ohne Patzer: {blunder_free_games}; längste Serie ohne Patzer: {longest_blunder_free}; aktuelle Serie: {current_blunder_free}.", { blunder_free_games: r.blunder_free_games, longest_blunder_free: r.longest_blunder_free, current_blunder_free: r.current_blunder_free }),
+      ...tk.findings.map((f) => `${f.title}: ${f.text}`),
     ]),
   ].join("\n");
 }
@@ -393,24 +347,24 @@ function skillsSection(p: PlayerProfile): string {
       s.typical !== null && s.typical !== undefined ? Math.round(s.typical) : "–",
       s.margin ? `± ${Math.round(s.margin)}` : "–",
       s.games ?? s.sample,
-      s.reliable ? "ja" : "wenig Daten",
+      s.reliable ? "ja" : t("wenig Daten"),
       s.detail,
     ]);
   const sm = p.strength;
   const fide = sm
     ? [...sm.skills, ...(sm.overall ? [sm.overall] : [])].map((x) => [
         x.name,
-        `≈ ${x.capped < 0 ? `unter ${x.rating}` : x.capped > 0 ? `über ${x.rating}` : x.rating}`,
+        t("≈ {n}", { n: x.capped < 0 ? t("unter {rating}", { rating: x.rating }) : x.capped > 0 ? t("über {rating}", { rating: x.rating }) : x.rating }),
         `± ${x.margin}`,
         `${de(x.error_ratio, 2)}×`,
         x.games,
-        x.reliable ? "ja" : "wenig Daten",
+        x.reliable ? "ja" : t("wenig Daten"),
       ])
     : [];
   return [
-    `## 8. Fähigkeiten\n\n${table(["Fähigkeit", "Wert", "Vergleich", "Unsicherheit", "Partien", "Belastbar", "Grundlage"], rows)}`,
+    t("## 8. Fähigkeiten\n\n{table}", { table: table([t("Fähigkeit"), t("Wert"), t("Vergleich"), t("Unsicherheit"), t("Partien"), t("Belastbar"), t("Grundlage")], rows) }),
     fide.length
-      ? `\n**Als Elo (${ELO_SCALE_LABEL})** (Fehlerquote gegen die Gegner derselben Partien, Ø Gegner ≈ ${sm!.opponents_elo}; 95-%-Unsicherheit)\n\n${table(["Bereich", "Elo", "Unsicherheit", "Fehler eigen / Gegner", "Partien", "Belastbar"], fide)}`
+      ? t("\n**Als Elo ({ELO_SCALE_LABEL})** (Fehlerquote gegen die Gegner derselben Partien, Ø Gegner ≈ {opponents_elo}; 95-%-Unsicherheit)\n\n{table}", { ELO_SCALE_LABEL, opponents_elo: sm!.opponents_elo, table: table([t("Bereich"), t("Elo"), t("Unsicherheit"), t("Fehler eigen / Gegner"), t("Partien"), t("Belastbar")], fide) })
       : "",
   ].join("\n");
 }
@@ -418,69 +372,69 @@ function skillsSection(p: PlayerProfile): string {
 function insightsSection(p: PlayerProfile, nrOf: (id: string) => string): string {
   const refs = (examples: { game_id: string; label: string }[]) => {
     const list = examples.slice(0, 4).map((e) => `${nrOf(e.game_id)}${e.label ? ` ${e.label}` : ""}`).filter((s) => !s.startsWith("?"));
-    return list.length ? ` Beispiele: ${list.join("; ")}.` : "";
+    return list.length ? t(" Beispiele: {list}.", { list: list.join("; ") }) : "";
   };
   return [
-    "## 9. Stärken, Schwächen und Muster",
+    t("## 9. Stärken, Schwächen und Muster"),
     "",
-    "**Stärken** (von der App statistisch geprüft)",
-    p.strengths.length ? bullets(p.strengths.map((s) => `${s.title}: ${s.text}`)) : "_Noch keine belastbare Stärke._",
+    t("**Stärken** (von der App statistisch geprüft)"),
+    p.strengths.length ? bullets(p.strengths.map((s) => `${s.title}: ${s.text}`)) : t("_Noch keine belastbare Stärke._"),
     "",
-    "**Schwächen** (von der App statistisch geprüft)",
-    p.weaknesses.length ? bullets(p.weaknesses.map((s) => `${s.title}: ${s.text}`)) : "_Noch keine belastbare Schwäche._",
+    t("**Schwächen** (von der App statistisch geprüft)"),
+    p.weaknesses.length ? bullets(p.weaknesses.map((s) => `${s.title}: ${s.text}`)) : t("_Noch keine belastbare Schwäche._"),
     "",
-    "**Wiederkehrende Muster**",
-    p.patterns.length ? bullets(p.patterns.map((x) => `${x.title} (Schwere: ${x.severity}): ${x.text}${refs(x.examples)}`)) : "_Keine._",
+    t("**Wiederkehrende Muster**"),
+    p.patterns.length ? bullets(p.patterns.map((x) => t("{title} (Schwere: {severity}): {text}{refs}", { title: x.title, severity: x.severity, text: x.text, refs: refs(x.examples) }))) : t("_Keine._"),
     p.training_plan.length
-      ? `\n**Trainingsvorschläge der App**\n${bullets(p.training_plan.map((t) => `${t.title}: ${t.reason}${t.steps.length ? ` Schritte: ${t.steps.join(" ")}` : ""}${refs(t.examples)}`))}`
+      ? t("\n**Trainingsvorschläge der App**\n{bullets}", { bullets: bullets(p.training_plan.map((tk) => `${tk.title}: ${tk.reason}${tk.steps.length ? t(" Schritte: {steps}", { steps: tk.steps.join(" ") }) : ""}${refs(tk.examples)}`)) })
       : "",
   ].join("\n");
 }
 
 function styleSection(p: PlayerProfile): string {
-  if (!p.style) return "## 10. Spielstil\n\n_Noch zu wenige analysierte Partien._";
+  if (!p.style) return t("## 10. Spielstil\n\n_Noch zu wenige analysierte Partien._");
   const s = p.style;
   return [
-    "## 10. Spielstil",
+    t("## 10. Spielstil"),
     "",
     `**${s.label}**: ${s.description}`,
     "",
-    table(["Achse", "Wert (0–100)", "0 bedeutet", "100 bedeutet"], s.axes.map((a) => [a.name, `${Math.round(a.value)}${a.margin ? ` ± ${Math.round(a.margin)}` : ""}`, a.low_label, a.high_label])),
+    table([t("Achse"), t("Wert (0–100)"), t("0 bedeutet"), t("100 bedeutet")], s.axes.map((a) => [a.name, `${Math.round(a.value)}${a.margin ? ` ± ${Math.round(a.margin)}` : ""}`, a.low_label, a.high_label])),
     s.facts.length ? `\n${bullets(s.facts)}` : "",
   ].join("\n");
 }
 
 const moveTable = (title: string, buckets: MoveBucket[]) =>
   buckets.some((b) => b.moves)
-    ? `**${title}**\n\n${table(["Gruppe", "Eigene Züge", "Schwere Fehler", "Je 100 Züge"], buckets.filter((b) => b.moves).map((b) => [b.label, b.moves, b.errors, b.per100 !== null ? de(b.per100) : "–"]))}`
+    ? `**${title}**\n\n${table([t("Gruppe"), t("Eigene Züge"), t("Schwere Fehler"), t("Je 100 Züge")], buckets.filter((b) => b.moves).map((b) => [b.label, b.moves, b.errors, b.per100 !== null ? de(b.per100) : "–"]))}`
     : "";
 
 const scoreTable = (title: string, buckets: ScoreBucket[]) =>
   buckets.some((b) => b.games)
-    ? `**${title}**\n\n${table(["Gruppe", "Partien", "Punkte", "± (95 %)", "Genauigkeit"], buckets.filter((b) => b.games).map((b) => [b.label, b.games, pct(b.score_pct), b.margin !== null ? Math.round(b.margin) : "–", pct1(b.avg_accuracy)]))}`
+    ? `**${title}**\n\n${table([t("Gruppe"), t("Partien"), t("Punkte"), "± (95 %)", t("Genauigkeit")], buckets.filter((b) => b.games).map((b) => [b.label, b.games, pct(b.score_pct), b.margin !== null ? Math.round(b.margin) : "–", pct1(b.avg_accuracy)]))}`
     : "";
 
 function deepSection(p: PlayerProfile): string {
   const d = p.deep;
-  if (!d) return "## 11. Fehleranalyse\n\n_Noch keine analysierten Partien._";
+  if (!d) return t("## 11. Fehleranalyse\n\n_Noch keine analysierten Partien._");
   const parts = [
-    "## 11. Fehleranalyse",
+    t("## 11. Fehleranalyse"),
     "",
-    d.facts.length ? `**Befunde der App** (statistisch geprüft)\n${bullets(d.facts)}` : "",
-    d.feedback.length ? `**Entwicklung und Rückmeldung**\n${bullets(d.feedback.map((f) => `${f.title}: ${f.text}`))}` : "",
-    `Fehler pro Partie: ${d.errors_per_game.map((e) => `${trClassification(e.classification)} ${de(e.per_game, 2)}`).join(", ")}.`,
-    d.punish.chances ? `Gegnerfehler bestraft: ${d.punish.punished} von ${d.punish.chances} (${pct(d.punish.rate)}).` : "",
-    d.hot_squares.length ? `Felder, auf denen die meisten schweren Fehler landen: ${d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ")}.` : "",
-    moveTable("Nach Zugnummer", d.by_move_number),
-    moveTable("Nach Stellungslage vor dem Zug (eigene GC)", d.by_situation),
-    moveTable("Nach gezogener Figur", d.by_piece),
-    moveTable("Nach Bedenkzeit pro Zug", d.by_think_time),
-    moveTable("Zeitnot", d.time_trouble),
-    moveTable("Nach Verlassen der Theorie", d.after_book),
-    scoreTable("Nach Tageszeit", d.by_daytime),
-    scoreTable("Nach Wochentag", d.by_weekday),
-    scoreTable("Nach dem Ergebnis der vorigen Partie (gleiche Sitzung)", d.after_result),
-    scoreTable("Nach Position in der Sitzung", d.by_session_game),
+    d.facts.length ? t("**Befunde der App** (statistisch geprüft)\n{bullets}", { bullets: bullets(d.facts) }) : "",
+    d.feedback.length ? t("**Entwicklung und Rückmeldung**\n{bullets}", { bullets: bullets(d.feedback.map((f) => `${f.title}: ${f.text}`)) }) : "",
+    t("Fehler pro Partie: {0}.", { 0: d.errors_per_game.map((e) => `${trClassification(e.classification)} ${de(e.per_game, 2)}`).join(", ") }),
+    d.punish.chances ? t("Gegnerfehler bestraft: {punished} von {chances} ({pct}).", { punished: d.punish.punished, chances: d.punish.chances, pct: pct(d.punish.rate) }) : "",
+    d.hot_squares.length ? t("Felder, auf denen die meisten schweren Fehler landen: {0}.", { 0: d.hot_squares.map((h) => `${h.square} (${h.count})`).join(", ") }) : "",
+    moveTable(t("Nach Zugnummer"), d.by_move_number),
+    moveTable(t("Nach Stellungslage vor dem Zug (eigene GC)"), d.by_situation),
+    moveTable(t("Nach gezogener Figur"), d.by_piece),
+    moveTable(t("Nach Bedenkzeit pro Zug"), d.by_think_time),
+    moveTable(t("Zeitnot"), d.time_trouble),
+    moveTable(t("Nach Verlassen der Theorie"), d.after_book),
+    scoreTable(t("Nach Tageszeit"), d.by_daytime),
+    scoreTable(t("Nach Wochentag"), d.by_weekday),
+    scoreTable(t("Nach dem Ergebnis der vorigen Partie (gleiche Sitzung)"), d.after_result),
+    scoreTable(t("Nach Position in der Sitzung"), d.by_session_game),
   ];
   return parts.filter(Boolean).join("\n\n");
 }
@@ -496,24 +450,24 @@ function materialSection(p: PlayerProfile): string {
   };
   const pieces = Object.entries(hang.by_piece ?? {}).filter(([, v]) => v > 0);
   return [
-    "## 12. Vorteile, Material und Taktik",
+    t("## 12. Vorteile, Material und Taktik"),
     "",
     bullets([
-      adv.had_winning_advantage ? `Gewinnstellung (GC ≥ ~75 %) erreicht in ${adv.had_winning_advantage} Partien, davon gewonnen ${adv.converted_advantage ?? 0} (${pct(adv.conversion_rate)}), verloren ${adv.thrown_losses ?? 0} (${pct(adv.throw_rate)}).` : "",
-      adv.had_losing_position ? `Verloren stehende Partien: ${adv.had_losing_position}, davon noch Remis oder Sieg: ${adv.comeback_drawn_or_won ?? 0} (${pct(adv.comeback_rate)}).` : "",
-      hang.total_hung !== undefined ? `Eingestellte Figuren: ${hang.total_hung}${pieces.length ? ` (${pieces.map(([k, v]) => `${trPiece(k, v > 1)} ${v}`).join(", ")})` : ""}. Eingestellte Gegnerfiguren geschlagen: ${hang.opponent_hanging_captured ?? 0}, übersehen: ${hang.opponent_hanging_missed ?? 0}.` : "",
-      themes.length ? `Taktische Motive in den eigenen Partien: ${themes.map(([k, v]) => `${trMotif(k)} ${v}`).join(", ")}.` : "",
-      num(s.time_loss_pct) ? `Anteil der Niederlagen durch Zeitüberschreitung: ${pct(s.time_loss_pct)}.` : "",
-      terms("Siege durch", s.win_term_counts),
-      terms("Niederlagen durch", s.loss_term_counts),
-      terms("Remis durch", s.draw_term_counts),
+      adv.had_winning_advantage ? t("Gewinnstellung (GC ≥ ~75 %) erreicht in {had_winning_advantage} Partien, davon gewonnen {1} ({pct}), verloren {3} ({pct2}).", { had_winning_advantage: adv.had_winning_advantage, 1: adv.converted_advantage ?? 0, pct: pct(adv.conversion_rate), 3: adv.thrown_losses ?? 0, pct2: pct(adv.throw_rate) }) : "",
+      adv.had_losing_position ? t("Verloren stehende Partien: {had_losing_position}, davon noch Remis oder Sieg: {1} ({pct}).", { had_losing_position: adv.had_losing_position, 1: adv.comeback_drawn_or_won ?? 0, pct: pct(adv.comeback_rate) }) : "",
+      hang.total_hung !== undefined ? t("Eingestellte Figuren: {total_hung}{1}. Eingestellte Gegnerfiguren geschlagen: {2}, übersehen: {3}.", { total_hung: hang.total_hung, 1: pieces.length ? ` (${pieces.map(([k, v]) => `${trPiece(k, v > 1)} ${v}`).join(", ")})` : "", 2: hang.opponent_hanging_captured ?? 0, 3: hang.opponent_hanging_missed ?? 0 }) : "",
+      themes.length ? t("Taktische Motive in den eigenen Partien: {0}.", { 0: themes.map(([k, v]) => `${trMotif(k)} ${v}`).join(", ") }) : "",
+      num(s.time_loss_pct) ? t("Anteil der Niederlagen durch Zeitüberschreitung: {pct}.", { pct: pct(s.time_loss_pct) }) : "",
+      terms(t("Siege durch"), s.win_term_counts),
+      terms(t("Niederlagen durch"), s.loss_term_counts),
+      terms(t("Remis durch"), s.draw_term_counts),
     ]),
   ].join("\n");
 }
 
 function openingSection(p: PlayerProfile, nrOf: (id: string) => string): string {
   const op = p.openings;
-  if (!op) return "## 13. Eröffnungen\n\n_Keine Daten._";
+  if (!op) return t("## 13. Eröffnungen\n\n_Keine Daten._");
   const rows = (list: OpeningStat[]) =>
     list.slice(0, 15).map((l) => [
       `${l.eco ? `${l.eco} ` : ""}${l.name}`,
@@ -526,36 +480,36 @@ function openingSection(p: PlayerProfile, nrOf: (id: string) => string): string 
       l.first_error_move !== null ? Math.round(l.first_error_move) : "–",
       l.line.slice(0, 10).join(" "),
     ]);
-  const head = ["Eröffnung", "Partien", "S/R/N", "Punkte", "Eröffnungs-Genauigkeit", "GC nach Eröffnung", "Theorie bis Zug", "1. schwerer Fehler ~Zug", "Typische Züge"];
+  const head = [t("Eröffnung"), t("Partien"), "S/R/N", t("Punkte"), t("Eröffnungs-Genauigkeit"), t("GC nach Eröffnung"), t("Theorie bis Zug"), t("1. schwerer Fehler ~Zug"), t("Typische Züge")];
   const leaks = op.tree.leaks.slice(0, 10).map((l) => [
     trColor(l.color),
     l.path.join(" "),
     l.san,
     l.better ?? "–",
-    `${l.errors} von ${l.judged}`,
+    t("{errors} von {judged}", { errors: l.errors, judged: l.judged }),
     l.games,
     pct(l.score_pct),
     l.recent.slice(0, 3).map((g) => nrOf(g.id)).filter((n) => n !== "?").join(", "),
   ]);
   return [
-    "## 13. Eröffnungen",
+    t("## 13. Eröffnungen"),
     "",
-    op.wp_after_opening !== null ? `Ø eigene Gewinnchance nach der Eröffnung: ${pct(op.wp_after_opening)}.` : "",
+    op.wp_after_opening !== null ? t("Ø eigene Gewinnchance nach der Eröffnung: {pct}.", { pct: pct(op.wp_after_opening) }) : "",
     "",
-    "**Repertoire mit Weiß**",
+    t("**Repertoire mit Weiß**"),
     "",
     table(head, rows(op.white)),
     "",
-    "**Repertoire mit Schwarz**",
+    t("**Repertoire mit Schwarz**"),
     "",
     table(head, rows(op.black)),
     "",
-    op.white_first.length ? `Erste Züge mit Weiß: ${op.white_first.map((c) => `1. ${c.san} (${c.games}×, ${pct(c.score_pct)})`).join(", ")}.` : "",
-    ...op.black_vs.slice(0, 5).map((v) => `Mit Schwarz gegen 1. ${v.san} (${v.games}×, ${pct(v.score_pct)} Punkte): ${v.replies.map((r) => `1… ${r.san} (${r.games}×, ${pct(r.score_pct)})`).join(", ")}.`),
+    op.white_first.length ? t("Erste Züge mit Weiß: {0}.", { 0: op.white_first.map((c) => `1. ${c.san} (${c.games}×, ${pct(c.score_pct)})`).join(", ") }) : "",
+    ...op.black_vs.slice(0, 5).map((v) => t("Mit Schwarz gegen 1. {san} ({games}×, {pct} Punkte): {3}.", { san: v.san, games: v.games, pct: pct(v.score_pct), 3: v.replies.map((r) => `1… ${r.san} (${r.games}×, ${pct(r.score_pct)})`).join(", ") })),
     leaks.length
-      ? `\n**Eröffnungszüge, die immer wieder schiefgehen**\n\n${table(["Farbe", "Zugfolge bis dahin", "Gespielter Zug", "Besser", "Davon Fehler", "Partien", "Punkte", "Beispiele"], leaks)}`
+      ? t("\n**Eröffnungszüge, die immer wieder schiefgehen**\n\n{table}", { table: table([t("Farbe"), t("Zugfolge bis dahin"), t("Gespielter Zug"), t("Besser"), t("Davon Fehler"), t("Partien"), t("Punkte"), t("Beispiele")], leaks) })
       : "",
-    op.facts.length ? `\n**Befunde der App**\n${bullets(op.facts)}` : "",
+    op.facts.length ? t("\n**Befunde der App**\n{bullets}", { bullets: bullets(op.facts) }) : "",
   ].join("\n");
 }
 
@@ -567,17 +521,17 @@ function trendSection(p: PlayerProfile): string {
   const evo = p.deep?.evolution;
   const changes = evo?.changes ?? [];
   return [
-    "## 14. Entwicklung",
+    t("## 14. Entwicklung"),
     "",
-    table(["Monat", "Partien", "Punkte", "Genauigkeit", "Patzer je Partie"], rows),
+    table([t("Monat"), t("Partien"), t("Punkte"), t("Genauigkeit"), t("Patzer je Partie")], rows),
     changes.length
-      ? `\n**Vorher/Nachher-Vergleich der App**\n${bullets(
+      ? t("\n**Vorher/Nachher-Vergleich der App**\n{bullets}", { bullets: bullets(
           changes.map((c) => {
             const unit = c.unit ? ` ${c.unit}` : "";
             const v = (x: number) => de(x, c.unit ? 1 : 2);
-            return `${c.label}: ${v(c.earlier)}${unit} → ${v(c.recent)}${unit}${c.significant ? (c.improved ? " (deutlich besser)" : " (deutlich schlechter)") : " (kein klarer Unterschied)"}`;
+            return `${c.label}: ${v(c.earlier)}${unit} → ${v(c.recent)}${unit}${c.significant ? (c.improved ? t(" (deutlich besser)") : t(" (deutlich schlechter)")) : t(" (kein klarer Unterschied)")}`;
           }),
-        )}`
+        ) })
       : "",
   ].join("\n");
 }
@@ -586,15 +540,15 @@ function trainingSection(input: AiExportInput, p: PlayerProfile): string {
   const get = <T,>(key: string, fallback: T): T => (input.settings.find((s) => s.key === key)?.value as T | undefined) ?? fallback;
   const progress = get<ProgressMap>("training.progress", {});
   const log = get<TrainingLog>("training.log", {});
-  if (!Object.keys(progress).length && !Object.keys(log).length) return "## 15. Training in der App\n\n_Noch keine Übungen gemacht._";
-  const t = summarizeTraining(p.exercises, progress, log, input.today);
-  const cats = t.categories.filter((c) => c.total > 0 || c.attempts > 0);
+  if (!Object.keys(progress).length && !Object.keys(log).length) return t("## 15. Training in der App\n\n_Noch keine Übungen gemacht._");
+  const tk = summarizeTraining(p.exercises, progress, log, input.today);
+  const cats = tk.categories.filter((c) => c.total > 0 || c.attempts > 0);
   return [
-    "## 15. Training in der App",
+    t("## 15. Training in der App"),
     "",
-    `Serie: ${t.streak} Tage am Stück. Letzte 7 Tage: ${t.week.done} Übungen, davon ${t.week.correct} gelöst.`,
+    t("Serie: {streak} Tage am Stück. Letzte 7 Tage: {done} Übungen, davon {correct} gelöst.", { streak: tk.streak, done: tk.week.done, correct: tk.week.correct }),
     "",
-    table(["Übungsart", "Verfügbar", "Versuche", "Gelöst", "Quote", "Sicher beherrscht"], cats.map((c) => [CATEGORIES[c.category].label, c.total, c.attempts, c.solved, c.rate !== null ? pct(c.rate) : "–", c.mastered])),
+    table([t("Übungsart"), t("Verfügbar"), t("Versuche"), t("Gelöst"), t("Quote"), t("Sicher beherrscht")], cats.map((c) => [CATEGORIES[c.category].label, c.total, c.attempts, c.solved, c.rate !== null ? pct(c.rate) : "–", c.mastered])),
   ].join("\n");
 }
 
@@ -615,14 +569,14 @@ function gameListSection(items: GameItem[], limit: number): string {
       Math.ceil(it.moves.length / 2),
       pct1(sideAccuracy(it, it.color)),
       pct1(sideAccuracy(it, it.color === "white" ? "black" : "white")),
-      c ? `${c.Blunder ?? 0}/${c.Mistake ?? 0}/${c.Miss ?? 0}/${c.Inaccuracy ?? 0}` : "nicht analysiert",
+      c ? `${c.Blunder ?? 0}/${c.Mistake ?? 0}/${c.Miss ?? 0}/${c.Inaccuracy ?? 0}` : t("nicht analysiert"),
     ];
   });
-  const more = items.length > limit ? `\n\n_${items.length - limit} ältere Partien sind nicht einzeln aufgeführt, aber in allen Statistiken enthalten._` : "";
-  return `## 16. Partienliste (neueste zuerst)\n\n${table(
-    ["Nr", "Datum", "Tempo", "Farbe", "Eigene Elo", "Gegner", "Ergebnis", "Beendigung", "Eröffnung", "Züge", "Genauigkeit", "Gegner-Gen.", "Patzer/Fehler/Verpasst/Ungenau"],
+  const more = items.length > limit ? t("\n\n_{0} ältere Partien sind nicht einzeln aufgeführt, aber in allen Statistiken enthalten._", { 0: items.length - limit }) : "";
+  return t("## 16. Partienliste (neueste zuerst)\n\n{table}{more}", { table: table(
+    [t("Nr"), t("Datum"), t("Tempo"), t("Farbe"), t("Eigene Elo"), t("Gegner"), t("Ergebnis"), t("Beendigung"), t("Eröffnung"), t("Züge"), t("Genauigkeit"), t("Gegner-Gen."), t("Patzer/Fehler/Verpasst/Ungenau")],
     rows,
-  )}${more}`;
+  ), more });
 }
 
 /** One costly move with everything a reader needs to understand it without a board. */
@@ -645,13 +599,13 @@ function momentLines(it: GameItem, idx: number): string {
   // A bare "Besser war …" only repeats the line above; one with a reason after the colon stays.
   if (bestLine) reasons = reasons.filter((r) => !/^Besser war [^:]*\.$/.test(r));
   const phase = phaseOf(m, idx);
-  const time = m.time_spent !== null && m.time_spent !== undefined ? `, ${de(m.time_spent, 0)} s überlegt${m.time_left !== null ? `, Restzeit ${clock(m.time_left)}` : ""}` : "";
+  const time = m.time_spent !== null && m.time_spent !== undefined ? t(", {de} s überlegt{1}", { de: de(m.time_spent, 0), 1: m.time_left !== null ? t(", Restzeit {clock}", { clock: clock(m.time_left) }) : "" }) : "";
   return [
-    `- **${moveLabel(m, idx)}${NAG[m.classification] ?? ""}** ${trClassification(m.classification)}${phase ? ` ${trPhaseIn(phase)}` : ""}: GC ${wpB} % → ${wpA} % (Bewertung ${evalText(m.eval_before_cp, m.eval_before_mate)} → ${evalText(m.eval_after_cp, m.eval_after_mate, m.san)})${time}.`,
-    bestLine ? `  - Besser: ${bestLine}` : "",
-    refutation ? `  - Beste Antwort des Gegners danach: ${refutation}` : "",
-    reasons.length ? `  - Warum: ${reasons.join(" ")}` : m.explanation ? `  - Hinweis der App: ${m.explanation}` : "",
-    `  - Stellung vor dem Zug: \`${m.fen_before}\``,
+    t("- **{moveLabel}{1}** {trClassification}{3}: GC {wpB} % → {wpA} % (Bewertung {evalText} → {evalText2}){time}.", { moveLabel: moveLabel(m, idx), 1: NAG[m.classification] ?? "", trClassification: trClassification(m.classification), 3: phase ? ` ${trPhaseIn(phase)}` : "", wpB, wpA, evalText: evalText(m.eval_before_cp, m.eval_before_mate), evalText2: evalText(m.eval_after_cp, m.eval_after_mate, m.san), time }),
+    bestLine ? t("  - Besser: {bestLine}", { bestLine }) : "",
+    refutation ? t("  - Beste Antwort des Gegners danach: {refutation}", { refutation }) : "",
+    reasons.length ? t("  - Warum: {reasons}", { reasons: reasons.join(" ") }) : m.explanation ? t("  - Hinweis der App: {explanation}", { explanation: tStored(m.explanation) }) : "",
+    t("  - Stellung vor dem Zug: `{fen_before}`", { fen_before: m.fen_before }),
   ]
     .filter(Boolean)
     .join("\n");
@@ -682,25 +636,25 @@ function momentsSection(items: GameItem[], limits: (typeof AI_EXPORT_LIMITS)[AiE
     const oppAcc = sideAccuracy(it, isWhite ? "black" : "white");
     const lines = [
       `### ${gameTitle(it)}`,
-      `Eröffnung: ${openingOf(g)} · ${Math.ceil(it.moves.length / 2)} Züge · Genauigkeit ${pct1(acc)} (Gegner ${pct1(oppAcc)})`,
+      t("Eröffnung: {openingOf} · {1} Züge · Genauigkeit {pct1} (Gegner {pct12})", { openingOf: openingOf(g), 1: Math.ceil(it.moves.length / 2), pct1: pct1(acc), pct12: pct1(oppAcc) }),
     ];
     if (review) {
       lines.push(
-        `Phasen: ${review.phases
+        t("Phasen: {0}", { 0: review.phases
           .filter((ph) => ph.moves > 0)
-          .map((ph) => `${ph.name} ${ph.accuracy ? pct(ph.accuracy) : "–"} (${ph.errors} ${ph.errors === 1 ? "schwerer Fehler" : "schwere Fehler"} in ${ph.moves} Zügen)`)
-          .join(" · ")}`,
+          .map((ph) => t("{name} {1} ({errors} {3} in {moves} Zügen)", { name: ph.name, 1: ph.accuracy ? pct(ph.accuracy) : "–", errors: ph.errors, 3: ph.errors === 1 ? t("schwerer Fehler") : t("schwere Fehler"), moves: ph.moves }))
+          .join(" · ") }),
       );
-      lines.push(`Fazit der App: ${review.headline}`);
-      if (review.turning_point) lines.push(`Wendepunkt: ${review.turning_point.move_label} (${review.turning_point.by_user ? "eigener Zug" : "Zug des Gegners"}, GC ${Math.round(review.turning_point.wp_before * 100)} % → ${Math.round(review.turning_point.wp_after * 100)} %)`);
+      lines.push(t("Fazit der App: {headline}", { headline: review.headline }));
+      if (review.turning_point) lines.push(t("Wendepunkt: {move_label} ({1}, GC {2} % → {3} %)", { move_label: review.turning_point.move_label, 1: review.turning_point.by_user ? t("eigener Zug") : t("Zug des Gegners"), 2: Math.round(review.turning_point.wp_before * 100), 3: Math.round(review.turning_point.wp_after * 100) }));
     }
     if (own.length) lines.push("", ...own.map(({ idx }) => momentLines(it, idx)));
-    else lines.push("", "- Kein schwerer eigener Fehler in dieser Partie.");
-    if (highlights.length) lines.push(`- Starke Züge: ${highlights.map(({ m, idx }) => `${moveLabel(m, idx)}${NAG[m.classification]} (${trClassification(m.classification)})`).join(", ")}`);
-    if (review?.lessons.length) lines.push(`- Lehre der App: ${review.lessons.join(" ")}`);
+    else lines.push("", t("- Kein schwerer eigener Fehler in dieser Partie."));
+    if (highlights.length) lines.push(t("- Starke Züge: {0}", { 0: highlights.map(({ m, idx }) => `${moveLabel(m, idx)}${NAG[m.classification]} (${trClassification(m.classification)})`).join(", ") }));
+    if (review?.lessons.length) lines.push(t("- Lehre der App: {lessons}", { lessons: review.lessons.join(" ") }));
     return lines.join("\n");
   });
-  return `## 17. Kritische Momente der neuesten analysierten Partien\n\nJe Partie die ${limits.errorsPerGame} teuersten eigenen Züge mit besserem Zug, Engine-Linie, konkreter Begründung und Stellung (FEN).\n\n${blocks.join("\n\n") || "_Noch keine analysierten Partien._"}`;
+  return t("## 17. Kritische Momente der neuesten analysierten Partien\n\nJe Partie die {errorsPerGame} teuersten eigenen Züge mit besserem Zug, Engine-Linie, konkreter Begründung und Stellung (FEN).\n\n{1}", { errorsPerGame: limits.errorsPerGame, 1: blocks.join("\n\n") || t("_Noch keine analysierten Partien._") });
 }
 
 /** Whole game as PGN move text with the engine score after every move and verdicts on notable moves. */
@@ -716,11 +670,11 @@ export function annotatedMovetext(moves: MoveData[], userColor: "white" | "black
     const ev = evalText(m.eval_after_cp, m.eval_after_mate, m.san);
     let comment = ev;
     if (NOTED.has(cls)) {
-      const who = white === isUserWhite ? "eigener Zug" : "Gegner";
+      const who = white === isUserWhite ? t("eigener Zug") : t("Gegner");
       const wpB = Math.round(userWp(m.win_chance_before, isUserWhite) * 100);
       const wpA = Math.round(userWp(m.win_chance_after, isUserWhite) * 100);
       const best = m.best_move && m.best_move !== m.uci && cls !== "Brilliant" && cls !== "Great" ? pvToSan(m.fen_before, [m.best_move]).replace(/^\d+\.+\s*/, "") : "";
-      comment = `${ev}; ${trClassification(cls)} (${who}), GC ${wpB} → ${wpA} %${best ? `, besser ${best}` : ""}`;
+      comment = t("{ev}; {trClassification} ({who}), GC {wpB} → {wpA} %{5}", { ev, trClassification: trClassification(cls), who, wpB, wpA, 5: best ? t(", besser {best}", { best }) : "" });
     }
     out.push(`${num}${m.san}${NAG[cls] ?? ""} {${comment}}`);
     // After a comment the next Black move repeats its number, as in PGN.
@@ -732,7 +686,7 @@ export function annotatedMovetext(moves: MoveData[], userColor: "white" | "black
 function annotatedSection(items: GameItem[], limit: number): string {
   const games = items.filter((i) => i.analyzed).slice(0, limit);
   const blocks = games.map((it) => `### ${gameTitle(it)}\n\n${annotatedMovetext(it.moves, it.color)}`);
-  return `## 18. Partien mit Engine-Kommentaren\n\nDie neuesten analysierten Partien Zug für Zug. Hinter jedem Zug steht in {} die Bewertung danach (aus Sicht von Weiß); auffällige Züge tragen die Zugklasse und die Gewinnchance aus Sicht des Spielers.\n\n${blocks.join("\n\n") || "_Noch keine analysierten Partien._"}`;
+  return t("## 18. Partien mit Engine-Kommentaren\n\nDie neuesten analysierten Partien Zug für Zug. Hinter jedem Zug steht in {} die Bewertung danach (aus Sicht von Weiß); auffällige Züge tragen die Zugklasse und die Gewinnchance aus Sicht des Spielers.\n\n{0}", { 0: blocks.join("\n\n") || t("_Noch keine analysierten Partien._") });
 }
 
 /** Builds the Markdown file for an AI chat from the player's games in the period. */
@@ -747,7 +701,7 @@ export function buildAiExport(input: AiExportInput): AiExportResult {
 
   const sections = [header(input, items, profile, limits), TASK, LEGEND];
   if (!profile) {
-    sections.push("## 3. Daten\n\n_Keine eigenen Partien im gewählten Zeitraum. Trage in der App unter Einstellungen deine Benutzernamen ein._");
+    sections.push(t("## 3. Daten\n\n_Keine eigenen Partien im gewählten Zeitraum. Trage in der App unter Einstellungen deine Benutzernamen ein._"));
   } else {
     sections.push(
       overviewSection(profile),
@@ -768,6 +722,6 @@ export function buildAiExport(input: AiExportInput): AiExportResult {
       annotatedSection(items, limits.annotated),
     );
   }
-  const text = `${sections.join("\n\n")}\n\n---\nEnde des Datenpakets.\n`;
+  const text = t("{sections}\n\n---\nEnde des Datenpakets.\n", { sections: sections.join("\n\n") });
   return { text, games: items.length, analyzed };
 }

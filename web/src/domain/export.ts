@@ -10,6 +10,7 @@ import { dateWindow, getUserColor, inDateFilter, outcomeFor, parseMoves, parseSu
 import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile } from "./profile";
 import { summarizeTraining, type DailyPlan, type ProgressMap, type TrainingLog, type TrainingSummary } from "./training";
 import type { MoveData, StoredGame } from "./types";
+import { t, dec } from "../i18n";
 
 export const BACKUP_FORMAT = "schach-analyse-backup";
 export const BACKUP_VERSION = 2;
@@ -67,12 +68,12 @@ export interface FullExport {
 const SKIP_SETTING = (key: string) => key.startsWith("sync.") || key.startsWith("training.") || key.startsWith("coach.");
 
 const HINWEIS =
-  `Vollständiger Export aus ${BRAND}. ` +
-  "games: alle Partien mit PGN und jedem analysierten Zug " +
-  "(Bewertung aus Sicht von Weiß, Klassifizierung, beste Fortsetzung). reviews: Partie-Auswertung je Partie. " +
-  "profile: Statistiken, Fähigkeiten, Stärken, Schwächen, Spielstil, Muster, Eröffnungen, Einblicke, " +
-  "Verläufe und Trainingsplan für den gewählten Zeitraum. training: Übungsfortschritt und Tagespläne. " +
-  "Diese Datei lässt sich unter Einstellungen wieder einspielen.";
+  t("Vollständiger Export aus {BRAND}. ", { BRAND }) +
+  t("games: alle Partien mit PGN und jedem analysierten Zug ") +
+  t("(Bewertung aus Sicht von Weiß, Klassifizierung, beste Fortsetzung). reviews: Partie-Auswertung je Partie. ") +
+  t("profile: Statistiken, Fähigkeiten, Stärken, Schwächen, Spielstil, Muster, Eröffnungen, Einblicke, ") +
+  t("Verläufe und Trainingsplan für den gewählten Zeitraum. training: Übungsfortschritt und Tagespläne. ") +
+  t("Diese Datei lässt sich unter Einstellungen wieder einspielen.");
 
 const isoDay = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
 
@@ -155,7 +156,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => Boolean(v) && typ
  */
 export function parseBackup(text: string): ParsedBackup {
   const data: unknown = JSON.parse(text);
-  if (!isRecord(data) || !Array.isArray(data.games)) throw new Error(`Keine Sicherung von ${BRAND}.`);
+  if (!isRecord(data) || !Array.isArray(data.games)) throw new Error(t("Keine Sicherung von {BRAND}.", { BRAND }));
   const games = data.games.filter(
     (g): g is StoredGame => isRecord(g) && typeof g.id === "string" && typeof g.pgn === "string" && !g.deleted,
   );
@@ -180,40 +181,40 @@ export function parseBackup(text: string): ParsedBackup {
 // ---- CSV / PGN ----
 
 const CSV_HEADER = [
-  "Datum",
-  "Weiß",
-  "Schwarz",
-  "Ergebnis",
-  "Deine Farbe",
-  "Dein Ergebnis",
-  "Gegner",
-  "Deine Wertung",
-  "Gegner-Wertung",
-  "Bedenkzeit",
-  "Zeitkontrolle",
-  "Quelle",
+  t("Datum"),
+  t("Weiß"),
+  t("Schwarz"),
+  t("Ergebnis"),
+  t("Deine Farbe"),
+  t("Dein Ergebnis"),
+  t("Gegner"),
+  t("Deine Wertung"),
+  t("Gegner-Wertung"),
+  t("Bedenkzeit"),
+  t("Zeitkontrolle"),
+  t("Quelle"),
   "ECO",
-  "Eröffnung",
-  "Halbzüge",
-  "Analysiert",
-  "Genauigkeit Weiß",
-  "Genauigkeit Schwarz",
-  "Deine Genauigkeit",
-  "Deine Genauigkeit Eröffnung",
-  "Deine Genauigkeit Mittelspiel",
-  "Deine Genauigkeit Endspiel",
-  "Brillant",
-  "Großartig",
-  "Beste Züge",
-  "Ungenauigkeiten",
-  "Fehler",
-  "Verpasst",
-  "Patzer",
-  "Beendigung",
-  "Partie-ID",
+  t("Eröffnung"),
+  t("Halbzüge"),
+  t("Analysiert"),
+  t("Genauigkeit Weiß"),
+  t("Genauigkeit Schwarz"),
+  t("Deine Genauigkeit"),
+  t("Deine Genauigkeit Eröffnung"),
+  t("Deine Genauigkeit Mittelspiel"),
+  t("Deine Genauigkeit Endspiel"),
+  t("Brillant"),
+  t("Großartig"),
+  t("Beste Züge"),
+  t("Ungenauigkeiten"),
+  t("Fehler"),
+  t("Verpasst"),
+  t("Patzer"),
+  t("Beendigung"),
+  t("Partie-ID"),
 ];
 
-const OUTCOME_DE: Record<string, string> = { win: "Sieg", draw: "Remis", loss: "Niederlage" };
+const OUTCOME_DE: Record<string, string> = { win: t("Sieg"), draw: t("Remis"), loss: t("Niederlage") };
 
 function moverIsWhite(m: MoveData, idx: number): boolean {
   const side = m.fen_before?.split(" ")[1];
@@ -223,7 +224,7 @@ function moverIsWhite(m: MoveData, idx: number): boolean {
 // Excel in German locales splits on ";" and reads "," as the decimal mark.
 function cell(v: unknown): string {
   if (v === null || v === undefined) return "";
-  const s = typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", ",")) : String(v);
+  const s = typeof v === "number" ? (Number.isInteger(v) ? String(v) : v.toFixed(1).replace(".", dec())) : String(v);
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -258,7 +259,7 @@ export function gamesCsv(games: StoredGame[], usernames: string[]): string {
         g.white,
         g.black,
         g.result,
-        color === "white" ? "Weiß" : color === "black" ? "Schwarz" : "",
+        color === "white" ? t("Weiß") : color === "black" ? t("Schwarz") : "",
         outcome ? OUTCOME_DE[outcome] : "",
         mine(g.black, g.white),
         mine(g.white_elo, g.black_elo),
@@ -269,7 +270,7 @@ export function gamesCsv(games: StoredGame[], usernames: string[]): string {
         g.eco,
         g.opening,
         moves.length,
-        done ? "ja" : "nein",
+        done ? t("ja") : t("nein"),
         side("white"),
         side("black"),
         color ? side(color) : null,

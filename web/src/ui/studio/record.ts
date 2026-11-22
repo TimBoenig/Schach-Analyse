@@ -1,6 +1,8 @@
 // Video export straight from the browser: the finished frames are played in
 // real time onto a canvas whose picture (and the move sounds) MediaRecorder
 // encodes. MP4 where the browser can (Chrome, Edge, Safari), WebM otherwise.
+import { t } from "../../i18n";
+
 
 export interface VideoType {
   mime: string;
@@ -27,7 +29,7 @@ export interface RecordJob {
   fps: number;
   duration: number;
   /** Paints the frame for video second t. */
-  paint: (t: number) => void;
+  paint: (tk: number) => void;
   audio?: MediaStream | null;
   /** Called once when the clock starts, to start sounds in sync. */
   onStart?: () => void;
@@ -37,7 +39,7 @@ export interface RecordJob {
 
 export async function recordVideo(job: RecordJob): Promise<{ blob: Blob; type: VideoType }> {
   const type = videoType();
-  if (!type) throw new Error("Dieser Browser kann keine Videos aufnehmen. Nimm Chrome, Edge oder Safari.");
+  if (!type) throw new Error(t("Dieser Browser kann keine Videos aufnehmen. Nimm Chrome, Edge oder Safari."));
   job.paint(0);
   const stream = job.canvas.captureStream(job.fps);
   for (const track of job.audio?.getAudioTracks() ?? []) stream.addTrack(track);
@@ -58,12 +60,12 @@ export async function recordVideo(job: RecordJob): Promise<{ blob: Blob; type: V
     const start = performance.now();
     job.onStart?.();
     const tick = () => {
-      const t = (performance.now() - start) / 1000;
+      const tk = (performance.now() - start) / 1000;
       if (job.isCancelled?.()) return resolve();
-      job.paint(Math.min(t, job.duration));
-      job.onProgress?.(Math.min(1, t / job.duration));
+      job.paint(Math.min(tk, job.duration));
+      job.onProgress?.(Math.min(1, tk / job.duration));
       // A short still at the end so players do not cut the last frame.
-      if (t >= job.duration + 0.4) return resolve();
+      if (tk >= job.duration + 0.4) return resolve();
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);

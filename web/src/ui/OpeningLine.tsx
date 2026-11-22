@@ -2,6 +2,7 @@
 // and whether the game is still in known theory there.
 import { type BookData, openingOf } from "../domain/book";
 import { openingParts } from "../domain/profile";
+import { t } from "../i18n";
 
 /** Number of the move that led to the position `fen`. */
 function moveNumber(fen: string): number {
@@ -22,7 +23,7 @@ export function OpeningLine({ fens, book }: { fens: string[]; book: BookData | n
         <strong>{main}</strong>
         {variation && <span class="muted"> · {variation}</span>}
       </span>
-      <span class={`opening-state${inBook ? " in" : ""}`}>{inBook ? "Theorie" : `Theorie bis Zug ${moveNumber(fens[at.index])}`}</span>
+      <span class={`opening-state${inBook ? " in" : ""}`}>{inBook ? t("Theorie") : t("Theorie bis Zug {moveNumber}", { moveNumber: moveNumber(fens[at.index]) })}</span>
     </div>
   );
 }

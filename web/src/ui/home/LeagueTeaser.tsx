@@ -16,6 +16,7 @@ import { profileFor, toneOf } from "../players/common";
 import { navigate } from "../router";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
+import { t } from "../../i18n";
 
 // The start page comes first: friends' profiles are built once it has settled.
 const START_DELAY_MS = 900;
@@ -35,7 +36,7 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
     if (!friends.length || !me.length || !ready) return;
     let alive = true;
     const fmt = statsFormat("All Formats", excludeBullet);
-    const group = [{ id: "ich", name: "Du", is_me: true, usernames: me }, ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) }))];
+    const group = [{ id: "ich", name: t("Du"), is_me: true, usernames: me }, ...friends.map((p) => ({ id: p.id, name: p.name, is_me: false, usernames: playerUsernames(p) }))];
     const timer = window.setTimeout(() => {
       // The league page's default period, so both show the same place.
       const date = comparisonPeriod(
@@ -66,11 +67,11 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
           <IconTrophy />
         </span>
         <div class="league-teaser-text">
-          <h3>Starte deine eigene Liga</h3>
-          <p class="small muted">Füge Freunde mit ihrem Namen von Lichess oder Chess.com hinzu. Die App vergleicht euch fair, simuliert euer Turnier und zeigt dir, was dir zum nächsten Platz fehlt.</p>
+          <h3>{t("Starte deine eigene Liga")}</h3>
+          <p class="small muted">{t("Füge Freunde mit ihrem Namen von Lichess oder Chess.com hinzu. Die App vergleicht euch fair, simuliert euer Turnier und zeigt dir, was dir zum nächsten Platz fehlt.")}</p>
         </div>
         <button class="btn" onClick={() => navigate({ view: "players" })}>
-          <IconPlayers /> Freunde hinzufügen
+          <IconPlayers />  {t("Freunde hinzufügen")}
         </button>
       </section>
     );
@@ -93,16 +94,15 @@ export function LeagueTeaser({ games, me }: { games: StoredGame[]; me: string[] 
     <section class="card tile span-12 league-teaser">
       <div class="tile-head">
         <h3>
-          Deine Liga: Platz {mine.rank} von {ranked.length}
+          
+          {t("Deine Liga: Platz {rank} von {length}", { rank: mine.rank, length: ranked.length })}
         </h3>
         <span class="tile-sub">
-          {above ? `${elo(above) - elo(mine)} Elo hinter ${above.name}` : "du führst"}
-          {below ? ` · ${elo(mine) - elo(below)} vor ${below.name}` : ""}
-          {` · ${trFilter(ranking.period)}`}
+          {t("{n}{n2}{n3}", { n: above ? t("{0} Elo hinter {name}", { 0: elo(above) - elo(mine), name: above.name }) : t("du führst"), n2: below ? t(" · {0} vor {name}", { 0: elo(mine) - elo(below), name: below.name }) : "", n3: ` · ${trFilter(ranking.period)}` })}
         </span>
         <span class="spacer" />
         <button class="btn small" onClick={() => navigate({ view: "players", tab: "rangliste" })}>
-          <IconTrophy /> Zur Liga
+          <IconTrophy />  {t("Zur Liga")}
         </button>
       </div>
       <ScaleTrack

@@ -24,22 +24,23 @@ import { type MiniArrow, MiniBoard } from "./openings/MiniBoard";
 import { OpeningCard, RepertoireMap, TheoryTimeline } from "./openings/Repertoire";
 import { Section, type StatSection } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
+import { t, tj, dec } from "../i18n";
 
 // Openings with fewer games than this are drawn faint: real numbers, thin evidence.
 const MIN_GAMES = MIN_LINE_GAMES;
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const pctText = (v: number | null) => (v === null ? "–" : `${Math.round(v)} %`);
-const moveNo = (v: number | null) => (v === null ? "–" : `Zug ${Math.round(v)}`);
+const moveNo = (v: number | null) => (v === null ? "–" : t("Zug {0}", { 0: Math.round(v) }));
 
 const RESULT_LEGEND = [
-  { label: "Siege", color: "var(--win)" },
-  { label: "Remis", color: "var(--draw)" },
-  { label: "Niederlagen", color: "var(--loss)" },
+  { label: t("Siege"), color: "var(--win)" },
+  { label: t("Remis"), color: "var(--draw)" },
+  { label: t("Niederlagen"), color: "var(--loss)" },
 ];
 
 /** On phones the four deep-dive cards fold into one line below the tree. */
-const MORE: StatSection = { id: "repertoire", title: "Mehr zum Repertoire", sub: "Landkarte, Baustellen, Theorie und erster Zug", cards: [] };
+const MORE: StatSection = { id: "repertoire", title: t("Mehr zum Repertoire"), sub: t("Landkarte, Baustellen, Theorie und erster Zug"), cards: [] };
 
 function scoreClass(v: number | null): string {
   if (v === null) return "";
@@ -56,36 +57,36 @@ function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: n
           {o.eco && <span class="op-eco">{o.eco}</span>}
         </strong>
         <span class="small faint">
-          {plural(o.games, "Partie", "Partien")} · {pctText(o.score_pct)} Punkte
+          {t("{n} · {pctText} Punkte", { n: plural(o.games, t("Partie"), t("Partien")), pctText: pctText(o.score_pct) })}
         </span>
         <span class="spacer" />
         <span class="op-detail-actions">
           <button class="btn small ghost" onClick={() => setGames(!games)}>
-            {games ? "Partien ausblenden" : "Partien zeigen"}
+            {games ? t("Partien ausblenden") : t("Partien zeigen")}
           </button>
-          <button class="btn small ghost" onClick={onClose} aria-label="Eröffnung abwählen">
+          <button class="btn small ghost" onClick={onClose} aria-label={t("Eröffnung abwählen")}>
             ✕
           </button>
         </span>
       </div>
       <div class="op-kpis">
         <div>
-          <span class="faint small">Theorie verlassen</span>
+          <span class="faint small">{t("Theorie verlassen")}</span>
           <strong>{moveNo(o.book_exit_move)}</strong>
         </div>
         <div>
-          <span class="faint small">Erster schwerer Fehler</span>
+          <span class="faint small">{t("Erster schwerer Fehler")}</span>
           <strong>{moveNo(o.first_error_move)}</strong>
         </div>
         <div>
-          <span class="faint small">Gewinnchance danach</span>
+          <span class="faint small">{t("Gewinnchance danach")}</span>
           <strong class={scoreClass(o.wp_after_opening)}>{pctText(o.wp_after_opening)}</strong>
           {overallWp !== null && o.wp_after_opening !== null && (
-            <span class="faint small">Schnitt {Math.round(overallWp)} %</span>
+            <span class="faint small">{t("Schnitt {n} %", { n: Math.round(overallWp) })}</span>
           )}
         </div>
         <div>
-          <span class="faint small">Bilanz</span>
+          <span class="faint small">{t("Bilanz")}</span>
           <strong>
             {o.wins} / {o.draws} / {o.losses}
           </strong>
@@ -94,12 +95,14 @@ function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: n
       </div>
       {o.variations.length > 0 && (
         <p class="small muted op-vars">
-          Varianten: {o.variations.map((v) => `${v.name.split(": ")[1] ?? v.name} (${v.games})`).join(" · ")}
+          
+          {t("Varianten: {n}", { n: o.variations.map((v) => `${v.name.split(": ")[1] ?? v.name} (${v.games})`).join(" · ") })}
         </p>
       )}
       {o.analyzed === 0 && (
         <p class="small faint" style={{ margin: "0 0 8px" }}>
-          Analysiere diese Partien, um Genauigkeit, Gewinnchance und Fehler zu sehen.
+          
+          {t("Analysiere diese Partien, um Genauigkeit, Gewinnchance und Fehler zu sehen.")}
         </p>
       )}
       {games && (
@@ -110,11 +113,11 @@ function OpeningDetail({ o, overallWp, onClose }: { o: OpeningStat; overallWp: n
               {g.score === 1 ? "S" : g.score === 0 ? "N" : g.score === 0.5 ? "R" : "–"}
             </span>
             <span class="op-opp">
-              {g.opponent || "Gegner"}
+              {g.opponent || t("Gegner")}
               {g.opp_rating > 0 && <span class="faint"> {g.opp_rating}</span>}
             </span>
             <span class="faint small">{formatDate(g.date)}</span>
-            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1).replace(".", ",")}` : ""}</span>
+            <span class="tnum small op-acc">{g.accuracy !== null ? `${g.accuracy.toFixed(1).replace(".", dec())}` : ""}</span>
           </button>
         ))}
       </div>
@@ -129,20 +132,20 @@ const choiceRows = (list: MoveChoice[], prefix: string, overall: number | null):
     value: c.score_pct,
     reference: overall,
     valueText: pctText(c.score_pct),
-    note: plural(c.games, "Partie", "Partien"),
+    note: plural(c.games, t("Partie"), t("Partien")),
     faint: c.games < MIN_GAMES,
   }));
 
 function BlackReplies({ vs, overall }: { vs: FirstMoveStat[]; overall: number | null }) {
-  if (!vs.length) return <p class="muted small">Noch keine Partien mit Schwarz.</p>;
+  if (!vs.length) return <p class="muted small">{t("Noch keine Partien mit Schwarz.")}</p>;
   return (
     <div class="op-vs">
       {vs.slice(0, 4).map((v) => (
         <div key={v.san}>
           <div class="op-vs-head">
-            <strong>Gegen 1. {v.san}</strong>
+            <strong>{t("Gegen 1. {san}", { san: v.san })}</strong>
             <span class="faint small">
-              {plural(v.games, "Partie", "Partien")} · {pctText(v.score_pct)}
+              {t("{n} · {pctText}", { n: plural(v.games, t("Partie"), t("Partien")), pctText: pctText(v.score_pct) })}
             </span>
           </div>
           <BarList rows={choiceRows(v.replies, "1… ", overall)} />
@@ -166,10 +169,10 @@ function savedColor(): "white" | "black" {
 type SortKey = "games" | "best" | "worst" | "error";
 
 const SORTS: { key: SortKey; label: string }[] = [
-  { key: "games", label: "Häufigste" },
-  { key: "best", label: "Beste" },
-  { key: "worst", label: "Schwächste" },
-  { key: "error", label: "Früher Fehler" },
+  { key: "games", label: t("Häufigste") },
+  { key: "best", label: t("Beste") },
+  { key: "worst", label: t("Schwächste") },
+  { key: "error", label: t("Früher Fehler") },
 ];
 
 function sortLines(lines: OpeningStat[], key: SortKey): OpeningStat[] {
@@ -199,8 +202,9 @@ function squares(fen: string, san: string | null): { from: string; to: string } 
 function Leaks({ leaks, color, onShow }: { leaks: OpeningLeak[]; color: "white" | "black"; onShow: (path: string[]) => void }) {
   if (!leaks.length) {
     return (
-      <Coach mood="happy" size={44} title="Keine wiederkehrenden Fehlzüge">
-        Ich melde mich hier, sobald du denselben Zug in mindestens {LEAK_MIN_JUDGED} analysierten Partien spielst und er deutlich oft ein Fehler ist.
+      <Coach mood="happy" size={44} title={t("Keine wiederkehrenden Fehlzüge")}>
+        
+        {t("Ich melde mich hier, sobald du denselben Zug in mindestens {LEAK_MIN_JUDGED} analysierten Partien spielst und er deutlich oft ein Fehler ist.", { LEAK_MIN_JUDGED })}
       </Coach>
     );
   }
@@ -219,25 +223,27 @@ function Leaks({ leaks, color, onShow }: { leaks: OpeningLeak[]; color: "white" 
               <MiniBoard fen={l.fen} flipped={color === "black"} arrows={arrows} />
             </span>
             <span class="leak-body">
-              <span class="small faint leak-path">{ply ? `Nach ${movesText(l.path.slice(0, -1))}` : "Erster Zug"}</span>
+              <span class="small faint leak-path">{ply ? t("Nach {movesText}", { movesText: movesText(l.path.slice(0, -1)) }) : t("Erster Zug")}</span>
               <strong>
                 <span class="bad">{movesText([l.san], ply)}</span>
                 {l.better && (
                   <>
                     {" "}
-                    statt <span class="good">{movesText([l.better], ply)}</span>
+                    {tj("statt {movesText}", { movesText: <span class="good">{movesText([l.better], ply)}</span> })}
                   </>
                 )}
               </strong>
               <span class="small muted">
-                Fehler in {l.errors} von {l.judged} Partien · danach {pctText(l.score_pct)} Punkte
+                
+                {t("Fehler in {errors} von {judged} Partien · danach {pctText} Punkte", { errors: l.errors, judged: l.judged, pctText: pctText(l.score_pct) })}
               </span>
             </span>
           </button>
         );
       })}
       <button class="btn small" onClick={() => navigate({ view: "training", tab: "uebungen", category: "repertoire" })}>
-        Repertoire trainieren
+        
+        {t("Repertoire trainieren")}
       </button>
     </div>
   );
@@ -280,7 +286,7 @@ export function OpeningsView() {
     return (
       <div>
         <PageHeader />
-        <NeedNames what="zeige ich dir, welche Eröffnungen dir liegen." />
+        <NeedNames what={t("zeige ich dir, welche Eröffnungen dir liegen.")} />
       </div>
     );
   }
@@ -310,9 +316,10 @@ export function OpeningsView() {
       <div>
         {header}
         <div class="empty">
-          <p>{`Keine Partien gefunden${filtersActive(filters) ? " (mit diesen Filtern)" : ""}.`}</p>
+          <p>{t("Keine Partien gefunden{0}.", { 0: filtersActive(filters) ? t(" (mit diesen Filtern)") : "" })}</p>
           <button class="btn primary" onClick={() => navigate({ view: "games", import: true })}>
-            Partien importieren
+            
+            {t("Partien importieren")}
           </button>
         </div>
       </div>
@@ -320,7 +327,7 @@ export function OpeningsView() {
   }
 
   const overall = (profile.overview.score_pct as number | undefined) ?? null;
-  const colorDe = color === "white" ? "Weiß" : "Schwarz";
+  const colorDe = color === "white" ? t("Weiß") : t("Schwarz");
   const lines = color === "white" ? o.white : o.black;
   const games = lines.reduce((n, l) => n + l.games, 0);
   const points = lines.reduce((n, l) => n + l.wins + l.draws / 2, 0);
@@ -355,85 +362,85 @@ export function OpeningsView() {
       <div class="dash">
         <Hero
           class="op-arena"
-          kicker={`Eröffnungen mit ${colorDe} · ${plural(games, "Partie", "Partien")}`}
+          kicker={t("Eröffnungen mit {colorDe} · {plural}", { colorDe, plural: plural(games, t("Partie"), t("Partien")) })}
           title={
             best ? (
               <>
-                <em>Deine Waffe mit {colorDe}:</em> {openingLabel(best.name)}
+                <em>{t("Deine Waffe mit {colorDe}:", { colorDe })}</em> {openingLabel(best.name)}
               </>
             ) : worst ? (
               <>
-                <em>Dein Sorgenkind mit {colorDe}:</em> {openingLabel(worst.name)}
+                <em>{t("Dein Sorgenkind mit {colorDe}:", { colorDe })}</em> {openingLabel(worst.name)}
               </>
             ) : (
-              `Dein Repertoire mit ${colorDe}`
+              t("Dein Repertoire mit {colorDe}", { colorDe })
             )
           }
           sub={
             best || worst ? (
               <>
-                {best && `${pctText(best.score_pct)} der Punkte aus ${plural(best.games, "Partie", "Partien")}. `}
-                {worst && `${best ? "Am meisten kostet dich" : "Hier holst du nur"} ${best ? `${openingLabel(worst.name)}: ` : ""}${pctText(worst.score_pct)} aus ${plural(worst.games, "Partie", "Partien")}.`}
+                {t("{n}{n2}", { n: best && t("{pctText} der Punkte aus {plural}. ", { pctText: pctText(best.score_pct), plural: plural(best.games, t("Partie"), t("Partien")) }), n2: worst && t("{0} {1}{pctText} aus {plural}.", { 0: best ? t("Am meisten kostet dich") : t("Hier holst du nur"), 1: best ? `${openingLabel(worst.name)}: ` : "", pctText: pctText(worst.score_pct), plural: plural(worst.games, t("Partie"), t("Partien")) }) })}
               </>
             ) : (
-              `Noch sticht keine Eröffnung klar heraus. Ab etwa ${MIN_GAMES} Partien je Eröffnung werden die Befunde belastbar.`
+              t("Noch sticht keine Eröffnung klar heraus. Ab etwa {MIN_GAMES} Partien je Eröffnung werden die Befunde belastbar.", { MIN_GAMES })
             )
           }
-          aside={<HeroStat big={<CountUp value={scorePct} format={(v) => `${Math.round(v)} %`} />} label="Punkte-Quote" sub={`mit ${colorDe}`} />}
+          aside={<HeroStat big={<CountUp value={scorePct} format={(v) => `${Math.round(v)} %`} />} label={t("Punkte-Quote")} sub={t("mit {color}", { color: colorDe })} />}
         >
           <div class="op-arena-bar">
-            <div class="segmented color-switch" role="tablist" aria-label="Farbe">
+            <div class="segmented color-switch" role="tablist" aria-label={t("Farbe")}>
               {(["white", "black"] as const).map((c) => (
                 <button key={c} role="tab" aria-selected={color === c} class={color === c ? "active" : ""} onClick={() => pickColor(c)}>
-                  <span class={`side-dot ${c}`} /> Mit {c === "white" ? "Weiß" : "Schwarz"}
-                  <span class="faint small"> {(c === "white" ? o.white : o.black).reduce((n, l) => n + l.games, 0)}</span>
+                  <span class={`side-dot ${c}`} />  {tj("Mit {n}{x}", { n: c === "white" ? t("Weiß") : t("Schwarz"), x: <span class="faint small"> {(c === "white" ? o.white : o.black).reduce((n, l) => n + l.games, 0)}</span> })}
                 </button>
               ))}
             </div>
             {best && (
               <button class="chip" onClick={() => showInTree(best.line, best.name)}>
-                Waffe im Baum zeigen
+                
+                {t("Waffe im Baum zeigen")}
               </button>
             )}
             {worst && (
               <button class="chip" onClick={() => showInTree(worst.line, worst.name)}>
-                Sorgenkind im Baum zeigen
+                
+                {t("Sorgenkind im Baum zeigen")}
               </button>
             )}
           </div>
           <div class="ar-stat-row">
             <div class="ar-stat">
-              <span class="kpi-label">Eröffnungen</span>
+              <span class="kpi-label">{t("Eröffnungen")}</span>
               <span class="ar-stat-value">
                 <CountUp value={lines.length} />
               </span>
-              <span class="small faint">{lines.filter((l) => l.games >= MIN_GAMES).length} mit genug Partien</span>
+              <span class="small faint">{t("{length} mit genug Partien", { length: lines.filter((l) => l.games >= MIN_GAMES).length })}</span>
             </div>
             <div class="ar-stat">
-              <span class="kpi-label">Nach der Eröffnung</span>
+              <span class="kpi-label">{t("Nach der Eröffnung")}</span>
               <span class={`ar-stat-value ${scoreClass(wpAfter)}`}>
                 <CountUp value={wpAfter} format={(v) => `${Math.round(v)} %`} />
               </span>
-              <span class="small faint">deine Ø Gewinnchance</span>
+              <span class="small faint">{t("deine Ø Gewinnchance")}</span>
             </div>
             <div class="ar-stat">
-              <span class="kpi-label">Theorie verlassen</span>
+              <span class="kpi-label">{t("Theorie verlassen")}</span>
               <span class="ar-stat-value">
-                <CountUp value={bookExit} format={(v) => `Zug ${Math.round(v)}`} />
+                <CountUp value={bookExit} format={(v) => t("Zug {0}", { 0: Math.round(v) })} />
               </span>
-              <span class="small faint">im Schnitt</span>
+              <span class="small faint">{t("im Schnitt")}</span>
             </div>
             <div class="ar-stat">
-              <span class="kpi-label">Baustellen</span>
+              <span class="kpi-label">{t("Baustellen")}</span>
               <span class={`ar-stat-value${leaks.length ? " bad" : ""}`}>
                 <CountUp value={leaks.length} />
               </span>
-              <span class="small faint">{leaks.length ? "Züge, die immer wieder schiefgehen" : "keine wiederkehrenden Fehler"}</span>
+              <span class="small faint">{leaks.length ? t("Züge, die immer wieder schiefgehen") : t("keine wiederkehrenden Fehler")}</span>
             </div>
           </div>
           {facts.length > 0 && (
             <div class="op-arena-facts">
-              <Coach mood={mood} size={48} title="Das Wichtigste zu deinen Eröffnungen">
+              <Coach mood={mood} size={48} title={t("Das Wichtigste zu deinen Eröffnungen")}>
                 <ol class="fact-list compact">
                   {facts.map((f) => (
                     <li key={f}>{f}</li>
@@ -442,7 +449,7 @@ export function OpeningsView() {
               </Coach>
               {colorFacts.length > 3 && (
                 <button class="btn small ghost" onClick={() => setShowAllFacts(!showAllFacts)}>
-                  {showAllFacts ? "Weniger" : `Alle ${colorFacts.length} Befunde`}
+                  {showAllFacts ? t("Weniger") : t("Alle {length} Befunde", { length: colorFacts.length })}
                 </button>
               )}
             </div>
@@ -451,9 +458,9 @@ export function OpeningsView() {
 
         <section class="card tile span-12">
           <div class="tile-head">
-            <h3>Dein Repertoire mit {colorDe}</h3>
+            <h3>{t("Dein Repertoire mit {colorDe}", { colorDe })}</h3>
             <span class="spacer" />
-            <div class="segmented small-seg rep-sort-seg" role="tablist" aria-label="Sortierung">
+            <div class="segmented small-seg rep-sort-seg" role="tablist" aria-label={t("Sortierung")}>
               {SORTS.map((s) => (
                 <button key={s.key} role="tab" aria-selected={sort === s.key} class={sort === s.key ? "active" : ""} onClick={() => setSort(s.key)}>
                   {s.label}
@@ -468,13 +475,13 @@ export function OpeningsView() {
               ))}
             </div>
           ) : (
-            <p class="muted small">Noch keine Partien mit dieser Farbe.</p>
+            <p class="muted small">{t("Noch keine Partien mit dieser Farbe.")}</p>
           )}
           <div class="rep-cards-foot">
             <Legend items={RESULT_LEGEND} />
             {lines.length > CARDS && (
               <button class="btn small ghost" onClick={() => setAllCards(!allCards)}>
-                {allCards ? "Weniger anzeigen" : `Alle ${lines.length} Eröffnungen`}
+                {allCards ? t("Weniger anzeigen") : t("Alle {length} Eröffnungen", { length: lines.length })}
               </button>
             )}
           </div>
@@ -482,8 +489,8 @@ export function OpeningsView() {
 
         <section class="card tile span-12" ref={explorerRef} id="eroeffnungsbaum">
           <div class="tile-head">
-            <h3>Dein Eröffnungsbaum</h3>
-            <span class="tile-sub">Zug antippen oder am Brett ziehen · nur deine eigenen Partien</span>
+            <h3>{t("Dein Eröffnungsbaum")}</h3>
+            <span class="tile-sub">{t("Zug antippen oder am Brett ziehen · nur deine eigenen Partien")}</span>
           </div>
           {chosen && <OpeningDetail o={chosen} overallWp={o.wp_after_opening} onClose={() => setSelected(null)} />}
           <Explorer root={o.tree[color]} color={color} path={path} onPath={setPath} />
@@ -492,38 +499,38 @@ export function OpeningsView() {
         <Section section={MORE} phoneOnly>
         <section class="card tile span-7">
           <div class="tile-head">
-            <h3>Repertoire-Landkarte</h3>
-            <span class="tile-sub">Wie oft und wie gut · Punkt antippen</span>
+            <h3>{t("Repertoire-Landkarte")}</h3>
+            <span class="tile-sub">{t("Wie oft und wie gut · Punkt antippen")}</span>
           </div>
           <RepertoireMap lines={lines} average={scorePct} selected={selected} onSelect={(n) => showInTree(lines.find((l) => l.name === n)?.line ?? [], n)} />
         </section>
 
         <section class="card tile span-5">
           <div class="tile-head">
-            <h3>Deine Baustellen</h3>
-            <span class="tile-sub">Züge, die immer wieder schiefgehen</span>
+            <h3>{t("Deine Baustellen")}</h3>
+            <span class="tile-sub">{t("Züge, die immer wieder schiefgehen")}</span>
           </div>
           <Leaks leaks={leaks} color={color} onShow={(p) => showInTree(p)} />
         </section>
 
         <section class="card tile span-7">
           <div class="tile-head">
-            <h3>Theorie und erster Fehler</h3>
-            <span class="tile-sub">Zug, in dem du die Theorie verlässt / Ø erster schwerer Fehler</span>
+            <h3>{t("Theorie und erster Fehler")}</h3>
+            <span class="tile-sub">{t("Zug, in dem du die Theorie verlässt / Ø erster schwerer Fehler")}</span>
           </div>
           <TheoryTimeline lines={sortLines(lines, "games")} onSelect={(n) => showInTree(lines.find((l) => l.name === n)?.line ?? [], n)} />
         </section>
 
         <section class="card tile span-5">
           <div class="tile-head">
-            <h3>{color === "white" ? "Dein erster Zug" : "Deine Antworten"}</h3>
-            <span class="tile-sub">Punkte-Quote</span>
+            <h3>{color === "white" ? t("Dein erster Zug") : t("Deine Antworten")}</h3>
+            <span class="tile-sub">{t("Punkte-Quote")}</span>
           </div>
           {color === "white" ? (
             o.white_first.length ? (
-              <BarList rows={choiceRows(o.white_first, "1. ", overall)} referenceLabel="Dein Schnitt" />
+              <BarList rows={choiceRows(o.white_first, "1. ", overall)} referenceLabel={t("Dein Schnitt")} />
             ) : (
-              <p class="muted small">Noch keine Partien mit Weiß.</p>
+              <p class="muted small">{t("Noch keine Partien mit Weiß.")}</p>
             )
           ) : (
             <BlackReplies vs={o.black_vs} overall={overall} />

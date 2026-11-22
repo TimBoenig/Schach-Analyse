@@ -10,7 +10,8 @@ import { navigate, type SettingsTab } from "./router";
 import { PeriodSelect } from "./useProfile";
 import { AiExportCard } from "./AiExportCard";
 import { AnalysisSettingsCards, SettingsHead } from "./AnalysisSettingsCard";
-import { IconCloud, IconInfo, IconPalette, IconProfile } from "./icons";
+import { LangChoice } from "./LangSwitch";
+import { IconCloud, IconInfo, IconPalette, IconProfile, IconGlobe } from "./icons";
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { resetSeen } from "./stage/store";
 import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
@@ -18,6 +19,7 @@ import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, typ
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { playUltraBrilliant } from "./fx/ultraBrilliant";
 import { BRILLIANT_STYLE_LABELS, fxPrefs, loadFxPrefs, prefersReducedMotion, setFxPrefs, type BrilliantStyle, type FxPrefs } from "./fxPrefs";
+import { t } from "../i18n";
 
 /**
  * "About" card. Holds the hidden way into the video studio: tapping the
@@ -29,7 +31,7 @@ function AboutCard() {
   const taps = useRef<number[]>([]);
   const tap = () => {
     const now = Date.now();
-    taps.current = [...taps.current.filter((t) => now - t < 3000), now];
+    taps.current = [...taps.current.filter((tk) => now - tk < 3000), now];
     if (!unlocked && taps.current.length >= UNLOCK_TAPS) {
       taps.current = [];
       setStudioUnlocked(true);
@@ -39,17 +41,16 @@ function AboutCard() {
   return (
     <div class="card settings-card">
       <div class="about-tap" onClick={tap}>
-        <SettingsHead icon={<IconInfo />} title={`Über ${BRAND}`} />
+        <SettingsHead icon={<IconInfo />} title={t("Über {BRAND}", { BRAND })} />
       </div>
       <p class="small muted" style={{ margin: 0 }}>
-        {BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert
-        auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings
-        (CC0).
+        {t("{BRAND} ({BRAND_DOMAIN}) ist dein persönlicher Schachtrainer: kostenlos und ohne Werbung. Die Analyse läuft mit {ENGINE_NAME} {ENGINE_VERSION} (WebAssembly, MIT-Lizenz) vollständig auf deinem Gerät und funktioniert auch offline. Figuren: Cburnett (CC BY-SA 3.0). Eröffnungsnamen: lichess-org/chess-openings (CC0).", { BRAND, BRAND_DOMAIN, ENGINE_NAME, ENGINE_VERSION })}
       </p>
       {unlocked && (
         <div class="about-studio">
           <button class="btn primary" onClick={() => navigate({ view: "studio" })}>
-            Videostudio öffnen
+            
+            {t("Videostudio öffnen")}
           </button>
           <button
             class="btn ghost"
@@ -58,7 +59,8 @@ function AboutCard() {
               setUnlocked(false);
             }}
           >
-            Wieder verstecken
+            
+            {t("Wieder verstecken")}
           </button>
         </div>
       )}
@@ -80,12 +82,13 @@ function BrilliantSetting() {
   const preview = (e: MouseEvent) => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     // Started after this click, so the click does not count as "tap to end the show".
-    window.setTimeout(() => playUltraBrilliant({ x: r.left + r.width / 2, y: r.top + r.height / 2, sound: prefs.sound, san: "Dxh7+" }), 0);
+    window.setTimeout(() => playUltraBrilliant({ x: r.left + r.width / 2, y: r.top + r.height / 2, sound: prefs.sound, san: t("Dxh7+") }), 0);
   };
   return (
     <div class="fx-setting">
       <div class="muted small" style={{ marginBottom: "6px" }}>
-        Feier für brillante Züge
+        
+        {t("Feier für brillante Züge")}
       </div>
       <div class="segmented">
         {(Object.keys(BRILLIANT_STYLE_LABELS) as BrilliantStyle[]).map((k) => (
@@ -96,25 +99,27 @@ function BrilliantSetting() {
       </div>
       <p class="small faint" style={{ margin: "8px 0 0" }}>
         {prefs.brilliant === "ultra"
-          ? "Ultra: Feuerwerk, Konfetti und Lichtsäule über den ganzen Bildschirm. Völlig übertrieben, mit voller Absicht. Ein Klick oder Tipp beendet die Feier sofort."
-          : "Normal: ein kurzer Ring und das Abzeichen auf dem Brett. Ultra macht daraus eine Feier über den ganzen Bildschirm."}
+          ? t("Ultra: Feuerwerk, Konfetti und Lichtsäule über den ganzen Bildschirm. Völlig übertrieben, mit voller Absicht. Ein Klick oder Tipp beendet die Feier sofort.")
+          : t("Normal: ein kurzer Ring und das Abzeichen auf dem Brett. Ultra macht daraus eine Feier über den ganzen Bildschirm.")}
       </p>
       {prefs.brilliant === "ultra" && (
         <>
           <div class="fx-extra">
             <label class="switch-pill">
               <input type="checkbox" checked={prefs.sound} onChange={() => update({ ...prefs, sound: !prefs.sound })} />
-              <span>Mit Fanfare und Vibration</span>
+              <span>{t("Mit Fanfare und Vibration")}</span>
             </label>
             {!reduced && (
               <button class="btn small" onClick={preview}>
-                Ausprobieren
+                
+                {t("Ausprobieren")}
               </button>
             )}
           </div>
           {reduced && (
             <p class="small faint" style={{ margin: "8px 0 0" }}>
-              Dein Gerät ist auf „Bewegung reduzieren“ gestellt. Solange das so ist, bleibt es bei der normalen Feier.
+              
+              {t("Dein Gerät ist auf „Bewegung reduzieren“ gestellt. Solange das so ist, bleibt es bei der normalen Feier.")}
             </p>
           )}
         </>
@@ -133,7 +138,7 @@ function AppearanceCard() {
   }, []);
   return (
     <div class="card settings-card">
-      <SettingsHead icon={<IconPalette />} title="Darstellung" sub="Farben der App und des Bretts." />
+      <SettingsHead icon={<IconPalette />} title={t("Darstellung")} sub={t("Farben der App und des Bretts.")} />
       <div class="segmented" style={{ marginBottom: "14px" }}>
         {(Object.keys(THEME_LABELS) as ThemeMode[]).map((k) => (
           <button
@@ -149,28 +154,29 @@ function AppearanceCard() {
         ))}
       </div>
       <div class="muted small" style={{ marginBottom: "6px" }}>
-        Brettfarben
+        
+        {t("Brettfarben")}
       </div>
       <div class="board-themes">
         {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((k) => {
-          const t = BOARD_THEMES[k];
+          const tk = BOARD_THEMES[k];
           return (
             <button
               key={k}
               class={`board-theme${board === k ? " active" : ""}`}
-              aria-label={`Brettfarben ${t.label}`}
+              aria-label={t("Brettfarben {label}", { label: tk.label })}
               onClick={() => {
                 setBoard(k);
                 void setBoardTheme(k);
               }}
             >
               <span class="swatch">
-                <span style={{ background: t.light }} />
-                <span style={{ background: t.dark }} />
-                <span style={{ background: t.dark }} />
-                <span style={{ background: t.light }} />
+                <span style={{ background: tk.light }} />
+                <span style={{ background: tk.dark }} />
+                <span style={{ background: tk.dark }} />
+                <span style={{ background: tk.light }} />
               </span>
-              {t.label}
+              {tk.label}
             </button>
           );
         })}
@@ -186,9 +192,18 @@ function AppearanceCard() {
             setTipsBack(true);
           }}
         >
-          {tipsBack ? `${COACH_NAME} erklärt jede Seite wieder beim ersten Besuch ✓` : `Erklärungen von ${COACH_NAME} wieder anzeigen`}
+          {tipsBack ? t("{COACH_NAME} erklärt jede Seite wieder beim ersten Besuch ✓", { COACH_NAME }) : t("Erklärungen von {COACH_NAME} wieder anzeigen", { COACH_NAME })}
         </button>
       </div>
+    </div>
+  );
+}
+
+function LanguageCard() {
+  return (
+    <div class="card settings-card">
+      <SettingsHead icon={<IconGlobe />} title={t("Sprache")} sub={t("Die App erkennt die Sprache deines Browsers. Hier kannst du sie fest einstellen; die Seite lädt dann neu.")} />
+      <LangChoice />
     </div>
   );
 }
@@ -200,14 +215,14 @@ function AccountCard() {
   const signedIn = Boolean(s.email) && s.phase !== "signed-out";
   return (
     <div class="card settings-card">
-      <SettingsHead icon={<IconCloud />} title="Konto & Synchronisierung" />
+      <SettingsHead icon={<IconCloud />} title={t("Konto & Synchronisierung")} />
       <p class="muted small" style={{ marginTop: 0 }}>
         {signedIn
-          ? `Angemeldet als ${s.email}. Profil, Statistiken und Partien sind auf allen deinen Geräten.`
-          : "Mit einem Konto siehst du deine Analysen auf PC, iPad und Handy. Ohne Konto bleibt alles auf diesem Gerät."}
+          ? t("Angemeldet als {email}. Profil, Statistiken und Partien sind auf allen deinen Geräten.", { email: s.email })
+          : t("Mit einem Konto siehst du deine Analysen auf PC, iPad und Handy. Ohne Konto bleibt alles auf diesem Gerät.")}
       </p>
       <button class={`btn${signedIn ? "" : " primary"}`} onClick={() => navigate({ view: "account" })}>
-        {signedIn ? "Konto verwalten" : "Anmelden oder registrieren"}
+        {signedIn ? t("Konto verwalten") : t("Anmelden oder registrieren")}
       </button>
     </div>
   );
@@ -222,7 +237,7 @@ function BackupCard() {
     setMsg(null);
     try {
       const n = await exportData(kind, period);
-      setMsg({ text: `${n} ${n === 1 ? "Partie" : "Partien"} exportiert.` });
+      setMsg({ text: `${n} ${n === 1 ? t("Partie") : t("Partien")} exportiert.` });
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
     } finally {
@@ -236,44 +251,45 @@ function BackupCard() {
       const r = await restoreBackup(file);
       setMsg({
         text:
-          `${r.games} Partien eingespielt` +
-          (r.settings ? `, ${r.settings} Einstellungen ergänzt` : "") +
+          t("{games} Partien eingespielt", { games: r.games }) +
+          (r.settings ? t(", {settings} Einstellungen ergänzt", { settings: r.settings }) : "") +
           ".",
       });
     } catch {
-      setMsg({ text: `Die Datei ist keine lesbare Sicherung von ${BRAND}.`, error: true });
+      setMsg({ text: t("Die Datei ist keine lesbare Sicherung von {BRAND}.", { BRAND }), error: true });
     } finally {
       setBusy(null);
     }
   };
   return (
     <div class="card" id="export">
-      <h3>Export &amp; Datensicherung</h3>
+      <h3>{t("Export & Datensicherung")}</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
-        Der vollständige Export ist die Datensicherung: jede Partie mit allen analysierten Zügen, die Auswertung pro
-        Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke sowie Trainingsplan und
-        -fortschritt. Er lässt sich hier wieder einspielen. Für eine KI ist der KI-Export daneben besser geeignet.
+        
+        {t("Der vollständige Export ist die Datensicherung: jede Partie mit allen analysierten Zügen, die Auswertung pro Partie, Statistiken, Fähigkeiten, Stärken und Schwächen, Eröffnungen, Einblicke sowie Trainingsplan und -fortschritt. Er lässt sich hier wieder einspielen. Für eine KI ist der KI-Export daneben besser geeignet.")}
       </p>
       <div class="filters">
         <PeriodSelect value={period} onChange={setPeriod} />
       </div>
       <div class="row">
         <button class="btn primary" disabled={busy !== null} onClick={() => void run("json")}>
-          {busy === "json" ? "Wird erstellt …" : "Alles exportieren (JSON)"}
+          {busy === "json" ? t("Wird erstellt …") : t("Alles exportieren (JSON)")}
         </button>
         <button class="btn" disabled={busy !== null} onClick={() => void run("csv")}>
-          Tabelle (CSV)
+          
+          {t("Tabelle (CSV)")}
         </button>
         <button class="btn" disabled={busy !== null} onClick={() => void run("pgn")}>
           PGN
         </button>
       </div>
       <p class="small faint" style={{ margin: "8px 0 12px" }}>
-        CSV öffnet sich in Excel oder Numbers (eine Zeile pro Partie mit Genauigkeit und Fehlern), PGN in jedem
-        Schachprogramm.
+        
+        {t("CSV öffnet sich in Excel oder Numbers (eine Zeile pro Partie mit Genauigkeit und Fehlern), PGN in jedem Schachprogramm.")}
       </p>
       <label class={`btn${busy ? " disabled" : ""}`}>
-        Sicherung einspielen
+        
+        {t("Sicherung einspielen")}
         <input
           type="file"
           accept="application/json,.json"
@@ -335,19 +351,20 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
       <PageHeader />
       <div class="settings-cols">
         <div class="card settings-card">
-          <SettingsHead icon={<IconProfile />} title="Deine Spielernamen" />
-          <Coach size={44} title="Wie heißt du beim Schach?">
-            Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du
-            gespielt hast, und baue dein Profil.
+          <SettingsHead icon={<IconProfile />} title={t("Deine Spielernamen")} />
+          <Coach size={44} title={t("Wie heißt du beim Schach?")}>
+            
+            {t("Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du gespielt hast, und baue dein Profil.")}
           </Coach>
           <label class="field">
-            <span>Namen, mit Komma getrennt</span>
-            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder="z. B. MaxMuster, max_m" />
+            <span>{t("Namen, mit Komma getrennt")}</span>
+            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder={t("z. B. MaxMuster, max_m")} />
           </label>
           <button class="btn primary" onClick={saveNames}>
-            {saved ? "Gespeichert ✓" : "Speichern"}
+            {saved ? t("Gespeichert ✓") : t("Speichern")}
           </button>
         </div>
+        <LanguageCard />
         <AppearanceCard />
         <AccountCard />
         <AboutCard />

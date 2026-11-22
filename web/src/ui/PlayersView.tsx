@@ -52,20 +52,21 @@ import { FORMATS, formatOptionLabel } from "./useProfile";
 import { AnalyzeFriends, Avatar, de, gamesOf, pct0, PlayerFilters, plural, profileFor, RefreshAll, toneOf, useQueue } from "./players/common";
 import { LeaguePage } from "./players/League";
 import { DuelStory, FaceOff, NextGameCard, TaleOfTape, TippingCard } from "./players/Rivalry";
+import { t, tj } from "../i18n";
 
 // Analysing on a tablet takes a while per game; the newest games say the most.
 const ANALYZE_BATCH = 20;
 
 const RADAR_LABELS: Record<string, string> = {
-  opening: "Eröffnung",
-  middlegame: "Mittelspiel",
-  endgame: "Endspiel",
-  tactics: "Taktik",
-  safety: "Sicherheit",
-  conversion: "Verwertung",
-  defense: "Verteidigung",
-  time: "Zeit",
-  consistency: "Konstanz",
+  opening: t("Eröffnung"),
+  middlegame: t("Mittelspiel"),
+  endgame: t("Endspiel"),
+  tactics: t("Taktik"),
+  safety: t("Sicherheit"),
+  conversion: t("Verwertung"),
+  defense: t("Verteidigung"),
+  time: t("Zeit"),
+  consistency: t("Konstanz"),
 };
 
 /** Changes only when a game is added, removed or re-analysed. */
@@ -142,7 +143,7 @@ function AddPlayerDialog({
           signal: abort.current.signal,
           onProgress: setProgress,
         });
-        setProgress(`${result.imported} neue Partien geladen${result.already_known ? `, ${result.already_known} waren schon da` : ""}.`);
+        setProgress(t("{imported} neue Partien geladen{1}.", { imported: result.imported, 1: result.already_known ? t(", {already_known} waren schon da", { already_known: result.already_known }) : "" }));
       }
       ref.current?.close();
     } catch (e) {
@@ -154,13 +155,13 @@ function AddPlayerDialog({
 
   return (
     <dialog ref={ref} onClose={() => onClose(added.current)}>
-      <h3 style={{ marginTop: 0 }}>Spieler hinzufügen</h3>
+      <h3 style={{ marginTop: 0 }}>{t("Spieler hinzufügen")}</h3>
       <div class="segmented" style={{ marginBottom: "14px" }}>
         {(
           [
             ["lichess", "Lichess"],
             ["chesscom", "Chess.com"],
-            ["other", "Nur meine Partien"],
+            ["other", t("Nur meine Partien")],
           ] as const
         ).map(([k, l]) => (
           <button key={k} class={source === k ? "active" : ""} onClick={() => setSource(k)} disabled={busy}>
@@ -169,48 +170,49 @@ function AddPlayerDialog({
         ))}
       </div>
       <label class="field">
-        <span>{source === "other" ? "Name in deinen Partien" : `Benutzername auf ${SOURCE_LABELS[source]}`}</span>
+        <span>{source === "other" ? t("Name in deinen Partien") : t("Benutzername auf {0}", { 0: SOURCE_LABELS[source] })}</span>
         <input type="text" autocapitalize="off" autocorrect="off" value={username} onInput={(e) => setUsername(e.currentTarget.value)} />
       </label>
       <label class="field">
-        <span>Anzeigename (optional)</span>
-        <input type="text" value={name} placeholder={username || "z. B. Max"} onInput={(e) => setName(e.currentTarget.value)} />
+        <span>{t("Anzeigename (optional)")}</span>
+        <input type="text" value={name} placeholder={username || t("z. B. Max")} onInput={(e) => setName(e.currentTarget.value)} />
       </label>
       {source === "lichess" && (
         <label class="field">
-          <span>Letzte Partien laden</span>
+          <span>{t("Letzte Partien laden")}</span>
           <select value={count} onChange={(e) => setCount(e.currentTarget.value)}>
             {["50", "100", "200", "500"].map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
             ))}
-            <option value="all">Alle (gesamte Zeit)</option>
+            <option value="all">{t("Alle (gesamte Zeit)")}</option>
           </select>
         </label>
       )}
       {source === "chesscom" && (
         <label class="field">
-          <span>Zeitraum laden</span>
+          <span>{t("Zeitraum laden")}</span>
           <select value={months} onChange={(e) => setMonths(e.currentTarget.value)}>
-            <option value="1">Letzter Monat</option>
-            <option value="3">Letzte 3 Monate</option>
-            <option value="6">Letzte 6 Monate</option>
-            <option value="12">Letztes Jahr</option>
-            <option value="all">Gesamte Zeit</option>
+            <option value="1">{t("Letzter Monat")}</option>
+            <option value="3">{t("Letzte 3 Monate")}</option>
+            <option value="6">{t("Letzte 6 Monate")}</option>
+            <option value="12">{t("Letztes Jahr")}</option>
+            <option value="all">{t("Gesamte Zeit")}</option>
           </select>
         </label>
       )}
       {source === "other" && (
         <p class="small muted" style={{ marginTop: 0 }}>
-          Nutzt nur die Partien, die schon in der App sind (z. B. deine Partien gegen diese Person oder eine importierte PGN).
+          
+          {t("Nutzt nur die Partien, die schon in der App sind (z. B. deine Partien gegen diese Person oder eine importierte PGN).")}
         </p>
       )}
       <label class="toggle-row">
         <input type="checkbox" checked={friend} onChange={(e) => setFriend(e.currentTarget.checked)} />
         <span>
-          <strong>In die Freundes-Rangliste aufnehmen</strong>
-          <small class="faint">Ohne Haken nur als Gegner zum Ausspionieren.</small>
+          <strong>{t("In die Freundes-Rangliste aufnehmen")}</strong>
+          <small class="faint">{t("Ohne Haken nur als Gegner zum Ausspionieren.")}</small>
         </span>
       </label>
       {progress && <p class="small muted">{progress}</p>}
@@ -218,15 +220,17 @@ function AddPlayerDialog({
       <div class="row" style={{ justifyContent: "flex-end", marginTop: "12px" }}>
         {busy ? (
           <button class="btn" onClick={() => abort.current?.abort()}>
-            Abbrechen
+            
+            {t("Abbrechen")}
           </button>
         ) : (
           <button class="btn" onClick={() => ref.current?.close()}>
-            Schließen
+            
+            {t("Schließen")}
           </button>
         )}
         <button class="btn primary" disabled={busy || !username.trim()} onClick={run}>
-          {busy ? "Lade Partien …" : source === "other" ? "Hinzufügen" : "Hinzufügen und Partien laden"}
+          {busy ? t("Lade Partien …") : source === "other" ? t("Hinzufügen") : t("Hinzufügen und Partien laden")}
         </button>
       </div>
     </dialog>
@@ -266,34 +270,34 @@ function cardData(p: TrackedPlayer, all: StoredGame[], me: string[]): PlayerCard
 }
 
 const SECTIONS: [string, boolean, string][] = [
-  ["Freunde", true, "in Rangliste und Vergleich"],
-  ["Gegner", false, "zum Ausspähen vor der Partie"],
+  [t("Freunde"), true, t("in Rangliste und Vergleich")],
+  [t("Gegner"), false, t("zum Ausspähen vor der Partie")],
 ];
 
 /** Summary strip on top of the player list: who you track and how you fare against them. */
 function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]; onAdd: () => void; players: TrackedPlayer[]; games: StoredGame[] }) {
-  const t = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
-  const n = t.w + t.d + t.l;
+  const tk = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
+  const n = tk.w + tk.d + tk.l;
   const friends = cards.filter((c) => c.player.friend).length;
   return (
     <section class="card players-hero">
       <div class="players-hero-stats">
         <div>
           <span class="players-hero-num tnum">{cards.length}</span>
-          <span class="faint small">Spieler</span>
+          <span class="faint small">{t("Spieler")}</span>
         </div>
         <div>
           <span class="players-hero-num tnum">{friends}</span>
-          <span class="faint small">Freunde</span>
+          <span class="faint small">{t("Freunde")}</span>
         </div>
         <div>
-          <span class="players-hero-num tnum">{n ? pct0(((t.w + t.d / 2) / n) * 100) : "–"}</span>
-          <span class="faint small">{n ? `deine Punkte aus ${plural(n, "Direktpartie", "Direktpartien")}` : "noch keine Direktpartie"}</span>
+          <span class="players-hero-num tnum">{n ? pct0(((tk.w + tk.d / 2) / n) * 100) : "–"}</span>
+          <span class="faint small">{n ? t("deine Punkte aus {plural}", { plural: plural(n, t("Direktpartie"), t("Direktpartien")) }) : t("noch keine Direktpartie")}</span>
         </div>
       </div>
       <div class="players-hero-actions">
         <button class="btn primary" onClick={onAdd}>
-          <IconPlus /> Spieler hinzufügen
+          <IconPlus />  {t("Spieler hinzufügen")}
         </button>
         <RefreshAll players={players.filter((p) => !p.hidden)} />
         <AnalyzeFriends players={players} games={games} />
@@ -304,7 +308,7 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
 
 /** Win/draw/loss split as one bar, readable at a glance. */
 function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
-  if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
+  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen {name}", { name })}</span>;
   const n = h.wins + h.draws + h.losses || 1;
   return (
     <div class="h2h-bar-wrap">
@@ -319,12 +323,11 @@ function H2HBar({ h, name }: { h: HeadToHead; name: string }) {
 }
 
 function H2HLine({ h, name }: { h: HeadToHead; name: string }) {
-  if (!h.games) return <span class="faint small">Noch keine Partie gegen {name}</span>;
+  if (!h.games) return <span class="faint small">{t("Noch keine Partie gegen {name}", { name })}</span>;
   return (
     <span class="small">
-      Du gegen {name}: <strong class="tnum">{h.wins}</strong> S · <strong class="tnum">{h.draws}</strong> R ·{" "}
-      <strong class="tnum">{h.losses}</strong> N
-    </span>
+      
+      {tj("Du gegen {name}: {wins} S · {draws} R · {losses} N", { name, wins: <strong class="tnum">{h.wins}</strong>, draws: <strong class="tnum">{h.draws}</strong>, losses: <strong class="tnum">{h.losses}</strong> })}</span>
   );
 }
 
@@ -345,13 +348,13 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
       {players.length === 0 ? (
         <div class="empty">
           <CoachAvatar size={88} mood="think" />
-          <h3>Noch keine Spieler</h3>
+          <h3>{t("Noch keine Spieler")}</h3>
           <p>
-            Füge Freunde oder Gegner mit ihrem Lichess- oder Chess.com-Namen hinzu. Die App lädt ihre Partien, zeigt dir,
-            mit welchen Eröffnungen und Taktiken du sie schlägst, und vergleicht euch in einer Rangliste.
+            
+            {t("Füge Freunde oder Gegner mit ihrem Lichess- oder Chess.com-Namen hinzu. Die App lädt ihre Partien, zeigt dir, mit welchen Eröffnungen und Taktiken du sie schlägst, und vergleicht euch in einer Rangliste.")}
           </p>
           <button class="btn primary" onClick={() => setAdding(null)}>
-            <IconPlus /> Spieler hinzufügen
+            <IconPlus />  {t("Spieler hinzufügen")}
           </button>
         </div>
       ) : (
@@ -378,16 +381,16 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                     {c.player.accounts.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(" · ")}
                   </span>
                 </span>
-                {c.player.friend && <span class="pill accent">Freund</span>}
+                {c.player.friend && <span class="pill accent">{t("Freund")}</span>}
               </div>
               <div class="player-card-stats">
                 <span>
                   <strong class="tnum">{c.games}</strong>
-                  <span class="faint small"> Partien</span>
+                  <span class="faint small">  {t("Partien")}</span>
                 </span>
                 <span>
                   <strong class="tnum">{c.analyzed}</strong>
-                  <span class="faint small"> analysiert</span>
+                  <span class="faint small"> {" "}{t("analysiert")}</span>
                 </span>
                 {c.rating && (
                   <span>
@@ -405,15 +408,15 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
               </section>
             );
           })}
-          {cards.shown.length === 0 && <p class="muted small">Alle Spieler sind ausgeblendet.</p>}
+          {cards.shown.length === 0 && <p class="muted small">{t("Alle Spieler sind ausgeblendet.")}</p>}
         </>
       )}
 
       {cards.hidden.length > 0 && (
         <details class="card tile hidden-players">
           <summary>
-            <strong>Ausgeblendet</strong>
-            <span class="faint small"> · {plural(cards.hidden.length, "Spieler", "Spieler")}, nicht in Rangliste und Vergleich</span>
+            <strong>{t("Ausgeblendet")}</strong>
+            <span class="faint small"> {t(" · {n}, nicht in Rangliste und Vergleich", { n: plural(cards.hidden.length, t("Spieler"), t("Spieler")) })}</span>
           </summary>
           <div class="suggest-list">
             {cards.hidden.map((c) => (
@@ -422,12 +425,11 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   <strong>{c.player.name}</strong>
                   <span class="faint small">
                     {" "}
-                    · {plural(c.games, "Partie", "Partien")}
-                    {c.player.friend ? " · Freund" : ""}
+                    {t("· {n}{n2}", { n: plural(c.games, t("Partie"), t("Partien")), n2: c.player.friend ? t(" · Freund") : "" })}
                   </span>
                 </a>
                 <button class="btn small" onClick={() => void updatePlayer(c.player.id, { hidden: false })}>
-                  <IconEye /> Einblenden
+                  <IconEye />  {t("Einblenden")}
                 </button>
               </div>
             ))}
@@ -438,8 +440,8 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
       {suggestions.length > 0 && (
         <section class="card tile">
           <div class="tile-head">
-            <h3>Deine häufigsten Gegner</h3>
-            <span class="tile-sub">aus deinen Partien</span>
+            <h3>{t("Deine häufigsten Gegner")}</h3>
+            <span class="tile-sub">{t("aus deinen Partien")}</span>
           </div>
           <div class="suggest-list">
             {suggestions.map((s) => (
@@ -448,11 +450,11 @@ function PlayerList({ players, games, me }: { players: TrackedPlayer[]; games: S
                   <strong>{s.username}</strong>
                   <span class="faint small">
                     {" "}
-                    · {plural(s.games, "Partie", "Partien")} · du holst {pct0(s.score_pct)}
+                    {t("· {n} · du holst {n2}", { n: plural(s.games, t("Partie"), t("Partien")), n2: pct0(s.score_pct) })}
                   </span>
                 </span>
                 <button class="btn small" onClick={() => setAdding({ username: s.username, source: sourceOf(s.username) })}>
-                  <IconPlus /> Hinzufügen
+                  <IconPlus />  {t("Hinzufügen")}
                 </button>
               </div>
             ))}
@@ -486,14 +488,14 @@ const KIND_CLASS: Record<string, string> = {
 function TipList({ tips, numbered }: { tips: ScoutTip[]; numbered?: boolean }) {
   return (
     <div class="plan">
-      {tips.map((t, i) => (
-        <div class={`plan-item${numbered ? "" : " no-num"}`} key={t.key}>
+      {tips.map((tk, i) => (
+        <div class={`plan-item${numbered ? "" : " no-num"}`} key={tk.key}>
           {numbered && <div class="plan-num">{i + 1}</div>}
-          <span class={`pill ${KIND_CLASS[t.kind] ?? ""}`}>{t.kind}</span>
+          <span class={`pill ${KIND_CLASS[tk.kind] ?? ""}`}>{t(tk.kind)}</span>
           <div class="t" style={{ marginTop: "6px" }}>
-            {t.title}
+            {tk.title}
           </div>
-          <div class="small muted">{t.text}</div>
+          <div class="small muted">{tk.text}</div>
         </div>
       ))}
     </div>
@@ -508,10 +510,10 @@ function PickList({ picks, empty }: { picks: OpeningPick[]; empty: string }) {
         <div class={`pick${i === 0 && p.value >= 5 ? " top" : ""}`} key={p.key}>
           <div class="pick-head">
             <strong>{p.title}</strong>
-            {i === 0 && p.value >= 5 && <span class="pill accent">Empfehlung</span>}
+            {i === 0 && p.value >= 5 && <span class="pill accent">{t("Empfehlung")}</span>}
             <span class="spacer" />
             <span class={`pill ${p.their_score_pct !== null && p.their_score_pct <= 40 ? "win" : p.their_score_pct !== null && p.their_score_pct >= 60 ? "loss" : "draw"}`}>
-              holt {pct0(p.their_score_pct)}
+              {t("holt {n}", { n: pct0(p.their_score_pct) })}
             </span>
           </div>
           <div class="small muted">{p.text}</div>
@@ -525,7 +527,7 @@ function Repertoire({ report }: { report: ScoutReport }) {
   const total = report.their_first_moves.reduce((s, m) => s + m.games, 0);
   return (
     <>
-      <h4>Mit Weiß eröffnet {report.name} mit</h4>
+      <h4>{t("Mit Weiß eröffnet {name} mit", { name: report.name })}</h4>
       {report.their_first_moves.length ? (
         <div class="move-chips">
           {report.their_first_moves.slice(0, 5).map((m) => (
@@ -535,20 +537,20 @@ function Repertoire({ report }: { report: ScoutReport }) {
           ))}
         </div>
       ) : (
-        <p class="muted small">Keine Weißpartien.</p>
+        <p class="muted small">{t("Keine Weißpartien.")}</p>
       )}
-      <h4>Mit Schwarz antwortet {report.name}</h4>
+      <h4>{t("Mit Schwarz antwortet {name}", { name: report.name })}</h4>
       {report.their_replies.length ? (
         <div class="reply-list">
           {report.their_replies.slice(0, 4).map((v) => (
             <div key={v.san} class="small">
-              <strong>auf 1. {v.san}</strong>
-              <span class="muted"> mit {v.replies.slice(0, 3).map((r) => `1… ${r.san} (${r.games})`).join(", ")}</span>
+              <strong>{t("auf 1. {san}", { san: v.san })}</strong>
+              <span class="muted"> {t(" mit {n}", { n: v.replies.slice(0, 3).map((r) => `1… ${r.san} (${r.games})`).join(", ") })}</span>
             </div>
           ))}
         </div>
       ) : (
-        <p class="muted small">Keine Schwarzpartien.</p>
+        <p class="muted small">{t("Keine Schwarzpartien.")}</p>
       )}
     </>
   );
@@ -558,9 +560,9 @@ type DetailSection = "compare" | "beat" | "profile";
 
 // The player page used to be one long scroll of 15 cards; three tabs keep each view short.
 const DETAIL_SECTIONS: [DetailSection, (name: string) => string][] = [
-  ["compare", () => "Vergleich"],
-  ["beat", (name) => `Gegen ${name}`],
-  ["profile", () => "Profil"],
+  ["compare", () => t("Vergleich")],
+  ["beat", (name) => t("Gegen {name}", { name })],
+  ["profile", () => t("Profil")],
 ];
 
 /** Openings you both play with the same colour: who scores better in them. */
@@ -568,8 +570,8 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
   return (
     <section class="card tile span-6">
       <div class="tile-head">
-        <h3>Gemeinsame Eröffnungen</h3>
-        <span class="tile-sub">deine Punkte gegen die von {name}</span>
+        <h3>{t("Gemeinsame Eröffnungen")}</h3>
+        <span class="tile-sub">{t("deine Punkte gegen die von {name}", { name })}</span>
       </div>
       {rows.length ? (
         <div class="shared-ops">
@@ -577,15 +579,16 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
             <div class="shared-op" key={`${o.color}${o.name}`}>
               <div class="shared-op-head">
                 <strong>{o.name}</strong>
-                <span class="faint small">mit {o.color === "white" ? "Weiß" : "Schwarz"}</span>
+                <span class="faint small">{t("mit {n}", { n: o.color === "white" ? t("Weiß") : t("Schwarz") })}</span>
                 <span class="spacer" />
                 <span class={`pill ${o.better === "me" ? "win" : o.better === "them" ? "loss" : ""}`}>
-                  {o.better === "me" ? "du klar besser" : o.better === "them" ? `${name} klar besser` : "ähnlich"}
+                  {o.better === "me" ? t("du klar besser") : o.better === "them" ? t("{name} klar besser", { name }) : t("ähnlich")}
                 </span>
               </div>
               <div class="shared-op-vals small">
                 <span>
-                  Du <strong class="tnum">{pct0(o.mine.score_pct)}</strong> <span class="faint">({o.mine.games})</span>
+                  
+                  {tj("Du {x} {x2}", { x: <strong class="tnum">{pct0(o.mine.score_pct)}</strong>, x2: <span class="faint">({o.mine.games})</span> })}
                 </span>
                 <span>
                   {name} <strong class="tnum">{pct0(o.theirs.score_pct)}</strong> <span class="faint">({o.theirs.games})</span>
@@ -595,7 +598,7 @@ function SharedOpeningsCard({ name, rows }: { name: string; rows: SharedOpening[
           ))}
         </div>
       ) : (
-        <p class="muted small">Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens {MIN_LINE_GAMES} Mal gespielt habt.</p>
+        <p class="muted small">{t("Ihr habt noch keine Eröffnung, die ihr beide mit derselben Farbe mindestens {MIN_LINE_GAMES} Mal gespielt habt.", { MIN_LINE_GAMES })}</p>
       )}
     </section>
   );
@@ -679,9 +682,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   if (!player) {
     return (
       <div class="empty">
-        <p>Diesen Spieler gibt es nicht mehr.</p>
+        <p>{t("Diesen Spieler gibt es nicht mehr.")}</p>
         <button class="btn primary" onClick={() => navigate({ view: "players" })}>
-          Zu den Spielern
+          
+          {t("Zu den Spielern")}
         </button>
       </div>
     );
@@ -696,14 +700,14 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   const online = player.accounts.some((a) => a.source !== "other");
 
   const refresh = async (all = false) => {
-    setBusy(all ? "Lade die gesamte Spielhistorie …" : "Lade Partien …");
+    setBusy(all ? t("Lade die gesamte Spielhistorie …") : t("Lade Partien …"));
     try {
       const { result, failed } = await importPlayerGames(player, {
         onProgress: setBusy,
         ...(all ? { count: null, months: null } : {}),
       });
       const missed = failed.map((a) => `${SOURCE_LABELS[a.source]}: ${a.username}`).join(", ");
-      setBusy(`${plural(result.imported, "neue Partie", "neue Partien")} geladen.${missed ? ` Nicht erreichbar: ${missed}.` : ""}`);
+      setBusy(t("{n} geladen.{n2}", { n: plural(result.imported, t("neue Partie"), t("neue Partien")), n2: missed ? t(" Nicht erreichbar: {missed}.", { missed }) : "" }));
       window.setTimeout(() => setBusy(""), missed ? 6000 : 2500);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -731,16 +735,16 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
   return (
     <div style={{ opacity: loading ? 0.6 : 1 }}>
       <div class="page-title">
-        <button class="btn small ghost" onClick={() => navigate({ view: "players" })} aria-label="Zurück">
+        <button class="btn small ghost" onClick={() => navigate({ view: "players" })} aria-label={t("Zurück")}>
           ←
         </button>
         {player.name}
-        {player.friend && <span class="pill accent">Freund</span>}
-        {player.hidden && <span class="pill">Ausgeblendet</span>}
+        {player.friend && <span class="pill accent">{t("Freund")}</span>}
+        {player.hidden && <span class="pill">{t("Ausgeblendet")}</span>}
         <span class="spacer" />
         {online && (
           <button class="btn" disabled={Boolean(busy)} onClick={() => void refresh()}>
-            <IconSync /> Partien laden
+            <IconSync />  {t("Partien laden")}
           </button>
         )}
         {online && (
@@ -748,9 +752,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             class="btn"
             disabled={Boolean(busy)}
             onClick={() => void refresh(true)}
-            title="Alle Partien seit Kontoeröffnung laden, nicht nur die neuesten. Bereits geladene werden übersprungen."
+            title={t("Alle Partien seit Kontoeröffnung laden, nicht nur die neuesten. Bereits geladene werden übersprungen.")}
           >
-            <IconSync /> Gesamte Zeit laden
+            <IconSync />  {t("Gesamte Zeit laden")}
           </button>
         )}
         {open.length > 0 && (
@@ -758,18 +762,18 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             class="btn"
             disabled={running > 0}
             onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}
-            title="Die neuesten Partien zuerst"
+            title={t("Die neuesten Partien zuerst")}
           >
-            <IconPlay /> {running > 0 ? `Analyse läuft (${running})` : `${Math.min(open.length, ANALYZE_BATCH)} analysieren`}
+            <IconPlay /> {running > 0 ? t("Analyse läuft ({running})", { running }) : t("{n} analysieren", { n: Math.min(open.length, ANALYZE_BATCH) })}
           </button>
         )}
       </div>
       {busy && <p class="small muted">{busy}</p>}
       {player.hidden && (
         <div class="notice row" style={{ marginBottom: "12px", gap: "10px", flexWrap: "wrap" }}>
-          <span>{player.name} ist ausgeblendet und zählt nicht in der Rangliste.</span>
+          <span>{t("{name} ist ausgeblendet und zählt nicht in der Rangliste.", { name: player.name })}</span>
           <button class="btn small" onClick={() => void updatePlayer(player.id, { hidden: false })}>
-            <IconEye /> Wieder einblenden
+            <IconEye />  {t("Wieder einblenden")}
           </button>
         </div>
       )}
@@ -777,9 +781,11 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       <PlayerFilters format={format} date={date} onFormat={setFormat} onDate={setDate} />
       {duelSpeed && format !== duelSpeed && (
         <p class="small muted duel-speed-hint">
-          Ihr spielt meist {formatOptionLabel(duelSpeed, false)} gegeneinander.{" "}
+          
+          {t("Ihr spielt meist {formatOptionLabel} gegeneinander.", { formatOptionLabel: formatOptionLabel(duelSpeed, false) })}{" "}
           <button class="btn small" onClick={() => setFormat(duelSpeed)}>
-            Tipps nur für {formatOptionLabel(duelSpeed, false)}
+            
+            {t("Tipps nur für {formatOptionLabel}", { formatOptionLabel: formatOptionLabel(duelSpeed, false) })}
           </button>
         </p>
       )}
@@ -793,13 +799,12 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
       ) : them.total_games === 0 ? (
         <div class="empty">
           <p>
-            Noch keine Partien von {player.name}
-            {format !== "All Formats" || date !== "All Time" ? " in diesem Zeitraum" : ""}.{" "}
-            {online ? "Lade die Partien von Lichess oder Chess.com." : "Importiere eine PGN mit Partien dieser Person."}
+            
+            {t("Noch keine Partien von {name}{n}. {n2}", { name: player.name, n: format !== "All Formats" || date !== "All Time" ? t(" in diesem Zeitraum") : "", n2: online ? t("Lade die Partien von Lichess oder Chess.com.") : t("Importiere eine PGN mit Partien dieser Person.") })}
           </p>
           {online && (
             <button class="btn primary" disabled={Boolean(busy)} onClick={() => void refresh()}>
-              <IconSync /> Partien laden
+              <IconSync />  {t("Partien laden")}
             </button>
           )}
         </div>
@@ -826,10 +831,10 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
               {radar.length >= 3 && (
                 <section class="card tile span-6">
                   <div class="tile-head">
-                    <h3>Fähigkeiten im Vergleich</h3>
-                    <span class="tile-sub">0–100 Punkte</span>
+                    <h3>{t("Fähigkeiten im Vergleich")}</h3>
+                    <span class="tile-sub">{t("0–100 Punkte")}</span>
                   </div>
-                  <RadarChart axes={radar} ownLabel={player.name} compare={data.mine ? "Du" : undefined} />
+                  <RadarChart axes={radar} ownLabel={player.name} compare={data.mine ? t("Du") : undefined} />
                 </section>
               )}
               <FriendDetails part="compare" name={player.name} them={them} mine={data.mine} games={theirGames} names={names} />
@@ -841,25 +846,23 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
             <>
           <section class="card tile span-12">
             <div class="tile-head">
-              <h3>So schlägst du {player.name}</h3>
-              <span class="tile-sub">aus {plural(them.total_games, "Partie", "Partien")} von {player.name}</span>
+              <h3>{t("So schlägst du {name}", { name: player.name })}</h3>
+              <span class="tile-sub">{t("aus {n} von {name}", { n: plural(them.total_games, t("Partie"), t("Partien")), name: player.name })}</span>
             </div>
             {report.plan.length ? (
               <TipList tips={report.plan} numbered />
             ) : (
-              <p class="muted small">Noch keine klare Schwachstelle erkennbar. Mehr Partien laden oder analysieren hilft.</p>
+              <p class="muted small">{t("Noch keine klare Schwachstelle erkennbar. Mehr Partien laden oder analysieren hilft.")}</p>
             )}
             {them.analyzed_games < 3 && (
               <div class="notice" style={{ marginTop: "12px" }}>
                 <div class="row" style={{ justifyContent: "space-between" }}>
                   <span>
-                    Eröffnungstipps kommen schon aus den Ergebnissen. Für Taktik- und Strategietipps braucht die App analysierte
-                    Partien von {player.name}.
-                  </span>
+                    
+                    {t("Eröffnungstipps kommen schon aus den Ergebnissen. Für Taktik- und Strategietipps braucht die App analysierte Partien von {name}.", { name: player.name })}</span>
                   {open.length > 0 && running === 0 && (
                     <button class="btn primary small" onClick={() => void enqueue(open.slice(0, ANALYZE_BATCH))}>
-                      <IconPlay /> {Math.min(open.length, ANALYZE_BATCH)} analysieren
-                    </button>
+                      <IconPlay /> {t("{n} analysieren", { n: Math.min(open.length, ANALYZE_BATCH) })}</button>
                   )}
                 </div>
               </div>
@@ -868,25 +871,25 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>Du hast Weiß</h3>
-              <span class="tile-sub">{player.name} mit Schwarz</span>
+              <h3>{t("Du hast Weiß")}</h3>
+              <span class="tile-sub">{t("{name} mit Schwarz", { name: player.name })}</span>
             </div>
-            <PickList picks={report.as_white} empty={`Keine Eröffnung, in der ${player.name} mit Schwarz klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Eröffnung).`} />
+            <PickList picks={report.as_white} empty={t("Keine Eröffnung, in der {name} mit Schwarz klar schwach punktet (gezählt ab {MIN_LINE_GAMES} Partien pro Eröffnung).", { name: player.name, MIN_LINE_GAMES })} />
           </section>
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>Du hast Schwarz</h3>
-              <span class="tile-sub">{player.name} mit Weiß</span>
+              <h3>{t("Du hast Schwarz")}</h3>
+              <span class="tile-sub">{t("{name} mit Weiß", { name: player.name })}</span>
             </div>
-            <PickList picks={report.as_black} empty={`Keine Antwort, gegen die ${player.name} mit Weiß klar schwach punktet (gezählt ab ${MIN_LINE_GAMES} Partien pro Antwort).`} />
+            <PickList picks={report.as_black} empty={t("Keine Antwort, gegen die {name} mit Weiß klar schwach punktet (gezählt ab {MIN_LINE_GAMES} Partien pro Antwort).", { name: player.name, MIN_LINE_GAMES })} />
           </section>
 
           {report.cautions.length > 0 && (
             <section class="card tile span-6">
               <div class="tile-head">
-                <h3>Vorsicht</h3>
-                <span class="tile-sub">Stärken von {player.name}</span>
+                <h3>{t("Vorsicht")}</h3>
+                <span class="tile-sub">{t("Stärken von {name}", { name: player.name })}</span>
               </div>
               <div class="insights">
                 {report.cautions.map((c) => (
@@ -901,15 +904,15 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>Repertoire von {player.name}</h3>
+              <h3>{t("Repertoire von {name}", { name: player.name })}</h3>
             </div>
             <Repertoire report={report} />
           </section>
 
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>So verliert {player.name}</h3>
-              <span class="tile-sub">{plural(them.overview.losses, "Niederlage", "Niederlagen")}</span>
+              <h3>{t("So verliert {name}", { name: player.name })}</h3>
+              <span class="tile-sub">{plural(them.overview.losses, t("Niederlage"), t("Niederlagen"))}</span>
             </div>
             {report.losses.length ? (
               <StackBar
@@ -920,7 +923,7 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
                 }))}
               />
             ) : (
-              <p class="muted small">Keine Niederlagen in diesen Partien.</p>
+              <p class="muted small">{t("Keine Niederlagen in diesen Partien.")}</p>
             )}
           </section>
 
@@ -937,9 +940,9 @@ function PlayerDetail({ id, players, games, me }: { id: string; players: Tracked
 }
 
 const PHASES: [string, string][] = [
-  ["opening", "Eröffnung"],
-  ["middlegame", "Mittelspiel"],
-  ["endgame", "Endspiel"],
+  ["opening", t("Eröffnung")],
+  ["middlegame", t("Mittelspiel")],
+  ["endgame", t("Endspiel")],
 ];
 
 /** More about a friend: move tally, rating and accuracy history, activity, style and newest games. */
@@ -960,7 +963,7 @@ function FriendDetails({
 }) {
   const [speed, setSpeed] = useState<string | null>(null);
   const daily = useMemo(() => dailyActivity(games, names), [games, names.join("|")]);
-  const t = them.moves;
+  const tk = them.moves;
   const m = mine?.moves ?? null;
 
   const ratingSeries = (them.trends.ratings ?? {}) as Record<string, [number, number][]>;
@@ -985,27 +988,27 @@ function FriendDetails({
       <>
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>{name} und du</h3>
-            <span class="tile-sub">Zugbewertungen im Vergleich</span>
+            <h3>{t("{name} und du", { name })}</h3>
+            <span class="tile-sub">{t("Zugbewertungen im Vergleich")}</span>
           </div>
-          {t && m ? (
+          {tk && m ? (
             <VersusBars
-              a={{ label: name, moves: t.moves, counts: t.counts }}
-              b={{ label: "Du", moves: m.moves, counts: m.counts }}
+              a={{ label: name, moves: tk.moves, counts: tk.counts }}
+              b={{ label: t("Du"), moves: m.moves, counts: m.counts }}
               keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]}
             />
           ) : (
-            <p class="muted small">Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.</p>
+            <p class="muted small">{t("Der Vergleich erscheint, sobald von euch beiden Partien analysiert sind.")}</p>
           )}
         </section>
 
         {them.analyzed_games > 0 && (
           <section class="card tile span-6">
             <div class="tile-head">
-              <h3>Genauigkeit nach Phase</h3>
-              <span class="tile-sub">{mine?.analyzed_games ? "Strich: deine Werte" : ""}</span>
+              <h3>{t("Genauigkeit nach Phase")}</h3>
+              <span class="tile-sub">{mine?.analyzed_games ? t("Strich: deine Werte") : ""}</span>
             </div>
-            <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? "Du" : undefined} />
+            <BarList rows={phaseRows} ownLabel={name} referenceLabel={mine?.analyzed_games ? t("Du") : undefined} />
             <FormStats weekly={weekly} />
           </section>
         )}
@@ -1017,20 +1020,20 @@ function FriendDetails({
     <>
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Zugbilanz von {name}</h3>
-          <span class="tile-sub">{t ? `aus ${plural(t.games, "analysierten Partie", "analysierten Partien")}` : ""}</span>
+          <h3>{t("Zugbilanz von {name}", { name })}</h3>
+          <span class="tile-sub">{tk ? t("aus {n}", { n: plural(tk.games, t("analysierten Partie"), t("analysierten Partien")) }) : ""}</span>
         </div>
-        {t ? (
-          <ClassTiles tally={t} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
+        {tk ? (
+          <ClassTiles tally={tk} keys={["Brilliant", "Great", "Best", "Inaccuracy", "Mistake", "Blunder"]} compact />
         ) : (
-          <p class="muted small">Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.</p>
+          <p class="muted small">{t("Analysiere Partien von {name}, dann siehst du hier brillante Züge, Fehler und Patzer.", { name })}</p>
         )}
       </section>
 
       {ratingPoints.length > 1 && (
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>Wertungsverlauf</h3>
+            <h3>{t("Wertungsverlauf")}</h3>
             <span class="tile-sub">{shown}</span>
           </div>
           {speeds.length > 1 && (
@@ -1048,16 +1051,16 @@ function FriendDetails({
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Aktivität von {name}</h3>
-          <span class="tile-sub">Partien pro Tag</span>
+          <h3>{t("Aktivität von {name}", { name })}</h3>
+          <span class="tile-sub">{t("Partien pro Tag")}</span>
         </div>
-        <Calendar daily={daily} today={localDay()} note="Nur Partien, die in der App gespeichert sind." />
+        <Calendar daily={daily} today={localDay()} note={t("Nur Partien, die in der App gespeichert sind.")} />
       </section>
 
       {them.style && (
         <section class="card tile span-6">
           <div class="tile-head">
-            <h3>Spielstil: {them.style.label}</h3>
+            <h3>{t("Spielstil: {label}", { label: them.style.label })}</h3>
           </div>
           <StyleAxes axes={them.style.axes} />
         </section>
@@ -1065,7 +1068,7 @@ function FriendDetails({
 
       <section class="card tile span-6">
         <div class="tile-head">
-          <h3>Neueste Partien von {name}</h3>
+          <h3>{t("Neueste Partien von {name}", { name })}</h3>
         </div>
         <RecentGames profile={them} />
       </section>
@@ -1078,22 +1081,21 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
   return (
     <section class="card tile player-settings">
       <div class="tile-head">
-        <h3>Spieler verwalten</h3>
+        <h3>{t("Spieler verwalten")}</h3>
       </div>
       <label class="toggle-row">
         <input type="checkbox" checked={player.friend} onChange={(e) => void updatePlayer(player.id, { friend: e.currentTarget.checked })} />
         <span>
-          <strong>Freund</strong>
-          <small class="faint">Freunde werden in der Rangliste mit dir verglichen und bekommen eine ausführlichere Seite.</small>
+          <strong>{t("Freund")}</strong>
+          <small class="faint">{t("Freunde werden in der Rangliste mit dir verglichen und bekommen eine ausführlichere Seite.")}</small>
         </span>
       </label>
       <label class="toggle-row">
         <input type="checkbox" checked={player.hidden} onChange={(e) => void updatePlayer(player.id, { hidden: e.currentTarget.checked })} />
         <span>
-          <strong>In Rangliste und Vergleich ausblenden</strong>
+          <strong>{t("In Rangliste und Vergleich ausblenden")}</strong>
           <small class="faint">
-            {player.name} bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“.
-            Diese Seite bleibt erreichbar.
+            {t("{name} bleibt gespeichert, zählt aber nicht in der Rangliste und steht in der Spielerliste unter „Ausgeblendet“. Diese Seite bleibt erreichbar.", { name: player.name })}
           </small>
         </span>
       </label>
@@ -1104,26 +1106,28 @@ function PlayerSettings({ player }: { player: TrackedPlayer }) {
               class="btn"
               onClick={() => void removePlayer(player.id).then(() => navigate({ view: "players" }))}
             >
-              Nur Spieler entfernen
+              
+              {t("Nur Spieler entfernen")}
             </button>
             <button
               class="btn danger"
               onClick={() => void removePlayer(player.id, { deleteGames: true }).then(() => navigate({ view: "players" }))}
             >
-              <IconTrash /> Spieler und Partien löschen
+              <IconTrash />  {t("Spieler und Partien löschen")}
             </button>
             <button class="btn ghost" onClick={() => setConfirm(false)}>
-              Abbrechen
+              
+              {t("Abbrechen")}
             </button>
           </>
         ) : (
           <button class="btn" onClick={() => setConfirm(true)}>
-            <IconTrash /> Entfernen
+            <IconTrash />  {t("Entfernen")}
           </button>
         )}
       </div>
       {confirm && (
-        <p class="faint small">Beim Löschen bleiben Partien erhalten, an denen du oder ein anderer Spieler beteiligt seid.</p>
+        <p class="faint small">{t("Beim Löschen bleiben Partien erhalten, an denen du oder ein anderer Spieler beteiligt seid.")}</p>
       )}
     </section>
   );
@@ -1151,7 +1155,8 @@ export function PlayersView({ playerId, tab }: { playerId?: string; tab?: "rangl
       <PageHeader actions={<GuideButton id={guide} />} />
       {!me.length && (
         <div class="notice" style={{ marginBottom: "14px" }}>
-          Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.
+          
+          {t("Trag unter Einstellungen › Allgemein deine eigenen Spielernamen ein, damit Direktvergleich und Rangliste dich erkennen.")}
         </div>
       )}
       {tab === "rangliste" ? <LeaguePage players={players} games={games} me={me} /> : <PlayerList players={players} games={games} me={me} />}

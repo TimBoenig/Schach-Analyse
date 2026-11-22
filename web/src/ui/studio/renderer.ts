@@ -11,6 +11,7 @@ import { toneColor, type StudioStyle } from "./model";
 import { environment, type EnvLine } from "./environments";
 import { pieceMesh } from "./pieces";
 import { squareXZ, xzSquare, type CameraState, type Frame } from "./timeline";
+import { t } from "../../i18n";
 
 const LIT_VERT = `
 attribute vec3 aPos; attribute vec3 aNormal; attribute vec4 aColor;
@@ -181,7 +182,7 @@ export class StudioRenderer {
   constructor() {
     this.canvas = document.createElement("canvas");
     const gl = this.canvas.getContext("webgl", { antialias: true, alpha: true, premultipliedAlpha: true, preserveDrawingBuffer: true, stencil: true });
-    if (!gl) throw new Error("WebGL ist auf diesem Gerät nicht verfügbar.");
+    if (!gl) throw new Error(t("WebGL ist auf diesem Gerät nicht verfügbar."));
     this.gl = gl;
     this.lit = this.program(LIT_VERT, LIT_FRAG, ["aPos", "aNormal", "aColor"]);
     this.flat = this.program(FLAT_VERT, FLAT_FRAG, ["aPos", "aUV"]);

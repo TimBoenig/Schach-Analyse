@@ -7,6 +7,7 @@ import { parsePlayers, playerId, playerUsernames, type PlayerAccount, type Track
 import type { GameAnalysis } from "../domain/types";
 import { deleteGame, gameExists, getSetting, listGames, setSetting } from "../storage/db";
 import { storeImported } from "../storage/rows";
+import { t } from "../i18n";
 
 export const PLAYERS_KEY = "players";
 
@@ -21,7 +22,7 @@ async function save(list: TrackedPlayer[]): Promise<void> {
 export async function addPlayer(input: { name?: string; accounts: PlayerAccount[]; friend: boolean }): Promise<TrackedPlayer> {
   const list = await loadPlayers();
   const accounts = input.accounts.map((a) => ({ ...a, username: a.username.trim() })).filter((a) => a.username);
-  if (!accounts.length) throw new Error("Bitte einen Benutzernamen eingeben.");
+  if (!accounts.length) throw new Error(t("Bitte einen Benutzernamen eingeben."));
   const lower = new Set(accounts.map((a) => a.username.toLowerCase()));
   const existing = list.find((p) => playerUsernames(p).some((u) => lower.has(u.toLowerCase())));
   if (existing) {
@@ -144,7 +145,7 @@ export async function importAllPlayers(
   for (const [i, p] of online.entries()) {
     if (signal?.aborted) break;
     const step = `${p.name} (${i + 1}/${online.length})`;
-    onProgress?.(`Lade ${step} …`);
+    onProgress?.(t("Lade {step} …", { step }));
     try {
       imported += (await importPlayerGames(p, { ...opts, signal, onProgress: (label) => onProgress?.(`${step}: ${label}`) })).result.imported;
     } catch {

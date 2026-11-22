@@ -9,20 +9,21 @@ import { type Arrow, Board } from "../Board";
 import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
 import { IconReset } from "../icons";
 import { PUZZLE_FEN, PUZZLE_HINT } from "../landingPuzzle";
+import { lang, t } from "../../i18n";
 
 type State = { fen: string; last: { from: string; to: string } | null; misses: number; solved: boolean; wrong: string | null };
 
 // German piece letters, as a German player reads the move (T for Turm, not R).
 const DE: Record<string, string> = { Q: "D", R: "T", B: "L", N: "S" };
-const germanSan = (san: string) => san.replace(/[QRBN]/g, (c) => DE[c]);
+const germanSan = (san: string) => (lang() === "de" ? san.replace(/[QRBN]/g, (c) => DE[c]) : san);
 
 const START: State = { fen: PUZZLE_FEN, last: null, misses: 0, solved: false, wrong: null };
 
 function speech(s: State): { mood: Mood; text: string } {
-  if (s.solved) return { mood: "wow", text: "Matt. Stark gesehen! Genau so gehe ich durch deine Partien: Zug für Zug, und ich merke mir, was du übersiehst." };
-  if (s.wrong && s.misses >= 2) return { mood: "think", text: `${s.wrong} setzt nicht matt. Der Pfeil zeigt dir den Weg: Die letzte Reihe ist offen.` };
-  if (s.wrong) return { mood: "sad", text: `${s.wrong} setzt noch nicht matt. Schau dir den schwarzen König an: Seine Bauern sperren ihn ein.` };
-  return { mood: "happy", text: `Hallo, ich bin ${COACH_NAME}. Probier es aus: Weiß zieht und setzt in einem Zug matt.` };
+  if (s.solved) return { mood: "wow", text: t("Matt. Stark gesehen! Genau so gehe ich durch deine Partien: Zug für Zug, und ich merke mir, was du übersiehst.") };
+  if (s.wrong && s.misses >= 2) return { mood: "think", text: t("{move} setzt nicht matt. Der Pfeil zeigt dir den Weg: Die letzte Reihe ist offen.", { move: s.wrong }) };
+  if (s.wrong) return { mood: "sad", text: t("{move} setzt noch nicht matt. Schau dir den schwarzen König an: Seine Bauern sperren ihn ein.", { move: s.wrong }) };
+  return { mood: "happy", text: t("Hallo, ich bin {COACH_NAME}. Probier es aus: Weiß zieht und setzt in einem Zug matt.", { COACH_NAME }) };
 }
 
 export function HeroStage() {
@@ -71,10 +72,10 @@ export function HeroStage() {
         />
       </div>
       <div class="ld-stage-foot">
-        <span>{s.solved ? "Gelöst" : s.misses ? `${s.misses} ${s.misses === 1 ? "Versuch" : "Versuche"}` : "Zieh eine Figur oder tippe sie an"}</span>
+        <span>{s.solved ? t("Gelöst") : s.misses ? (s.misses === 1 ? t("1 Versuch") : t("{n} Versuche", { n: s.misses })) : t("Zieh eine Figur oder tippe sie an")}</span>
         {(s.solved || s.misses > 0) && (
           <button class="btn small ghost" onClick={() => setS(START)}>
-            <IconReset /> Nochmal
+            <IconReset /> {t("Nochmal")}
           </button>
         )}
       </div>

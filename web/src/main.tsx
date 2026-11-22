@@ -1,38 +1,24 @@
-import { render } from "preact";
-import { registerSW } from "virtual:pwa-register";
-
-import { initInstallPrompt } from "./app/install";
-import { App } from "./ui/App";
-import { ErrorBoundary } from "./ui/ErrorBoundary";
-import { initMotion } from "./ui/motion";
-import { initAppearance } from "./ui/theme";
-import "./ui/styles.css";
-import "./ui/design.css";
-import "./ui/arena.css";
-import "./ui/mobile.css";
-import "./ui/signal.css";
-import "./ui/landing.css";
-import "./ui/nova/index.css";
+// Entry point. The page language must be known before any view module loads,
+// because label tables are built with t() at import time; so this file only
+// picks the language (and loads the English texts if needed) and then imports
+// the app.
+import { initLang, lang, pageLang, t } from "./i18n";
+import { parseHash } from "./ui/router";
 
 // Bio links may drop the "#" part, so the landing page also answers at /hello (and the older /hallo).
 // The app itself lives at "/" with hash routes; switch over without a reload.
 if (/^\/(hello|hallo)\/?$/.test(location.pathname)) history.replaceState(null, "", `/${location.hash || "#/hello"}`);
 
-initAppearance();
-// The AI coach was removed; drop its stored provider settings and API key.
-try {
-  localStorage.removeItem("schach.ai");
-} catch {
-  // Storage blocked (private mode): nothing was stored either.
-}
-initInstallPrompt();
-initMotion();
-registerSW({ immediate: true });
-// Outer boundary: an error in the app shell itself shows a message with a
-// reload button instead of an empty page.
-render(
-  <ErrorBoundary area="Die App">
-    <App />
-  </ErrorBoundary>,
-  document.getElementById("app")!,
-);
+const viewOf = () => parseHash(location.hash).view;
+
+// The video studio can have its own language; entering or leaving it reloads
+// the page when the language differs, so no screen ever mixes the two.
+window.addEventListener("hashchange", () => {
+  if (pageLang(viewOf()) !== lang()) location.reload();
+});
+
+void initLang(pageLang(viewOf())).then(() => {
+  document.title = t("EndGameKing – Schachanalyse und Training");
+  document.querySelector('meta[name="description"]')?.setAttribute("content", t("Schachpartien offline analysieren, Stärken und Schwächen erkennen und gezielt trainieren."));
+  return import("./boot");
+});

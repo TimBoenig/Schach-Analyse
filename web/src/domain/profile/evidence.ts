@@ -71,8 +71,8 @@ export function scoresDiffer(a: ScoreSample, b: ScoreSample, z = Z95, min = MIN_
 export function scoreDeviation(s: ScoreSample, baselinePct: number, z = Z_ONE, min = MIN_LINE_GAMES): -1 | 0 | 1 {
   if (s.score_pct === null || s.games < min) return 0;
   const se = Math.sqrt(scoreVar(s.score_pct, s.games) / s.games);
-  const t = (s.score_pct - baselinePct) / 100 / se;
-  return t >= z ? 1 : t <= -z ? -1 : 0;
+  const tk = (s.score_pct - baselinePct) / 100 / se;
+  return tk >= z ? 1 : tk <= -z ? -1 : 0;
 }
 
 /** All games except `part`, so a group is compared with the others rather than with a total that contains it. */

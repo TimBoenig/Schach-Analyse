@@ -29,20 +29,21 @@ import { Section, type StatSection } from "./StatsLayout";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
 import { useProfile } from "./useProfile";
+import { t, locale } from "../i18n";
 
 // One tap for the periods that matter day to day.
 const QUICK: [string, string][] = [
-  ["Last 7 Days", "7 Tage"],
-  ["Last 30 Days", "30 Tage"],
-  ["Last 90 Days", "3 Monate"],
-  ["Last 365 Days", "1 Jahr"],
-  ["All Time", "Alles"],
+  ["Last 7 Days", t("7 Tage")],
+  ["Last 30 Days", t("30 Tage")],
+  ["Last 90 Days", t("3 Monate")],
+  ["Last 365 Days", t("1 Jahr")],
+  ["All Time", t("Alles")],
 ];
 
 // The four cards of the longer view; on phones they fold into this one heading.
-const HOME_TRENDS: StatSection = { id: "entwicklung", title: "Entwicklung", sub: "Formkurve, Veränderungen und Kalender", cards: [] };
+const HOME_TRENDS: StatSection = { id: "entwicklung", title: t("Entwicklung"), sub: t("Formkurve, Veränderungen und Kalender"), cards: [] };
 
-const TODAY_LABEL = () => new Date().toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+const TODAY_LABEL = () => new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
 
 /** One puzzle from the player's own games per day, solvable right here. */
 function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (ex: PuzzleExercise, ok: boolean) => void }) {
@@ -50,8 +51,8 @@ function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (e
     <section class="card span-7 hm-puzzle">
       <header class="card-head">
         <div>
-          <h3>Stellung des Tages</h3>
-          <p class="card-sub">Aus deinen eigenen Partien · jeden Tag eine neue</p>
+          <h3>{t("Stellung des Tages")}</h3>
+          <p class="card-sub">{t("Aus deinen eigenen Partien · jeden Tag eine neue")}</p>
         </div>
       </header>
       {ex ? (
@@ -60,11 +61,12 @@ function DailyPuzzle({ ex, onResult }: { ex: PuzzleExercise | null; onResult: (e
           ex={ex}
           onResult={(ok) => onResult(ex, ok)}
           onNext={() => navigate({ view: "training", tab: "uebungen", category: ex.category })}
-          nextLabel={`Mehr ${CATEGORIES[ex.category].label} üben`}
+          nextLabel={t("Mehr {label} üben", { label: CATEGORIES[ex.category].label })}
         />
       ) : (
         <p class="muted small">
-          Sobald ein paar Partien analysiert sind, wartet hier jeden Tag eine Stellung, in der du danebengegriffen hast. Findest du diesmal den besten Zug?
+          
+          {t("Sobald ein paar Partien analysiert sind, wartet hier jeden Tag eine Stellung, in der du danebengegriffen hast. Findest du diesmal den besten Zug?")}
         </p>
       )}
     </section>
@@ -117,12 +119,12 @@ export function HomeView() {
       tabs={false}
       title={
         <span class="home-greeting">
-          <span>{names[0] ? `Hallo ${names[0]}!` : "Start"}</span>
+          <span>{names[0] ? t("Hallo {0}!", { 0: names[0] }) : t("Start")}</span>
           <span class="home-date">{TODAY_LABEL()}</span>
         </span>
       }
       toolbar={
-        <div class="segmented small-seg" role="group" aria-label="Zeitraum">
+        <div class="segmented small-seg" role="group" aria-label={t("Zeitraum")}>
           {QUICK.map(([k, l]) => (
             <button key={k} class={filters.date === k ? "active" : ""} aria-pressed={filters.date === k} title={trFilter(k)} onClick={() => setFilters({ ...filters, date: k })}>
               {l}
@@ -159,20 +161,20 @@ export function HomeView() {
 
   const cmp = comparePeriods(comparison.current, comparison.previous);
   const notes = focusNotes(comparison.current, cmp);
-  const vsLabel = comparison.previous ? `${comparison.label} im Vergleich zu davor` : comparison.label;
+  const vsLabel = comparison.previous ? t("{label} im Vergleich zu davor", { label: comparison.label }) : comparison.label;
   const acc = cmp.kpis.find((k) => k.key === "accuracy");
   const accTrend = acc ? trendOf(acc) : "flat";
   const heroMood: Mood = accTrend === "up" ? "wow" : accTrend === "down" ? "think" : "happy";
   const heroTitle =
     notes[0] ??
-    (today?.streak ? (today.streak === 1 ? "Deine Trainingsserie läuft, bleib dran!" : `Stark, ${today.streak} Tage in Folge trainiert! Weiter so.`) : `Schön, dass du da bist${names[0] ? `, ${names[0]}` : ""}!`);
+    (today?.streak ? (today.streak === 1 ? t("Deine Trainingsserie läuft, bleib dran!") : t("Stark, {streak} Tage in Folge trainiert! Weiter so.", { streak: today.streak })) : t("Schön, dass du da bist{0}!", { 0: names[0] ? `, ${names[0]}` : "" }));
   const heroSub =
     notes.length > 1
       ? notes.slice(1, 3).join(" ")
       : notes.length === 0
         ? comparison.current.total_games
-          ? "Noch keine deutlichen Veränderungen. Mit mehr analysierten Partien kann ich dir genauer sagen, wohin die Reise geht."
-          : "In diesem Zeitraum hast du noch keine Partie gespielt. Spiel ein paar Partien und lade sie hoch, dann schaue ich sie mir an."
+          ? t("Noch keine deutlichen Veränderungen. Mit mehr analysierten Partien kann ich dir genauer sagen, wohin die Reise geht.")
+          : t("In diesem Zeitraum hast du noch keine Partie gespielt. Spiel ein paar Partien und lade sie hoch, dann schaue ich sie mir an.")
         : undefined;
   const lastGame = profile.recent_games[0];
   const topWeakness = (full ?? comparison.current).weaknesses[0];
@@ -184,17 +186,17 @@ export function HomeView() {
     <section class="card span-5 hm-changes">
       <header class="card-head">
         <div>
-          <h3>Was sich verändert hat</h3>
-          <p class="card-sub">Deine Fähigkeiten · {comparison.previous ? "gegenüber dem Zeitraum davor" : "kein Vergleichszeitraum"}</p>
+          <h3>{t("Was sich verändert hat")}</h3>
+          <p class="card-sub">{t("Deine Fähigkeiten · {n}", { n: comparison.previous ? t("gegenüber dem Zeitraum davor") : t("kein Vergleichszeitraum") })}</p>
         </div>
       </header>
       {changeRows.length ? (
         <>
           <ChangeBars rows={changeRows} threshold={5} />
-          <Foot>Farbig ab 5 Punkten Veränderung. Dahinter der aktuelle Wert von 0 bis 100. Blass: noch wenige Daten.</Foot>
+          <Foot>{t("Farbig ab 5 Punkten Veränderung. Dahinter der aktuelle Wert von 0 bis 100. Blass: noch wenige Daten.")}</Foot>
         </>
       ) : (
-        <p class="muted small">Noch keine analysierten Partien in diesem Zeitraum.</p>
+        <p class="muted small">{t("Noch keine analysierten Partien in diesem Zeitraum.")}</p>
       )}
     </section>
   );
@@ -203,11 +205,12 @@ export function HomeView() {
     <section class="card span-7 hm-recent">
       <header class="card-head">
         <div>
-          <h3>Letzte Partien</h3>
-          <p class="card-sub">Antippen öffnet die Partie mit Bericht</p>
+          <h3>{t("Letzte Partien")}</h3>
+          <p class="card-sub">{t("Antippen öffnet die Partie mit Bericht")}</p>
         </div>
         <button class="btn small" onClick={() => navigate({ view: "games" })}>
-          Alle Partien
+          
+          {t("Alle Partien")}
         </button>
       </header>
       <RecentGames profile={profile} limit={8} />
@@ -217,8 +220,8 @@ export function HomeView() {
     <section class="card span-5 hm-activity">
       <header class="card-head">
         <div>
-          <h3>Dein Kalender</h3>
-          <p class="card-sub">Partien pro Tag, diese Woche ganz unten</p>
+          <h3>{t("Dein Kalender")}</h3>
+          <p class="card-sub">{t("Partien pro Tag, diese Woche ganz unten")}</p>
         </div>
       </header>
       <Calendar daily={daily} today={localDay()} />

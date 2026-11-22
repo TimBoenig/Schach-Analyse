@@ -13,9 +13,9 @@ function parseUtc(dateStr: string, timeStr: string | null): number | null {
   let mi = 0;
   let s = 0;
   if (timeStr !== null) {
-    const t = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(timeStr);
-    if (!t) return null;
-    [h, mi, s] = [Number(t[1]), Number(t[2]), Number(t[3])];
+    const tk = /^(\d{1,2}):(\d{1,2}):(\d{1,2})$/.exec(timeStr);
+    if (!tk) return null;
+    [h, mi, s] = [Number(tk[1]), Number(tk[2]), Number(tk[3])];
     if (h > 23 || mi > 59 || s > 61) return null;
   }
   const dt = new Date(Date.UTC(y, mo - 1, da, h, mi, s));

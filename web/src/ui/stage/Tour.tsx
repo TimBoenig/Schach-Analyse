@@ -8,6 +8,7 @@ import { Illus } from "./Illus";
 import { TOUR_STOPS } from "./script";
 import { Stage, StagePoint } from "./Stage";
 import { markSeen } from "./store";
+import { t } from "../../i18n";
 
 export function Tour({ onClose, start = 0 }: { onClose: () => void; start?: number }) {
   const [index, setIndex] = useState(Math.min(Math.max(start, 0), TOUR_STOPS.length - 1));
@@ -27,7 +28,7 @@ export function Tour({ onClose, start = 0 }: { onClose: () => void; start?: numb
       onBack={index > 0 ? () => setIndex(index - 1) : undefined}
       onNext={next}
       onClose={onClose}
-      closeLabel="Schließen"
+      closeLabel={t("Schließen")}
       actions={
         <>
           <button
@@ -40,7 +41,7 @@ export function Tour({ onClose, start = 0 }: { onClose: () => void; start?: numb
             {stop.go.label}
           </button>
           <button class="btn primary" onClick={next}>
-            {last ? "Fertig" : "Weiter"}
+            {last ? t("Fertig") : t("Weiter")}
             {!last && <IconChevron />}
           </button>
         </>

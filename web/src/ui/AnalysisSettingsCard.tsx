@@ -46,16 +46,17 @@ import { getSetting, listGames, setSetting } from "../storage/db";
 import { IconBolt, IconCpu, IconGauge, IconTimer } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { ENGINE_NAME } from "../engine/info";
+import { t, tj, dec } from "../i18n";
 
 const SCOPES: Array<[DepthScope, string]> = [
-  ["own", "Meine Partien"],
-  ["friends", "Freunde & Gegner"],
+  ["own", t("Meine Partien")],
+  ["friends", t("Freunde & Gegner")],
 ];
 
 const SCOPE_TEXT: Record<DepthScope, string> = {
-  own: "Für deine eigenen Partien. Hier lohnt sich Genauigkeit, denn daraus entstehen dein Profil und deine Übungen.",
+  own: t("Für deine eigenen Partien. Hier lohnt sich Genauigkeit, denn daraus entstehen dein Profil und deine Übungen."),
   friends:
-    "Für Partien von Freunden und anderen Spielern. Für den Vergleich zählen viele Partien mehr als jede Nachkommastelle, deshalb reicht meist „Schnell“.",
+    t("Für Partien von Freunden und anderen Spielern. Für den Vergleich zählen viele Partien mehr als jede Nachkommastelle, deshalb reicht meist „Schnell“."),
 };
 
 const pct = (n: number, of: number) => (of ? Math.round((n / of) * 100) : 0);
@@ -87,7 +88,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
       <p class="muted small" style={{ margin: "10px 0" }}>
         {SCOPE_TEXT[scope]}
       </p>
-      <div class="depth-grid" role="radiogroup" aria-label="Analysetiefe">
+      <div class="depth-grid" role="radiogroup" aria-label={t("Analysetiefe")}>
         {PRESET_ORDER.map((p) => (
           <button
             key={p}
@@ -97,7 +98,7 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
             onClick={() => save({ preset: p })}
           >
             <strong>{DEPTH_PRESETS[p].name}</strong>
-            <small>Tiefe {DEPTH_PRESETS[p].settings.depth}</small>
+            <small>{t("Tiefe {depth}", { depth: DEPTH_PRESETS[p].settings.depth })}</small>
           </button>
         ))}
         <button
@@ -106,8 +107,8 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           class={choice.preset === "custom" ? "active" : ""}
           onClick={() => save({ preset: "custom", depth: settings.depth, seconds: settings.movetimeMs / 1000 })}
         >
-          <strong>Eigene</strong>
-          <small>selbst einstellen</small>
+          <strong>{t("Eigene")}</strong>
+          <small>{t("selbst einstellen")}</small>
         </button>
       </div>
 
@@ -115,7 +116,8 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
         <div class="depth-custom">
           <label class="range-field">
             <span>
-              Tiefe <strong class="tnum">{choice.depth}</strong>
+              
+              {tj("Tiefe {depth}", { depth: <strong class="tnum">{choice.depth}</strong> })}
             </span>
             <input
               type="range"
@@ -129,7 +131,8 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
           </label>
           <label class="range-field">
             <span>
-              Höchstens <strong class="tnum">{String(choice.seconds).replace(".", ",")} s</strong> pro Zug
+              
+              {tj("Höchstens {x} pro Zug", { x: <strong class="tnum">{String(choice.seconds).replace(".", dec())} s</strong> })}
             </span>
             <input
               type="range"
@@ -142,26 +145,25 @@ function DepthPicker({ scope, engines }: { scope: DepthScope; engines: number })
             />
           </label>
           <p class="faint small" style={{ margin: 0 }}>
-            {ENGINE_NAME} hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.
+            {t("{ENGINE_NAME} hört auf, sobald die Tiefe erreicht oder die Zeit um ist. Auf Handys ist meist die Zeit die Grenze.", { ENGINE_NAME })}
           </p>
         </div>
       )}
 
       <div class="depth-meter" aria-hidden="true">
-        <span class="small faint">schneller</span>
+        <span class="small faint">{t("schneller")}</span>
         <div class="depth-meter-track">
           <div style={{ left: `${level * 100}%` }} />
         </div>
-        <span class="small faint">genauer</span>
+        <span class="small faint">{t("genauer")}</span>
       </div>
       <p class="small depth-estimate">
-        <strong>{choice.preset === "custom" ? "Eigene" : DEPTH_PRESETS[choice.preset].name}</strong> · {settingsLabel(settings)}
+        <strong>{choice.preset === "custom" ? t("Eigene") : DEPTH_PRESETS[choice.preset].name}</strong> · {settingsLabel(settings)}
         <br />
         <span class="muted">
-          {est.measured
-            ? `Eine Partie mit 40 Zügen dauert auf diesem Gerät etwa ${durationDe(est.seconds)}.`
-            : `Eine Partie mit 40 Zügen dauert höchstens etwa ${durationDe(est.seconds)}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.`}{" "}
-          Änderungen gelten sofort, auch für eine Partie, die gerade analysiert wird.
+          {t("{n} Änderungen gelten sofort, auch für eine Partie, die gerade analysiert wird.", { n: est.measured
+            ? t("Eine Partie mit 40 Zügen dauert auf diesem Gerät etwa {durationDe}.", { durationDe: durationDe(est.seconds) })
+            : t("Eine Partie mit 40 Zügen dauert höchstens etwa {durationDe}. Nach der ersten Analyse siehst du hier, wie schnell dieses Gerät ist.", { durationDe: durationDe(est.seconds) }) })}
         </span>
       </p>
     </>
@@ -183,11 +185,9 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
   return (
     <>
       <p class="muted small" style={{ margin: "6px 0 10px" }}>
-        Wie viel Rechenleistung die Analyse nutzen darf. Mehr Engines rechnen gleichzeitig an verschiedenen Zügen, so wird
-        jede Partie schneller fertig und du kannst eine größere Tiefe wählen. Gilt nur für dieses Gerät. Dein Gerät hat{" "}
-        <strong>{cores} Kerne</strong>.
-      </p>
-      <div class="depth-grid perf-grid" role="radiogroup" aria-label="Leistung">
+        
+        {tj("Wie viel Rechenleistung die Analyse nutzen darf. Mehr Engines rechnen gleichzeitig an verschiedenen Zügen, so wird jede Partie schneller fertig und du kannst eine größere Tiefe wählen. Gilt nur für dieses Gerät. Dein Gerät hat {x}.", { x: <strong>{t("{cores} Kerne", { cores })}</strong> })}</p>
+      <div class="depth-grid perf-grid" role="radiogroup" aria-label={t("Leistung")}>
         {PERF_ORDER.map((p) => {
           const r = resolvePerf({ preset: p }, device);
           return (
@@ -205,16 +205,16 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
           class={choice.preset === "custom" ? "active" : ""}
           onClick={() => save({ preset: "custom", engines: perf.engines, hashMb: perf.hashMb })}
         >
-          <strong>Eigene</strong>
-          <small>selbst einstellen</small>
+          <strong>{t("Eigene")}</strong>
+          <small>{t("selbst einstellen")}</small>
         </button>
       </div>
       {custom && (
         <div class="depth-custom">
           <label class="range-field">
             <span>
-              Engines gleichzeitig <strong class="tnum">{custom.engines}</strong>
-              <span class="faint"> von {maxEnginesFor(device)}</span>
+              
+              {tj("Engines gleichzeitig {engines}{x}", { engines: <strong class="tnum">{custom.engines}</strong>, x: <span class="faint"> {t(" von {maxEnginesFor}", { maxEnginesFor: maxEnginesFor(device) })}</span> })}
             </span>
             <input
               type="range"
@@ -227,7 +227,7 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
             />
           </label>
           <label class="range-field">
-            <span>Hash je Engine</span>
+            <span>{t("Hash je Engine")}</span>
             <select value={custom.hashMb} onChange={(e) => save({ ...custom, hashMb: Number(e.currentTarget.value) })}>
               {HASH_OPTIONS.map((h) => (
                 <option key={h} value={h}>
@@ -239,15 +239,14 @@ function PerformancePicker({ onChange }: { onChange: (p: PerfSettings) => void }
         </div>
       )}
       <p class="small depth-estimate">
-        <strong>{custom ? "Eigene" : PERF_PRESETS[choice.preset as keyof typeof PERF_PRESETS].name}</strong> · {perfLabel(perf)}
+        <strong>{custom ? t("Eigene") : PERF_PRESETS[choice.preset as keyof typeof PERF_PRESETS].name}</strong> · {perfLabel(perf)}
         <br />
         <span class="muted">
-          {perf.engines >= cores
-            ? "Alle Kerne sind belegt: der PC kann laut und warm werden, andere Programme werden langsamer."
+          {t("{n}{n2}", { n: perf.engines >= cores
+            ? t("Alle Kerne sind belegt: der PC kann laut und warm werden, andere Programme werden langsamer.")
             : perf.engines > 1
-              ? `Belegt etwa ${Math.round((perf.engines / cores) * 100)} % der Rechenleistung, solange analysiert wird.`
-              : "Schont Akku und Lüfter. Gut für Handy und Tablet."}
-          {device.mobile && perf.engines > 2 ? " Auf Handy und Tablet wird das Gerät dabei schnell heiß." : ""}
+              ? t("Belegt etwa {0} % der Rechenleistung, solange analysiert wird.", { 0: Math.round((perf.engines / cores) * 100) })
+              : t("Schont Akku und Lüfter. Gut für Handy und Tablet."), n2: device.mobile && perf.engines > 2 ? t(" Auf Handy und Tablet wird das Gerät dabei schnell heiß.") : "" })}
         </span>
       </p>
     </>
@@ -267,8 +266,8 @@ function BulletStats() {
   return (
     <p class="small muted" style={{ margin: "6px 0 0" }}>
       {counts.bullet
-        ? `${counts.bullet} von ${counts.total} deiner Partien sind Bullet (${pct(counts.bullet, counts.total)} %).`
-        : "Du hast bisher keine Bullet-Partien."}
+        ? t("{bullet} von {total} deiner Partien sind Bullet ({pct} %).", { bullet: counts.bullet, total: counts.total, pct: pct(counts.bullet, counts.total) })
+        : t("Du hast bisher keine Bullet-Partien.")}
     </p>
   );
 }
@@ -325,22 +324,25 @@ function AutomationCard() {
   const waiting = (queue?.queued.length ?? 0) + (queue?.current ? 1 : 0);
   return (
     <div class="card settings-card">
-      <SettingsHead icon={<IconBolt />} title="Automatik" sub="Was beim Öffnen und nach dem Import von selbst analysiert wird." />
-      <Toggle checked={own} onChange={turn(setOwn)} title="Eigene Partien beim Öffnen analysieren">
-        Beim Start der Seite kommen alle noch nicht analysierten eigenen Partien in die Warteschlange, die neuesten zuerst.
+      <SettingsHead icon={<IconBolt />} title={t("Automatik")} sub={t("Was beim Öffnen und nach dem Import von selbst analysiert wird.")} />
+      <Toggle checked={own} onChange={turn(setOwn)} title={t("Eigene Partien beim Öffnen analysieren")}>
+        
+        {t("Beim Start der Seite kommen alle noch nicht analysierten eigenen Partien in die Warteschlange, die neuesten zuerst.")}
       </Toggle>
-      <Toggle checked={friends} onChange={turn(setFriends)} title="Partien von Freunden beim Öffnen analysieren">
-        Genauso für deine Freunde (oder alle Spieler, wenn niemand als Freund markiert ist), mit der Tiefe für Freunde.
+      <Toggle checked={friends} onChange={turn(setFriends)} title={t("Partien von Freunden beim Öffnen analysieren")}>
+        
+        {t("Genauso für deine Freunde (oder alle Spieler, wenn niemand als Freund markiert ist), mit der Tiefe für Freunde.")}
       </Toggle>
-      <Toggle checked={auto} onChange={(v) => void setAuto(v)} title="Importierte Partien sofort analysieren">
-        Neu geladene Partien kommen direkt in die Warteschlange.
+      <Toggle checked={auto} onChange={(v) => void setAuto(v)} title={t("Importierte Partien sofort analysieren")}>
+        
+        {t("Neu geladene Partien kommen direkt in die Warteschlange.")}
       </Toggle>
       <p class="small settings-status">
         <span class={`dot${waiting ? " on" : ""}`} />
         {waiting
-          ? `Im Hintergrund: ${waiting} ${waiting === 1 ? "Partie wartet" : "Partien warten"} auf die Analyse.`
-          : "Gerade läuft keine Analyse."}
-        {added !== null && <span class="muted"> {added ? `${added} neu eingereiht.` : "Alles schon analysiert."}</span>}
+          ? t("Im Hintergrund: {waiting} {1} auf die Analyse.", { waiting, 1: waiting === 1 ? t("Partie wartet") : t("Partien warten") })
+          : t("Gerade läuft keine Analyse.")}
+        {added !== null && <span class="muted"> {added ? t("{added} neu eingereiht.", { added }) : t("Alles schon analysiert.")}</span>}
       </p>
     </div>
   );
@@ -356,8 +358,8 @@ export function AnalysisSettingsCards() {
     <>
       <AutomationCard />
       <div class="card settings-card">
-        <SettingsHead icon={<IconGauge />} title="Analysetiefe" sub={`Wie gründlich ${ENGINE_NAME} jede Stellung prüft.`} />
-        <div class="segmented full" role="tablist" aria-label="Für welche Partien">
+        <SettingsHead icon={<IconGauge />} title={t("Analysetiefe")} sub={t("Wie gründlich {ENGINE_NAME} jede Stellung prüft.", { ENGINE_NAME })} />
+        <div class="segmented full" role="tablist" aria-label={t("Für welche Partien")}>
           {SCOPES.map(([k, label]) => (
             <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>
               {label}
@@ -367,23 +369,23 @@ export function AnalysisSettingsCards() {
         <DepthPicker scope={scope} engines={perf.engines} />
       </div>
       <div class="card settings-card">
-        <SettingsHead icon={<IconCpu />} title="Leistung" sub="Wie viel von diesem Gerät die Analyse nutzen darf. Gilt nur hier." />
+        <SettingsHead icon={<IconCpu />} title={t("Leistung")} sub={t("Wie viel von diesem Gerät die Analyse nutzen darf. Gilt nur hier.")} />
         <PerformancePicker onChange={setPerf} />
       </div>
       <div class="card settings-card">
-        <SettingsHead icon={<IconTimer />} title="Bullet" sub="Sehr schnelle Partien verzerren oft die Statistik." />
+        <SettingsHead icon={<IconTimer />} title="Bullet" sub={t("Sehr schnelle Partien verzerren oft die Statistik.")} />
         <BulletStats />
         <Toggle
           checked={bullet.excludeBullet}
           onChange={(v) => void setSetting(EXCLUDE_BULLET_KEY, v)}
-          title="Bullet aus den Statistiken lassen"
+          title={t("Bullet aus den Statistiken lassen")}
         >
-          Start, alle Statistik-Seiten, Spieler und Training zählen Bullet nicht mit. Mit dem Filter „Bullet“ kannst du sie
-          trotzdem ansehen.
+          
+          {t("Start, alle Statistik-Seiten, Spieler und Training zählen Bullet nicht mit. Mit dem Filter „Bullet“ kannst du sie trotzdem ansehen.")}
         </Toggle>
-        <Toggle checked={bullet.skipBullet} onChange={(v) => void setSetting(SKIP_BULLET_KEY, v)} title="Bullet-Partien nicht analysieren">
-          Spart Zeit und Akku: „Alle analysieren“ und jede Automatik überspringen Bullet. Eine einzelne Partie kannst du
-          weiter von Hand analysieren.
+        <Toggle checked={bullet.skipBullet} onChange={(v) => void setSetting(SKIP_BULLET_KEY, v)} title={t("Bullet-Partien nicht analysieren")}>
+          
+          {t("Spart Zeit und Akku: „Alle analysieren“ und jede Automatik überspringen Bullet. Eine einzelne Partie kannst du weiter von Hand analysieren.")}
         </Toggle>
       </div>
     </>

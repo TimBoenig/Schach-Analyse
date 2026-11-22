@@ -6,6 +6,7 @@ import { IconPlay } from "../icons";
 import { InsightText } from "../kit";
 import { navigate } from "../router";
 import { Delta } from "../viz/Range";
+import { t } from "../../i18n";
 
 /** The exercise area that trains a skill, if the pool holds exercises for it. */
 export function skillCategory(skill: string, pool: Exercise[]): Category | undefined {
@@ -18,8 +19,8 @@ export function FocusCard({ current, cmp, label }: { current: PlayerProfile; cmp
     <section class="card span-5 hm-focus">
       <header class="card-head">
         <div>
-          <h3>Deine Baustellen</h3>
-          <p class="card-sub">Was dich gerade am meisten kostet · {label}</p>
+          <h3>{t("Deine Baustellen")}</h3>
+          <p class="card-sub">{t("Was dich gerade am meisten kostet · {label}", { label })}</p>
         </div>
       </header>
       {focus.length ? (
@@ -40,7 +41,7 @@ export function FocusCard({ current, cmp, label }: { current: PlayerProfile; cmp
                   </div>
                   {cat && (
                     <button class="btn small ghost" onClick={() => navigate({ view: "training", tab: "uebungen", category: cat })}>
-                      <IconPlay /> {CATEGORIES[cat].label} üben
+                      <IconPlay /> {t("{label} üben", { label: CATEGORIES[cat].label })}
                     </button>
                   )}
                 </div>
@@ -50,7 +51,7 @@ export function FocusCard({ current, cmp, label }: { current: PlayerProfile; cmp
         </ol>
       ) : (
         <p class="muted small">
-          {current.analyzed_games ? "Keine klare Schwäche in diesem Zeitraum." : "Analysiere Partien aus diesem Zeitraum, dann erscheinen hier deine Baustellen."}
+          {current.analyzed_games ? t("Keine klare Schwäche in diesem Zeitraum.") : t("Analysiere Partien aus diesem Zeitraum, dann erscheinen hier deine Baustellen.")}
         </p>
       )}
     </section>

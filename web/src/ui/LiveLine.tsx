@@ -3,11 +3,12 @@ import type { MoveData } from "../domain/types";
 import { badgeFor, classLabel, formatEval } from "./labels";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
+import { t, tj, tStored } from "../i18n";
 
 function formatSeconds(s: number): string {
   if (s < 60) return `${Math.round(s)} s`;
-  const t = Math.round(s);
-  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`;
+  const tk = Math.round(s);
+  return `${Math.floor(tk / 60)}:${String(tk % 60).padStart(2, "0")}`;
 }
 
 /** Winning chance before/after a move from the mover's view, plus the time it took. */
@@ -18,14 +19,14 @@ export function MoveFacts({ move }: { move: MoveData }) {
   const delta = after - before;
   return (
     <div class="move-facts small">
-      <span title="Gewinnchance aus Sicht des Ziehenden">
-        Gewinnchance {before} % → <strong>{after} %</strong>{" "}
-        <span class={delta <= -10 ? "neg" : delta >= 3 ? "pos" : "faint"}>
+      <span title={t("Gewinnchance aus Sicht des Ziehenden")}>
+        
+        {tj("Gewinnchance {before} % → {x} {x2}", { before, x: <strong>{after} %</strong>, x2: <span class={delta <= -10 ? "neg" : delta >= 3 ? "pos" : "faint"}>
           ({delta > 0 ? "+" : delta < 0 ? "−" : "±"}
           {Math.abs(delta)})
-        </span>
+        </span> })}
       </span>
-      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">· {formatSeconds(move.time_spent)} Bedenkzeit</span>}
+      {move.time_spent !== null && move.time_spent !== undefined && <span class="faint">{t("· {formatSeconds} Bedenkzeit", { formatSeconds: formatSeconds(move.time_spent) })}</span>}
     </div>
   );
 }
@@ -61,7 +62,7 @@ export function LineMoves({
           <>
             {label && <span class="faint">{label}</span>}
             {san}
-            {v === undefined ? <span class="dot-wait" title="Engine rechnet" /> : badge ? <img src={badge} alt={classLabel(v!.classification)} /> : null}
+            {v === undefined ? <span class="dot-wait" title={t("Engine rechnet")} /> : badge ? <img src={badge} alt={classLabel(v!.classification)} /> : null}
           </>
         );
         return onPick ? (
@@ -83,7 +84,7 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
   if (verdict === undefined) {
     return (
       <div class="verdict pending small muted">
-        <span class="dot-wait" /> <EngineWait>{ENGINE_NAME} bewertet {san} …</EngineWait>
+        <span class="dot-wait" /> <EngineWait>{t("{ENGINE_NAME} bewertet {san} …", { ENGINE_NAME, san })}</EngineWait>
       </div>
     );
   }
@@ -95,12 +96,12 @@ export function VerdictCard({ san, verdict }: { san: string; verdict: MoveData |
       {badge && <img src={badge} alt="" />}
       <div style={{ minWidth: 0, flex: 1 }}>
         <strong>{san}</strong> <span class="muted">· {classLabel(verdict.classification)}</span>
-        <div class="small">{verdict.explanation}</div>
+        <div class="small">{tStored(verdict.explanation)}</div>
         <MoveFacts move={verdict} />
-        {better?.pv_san && !verdict.explanation.includes("Besser war") && (
+        {better?.pv_san && !tStored(verdict.explanation).includes(t("Besser war")) && (
           <div class="small muted" style={{ marginTop: "2px" }}>
-            Besser war {better.pv_san.split(" ")[0]} ({formatEval(verdict.eval_before_cp, verdict.eval_before_mate)})
-          </div>
+            
+            {t("Besser war {n} ({formatEval})", { n: better.pv_san.split(" ")[0], formatEval: formatEval(verdict.eval_before_cp, verdict.eval_before_mate) })}</div>
         )}
       </div>
     </div>

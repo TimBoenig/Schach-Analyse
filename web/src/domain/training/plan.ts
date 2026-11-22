@@ -7,6 +7,7 @@ import type { Pattern, SkillScore } from "../profile/models";
 import { CATEGORIES, CATEGORY_ORDER, type Category, type Exercise } from "./exercises";
 import { isDue, isMastered, type ProgressMap } from "./progress";
 import type { DayTheme } from "./week";
+import { t, lang, type Lang } from "../../i18n";
 
 export interface TrainingPrefs {
   /** Training time per day in minutes. */
@@ -40,6 +41,8 @@ export interface DailyPlan {
   tips: string[];
   /** The week plan's theme for this day (null without a week plan). */
   theme?: DayTheme | null;
+  /** Language the texts were written in; another language rebuilds the plan. Missing on older plans (German). */
+  lang?: Lang;
 }
 
 export interface PlanInput {
@@ -65,20 +68,20 @@ const PATTERN_CATEGORY: Record<string, Category> = {
 };
 
 const PATTERN_TIPS: Record<string, string> = {
-  tilt: "Nach einer Niederlage heute erst 10 Minuten Pause, bevor du die nächste Partie startest.",
-  fatigue: "Spiele heute höchstens drei gewertete Partien am Stück.",
-  hasty_errors: "Bevor du in deiner nächsten Partie ziehst: Schachs, Schläge, Drohungen prüfen – jedes Mal.",
-  errors_when_winning: "Wenn du heute besser stehst: erst das Gegenspiel stoppen, dann gewinnen.",
-  post_book_errors: "Überlege nach dem letzten Theoriezug deiner nächsten Partie bewusst einen Plan.",
-  missed_punish: "Frage dich nach jedem gegnerischen Zug: Was hat sich geändert, hängt etwas?",
-  time_trouble_errors: "Behalte in deiner nächsten Partie nach Zug 20 mindestens die Hälfte deiner Bedenkzeit.",
-  weaker_opponents: "Nimm auch schwächere Gegner ernst: gleicher Blunder-Check wie gegen Stärkere.",
-  king_safety: "Rochiere in deiner nächsten Partie früh und ziehe die Bauern vor deinem König nur mit Grund.",
+  tilt: t("Nach einer Niederlage heute erst 10 Minuten Pause, bevor du die nächste Partie startest."),
+  fatigue: t("Spiele heute höchstens drei gewertete Partien am Stück."),
+  hasty_errors: t("Bevor du in deiner nächsten Partie ziehst: Schachs, Schläge, Drohungen prüfen – jedes Mal."),
+  errors_when_winning: t("Wenn du heute besser stehst: erst das Gegenspiel stoppen, dann gewinnen."),
+  post_book_errors: t("Überlege nach dem letzten Theoriezug deiner nächsten Partie bewusst einen Plan."),
+  missed_punish: t("Frage dich nach jedem gegnerischen Zug: Was hat sich geändert, hängt etwas?"),
+  time_trouble_errors: t("Behalte in deiner nächsten Partie nach Zug 20 mindestens die Hälfte deiner Bedenkzeit."),
+  weaker_opponents: t("Nimm auch schwächere Gegner ernst: gleicher Blunder-Check wie gegen Stärkere."),
+  king_safety: t("Rochiere in deiner nächsten Partie früh und ziehe die Bauern vor deinem König nur mit Grund."),
 };
 
 const SKILL_TIPS: Record<string, string> = {
-  time: "Spiele heute eine Partie mit mindestens 10+5 und nimm dir in kritischen Momenten bewusst Zeit.",
-  consistency: "Spiele nur ausgeruht und ohne Ablenkung – lieber eine Partie weniger.",
+  time: t("Spiele heute eine Partie mit mindestens 10+5 und nimm dir in kritischen Momenten bewusst Zeit."),
+  consistency: t("Spiele nur ausgeruht und ohne Ablenkung – lieber eine Partie weniger."),
 };
 
 // Share of the time reserved for due repetitions and for the strength block.
@@ -101,10 +104,10 @@ function rng(seed: string): () => number {
   let a = (h ^ (h >>> 13)) >>> 0;
   return () => {
     a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    let tk = a;
+    tk = Math.imul(tk ^ (tk >>> 15), tk | 1);
+    tk ^= tk + Math.imul(tk ^ (tk >>> 7), tk | 61);
+    return ((tk ^ (tk >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -128,7 +131,7 @@ export function categoryNeeds(skills: SkillScore[], patterns: Pattern[], focus: 
         // Below what is typical at the player's rating weighs extra.
         if (s.typical !== null && s.typical !== undefined && s.score < s.typical) n += (s.typical - s.score) / 100;
         need += n / rated.length;
-        reasons.push(`${s.name} ${Math.round(s.score)}/100${s.typical !== null && s.typical !== undefined ? ` (typisch ${Math.round(s.typical)})` : ""}`);
+        reasons.push(`${s.name} ${Math.round(s.score)}/100${s.typical !== null && s.typical !== undefined ? t(" (typisch {0})", { 0: Math.round(s.typical) }) : ""}`);
       }
     } else {
       need = UNKNOWN_NEED;
@@ -138,11 +141,11 @@ export function categoryNeeds(skills: SkillScore[], patterns: Pattern[], focus: 
       if (p.severity === "hoch") need += 0.3;
       else if (p.severity === "mittel") need += 0.15;
       else continue;
-      reasons.push(`Muster „${p.title}“`);
+      reasons.push(t("Muster „{title}“", { title: p.title }));
     }
     if (focus === category) {
       need += 1;
-      reasons.unshift("Dein gewählter Schwerpunkt");
+      reasons.unshift(t("Dein gewählter Schwerpunkt"));
     }
     return { category, need: Math.round(need * 1000) / 1000, reason: reasons.join(" · ") };
   }).sort((a, b) => b.need - a.need);
@@ -157,11 +160,11 @@ function minutesOf(pool: Map<string, Exercise>, ids: string[]): number {
 }
 
 function daysBetween(a: string, b: string): number {
-  const t = (s: string) => {
+  const tk = (s: string) => {
     const [y, m, d] = s.replace(/\./g, "-").split("-").map(Number);
     return new Date(y, (m || 1) - 1, d || 1).getTime();
   };
-  const diff = Math.round((t(b) - t(a)) / 86400000);
+  const diff = Math.round((tk(b) - tk(a)) / 86400000);
   return Number.isFinite(diff) ? Math.max(0, diff) : 365;
 }
 
@@ -200,8 +203,8 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
     blocks.push({
       key: "review",
       category: "review",
-      title: "Wiederholung",
-      reason: `${due.length} ${due.length === 1 ? "Übung ist" : "Übungen sind"} wieder fällig. Wiederholen festigt, was du schon gelöst hast.`,
+      title: t("Wiederholung"),
+      reason: t("{length} {1} wieder fällig. Wiederholen festigt, was du schon gelöst hast.", { length: due.length, 1: due.length === 1 ? t("Übung ist") : t("Übungen sind") }),
       minutes: minutesOf(byId, ids),
       exercise_ids: ids,
     });
@@ -219,7 +222,7 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
   const needs = categoryNeeds(skills, patterns, prefs.focus)
     .map((n) =>
       prefs.focus === "auto" && theme === n.category
-        ? { ...n, need: n.need + THEME_BOOST, reason: `Thema des Tages laut Wochenplan${n.reason ? ` · ${n.reason}` : ""}` }
+        ? { ...n, need: n.need + THEME_BOOST, reason: t("Thema des Tages laut Wochenplan{0}", { 0: n.reason ? ` · ${n.reason}` : "" }) }
         : n,
     )
     .sort((a, b) => b.need - a.need)
@@ -252,13 +255,13 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
     addBlock(
       strength,
       strengthMinutes,
-      `Stärke halten: ${CATEGORIES[strength.category].label}`,
-      `Hier bist du schon gut${strength.reason ? ` (${strength.reason})` : ""}. Ein paar Aufgaben halten das Niveau.`,
+      t("Stärke halten: {label}", { label: CATEGORIES[strength.category].label }),
+      t("Hier bist du schon gut{0}. Ein paar Aufgaben halten das Niveau.", { 0: strength.reason ? ` (${strength.reason})` : "" }),
     );
   }
 
   const tips: string[] = [];
-  if (theme === "review") tips.push("Wochenrückblick: Schau dir deine Partien dieser Woche an und suche bei jeder Niederlage den Moment, ab dem es kippte.");
+  if (theme === "review") tips.push(t("Wochenrückblick: Schau dir deine Partien dieser Woche an und suche bei jeder Niederlage den Moment, ab dem es kippte."));
   for (const p of patterns) {
     if ((p.severity === "hoch" || p.severity === "mittel") && PATTERN_TIPS[p.key] && !tips.includes(PATTERN_TIPS[p.key])) tips.push(PATTERN_TIPS[p.key]);
   }
@@ -267,7 +270,7 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
   }
 
   const main = blocks.filter((b) => b.category !== "review").slice(0, 2).map((b) => b.title.replace(/^Stärke halten: /, ""));
-  const headline = main.length ? `Heute im Fokus: ${main.join(" und ")}` : "Heute: Wiederholung";
+  const headline = main.length ? t("Heute im Fokus: {main}", { main: main.join(t(" und ")) }) : t("Heute: Wiederholung");
   return {
     date: today,
     minutes: prefs.minutes,
@@ -276,6 +279,7 @@ export function buildDailyPlan({ skills, patterns, pool: fullPool, progress, pre
     blocks,
     tips: tips.slice(0, 3),
     theme,
+    lang: lang(),
   };
 }
 
@@ -311,18 +315,18 @@ export function sessionParts(blocks: PlanBlock[], open: (id: string) => boolean 
   const review = blocks.filter((b) => b.category === "review");
   const rest = blocks.filter((b) => b.category !== "review");
   const reviewIds = review.flatMap((b) => b.exercise_ids).filter(open);
-  if (reviewIds.length) parts.push({ key: "warmup", title: "Aufwärmen", sub: "Fällige Wiederholungen", ids: reviewIds });
+  if (reviewIds.length) parts.push({ key: "warmup", title: t("Aufwärmen"), sub: t("Fällige Wiederholungen"), ids: reviewIds });
   const [main, ...others] = rest;
   if (main) {
     const ids = main.exercise_ids.filter(open);
-    if (ids.length) parts.push({ key: "main", title: main.title, sub: "Hauptthema heute", ids });
+    if (ids.length) parts.push({ key: "main", title: main.title, sub: t("Hauptthema heute"), ids });
   }
   const mixed = interleave(others.map((b) => b.exercise_ids.filter(open)));
-  if (mixed.length) parts.push({ key: "mix", title: "Gemischt", sub: others.map((b) => b.title.replace(/^Stärke halten: /, "")).join(" · "), ids: mixed });
+  if (mixed.length) parts.push({ key: "mix", title: t("Gemischt"), sub: others.map((b) => b.title.replace(/^Stärke halten: /, "")).join(" · "), ids: mixed });
   return parts;
 }
 
 /** True when the stored plan no longer matches today or the preferences. */
 export function planOutdated(plan: DailyPlan | null, prefs: TrainingPrefs, today: string): boolean {
-  return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus;
+  return !plan || plan.date !== today || plan.minutes !== prefs.minutes || plan.focus !== prefs.focus || (plan.lang ?? "de") !== lang();
 }

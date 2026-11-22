@@ -190,7 +190,7 @@ export class Orb {
     this.last = now;
     const dt = Math.max(0, Math.min(0.05, elapsed / 1000));
     this.time += dt;
-    const t = this.time;
+    const tk = this.time;
 
     this.look = blendLook(this.look, MOODS[this.mood], 1 - Math.exp(-dt * 5));
     this.yaw += dt * this.look.spin * Math.PI * 2;
@@ -215,13 +215,13 @@ export class Orb {
     for (let i = 0; i < this.fire.length; i++) this.fire[i] *= fade;
 
     // Blink: closed for a moment, every few seconds.
-    if (t >= this.blinkAt + 0.18) this.blinkAt = t + 2.4 + this.rand() * 3.6;
-    this.blink = t >= this.blinkAt ? 1 - Math.sin(((t - this.blinkAt) / 0.18) * Math.PI) * 0.92 : 1;
-    if (this.mood === "happy" && t > this.smileAt + 1.5) this.smileAt = t + 6 + this.rand() * 6;
+    if (tk >= this.blinkAt + 0.18) this.blinkAt = tk + 2.4 + this.rand() * 3.6;
+    this.blink = tk >= this.blinkAt ? 1 - Math.sin(((tk - this.blinkAt) / 0.18) * Math.PI) * 0.92 : 1;
+    if (this.mood === "happy" && tk > this.smileAt + 1.5) this.smileAt = tk + 6 + this.rand() * 6;
 
     // Eyes: towards the pointer while it moves, otherwise where the mood looks, with a little wander.
-    let gx = this.look.gaze[0] + Math.sin(t * 0.7) * 0.12;
-    let gy = this.look.gaze[1] + Math.sin(t * 0.43 + 1) * 0.08;
+    let gx = this.look.gaze[0] + Math.sin(tk * 0.7) * 0.12;
+    let gy = this.look.gaze[1] + Math.sin(tk * 0.43 + 1) * 0.08;
     if (!this.ignorePointer && now - pointer.at < 2500 && this.mood !== "sad") {
       if (now - this.centre.at > 400) {
         const r = this.canvas.getBoundingClientRect();
@@ -242,7 +242,7 @@ export class Orb {
 
   private draw(): void {
     const { ctx, px, look, small } = this;
-    const t = this.time;
+    const tk = this.time;
     const c = px / 2;
     const R = c * (small ? 0.95 : this.ring ? 0.8 : 0.86);
     const a = look.a;
@@ -267,8 +267,8 @@ export class Orb {
     }
 
     // Orbit ring, far half: it passes behind the sphere.
-    const tilt = -0.36 + Math.sin(t * 0.25) * 0.05;
-    const orbit = t * 0.9;
+    const tilt = -0.36 + Math.sin(tk * 0.25) * 0.05;
+    const orbit = tk * 0.9;
     if (this.ring) this.drawRing(c, R, tilt, orbit, false);
 
     // Dark glass body, lit from the upper left.
@@ -293,11 +293,11 @@ export class Orb {
       ctx.fillStyle = grad;
       ctx.fillRect(c - R, c - R, R * 2, R * 2);
     };
-    cloud(c + Math.cos(t * 0.4) * R * 0.34, c + Math.sin(t * 0.52) * R * 0.3, a, 0.26 * g);
-    cloud(c - Math.cos(t * 0.33) * R * 0.38, c - Math.sin(t * 0.47) * R * 0.3, b, 0.22 * g);
+    cloud(c + Math.cos(tk * 0.4) * R * 0.34, c + Math.sin(tk * 0.52) * R * 0.3, a, 0.26 * g);
+    cloud(c - Math.cos(tk * 0.33) * R * 0.38, c - Math.sin(tk * 0.47) * R * 0.3, b, 0.22 * g);
 
     // The network. Additive light needs no depth sorting.
-    const pitch = 0.3 + Math.sin(t * 0.31) * 0.1;
+    const pitch = 0.3 + Math.sin(tk * 0.31) * 0.1;
     const pts = this.net.nodes.map((n) => {
       const r = rotate(n, this.yaw, pitch);
       const p = project(r);

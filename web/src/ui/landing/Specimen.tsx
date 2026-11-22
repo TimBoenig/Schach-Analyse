@@ -6,26 +6,27 @@ import { useEffect, useRef, useState } from "preact/hooks";
 
 import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
 import { IconGames, IconInsights, IconTraining } from "../icons";
+import { t } from "../../i18n";
 
 type View = "weak" | "game" | "plan";
 
 const VIEWS: { key: View; label: string; icon: () => preact.JSX.Element }[] = [
-  { key: "weak", label: "Schwächen", icon: IconInsights },
-  { key: "game", label: "Eine Partie", icon: IconGames },
-  { key: "plan", label: "Training", icon: IconTraining },
+  { key: "weak", label: t("Schwächen"), icon: IconInsights },
+  { key: "game", label: t("Eine Partie"), icon: IconGames },
+  { key: "plan", label: t("Training"), icon: IconTraining },
 ];
 
 // The invented sample player: 140 rapid and blitz games.
 const PHASES = [
-  { label: "Eröffnung", value: 86 },
-  { label: "Mittelspiel", value: 77 },
-  { label: "Endspiel", value: 61 },
+  { label: t("Eröffnung"), value: 86 },
+  { label: t("Mittelspiel"), value: 77 },
+  { label: t("Endspiel"), value: 61 },
 ];
 
 const PATTERNS = [
-  { label: "Turmendspiele nicht gehalten", games: 14 },
-  { label: "Figur nach Abtausch hängen gelassen", games: 9 },
-  { label: "Gegen Sizilianisch früh schlechter", games: 7 },
+  { label: t("Turmendspiele nicht gehalten"), games: 14 },
+  { label: t("Figur nach Abtausch hängen gelassen"), games: 9 },
+  { label: t("Gegen Sizilianisch früh schlechter"), games: 7 },
 ];
 
 // The sample game: the user's winning chances, one value per move pair.
@@ -43,15 +44,15 @@ const PLAN = [
 ];
 
 const SESSION = [
-  { label: "Aufwärmen", detail: "3 Aufgaben, schon gelöst, zur Wiederholung" },
-  { label: "Schwerpunkt Turmendspiele", detail: "5 Stellungen aus deinen eigenen Partien" },
-  { label: "Gemischt", detail: "4 Aufgaben aus allen Bereichen" },
+  { label: t("Aufwärmen"), detail: t("3 Aufgaben, schon gelöst, zur Wiederholung") },
+  { label: t("Schwerpunkt Turmendspiele"), detail: t("5 Stellungen aus deinen eigenen Partien") },
+  { label: t("Gemischt"), detail: t("4 Aufgaben aus allen Bereichen") },
 ];
 
 const SAY: Record<View, { mood: Mood; text: string }> = {
-  weak: { mood: "think", text: "Im Endspiel lässt du die meisten Punkte liegen. 14 Turmendspiele hast du nicht gehalten." },
-  game: { mood: "sad", text: "Zug 19, Txe5?? Du standest bei 71 %, danach bei 18 %. Besser war Sd5." },
-  plan: { mood: "happy", text: "Diese Woche üben wir Turmendspiele. Heute fünf Stellungen aus deinen Partien." },
+  weak: { mood: "think", text: t("Im Endspiel lässt du die meisten Punkte liegen. 14 Turmendspiele hast du nicht gehalten.") },
+  game: { mood: "sad", text: t("Zug 19, Txe5?? Du standest bei 71 %, danach bei 18 %. Besser war Sd5.") },
+  plan: { mood: "happy", text: t("Diese Woche üben wir Turmendspiele. Heute fünf Stellungen aus deinen Partien.") },
 };
 
 const reduced = () => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
@@ -59,7 +60,7 @@ const reduced = () => typeof window !== "undefined" && Boolean(window.matchMedia
 function Weak() {
   return (
     <div class="sp-weak">
-      <div class="sp-sub">Genauigkeit nach Partiephase</div>
+      <div class="sp-sub">{t("Genauigkeit nach Partiephase")}</div>
       <div class="sp-bars">
         {PHASES.map((p, i) => (
           <div class={`sp-bar${i === PHASES.length - 1 ? " low" : ""}`} key={p.label}>
@@ -71,12 +72,12 @@ function Weak() {
           </div>
         ))}
       </div>
-      <div class="sp-sub">Was sich wiederholt</div>
+      <div class="sp-sub">{t("Was sich wiederholt")}</div>
       <ul class="sp-patterns">
         {PATTERNS.map((p) => (
           <li key={p.label}>
             <span>{p.label}</span>
-            <b class="tnum">{p.games} Partien</b>
+            <b class="tnum">{t("{games} Partien", { games: p.games })}</b>
           </li>
         ))}
       </ul>
@@ -93,8 +94,8 @@ function Game() {
   const area = `${line} L${w},${h} L0,${h} Z`;
   return (
     <div class="sp-game">
-      <div class="sp-sub">Deine Gewinnchance in der Partie gegen M. Weber</div>
-      <svg class="sp-curve" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label="Gewinnchance fällt in Zug 19 von 71 auf 18 Prozent">
+      <div class="sp-sub">{t("Deine Gewinnchance in der Partie gegen M. Weber")}</div>
+      <svg class="sp-curve" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={t("Gewinnchance fällt in Zug 19 von 71 auf 18 Prozent")}>
         <line x1="0" x2={w} y1={h / 2} y2={h / 2} class="sp-mid" />
         <path d={area} class="sp-area" />
         <path d={line} class="sp-line" />
@@ -104,15 +105,15 @@ function Game() {
       <div class="sp-moves">
         <div class="sp-move bad">
           <span class="sp-move-no tnum">19.</span>
-          <b>Txe5??</b>
-          <span>Patzer</span>
-          <span class="tnum sp-move-wp">71 % auf 18 %</span>
+          <b>{t("Txe5??")}</b>
+          <span>{t("Patzer")}</span>
+          <span class="tnum sp-move-wp">{t("71 % auf 18 %")}</span>
         </div>
         <div class="sp-move good">
           <span class="sp-move-no tnum">19.</span>
-          <b>Sd5!</b>
-          <span>Besser</span>
-          <span class="tnum sp-move-wp">hält 70 %</span>
+          <b>{t("Sd5!")}</b>
+          <span>{t("Besser")}</span>
+          <span class="tnum sp-move-wp">{t("hält 70 %")}</span>
         </div>
       </div>
     </div>
@@ -122,14 +123,14 @@ function Game() {
 function Plan() {
   return (
     <div class="sp-plan">
-      <div class="sp-week" aria-label="Wochenplan: drei Tage erledigt, heute Donnerstag">
+      <div class="sp-week" aria-label={t("Wochenplan: drei Tage erledigt, heute Donnerstag")}>
         {PLAN.map((d) => (
           <span key={d.day} class={d.done ? "done" : d.today ? "today" : ""}>
             {d.day}
           </span>
         ))}
       </div>
-      <div class="sp-sub">Heute, etwa 10 Minuten</div>
+      <div class="sp-sub">{t("Heute, etwa 10 Minuten")}</div>
       <ol class="sp-session">
         {SESSION.map((s, i) => (
           <li key={s.label} class={i === 1 ? "focus" : ""}>
@@ -162,9 +163,9 @@ export function Specimen() {
   const say = SAY[view];
 
   return (
-    <figure class="specimen" aria-label="Beispiel eines Berichts">
+    <figure class="specimen" aria-label={t("Beispiel eines Berichts")}>
       <div class="sp-head">
-        <div class="sp-tabs" role="tablist" aria-label="Ansicht des Beispielberichts">
+        <div class="sp-tabs" role="tablist" aria-label={t("Ansicht des Beispielberichts")}>
           {VIEWS.map((v) => (
             <button key={v.key} role="tab" id={`sp-tab-${v.key}`} aria-selected={view === v.key} aria-controls="sp-panel" class="sp-tab" onClick={() => pick(v.key)}>
               <v.icon />
@@ -182,7 +183,7 @@ export function Specimen() {
           <b>{COACH_NAME}</b> {say.text}
         </p>
       </div>
-      <figcaption class="sp-note">Beispielprofil mit erfundenen Zahlen. Deins entsteht aus deinen Partien.</figcaption>
+      <figcaption class="sp-note">{t("Beispielprofil mit erfundenen Zahlen. Deins entsteht aus deinen Partien.")}</figcaption>
     </figure>
   );
 }

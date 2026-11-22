@@ -4,6 +4,7 @@
 import type { Route } from "../router";
 import type { GuideId } from "./guides";
 import type { IllusKind } from "./Illus";
+import { t } from "../../i18n";
 
 export interface Point {
   title: string;
@@ -27,49 +28,49 @@ export const TOUR_STOPS: TourStop[] = [
   {
     id: "games",
     illus: "games",
-    say: "Hier liegen alle deine Partien.",
-    sub: "Ich hole sie von chess.com oder Lichess und gehe jede Zug für Zug mit der Engine durch.",
+    say: t("Hier liegen alle deine Partien."),
+    sub: t("Ich hole sie von chess.com oder Lichess und gehe jede Zug für Zug mit der Engine durch."),
     points: [
-      { title: "Jeder Zug bekommt ein Urteil", text: "Von brillant bis Patzer, mit dem besseren Zug daneben." },
-      { title: "Jede Partie bekommt einen Bericht", text: "Mit Note, Wendepunkt und dem, was du daraus mitnimmst." },
+      { title: t("Jeder Zug bekommt ein Urteil"), text: t("Von brillant bis Patzer, mit dem besseren Zug daneben.") },
+      { title: t("Jede Partie bekommt einen Bericht"), text: t("Mit Note, Wendepunkt und dem, was du daraus mitnimmst.") },
     ],
-    go: { label: "Partien öffnen", route: { view: "games" } },
+    go: { label: t("Partien öffnen"), route: { view: "games" } },
     guide: "games",
   },
   {
     id: "stats",
     illus: "stats",
-    say: "Die Statistik zeigt, wer du am Brett bist.",
-    sub: "Aus allen analysierten Partien lese ich Fähigkeiten, Stil, Stärken und Schwächen.",
+    say: t("Die Statistik zeigt, wer du am Brett bist."),
+    sub: t("Aus allen analysierten Partien lese ich Fähigkeiten, Stil, Stärken und Schwächen."),
     points: [
-      { title: "Nichts ohne Beleg", text: "Jede Aussage nennt, auf wie vielen Partien sie beruht. Sind es zu wenige, sage ich lieber nichts." },
-      { title: "Vier Blickwinkel", text: "Überblick, Ergebnisse, Züge und Fehler, Eröffnungen." },
+      { title: t("Nichts ohne Beleg"), text: t("Jede Aussage nennt, auf wie vielen Partien sie beruht. Sind es zu wenige, sage ich lieber nichts.") },
+      { title: t("Vier Blickwinkel"), text: t("Überblick, Ergebnisse, Züge und Fehler, Eröffnungen.") },
     ],
-    go: { label: "Statistik ansehen", route: { view: "profile" } },
+    go: { label: t("Statistik ansehen"), route: { view: "profile" } },
     guide: "profile",
   },
   {
     id: "training",
     illus: "training",
-    say: "Im Training übst du genau deine Fehler.",
-    sub: "Aus Stellungen, in denen du danebengegriffen hast, baue ich Aufgaben.",
+    say: t("Im Training übst du genau deine Fehler."),
+    sub: t("Aus Stellungen, in denen du danebengegriffen hast, baue ich Aufgaben."),
     points: [
-      { title: "Eine Einheit pro Tag", text: "Aufwärmen, dein Schwerpunkt, dann gemischte Aufgaben. Das dauert nur ein paar Minuten." },
-      { title: "Fortschritt, den du siehst", text: "Ich merke mir, was sitzt, und frage erst nach einer Pause wieder." },
+      { title: t("Eine Einheit pro Tag"), text: t("Aufwärmen, dein Schwerpunkt, dann gemischte Aufgaben. Das dauert nur ein paar Minuten.") },
+      { title: t("Fortschritt, den du siehst"), text: t("Ich merke mir, was sitzt, und frage erst nach einer Pause wieder.") },
     ],
-    go: { label: "Training ansehen", route: { view: "training" } },
+    go: { label: t("Training ansehen"), route: { view: "training" } },
     guide: "training",
   },
   {
     id: "players",
     illus: "players",
-    say: "Mit Freunden wird daraus eine Liga.",
-    sub: "Füge Freunde mit ihrem Namen bei chess.com oder Lichess hinzu.",
+    say: t("Mit Freunden wird daraus eine Liga."),
+    sub: t("Füge Freunde mit ihrem Namen bei chess.com oder Lichess hinzu."),
     points: [
-      { title: "Fair verglichen", text: "Nach Zugqualität und Ergebnissen, auch wenn ihr verschiedene Bedenkzeiten spielt." },
-      { title: "Gegner im Blick", text: "Wie spielt jemand, welche Eröffnungen, wo macht er Fehler?" },
+      { title: t("Fair verglichen"), text: t("Nach Zugqualität und Ergebnissen, auch wenn ihr verschiedene Bedenkzeiten spielt.") },
+      { title: t("Gegner im Blick"), text: t("Wie spielt jemand, welche Eröffnungen, wo macht er Fehler?") },
     ],
-    go: { label: "Spieler ansehen", route: { view: "players" } },
+    go: { label: t("Spieler ansehen"), route: { view: "players" } },
     guide: "players",
   },
 ];
@@ -131,11 +132,12 @@ export interface PhaseView {
   busy?: boolean;
 }
 
+// The labels double as ids; Stage shows them through t().
 const PHASE_OF: { label: string; has: (s: OnboardStep) => boolean }[] = [
-  { label: "Konto", has: (s) => s === "hello" || s === "site" || s === "name" || s === "nosite" },
-  { label: "Partien", has: (s) => s === "import" },
-  { label: "Analyse", has: (s) => s === "analysis" },
-  { label: "Rundgang", has: (s) => s.startsWith("tour:") || s === "ready" },
+  { label: "Konto", has: (s) => s === "hello" || s === "site" || s === "name" || s === "nosite" }, // i18n: id
+  { label: "Partien", has: (s) => s === "import" }, // i18n: id
+  { label: "Analyse", has: (s) => s === "analysis" }, // i18n: id
+  { label: "Rundgang", has: (s) => s.startsWith("tour:") || s === "ready" }, // i18n: id
 ];
 
 export interface PhaseState {
@@ -157,12 +159,12 @@ export function onboardPhases(path: OnboardStep[], index: number, st: PhaseState
   const current = path[Math.min(index, path.length - 1)];
   const at = Math.max(0, groups.findIndex((g) => g.has(current)));
   const list = groups.map((g, gi): PhaseView => {
-    if (g.label === "Partien") {
+    if (g.label === "Partien") { // i18n: id
       if (st.phase === "done") return { label: g.label, fill: 1, detail: st.found ? String(st.found) : undefined };
       if (st.phase === "busy") return { label: g.label, fill: 0, busy: true, detail: st.found ? String(st.found) : undefined };
       return { label: g.label, fill: 0 };
     }
-    if (g.label === "Analyse") {
+    if (g.label === "Analyse") { // i18n: id
       if (st.passDone) return { label: g.label, fill: 1 };
       if (st.pass && st.pass.games > 0) return { label: g.label, fill: st.pass.fraction, detail: `${Math.round(st.pass.fraction * 100)} %` };
       return { label: g.label, fill: 0, busy: gi === at };

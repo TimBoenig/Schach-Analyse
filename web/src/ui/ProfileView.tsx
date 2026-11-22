@@ -13,6 +13,7 @@ import { navigate } from "./router";
 import { GuideButton, usePageGuide } from "./stage/PageGuide";
 import { SectionJump, sectionOf, STAT_SECTIONS } from "./StatsLayout";
 import { FilterBar, filtersActive, useProfile } from "./useProfile";
+import { t } from "../i18n";
 
 export function ProfileView() {
   const { profile, games, usernames, loading, error, filters, setFilters, excludeBullet } = useProfile({ page: "profile" });
@@ -25,7 +26,7 @@ export function ProfileView() {
     return (
       <div>
         <PageHeader />
-        <NeedNames what="baue ich dir hier dein Spielerprofil." />
+        <NeedNames what={t("baue ich dir hier dein Spielerprofil.")} />
       </div>
     );
   }
@@ -54,11 +55,11 @@ export function ProfileView() {
         {header}
         <div class="empty">
           <p>
-            Keine Partien für {usernames?.join(", ")} gefunden
-            {filtersActive(filters) ? " (mit diesen Filtern)" : ""}.
-          </p>
+            
+            {t("Keine Partien für {n} gefunden{n2}.", { n: usernames?.join(", "), n2: filtersActive(filters) ? t(" (mit diesen Filtern)") : "" })}</p>
           <button class="btn primary" onClick={() => navigate({ view: "games" })}>
-            Partien importieren
+            
+            {t("Partien importieren")}
           </button>
         </div>
       </div>
@@ -75,7 +76,7 @@ export function ProfileView() {
       <div class="dash pf">
         <ProfileHero profile={profile} />
         {profile.is_empty ? (
-          <div class="card notice span-12">Noch keine deiner Partien ist analysiert. Analysiere ein paar Partien, dann erscheinen hier Fähigkeiten, Stärken, Schwächen und dein Stil.</div>
+          <div class="card notice span-12">{t("Noch keine deiner Partien ist analysiert. Analysiere ein paar Partien, dann erscheinen hier Fähigkeiten, Stärken, Schwächen und dein Stil.")}</div>
         ) : (
           <>
             <SkillsCard profile={profile} />
@@ -86,11 +87,10 @@ export function ProfileView() {
         <TrendSection games={games} usernames={usernames ?? []} filters={filters} excludeBullet={excludeBullet} rating={rc} />
       </div>
       {rc && !profile.is_empty && (
-        <Foot label="Womit wird hier verglichen?">
-          {rc.reference === "opponents"
-            ? `„Ø deiner Gegner“ ist, was deine Gegner in denselben ${rc.reference_games} analysierten Partien erreicht haben, mit derselben Engine gemessen; das ist genauer als jede feste Tabelle. `
-            : "„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. "}
-          Performance und Ø Gegner zählen nur Partien auf {sourceName(rc.source)} im {trSpeed(rc.speed)}, damit keine Wertungen verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.
+        <Foot label={t("Womit wird hier verglichen?")}>
+          {t("{n}Performance und Ø Gegner zählen nur Partien auf {sourceName} im {trSpeed}, damit keine Wertungen verschiedener Plattformen vermischt werden. Die Erwartung nach Elo rechnet jede Partie mit deiner damaligen Wertung und der des Gegners.", { n: rc.reference === "opponents"
+            ? t("„Ø deiner Gegner“ ist, was deine Gegner in denselben {reference_games} analysierten Partien erreicht haben, mit derselben Engine gemessen; das ist genauer als jede feste Tabelle. ", { reference_games: rc.reference_games })
+            : t("„Richtwert“ ist eine grobe Schätzung; ab 10 analysierten Partien vergleicht die App stattdessen mit deinen Gegnern. "), sourceName: sourceName(rc.source), trSpeed: trSpeed(rc.speed) })}
         </Foot>
       )}
     </div>

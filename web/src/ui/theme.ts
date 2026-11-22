@@ -1,6 +1,7 @@
 // Appearance preferences. They sync like other settings; a localStorage mirror
 // applies them before IndexedDB has opened, so the app never flashes the wrong theme.
 import { getSetting, onDataChanged, setSetting } from "../storage/db";
+import { t } from "../i18n";
 
 export type ThemeMode = "system" | "dark" | "light";
 export type BoardTheme = "schiefer" | "salbei" | "holz" | "gruen" | "blau" | "grau";
@@ -8,15 +9,15 @@ export type BoardTheme = "schiefer" | "salbei" | "holz" | "gruen" | "blau" | "gr
 /** Muted slate: sits in the dark page instead of shining out of it. */
 export const DEFAULT_BOARD: BoardTheme = "schiefer";
 
-export const THEME_LABELS: Record<ThemeMode, string> = { system: "Automatisch", dark: "Dunkel", light: "Hell" };
+export const THEME_LABELS: Record<ThemeMode, string> = { system: t("Automatisch"), dark: t("Dunkel"), light: t("Hell") };
 
 export const BOARD_THEMES: Record<BoardTheme, { label: string; light: string; dark: string }> = {
-  schiefer: { label: "Schiefer", light: "#d3d8e0", dark: "#5c6c86" },
-  salbei: { label: "Salbei", light: "#dfe3d5", dark: "#7c917e" },
-  holz: { label: "Holz", light: "#ecd9b9", dark: "#ae8a68" },
-  gruen: { label: "Grün", light: "#eeeed2", dark: "#769656" },
-  blau: { label: "Blau", light: "#dee3e6", dark: "#8ca2ad" },
-  grau: { label: "Grau", light: "#d9d9d9", dark: "#8f8f8f" },
+  schiefer: { label: t("Schiefer"), light: "#d3d8e0", dark: "#5c6c86" },
+  salbei: { label: t("Salbei"), light: "#dfe3d5", dark: "#7c917e" },
+  holz: { label: t("Holz"), light: "#ecd9b9", dark: "#ae8a68" },
+  gruen: { label: t("Grün"), light: "#eeeed2", dark: "#769656" },
+  blau: { label: t("Blau"), light: "#dee3e6", dark: "#8ca2ad" },
+  grau: { label: t("Grau"), light: "#d9d9d9", dark: "#8f8f8f" },
 };
 
 const MIRROR_KEY = "schach.appearance";

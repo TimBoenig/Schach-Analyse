@@ -11,12 +11,13 @@ import { getSetting, listGames, onDataChanged, setSetting } from "../storage/db"
 import { IconChevron, IconFilter } from "./icons";
 import { useBulletPrefs } from "./useAnalysisPrefs";
 import { useNarrow } from "./useNarrow";
+import { t } from "../i18n";
 
 export const FORMATS = ["All Formats", "Bullet", "Blitz", "Rapid", "Classical", "Daily"];
 
 /** Label of a format option; "Alle Formate" says when Bullet is left out. */
 export function formatOptionLabel(format: string, excludeBullet: boolean): string {
-  return excludeBullet && format === "All Formats" ? "Alle außer Bullet" : trFilter(format);
+  return excludeBullet && format === "All Formats" ? t("Alle außer Bullet") : trFilter(format);
 }
 export const DATES = [
   "All Time",
@@ -269,7 +270,7 @@ export function PeriodSelect({ value, onChange }: { value: string; onChange: (da
     <>
       <select
         value={custom ? CUSTOM : value}
-        aria-label="Zeitraum"
+        aria-label={t("Zeitraum")}
         onChange={(e) => {
           const v = e.currentTarget.value;
           if (v !== CUSTOM) return onChange(v);
@@ -283,16 +284,16 @@ export function PeriodSelect({ value, onChange }: { value: string; onChange: (da
             {trFilter(o)}
           </option>
         ))}
-        <option value={CUSTOM}>{custom ? `Eigener: ${trFilter(value)}` : "Eigener Zeitraum …"}</option>
+        <option value={CUSTOM}>{custom ? t("Eigener: {trFilter}", { trFilter: trFilter(value) }) : t("Eigener Zeitraum …")}</option>
       </select>
       {custom && (
         <span class="date-range">
           <label>
-            <span>von</span>
+            <span>{t("von")}</span>
             <input type="date" value={from} max={to || undefined} onChange={(e) => onChange(customRange(e.currentTarget.value, to))} />
           </label>
           <label>
-            <span>bis</span>
+            <span>{t("bis")}</span>
             <input type="date" value={to} min={from || undefined} onChange={(e) => onChange(customRange(from, e.currentTarget.value))} />
           </label>
         </span>
@@ -319,11 +320,11 @@ export function FilterBar({
         value={filters.format}
         options={FORMATS}
         onChange={(format) => onChange({ ...filters, format })}
-        label="Bedenkzeit"
+        label={t("Bedenkzeit")}
         optionLabel={(o) => formatOptionLabel(o, excludeBullet)}
       />
       {!hideDate && <PeriodSelect value={filters.date} onChange={(date) => onChange({ ...filters, date })} />}
-      <Select value={filters.color} options={COLORS} onChange={(color) => onChange({ ...filters, color })} label="Farbe" />
+      <Select value={filters.color} options={COLORS} onChange={(color) => onChange({ ...filters, color })} label={t("Farbe")} />
     </div>
   );
   if (!narrow) return selects;
@@ -334,13 +335,13 @@ export function FilterBar({
     filters.color !== DEFAULT_FILTERS.color ? trFilter(filters.color) : null,
   ].filter((v): v is string => v !== null);
   // The period is always named: every page starts with a limited one now.
-  const shown = [active.length ? active.join(" · ") : "Alle Partien", ...(hideDate ? [] : [trFilter(filters.date)])].join(" · ");
+  const shown = [active.length ? active.join(" · ") : t("Alle Partien"), ...(hideDate ? [] : [trFilter(filters.date)])].join(" · ");
   return (
     <details class={`filter-fold${active.length ? " active" : ""}`}>
       <summary>
         <IconFilter />
         <span class="filter-fold-text">{shown}</span>
-        <span class="filter-fold-hint">Filter</span>
+        <span class="filter-fold-hint">{t("Filter")}</span>
         <IconChevron />
       </summary>
       {selects}

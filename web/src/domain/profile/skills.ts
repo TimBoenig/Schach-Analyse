@@ -9,6 +9,7 @@ import type { GameFeatures } from "./features";
 import type { SkillScore } from "./models";
 import { effectiveMoves } from "./evidence";
 import { fmtDe, pyRound, stdev } from "./num";
+import { t } from "../../i18n";
 
 type Dict = Record<string, any>;
 
@@ -55,28 +56,28 @@ export const RELIABLE_MARGIN = 18;
 /** Linear map of value onto 0..100 where `weak`->0 and `strong`->100 (either direction). */
 export function scale(value: number, weak: number, strong: number): number {
   if (strong === weak) return 50;
-  const t = (value - weak) / (strong - weak);
-  return pyRound(Math.max(0, Math.min(1, t)) * 100, 1);
+  const tk = (value - weak) / (strong - weak);
+  return pyRound(Math.max(0, Math.min(1, tk)) * 100, 1);
 }
 
 export function gradeFor(score: number): string {
-  if (score >= 80) return "Sehr stark";
-  if (score >= 65) return "Stark";
-  if (score >= 50) return "Solide";
-  if (score >= 35) return "Ausbaufähig";
-  return "Schwach";
+  if (score >= 80) return t("Sehr stark");
+  if (score >= 65) return t("Stark");
+  if (score >= 50) return t("Solide");
+  if (score >= 35) return t("Ausbaufähig");
+  return t("Schwach");
 }
 
 export const SKILL_NAMES: Record<string, string> = {
-  opening: "Eröffnung",
-  middlegame: "Mittelspiel",
-  endgame: "Endspiel",
-  tactics: "Taktisches Sehen",
-  safety: "Figurensicherheit",
-  conversion: "Vorteilsverwertung",
-  defense: "Verteidigung",
-  time: "Zeitmanagement",
-  consistency: "Konstanz",
+  opening: t("Eröffnung"),
+  middlegame: t("Mittelspiel"),
+  endgame: t("Endspiel"),
+  tactics: t("Taktisches Sehen"),
+  safety: t("Figurensicherheit"),
+  conversion: t("Vorteilsverwertung"),
+  defense: t("Verteidigung"),
+  time: t("Zeitmanagement"),
+  consistency: t("Konstanz"),
 };
 
 function skill(
@@ -130,8 +131,8 @@ function phaseSkill(key: string, stats: Dict, feats: GameFeatures[]): SkillScore
   const per100 = moves ? (serious / moves) * 100 : 0;
   const score = phaseScore(acc, per100);
   const detail = moves
-    ? `${fmtDe(acc, 1)} % Genauigkeit, ${fmtDe(per100, 1)} Fehler/Patzer pro 100 Züge`
-    : "Noch keine analysierten Züge in dieser Phase";
+    ? t("{fmtDe} % Genauigkeit, {fmtDe2} Fehler/Patzer pro 100 Züge", { fmtDe: fmtDe(acc, 1), fmtDe2: fmtDe(per100, 1) })
+    : t("Noch keine analysierten Züge in dieser Phase");
   return skill(key, score, detail, moves, games, moves >= MIN_PHASE_MOVES);
 }
 
@@ -160,8 +161,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "tactics",
       tacticScore,
-      `${fmtDe(pct(punished, chances), 0)} % der gegnerischen Fehler bestraft, ` +
-        `${punished} von ${chances}, ${misses} verpasste Chancen`,
+      t("{fmtDe} % der gegnerischen Fehler bestraft, ", { fmtDe: fmtDe(pct(punished, chances), 0) }) +
+        t("{punished} von {chances}, {misses} verpasste Chancen", { punished, chances, misses }),
       chances,
       analyzed.filter((f) => f.punish_chances > 0).length,
       chances >= MIN_SITUATIONS * 2,
@@ -181,8 +182,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "safety",
       safety,
-      `${fmtDe(blunderRate, 1)} Patzer pro 100 Züge, ` +
-        `${fmtDe(hungPerGame, 2)} eingestellte Figuren pro Partie`,
+      t("{fmtDe} Patzer pro 100 Züge, ", { fmtDe: fmtDe(blunderRate, 1) }) +
+        t("{fmtDe} eingestellte Figuren pro Partie", { fmtDe: fmtDe(hungPerGame, 2) }),
       userMoves,
       n,
       true,
@@ -196,8 +197,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "conversion",
       conversionScore(conv),
-      `${fmtDe(conv, 0)} % der klar gewonnenen Stellungen (ab +3) auch gewonnen, ` +
-        `${adv.converted_advantage ?? 0} von ${hadWin}`,
+      t("{fmtDe} % der klar gewonnenen Stellungen (ab +3) auch gewonnen, ", { fmtDe: fmtDe(conv, 0) }) +
+        t("{n} von {hadWin}", { n: adv.converted_advantage ?? 0, hadWin }),
       hadWin,
       hadWin,
       hadWin >= MIN_SITUATIONS,
@@ -210,8 +211,8 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "defense",
       defenseScore(comeback),
-      `${fmtDe(comeback, 0)} % der klar verlorenen Stellungen (ab −3) noch gehalten oder gedreht, ` +
-        `${adv.comeback_drawn_or_won ?? 0} von ${hadLose}`,
+      t("{fmtDe} % der klar verlorenen Stellungen (ab −3) noch gehalten oder gedreht, ", { fmtDe: fmtDe(comeback, 0) }) +
+        t("{n} von {hadLose}", { n: adv.comeback_drawn_or_won ?? 0, hadLose }),
       hadLose,
       hadLose,
       hadLose >= MIN_SITUATIONS,
@@ -229,7 +230,7 @@ export function computeSkills(stats: Dict, feats: GameFeatures[]): SkillScore[] 
     skill(
       "consistency",
       consistencyScore(spread),
-      `Genauigkeit schwankt um ±${fmtDe(spread, 1)} Prozentpunkte von Partie zu Partie`,
+      t("Genauigkeit schwankt um ±{fmtDe} Prozentpunkte von Partie zu Partie", { fmtDe: fmtDe(spread, 1) }),
       accs.length,
       accs.length,
       true,
@@ -244,11 +245,11 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
     return skill(
       "time",
       50,
-      "Die Partien enthalten keine Uhrzeiten (z. B. reine PGN ohne %clk).",
+      t("Die Partien enthalten keine Uhrzeiten (z. B. reine PGN ohne %clk)."),
       0,
       0,
       false,
-      "Keine Uhrdaten",
+      t("Keine Uhrdaten"),
     );
   }
   const tt: Dict = timeS.time_trouble ?? {};
@@ -269,8 +270,8 @@ function timeSkill(stats: Dict, analyzed: GameFeatures[]): SkillScore {
   return skill(
     "time",
     score,
-    `${timeLosses} Niederlagen durch Zeit, in ${fmtDe(troubleShare * 100, 0)} % der Partien ` +
-      `in Zeitnot, Patzerrisiko in Zeitnot ${fmtDe(panic, 1)}×`,
+    t("{timeLosses} Niederlagen durch Zeit, in {fmtDe} % der Partien ", { timeLosses, fmtDe: fmtDe(troubleShare * 100, 0) }) +
+      t("in Zeitnot, Patzerrisiko in Zeitnot {fmtDe}×", { fmtDe: fmtDe(panic, 1) }),
     (tt.trouble_moves ?? 0) + (tt.normal_moves ?? 0),
     analyzed.filter((f) => f.moves.some((m) => m.time_left !== null)).length,
     true,

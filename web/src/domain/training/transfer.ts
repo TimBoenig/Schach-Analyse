@@ -5,6 +5,7 @@
 // otherwise the area says how much data is still missing.
 
 import { MIN_BUCKET_MOVES, MIN_GROUP_GAMES, meansDiffer, ratesDiffer } from "../profile/evidence";
+import { t } from "../../i18n";
 
 /** One analysed game, reduced to what the transfer check needs (player's moves only). */
 export interface GameErrorPoint {
@@ -37,10 +38,10 @@ export interface TransferReport {
 }
 
 const LABEL: Record<TransferMetric, string> = {
-  serious: "Grobe Fehler (Blunder, verpasste Chancen)",
-  opening: "Fehler in der Eröffnung",
-  endgame: "Fehler im Endspiel",
-  accuracy: "Genauigkeit",
+  serious: t("Grobe Fehler (Blunder, verpasste Chancen)"),
+  opening: t("Fehler in der Eröffnung"),
+  endgame: t("Fehler im Endspiel"),
+  accuracy: t("Genauigkeit"),
 };
 
 function rateRow(metric: TransferMetric, before: GameErrorPoint[], after: GameErrorPoint[], pick: (g: GameErrorPoint) => [number, number]): TransferRow {

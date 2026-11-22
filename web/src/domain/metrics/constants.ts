@@ -1,4 +1,6 @@
 // Constants for metrics aggregation (port of src/backend/analysis/metrics/constants.py).
+import { t } from "../../i18n";
+
 
 export const PHASES = ["opening", "middlegame", "endgame"] as const;
 export const COLORS = ["white", "black"] as const;
@@ -42,10 +44,10 @@ export const ADVANTAGE_KEYS = [
 
 // (advantage_key, move_key, fallback_display_label, fallback_classification_key)
 export const ADVANTAGE_DRILLS: ReadonlyArray<readonly [string, string, string, string]> = [
-  ["thrown_losses", "lead_collapse_move", "Vorteil verspielt", "Lost Lead"],
-  ["squandered_draws", "lead_collapse_move", "Vorteil nur remis", "Drawn Lead"],
-  ["comeback_wins", "comeback_turn_move", "Aufholjagd", "Comeback Win"],
-  ["comeback_draws", "comeback_turn_move", "Aufholjagd", "Comeback Draw"],
+  ["thrown_losses", "lead_collapse_move", t("Vorteil verspielt"), "Lost Lead"],
+  ["squandered_draws", "lead_collapse_move", t("Vorteil nur remis"), "Drawn Lead"],
+  ["comeback_wins", "comeback_turn_move", t("Aufholjagd"), "Comeback Win"],
+  ["comeback_draws", "comeback_turn_move", t("Aufholjagd"), "Comeback Draw"],
 ];
 
 export const DRAW_MODE_TO_BUCKET: Record<string, string> = {

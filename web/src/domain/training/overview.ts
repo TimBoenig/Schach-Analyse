@@ -6,6 +6,7 @@ import { CATEGORY_ORDER, type Category, type Exercise } from "./exercises";
 import { EXERCISE_MINUTES, type SessionPart } from "./plan";
 import { addDays, categoryProgress, type CategoryProgress, type ExerciseProgress, isDue, isMastered, type ProgressMap, type TrainingLog } from "./progress";
 import { type DayTheme, type WeekPlan, weekStart } from "./week";
+import { t } from "../../i18n";
 
 // ---------- one exercise ----------
 
@@ -25,9 +26,9 @@ export function exerciseState(p: ExerciseProgress | undefined, today: string): E
 
 export const STATE_LABEL: Record<ExerciseState, string> = {
   new: "neu",
-  retry: "kommt morgen wieder",
-  due: "fällig",
-  learning: "im Aufbau",
+  retry: t("kommt morgen wieder"),
+  due: t("fällig"),
+  learning: t("im Aufbau"),
   mastered: "sicher",
 };
 
@@ -236,9 +237,9 @@ export function sessionResult(parts: SessionPart[], results: Record<string, bool
 
 /** Areas in the order the exercise library lists them, grouped by where the material comes from. */
 export const LIBRARY_GROUPS: { key: string; label: string; categories: Category[] }[] = [
-  { key: "errors", label: "Aus deinen Fehlern", categories: ["blunder", "chance", "opening", "endgame", "conversion", "defense"] },
-  { key: "openings", label: "Eröffnungen", categories: ["repertoire"] },
-  { key: "basics", label: "Grundlagen", categories: ["basics"] },
+  { key: "errors", label: t("Aus deinen Fehlern"), categories: ["blunder", "chance", "opening", "endgame", "conversion", "defense"] },
+  { key: "openings", label: t("Eröffnungen"), categories: ["repertoire"] },
+  { key: "basics", label: t("Grundlagen"), categories: ["basics"] },
 ];
 
 /** The area the library opens with: the asked one, else the first with due work, else the first with exercises. */

@@ -3,6 +3,7 @@
 // Headless: the app layer stores the choices as settings.
 import { DEFAULT_SETTINGS, type AnalysisSettings } from "./analyzer";
 import { getUserColor, isBulletGame, NO_BULLET, type FilterableGame } from "./metrics/filters";
+import { t, dec } from "../i18n";
 
 export { isBulletGame, NO_BULLET };
 
@@ -33,11 +34,11 @@ export interface PresetInfo {
 // 21 ≈ 4.5 s per position on a desktop core. At equal time Caissa's scores were
 // closer to a deep reference search than the old ones.
 export const DEPTH_PRESETS: Record<DepthPreset, PresetInfo> = {
-  blitz: { name: "Blitzschnell", hint: "grober Überblick", settings: { depth: 7, movetimeMs: 200, multiPv: 2 } },
-  fast: { name: "Schnell", hint: "gut für viele Partien", settings: { depth: 9, movetimeMs: 400, multiPv: 2 } },
-  normal: { name: "Normal", hint: "guter Kompromiss", settings: DEFAULT_SETTINGS },
-  deep: { name: "Gründlich", hint: "genauer, braucht Zeit", settings: { depth: 17, movetimeMs: 3000, multiPv: 2 } },
-  max: { name: "Maximal", hint: "für einzelne Partien", settings: { depth: 21, movetimeMs: 8000, multiPv: 2 } },
+  blitz: { name: t("Blitzschnell"), hint: t("grober Überblick"), settings: { depth: 7, movetimeMs: 200, multiPv: 2 } },
+  fast: { name: t("Schnell"), hint: t("gut für viele Partien"), settings: { depth: 9, movetimeMs: 400, multiPv: 2 } },
+  normal: { name: t("Normal"), hint: t("guter Kompromiss"), settings: DEFAULT_SETTINGS },
+  deep: { name: t("Gründlich"), hint: t("genauer, braucht Zeit"), settings: { depth: 17, movetimeMs: 3000, multiPv: 2 } },
+  max: { name: t("Maximal"), hint: t("für einzelne Partien"), settings: { depth: 21, movetimeMs: 8000, multiPv: 2 } },
 };
 
 export const PRESET_ORDER: DepthPreset[] = ["blitz", "fast", "normal", "deep", "max"];
@@ -93,14 +94,14 @@ export function resolveSettings(choice: DepthChoice): AnalysisSettings {
 /** "Schnell" or "Eigene" — the name shown for a choice. */
 export function choiceName(choice: DepthChoice): string {
   const c = normalizeChoice(choice);
-  return c.preset === "custom" ? "Eigene" : DEPTH_PRESETS[c.preset].name;
+  return c.preset === "custom" ? t("Eigene") : DEPTH_PRESETS[c.preset].name;
 }
 
-const secondsDe = (s: number) => (Math.round(s * 10) / 10).toString().replace(".", ",");
+const secondsDe = (s: number) => (Math.round(s * 10) / 10).toString().replace(".", dec());
 
 /** "Tiefe 12 · max. 0,4 s pro Zug". */
 export function settingsLabel(s: Pick<AnalysisSettings, "depth" | "movetimeMs">): string {
-  return `Tiefe ${s.depth} · max. ${secondsDe(s.movetimeMs / 1000)} s pro Zug`;
+  return t("Tiefe {depth} · max. {secondsDe} s pro Zug", { depth: s.depth, secondsDe: secondsDe(s.movetimeMs / 1000) });
 }
 
 /** The next deeper preset than the given limits, for "genauer analysieren" (null at the top). */

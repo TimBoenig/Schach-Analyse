@@ -11,6 +11,7 @@ import { Stage } from "../stage/Stage";
 import { PlayoutRunner, PuzzleRunner, RepertoireRunner } from "./Runners";
 import { plural, type SessionSpec } from "./shared";
 import type { TrainingState } from "./useTraining";
+import { t, tj } from "../../i18n";
 
 /**
  * Lines the player does not know yet start in learn mode with the book moves
@@ -30,11 +31,11 @@ function useFocusMode(): void {
   }, []);
 }
 
-export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingState; onExit: () => void }) {
+export function Session({ spec, t: tk, onExit }: { spec: SessionSpec; t: TrainingState; onExit: () => void }) {
   useFocusMode();
   const parts = useMemo(() => spec.parts ?? [{ key: "all", title: spec.title, sub: "", ids: spec.ids }], [spec]);
   const exercises = useMemo(
-    () => parts.flatMap((p) => p.ids.map((id) => ({ ex: t.byId.get(id), part: p.key }))).filter((x): x is { ex: Exercise; part: string } => Boolean(x.ex)),
+    () => parts.flatMap((p) => p.ids.map((id) => ({ ex: tk.byId.get(id), part: p.key }))).filter((x): x is { ex: Exercise; part: string } => Boolean(x.ex)),
     [spec],
   );
   const [index, setIndex] = useState(0);
@@ -48,28 +49,28 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
 
   if (!ex) {
     const r = sessionResult(parts, results);
-    const days = streak(t.log, t.today);
-    const say = r.verdict === "none" ? "Hier gibt es gerade nichts zu tun." : r.verdict === "perfect" ? "Perfekt. Alles auf Anhieb gelöst." : r.verdict === "good" ? "Geschafft. Das war eine starke Einheit." : "Geschafft. Genau dafür üben wir.";
-    const titles = r.missed.map((id) => t.byId.get(id)?.title).filter((s): s is string => Boolean(s));
+    const days = streak(tk.log, tk.today);
+    const say = r.verdict === "none" ? t("Hier gibt es gerade nichts zu tun.") : r.verdict === "perfect" ? t("Perfekt. Alles auf Anhieb gelöst.") : r.verdict === "good" ? t("Geschafft. Das war eine starke Einheit.") : t("Geschafft. Genau dafür üben wir.");
+    const titles = r.missed.map((id) => tk.byId.get(id)?.title).filter((s): s is string => Boolean(s));
     return (
       <Stage
-        kicker="Lucena · Training"
+        kicker={t("Lucena · Training")}
         mood={r.verdict === "perfect" || r.verdict === "good" ? "wow" : r.verdict === "mixed" ? "happy" : "think"}
         layout={r.done ? "split" : "center"}
         say={say}
         sub={
           r.done ? (
             <p>
-              Du hast <strong>{r.solved} von {plural(r.done, "Aufgabe", "Aufgaben")}</strong> auf Anhieb gelöst.{" "}
-              {r.missed.length ? "Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen." : "Ich frage sie in größeren Abständen wieder ab."}
+              
+              {tj("Du hast {x} auf Anhieb gelöst. {n}", { x: <strong>{t("{solved} von {n}", { solved: r.solved, n: plural(r.done, t("Aufgabe"), t("Aufgaben")) })}</strong>, n: r.missed.length ? t("Was nicht saß, frage ich morgen noch einmal, so bleibt es hängen.") : t("Ich frage sie in größeren Abständen wieder ab.") })}
             </p>
           ) : (
-            <p>Alle Aufgaben dieser Auswahl sind für heute erledigt.</p>
+            <p>{t("Alle Aufgaben dieser Auswahl sind für heute erledigt.")}</p>
           )
         }
         onNext={onExit}
         onClose={onExit}
-        closeLabel="Schließen"
+        closeLabel={t("Schließen")}
         actions={
           <>
             {r.done > 0 && (
@@ -80,11 +81,13 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
                   navigate({ view: "training", tab: "fortschritt" });
                 }}
               >
-                Fortschritt ansehen
+                
+                {t("Fortschritt ansehen")}
               </button>
             )}
             <button class="btn primary" onClick={onExit}>
-              Zur Übersicht
+              
+              {t("Zur Übersicht")}
             </button>
           </>
         }
@@ -96,19 +99,19 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
                 <b>
                   <CountUp value={r.solved} />
                 </b>
-                <span>auf Anhieb gelöst</span>
+                <span>{t("auf Anhieb gelöst")}</span>
               </div>
               <div class={`stage-stat${r.missed.length ? " bad" : ""}`}>
                 <b>
                   <CountUp value={r.missed.length} />
                 </b>
-                <span>{r.missed.length === 1 ? "kommt morgen wieder" : "kommen morgen wieder"}</span>
+                <span>{r.missed.length === 1 ? t("kommt morgen wieder") : t("kommen morgen wieder")}</span>
               </div>
               <div class="stage-stat">
                 <b>
                   <CountUp value={days} />
                 </b>
-                <span>{days === 1 ? "Tag in Folge" : "Tage in Folge"}</span>
+                <span>{days === 1 ? t("Tag in Folge") : t("Tage in Folge")}</span>
               </div>
             </div>
             {staged && (
@@ -131,9 +134,8 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
             )}
             {titles.length > 0 && (
               <p class="stage-note">
-                Morgen wieder dabei: {titles.slice(0, 4).join(", ")}
-                {titles.length > 4 ? ` und ${titles.length - 4} weitere` : ""}.
-              </p>
+                
+                {t("Morgen wieder dabei: {n}{n2}.", { n: titles.slice(0, 4).join(", "), n2: titles.length > 4 ? t(" und {0} weitere", { 0: titles.length - 4 }) : "" })}</p>
             )}
           </>
         )}
@@ -149,29 +151,27 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
     const resume = () => setPause(null);
     return (
       <Stage
-        kicker={`Lucena · Teil ${parts.indexOf(p) + 1} von ${parts.length}`}
+        kicker={t("Lucena · Teil {0} von {length}", { 0: parts.indexOf(p) + 1, length: parts.length })}
         mood="happy"
         layout="center"
         steps={parts.length}
         step={parts.indexOf(p)}
-        say={`Weiter mit: ${p.title}`}
+        say={t("Weiter mit: {title}", { title: p.title })}
         sub={
           <p>
             {before && prevIds.length ? (
               <>
-                {before.title}: <strong>{prevOk} von {prevIds.length}</strong> auf Anhieb.{" "}
+                {tj("{title}: {x} auf Anhieb.", { title: before.title, x: <strong>{t("{prevOk} von {length}", { prevOk, length: prevIds.length })}</strong> })}{" "}
               </>
             ) : null}
-            {p.sub ? `${p.sub}, ` : ""}
-            {plural(p.ids.length, "Aufgabe", "Aufgaben")}.
-          </p>
+            {t("{n}{n2}.", { n: p.sub ? `${p.sub}, ` : "", n2: plural(p.ids.length, t("Aufgabe"), t("Aufgaben")) })}</p>
         }
         onNext={resume}
         onClose={resume}
-        closeLabel="Weiter"
+        closeLabel={t("Weiter")}
         actions={
           <button class="btn primary" onClick={resume}>
-            <IconPlay /> Weiter
+            <IconPlay />  {t("Weiter")}
           </button>
         }
       />
@@ -181,7 +181,7 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
   const props = {
     onResult: (ok: boolean) => {
       setResults((r) => ({ ...r, [ex.id]: ok }));
-      t.record(ex, ok);
+      tk.record(ex, ok);
     },
     onNext: () => {
       const nxt = exercises[index + 1];
@@ -189,32 +189,33 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
       setIndex((i) => i + 1);
       window.scrollTo(0, 0);
     },
-    nextLabel: index + 1 < exercises.length ? "Nächste Aufgabe" : "Fertig",
+    nextLabel: index + 1 < exercises.length ? t("Nächste Aufgabe") : t("Fertig"),
   };
   const part = parts[partIndex];
 
   return (
     <div class="ts">
       <header class="ts-bar">
-        <button class="btn ghost small ts-exit" onClick={onExit} title="Einheit beenden. Was du gelöst hast, bleibt gespeichert.">
-          <IconClose /> <span>Beenden</span>
+        <button class="btn ghost small ts-exit" onClick={onExit} title={t("Einheit beenden. Was du gelöst hast, bleibt gespeichert.")}>
+          <IconClose /> <span>{t("Beenden")}</span>
         </button>
         <div class="ts-title">
           <strong>{spec.title}</strong>
           {staged && part && (
             <span>
-              Teil {partIndex + 1} von {parts.length} <IconChevron /> {part.title}
+              
+              {t("Teil {n} von {length}", { n: partIndex + 1, length: parts.length })} <IconChevron /> {part.title}
             </span>
           )}
         </div>
-        <span class="ts-count tnum" aria-label={`Aufgabe ${index + 1} von ${exercises.length}`}>
+        <span class="ts-count tnum" aria-label={t("Aufgabe {0} von {length}", { 0: index + 1, length: exercises.length })}>
           {index + 1}
           <small> / {exercises.length}</small>
         </span>
       </header>
-      <div class="ts-track" role="progressbar" aria-valuemin={0} aria-valuemax={exercises.length} aria-valuenow={index} aria-label="Fortschritt der Einheit">
+      <div class="ts-track" role="progressbar" aria-valuemin={0} aria-valuemax={exercises.length} aria-valuenow={index} aria-label={t("Fortschritt der Einheit")}>
         {parts.map((p) => {
-          const ids = p.ids.filter((id) => t.byId.has(id));
+          const ids = p.ids.filter((id) => tk.byId.has(id));
           if (!ids.length) return null;
           return (
             <div key={p.key} class={`ts-part${p.key === cur.part ? " on" : ""}`} style={{ flexGrow: ids.length }}>
@@ -230,7 +231,7 @@ export function Session({ spec, t, onExit }: { spec: SessionSpec; t: TrainingSta
       </div>
       <div class="ts-run">
         {ex.kind === "puzzle" && <PuzzleRunner key={ex.id} ex={ex} {...props} />}
-        {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} learn={needsLearning(ex, t.progress[ex.id])} {...props} />}
+        {ex.kind === "repertoire" && <RepertoireRunner key={ex.id} ex={ex} learn={needsLearning(ex, tk.progress[ex.id])} {...props} />}
         {ex.kind === "playout" && <PlayoutRunner key={ex.id} ex={ex} {...props} />}
       </div>
     </div>
