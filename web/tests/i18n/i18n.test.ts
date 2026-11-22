@@ -62,7 +62,7 @@ describe("language", () => {
       // A left-out part (`cond && t(...)`) leaves no "false" behind.
       expect(t("{n} importiert{n2}.{n3}{failedMonthsNote}", { n: "2", n2: "", n3: false, failedMonthsNote: "" })).toBe("2 imported.");
       const bold = { bold: true };
-      expect(tj("Finde heraus, {x} du verlierst.", { x: bold })).toEqual(["Find out ", bold, " you lose."]);
+      expect(tj("{x} Sie läuft auch offline weiter, wenn die Partien einmal geladen sind.", { x: bold })).toEqual([bold, " It keeps working offline once the games are loaded."]);
       expect(tStored("Eröffnungstheorie.")).toBe("Opening theory.");
     } finally {
       setLangNow("de");

@@ -122,3 +122,57 @@ export function canAdvance(step: OnboardStep, state: { pick: SitePick | null; na
 export function tourStop(step: OnboardStep): TourStop | undefined {
   return step.startsWith("tour:") ? TOUR_STOPS.find((s) => `tour:${s.id}` === step) : undefined;
 }
+
+// ---------- the progress line of the first start ----------
+
+export interface PhaseView {
+  label: string;
+  fill: number;
+  detail?: string;
+  busy?: boolean;
+}
+
+// The labels double as ids; Stage shows them through t().
+const PHASE_OF: { label: string; has: (s: OnboardStep) => boolean }[] = [
+  { label: "Konto", has: (s) => s === "hello" || s === "site" || s === "name" || s === "nosite" }, // i18n: id
+  { label: "Partien", has: (s) => s === "import" }, // i18n: id
+  { label: "Analyse", has: (s) => s === "analysis" }, // i18n: id
+  { label: "Rundgang", has: (s) => s.startsWith("tour:") || s === "ready" }, // i18n: id
+];
+
+export interface PhaseState {
+  /** The import's state and how many games are in so far. */
+  phase: ImportPhase;
+  found: number;
+  /** The engine's first pass: share done (0 to 1) and whether anything is queued; null before it starts. */
+  pass: { fraction: number; games: number } | null;
+  passDone: boolean;
+}
+
+/**
+ * The named parts of the first start and how far each one really is: the
+ * games part counts the games that arrived, the analysis part follows the
+ * engine (and keeps filling while the tour runs), the others count screens.
+ */
+export function onboardPhases(path: OnboardStep[], index: number, st: PhaseState): { list: PhaseView[]; at: number } {
+  const groups = PHASE_OF.filter((g) => path.some(g.has));
+  const current = path[Math.min(index, path.length - 1)];
+  const at = Math.max(0, groups.findIndex((g) => g.has(current)));
+  const list = groups.map((g, gi): PhaseView => {
+    if (g.label === "Partien") { // i18n: id
+      if (st.phase === "done") return { label: g.label, fill: 1, detail: st.found ? String(st.found) : undefined };
+      if (st.phase === "busy") return { label: g.label, fill: 0, busy: true, detail: st.found ? String(st.found) : undefined };
+      return { label: g.label, fill: 0 };
+    }
+    if (g.label === "Analyse") { // i18n: id
+      if (st.passDone) return { label: g.label, fill: 1 };
+      if (st.pass && st.pass.games > 0) return { label: g.label, fill: st.pass.fraction, detail: `${Math.round(st.pass.fraction * 100)} %` };
+      return { label: g.label, fill: 0, busy: gi === at };
+    }
+    const own = path.map((s, i) => ({ s, i })).filter((x) => g.has(x.s));
+    const before = own.filter((x) => x.i < index).length;
+    const on = own.some((x) => x.i === index) ? 0.5 : 0;
+    return { label: g.label, fill: own.length ? Math.min(1, (before + on) / own.length) : 0 };
+  });
+  return { list, at };
+}

@@ -55,7 +55,22 @@ export function Typed({ text }: { text: string }) {
   );
 }
 
+/** One named part of a longer show, for the labelled progress line on top. */
+export interface StagePhase {
+  label: string;
+  /** How far this part is, 0 to 1; real progress where there is one (games found, games analysed). */
+  fill: number;
+  /** Short live detail after the label, e.g. "87" games or "40 %". */
+  detail?: string;
+  /** Work without a known end is running: the bar pulses instead of filling. */
+  busy?: boolean;
+}
+
 export interface StageProps {
+  /** Named parts instead of plain segments: the current one is spelled out. */
+  phases?: StagePhase[];
+  /** Index of the part the current step belongs to. */
+  phase?: number;
   /** Number of segments in the progress line on top; leave out for a single screen. */
   steps?: number;
   /** Index of the current segment. */
@@ -82,6 +97,8 @@ export interface StageProps {
 }
 
 export function Stage({
+  phases,
+  phase = 0,
   steps,
   step = 0,
   mood = "happy",
@@ -155,7 +172,21 @@ export function Stage({
           <img src={`${import.meta.env.BASE_URL}icons/logo.svg`} alt="" />
           <span>{BRAND}</span>
         </div>
-        {steps !== undefined && steps > 1 && (
+        {phases && phases.length > 1 ? (
+          <ol class="stage-phases" aria-label={t("Teil {0} von {1}: {2}", { 0: phase + 1, 1: phases.length, 2: t(phases[phase]?.label ?? "") })}>
+            {phases.map((p, i) => (
+              <li key={p.label} data-state={i < phase ? "done" : i === phase ? "on" : "todo"} data-busy={p.busy ? "" : undefined}>
+                <span class="stage-phase-bar">
+                  <span style={{ transform: `scaleX(${Math.max(0, Math.min(1, p.fill))})` }} />
+                </span>
+                <span class="stage-phase-label">
+                  {t(p.label)}
+                  {p.detail && <span class="tnum"> ({p.detail})</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+        ) : steps !== undefined && steps > 1 && (
           <ol class="stage-progress" aria-label={t("Schritt {0} von {steps}", { 0: step + 1, steps })}>
             {Array.from({ length: steps }, (_, i) => (
               <li key={i} data-state={i < step ? "done" : i === step ? "on" : "todo"} />

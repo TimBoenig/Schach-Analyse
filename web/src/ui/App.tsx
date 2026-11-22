@@ -26,7 +26,7 @@ import { Dock, Sidebar } from "./Shell";
 import { StageHost } from "./stage/Host";
 import { StudioRoute } from "./studio/StudioRoute";
 import { startSeenSync } from "./stage/seenSync";
-import { currentShow, openStage, takeAuto, wasSeen } from "./stage/store";
+import { currentShow, markSeen, onSeenChange, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
 import { useRoute, navigate, type Route } from "./router";
 import { t } from "../i18n";
@@ -87,6 +87,11 @@ export function App() {
   const route = useRoute();
   const [analysing, setAnalysing] = useState(false);
   const [overlay, setOverlay] = useState<"palette" | "keys" | null>(null);
+  // A device that has never seen the app opens on the front door (the landing
+  // page) at "/", so a new visitor sees the product before any setup. Decided
+  // from localStorage at once, so the app never flashes first.
+  const [frontDoor, setFrontDoor] = useState(() => route.view === "home" && !wasSeen("onboarding") && !wasSeen("landing"));
+  useEffect(() => onSeenChange((seen) => seen.includes("landing") && setFrontDoor(false)), []);
   useBackgroundSync();
 
   useEffect(() => {
@@ -136,14 +141,22 @@ export function App() {
   // What Lucena already explained follows the account to every device.
   useEffect(() => startSeenSync(), []);
 
-  // A device that has never seen the app starts with Lucena, fullscreen: who
-  // she is, the import of the first games, a walk through the areas.
+  // Lucena's guided start (who she is, the first import, a walk through the
+  // areas). Behind the front door it waits for its button; a device that
+  // skipped the front door gets it once by itself; anyone who already has
+  // games (from a backup or another tab) skips both.
   useEffect(() => {
     if (wasSeen("onboarding") || route.view === "studio") return;
     let alive = true;
     void Promise.all([getSetting<string[]>("usernames", []), listGames()])
       .then(([names, games]) => {
-        if (alive && !names.length && !games.length && !currentShow() && takeAuto()) openStage({ kind: "onboarding" });
+        if (!alive) return;
+        const fresh = !names.length && !games.length;
+        if (!fresh) {
+          if (frontDoor) markSeen("landing");
+          return;
+        }
+        if (!frontDoor && route.view !== "landing" && !currentShow() && takeAuto()) openStage({ kind: "onboarding" });
       })
       .catch(() => undefined);
     return () => {
@@ -160,7 +173,7 @@ export function App() {
     );
 
   // The social-media landing page stands alone, without sidebar or tab bar.
-  if (route.view === "landing")
+  if (route.view === "landing" || (frontDoor && route.view === "home"))
     return (
       <ErrorBoundary area={t("Die Startseite")}>
         <LandingView />
