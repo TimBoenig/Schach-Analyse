@@ -53,6 +53,8 @@ export interface RequestOptions {
    * was not reachable (offline, timeout). Not called when the caller aborted.
    */
   onFail?: (status: number | null) => void;
+  /** Browser cache mode; "no-cache" revalidates (cheap with ETags) instead of trusting a stored copy. */
+  cache?: RequestCache;
 }
 
 export function withParams(url: string, params?: Record<string, string | number>): string {
@@ -67,7 +69,7 @@ export function withParams(url: string, params?: Record<string, string | number>
  * own signal aborted, so cancellation is never mistaken for "no data".
  */
 export async function makeRequest(url: string, options: RequestOptions = {}): Promise<Response | null> {
-  const { headers, params, timeoutMs = DEFAULT_TIMEOUT_MS, signal, onFail } = options;
+  const { headers, params, timeoutMs = DEFAULT_TIMEOUT_MS, signal, onFail, cache } = options;
   const fullUrl = withParams(url, params);
   const controller = new AbortController();
   const onAbort = () => controller.abort(signal?.reason);
@@ -76,7 +78,7 @@ export async function makeRequest(url: string, options: RequestOptions = {}): Pr
   try {
     await throttle(fullUrl, signal);
     signal?.throwIfAborted();
-    const response = await fetch(fullUrl, { headers, signal: controller.signal });
+    const response = await fetch(fullUrl, { headers, signal: controller.signal, ...(cache ? { cache } : {}) });
     if (!response.ok) {
       console.error(`Request failed for ${fullUrl}: HTTP ${response.status}`);
       onFail?.(response.status);
