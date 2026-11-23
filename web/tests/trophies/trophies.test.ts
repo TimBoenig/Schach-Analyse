@@ -393,4 +393,10 @@ describe("progress and comparison", () => {
     expect(r.games).toBe(0);
     expect(nextTrophies(r)).toEqual([]);
   });
+
+  it("survives a one-move game played as Black (no move of the player's own)", () => {
+    // White moved once and the opponent left: Black has no move, which used to throw and leave the page loading forever.
+    const r = evaluateTrophies([game({ sans: ["e4"], user: "black", result: "1-0" }), game()], ME);
+    expect(r.games).toBe(2);
+  });
 });

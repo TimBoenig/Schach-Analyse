@@ -185,8 +185,9 @@ function moveFacts(moves: MoveData[], color: "white" | "black", won: boolean): M
     if (i < 3 && san.startsWith("Q")) out.earlyQueen = true;
     if (typeof m.time_spent === "number" && m.time_spent >= 0) out.think = Math.max(out.think ?? 0, m.time_spent);
   });
+  // A game can end before the player moved at all (Black after White's only move).
   const lastMine = mine[mine.length - 1];
-  if (typeof lastMine.time_left === "number" && lastMine.time_left >= 0) out.finalTimeLeft = lastMine.time_left;
+  if (typeof lastMine?.time_left === "number" && lastMine.time_left >= 0) out.finalTimeLeft = lastMine.time_left;
   // The Bongcloud, the Grob and the Orangutan are choices of the first moves.
   out.bongcloud = white ? sans[0] === "e4" && /^Ke2/.test(sans[1] ?? "") : sans[0] === "e5" && /^Ke7/.test(sans[1] ?? "");
   out.grob = white && sans[0] === "g4";
@@ -288,8 +289,13 @@ export function computeStats(games: RawGame[], names: string[], opts: TrophyOpti
 
   const facts: Fact[] = [];
   for (const g of games) {
-    const f = toFact(g, names);
-    if (f) facts.push(f);
+    // One odd imported game must not take the whole collection down with it.
+    try {
+      const f = toFact(g, names);
+      if (f) facts.push(f);
+    } catch (error) {
+      console.warn("Trophäen: Partie übersprungen", g.id, error);
+    }
   }
   facts.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 

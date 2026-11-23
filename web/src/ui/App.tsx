@@ -5,32 +5,36 @@ import { repairOpeningNames } from "../app/openingNames";
 import { repairGames } from "../app/repairGames";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { currentUser, hasAuthCallback, onAuthEvent, refreshSyncStatus, syncAvailable, syncNow } from "../storage/sync";
-import { AccountView } from "./AccountView";
-import { AnalysisView } from "./AnalysisView";
-import { FreeBoardView } from "./FreeBoardView";
-import { GamesView } from "./GamesView";
 import { CommandPalette, PAGES, ShortcutHelp } from "./CommandPalette";
 import { HomeView } from "./HomeView";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { areaOf, ShellContext } from "./Layout";
-import { InsightsView } from "./InsightsView";
 import { LandingView } from "./LandingView";
-import { LegalView } from "./LegalView";
-import { MovesView } from "./MovesView";
-import { OpeningsView } from "./OpeningsView";
 import { isTyping } from "./keys";
-import { PlayersView } from "./PlayersView";
-import { ProfileView } from "./ProfileView";
-import { SettingsView } from "./SettingsView";
 import { Dock, Sidebar } from "./Shell";
 import { StageHost } from "./stage/Host";
 import { StudioRoute } from "./studio/StudioRoute";
 import { startSeenSync } from "./stage/seenSync";
 import { currentShow, markSeen, onSeenChange, openStage, takeAuto, wasSeen } from "./stage/store";
-import { TrainingView } from "./TrainingView";
-import { TrophiesView } from "./trophies/TrophiesView";
+import { lazyView, preloadViews } from "./lazyView";
 import { useRoute, navigate, type Route } from "./router";
 import { t } from "../i18n";
+
+
+// Pages other than the start page load on demand (see lazyView).
+const AccountView = lazyView(() => import("./AccountView").then((m) => m.AccountView));
+const AnalysisView = lazyView(() => import("./AnalysisView").then((m) => m.AnalysisView));
+const FreeBoardView = lazyView(() => import("./FreeBoardView").then((m) => m.FreeBoardView));
+const GamesView = lazyView(() => import("./GamesView").then((m) => m.GamesView));
+const InsightsView = lazyView(() => import("./InsightsView").then((m) => m.InsightsView));
+const LegalView = lazyView(() => import("./LegalView").then((m) => m.LegalView));
+const MovesView = lazyView(() => import("./MovesView").then((m) => m.MovesView));
+const OpeningsView = lazyView(() => import("./OpeningsView").then((m) => m.OpeningsView));
+const PlayersView = lazyView(() => import("./PlayersView").then((m) => m.PlayersView));
+const ProfileView = lazyView(() => import("./ProfileView").then((m) => m.ProfileView));
+const SettingsView = lazyView(() => import("./SettingsView").then((m) => m.SettingsView));
+const TrainingView = lazyView(() => import("./TrainingView").then((m) => m.TrainingView));
+const TrophiesView = lazyView(() => import("./trophies/TrophiesView").then((m) => m.TrophiesView));
 
 // Local changes reach the cloud this long after the last edit (batch imports
 // and analysis write many records in a row).
@@ -94,6 +98,8 @@ export function App() {
   const [frontDoor, setFrontDoor] = useState(() => route.view === "home" && !wasSeen("onboarding") && !wasSeen("landing"));
   useEffect(() => onSeenChange((seen) => seen.includes("landing") && setFrontDoor(false)), []);
   useBackgroundSync();
+  // Fetch the other pages quietly once the first screen is up.
+  useEffect(() => preloadViews(), []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
