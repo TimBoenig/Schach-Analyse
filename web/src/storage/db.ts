@@ -2,7 +2,7 @@
 // (ms) so the optional cloud sync can merge devices last-writer-wins;
 // deletions are soft (`deleted: true`) so they propagate too.
 import { platformGameKey } from "../domain/gameKey";
-import { parsePlayedAt } from "../domain/profile/features";
+import { parseFinishedAt } from "../domain/metrics/played";
 import type { PvLine, StoredGame } from "../domain/types";
 
 const DB_NAME = "schach-analyse";
@@ -88,11 +88,13 @@ function broadcast(): void {
 // ---- games ----
 
 /**
- * Newest played game first. `timestamp` is when a game was saved, and imports
- * arrive in archive order, so it only breaks ties (and orders undated games).
+ * Most recently finished game first (a correspondence game counts from its
+ * last move, not from the day it started). `timestamp` is when a game was
+ * saved, and imports arrive in archive order, so it only breaks ties (and
+ * orders undated games).
  */
 export function sortGames(games: StoredGame[]): StoredGame[] {
-  const keyed = games.map((g) => ({ g, played: parsePlayedAt(g) }));
+  const keyed = games.map((g) => ({ g, played: parseFinishedAt(g) }));
   keyed.sort((a, b) => {
     if (a.played !== b.played) {
       if (a.played === null) return 1;

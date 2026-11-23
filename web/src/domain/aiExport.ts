@@ -14,7 +14,7 @@ import { pvToSan } from "./analyzer";
 import { explainMove } from "./explain";
 import { gamesInPeriod, type ExportSetting } from "./export";
 import { trClassification, trColor, trFilter, trMotif, trPhase, trPhaseIn, trPiece, trSpeed, trTermination } from "./i18n";
-import { classifyTermination, dateWindow, getUserColor, outcomeFor, parseMoves, parsePlayedAt, parseSummary } from "./metrics";
+import { classifyTermination, dateWindow, getUserColor, outcomeFor, parseFinishedAt, parseMoves, parseSummary } from "./metrics";
 import { buildGameReview, buildPlayerProfile, type GameReview, type PlayerProfile, sourceName } from "./profile";
 import { ELO_SCALE_LABEL } from "./profile/fide";
 import { SERIOUS_ERROR_CLASSES, userWp } from "./profile/features";
@@ -133,7 +133,7 @@ interface GameItem {
 
 function ownGames(games: StoredGame[], usernames: string[]): GameItem[] {
   const items = games
-    .map((game) => ({ game, color: getUserColor(game, usernames), playedAt: parsePlayedAt(game) ?? 0 }))
+    .map((game) => ({ game, color: getUserColor(game, usernames), playedAt: parseFinishedAt(game) ?? 0 }))
     .filter((x): x is { game: StoredGame; color: "white" | "black"; playedAt: number } => x.color !== null)
     .sort((a, b) => b.playedAt - a.playedAt || (b.game.date ?? "").localeCompare(a.game.date ?? ""));
   const width = Math.max(3, String(items.length).length);
