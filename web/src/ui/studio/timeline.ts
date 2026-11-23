@@ -328,7 +328,7 @@ export function compile(project: StudioProject): Timeline {
     const fxAt = lastStep ? lastStep.t1 : lead;
     // Effects need their moment on screen; the speaker's text needs time to be said.
     // The reel look cuts on the beat: nothing stays on screen longer than it needs.
-    const fxTime = s.effects.includes("mate") ? (reel ? 2.0 : 2.2) : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
+    const fxTime = s.effects.includes("mate") ? (reel ? 1.5 : 2.2) : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
     const minimum = Math.max(
       annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),

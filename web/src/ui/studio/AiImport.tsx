@@ -2,7 +2,7 @@
 // answer (the JSON script) into a finished video project.
 import { useMemo, useState } from "preact/hooks";
 
-import { buildAiPrompt, importAiScript, toAiScript } from "./aiScript";
+import { buildAiPrompt, importAiScript, toAiScript, type VideoArt } from "./aiScript";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
 import { t, tj } from "../../i18n";
 
@@ -26,9 +26,10 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [length, setLength] = useState(current.video.platform === "youtube" ? 240 : 45);
   const [notes, setNotes] = useState("");
   const [side, setSide] = useState<Side | "auto">("auto");
+  const [art, setArt] = useState<VideoArt | "auto">(current.style.view === "reel" ? "edit" : "auto");
   const [copied, setCopied] = useState<"" | "prompt" | "script" | "failed">("");
   const [answer, setAnswer] = useState("");
-  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side }), [topic, platform, length, notes, side]);
+  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, type: art }), [topic, platform, length, notes, side, art]);
   const result = useMemo(() => (answer.trim() ? importAiScript(answer) : null), [answer]);
 
   const doCopy = async (text: string, what: "prompt" | "script") => setCopied((await copy(text)) ? what : "failed");
@@ -83,6 +84,16 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+            <div class="ai-field">
+              <span>{t("Art des Videos")}</span>
+              <div class="studio-speed">
+                {(["auto", "explain", "edit"] as const).map((k) => (
+                  <button key={k} class={art === k ? "on" : ""} onClick={() => setArt(k)} title={k === "edit" ? t("Schneller Clip im Reel-Stil: harte Schnitte im Takt, schräge Kamera, kaum Text") : k === "explain" ? t("Ruhiges Video mit Untertiteln und Sprechtext") : t("Die KI wählt nach Thema und Wunsch")}>
+                    {k === "auto" ? t("KI entscheidet") : k === "explain" ? t("Erklärvideo") : t("Edit-Video")}
+                  </button>
+                ))}
               </div>
             </div>
             <div class="ai-field">

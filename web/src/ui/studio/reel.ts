@@ -47,11 +47,19 @@ const backOut = (k: number) => {
   return 1 + 2.4 * x * x * x + 1.4 * x * x;
 };
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+const easeInOut = (k: number) => {
+  const x = clamp01(k);
+  return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+};
+/** A shot at least this long (seconds) gets a push-in; shorter ones are beat cuts. */
+const SLOW_SHOT = 1.2;
+/** How long the push-in takes. */
+const RAMP = 0.4;
 
 /** Camera roll per scene in degrees: each cut leans the other way, like a hand-held shot. */
 export const ROLLS = [-14, 9, -21, 16, -7, 19];
 /** How close each cut of a four-shot cycle is (0 = whole board, 1 = two squares): wide, medium, wide-ish, one close hit. The reference never stays close for long. */
-export const SHOT_SIZES = [0.4, 0.7, 0.5, 0.95];
+export const SHOT_SIZES = [0.4, 0.7, 0.5, 0.85];
 /** Which pieces grow and flip when they move: the heavy ones, never pawns. */
 const WEIGHT: Record<PieceSymbol, number> = { p: 0.25, n: 0.8, b: 0.6, r: 0.6, q: 1, k: 0.4 };
 
@@ -102,19 +110,29 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
     const [bx, bz] = squareXZ(a.to);
     reach = Math.max(reach, Math.hypot(bx - ax, bz - az));
   }
-  if (reach > 0) S = Math.min(S, (0.72 * m) / (reach + 1.6));
+  const arrowCap = reach > 0 ? (0.6 * m) / (reach + 1.6) : Infinity;
+  S = Math.min(S, arrowCap);
   // Cuts alternate between punching in from too close and pushing in from too far.
   // A cut is a hard cut: the new shot stands at once, only a very quick settle (the reference has no zoom ramp longer than ~0.1 s) and a slight drift.
   const start = frame.index % 2 === 0 ? 1.12 : 0.9;
   S *= 1 + (start - 1) * Math.exp(-age / 0.08);
-  S *= 1 + 0.03 * age;
+  // Long shots are not still: after a short hold the camera pushes in on the action in one quick move (about 0.4 s, like the reference's ramps) and then keeps creeping.
+  const slow = frame.dur >= SLOW_SHOT && s.card === "none";
+  const rampAt = Math.min(0.6, frame.dur * 0.3);
+  const ramp = slow ? easeInOut((age - rampAt) / RAMP) : 0;
+  const before = S;
+  S *= 1 + (slow ? 0.45 * ramp + 0.05 * age : 0.03 * age);
+  // The push stops at three squares across and never pushes an arrow out of the picture.
+  if (slow) S = Math.min(S, Math.max(before, m / 3.0));
+  S = Math.min(S, arrowCap);
   const zoomAge = fx("zoom");
   if (zoomAge !== undefined) S *= 1 + 0.5 * easeOut(zoomAge / 0.1);
   // Every landing kicks the picture a little.
   if (frame.landing) S *= 1 + 0.07 * Math.exp(-frame.landing.k * 8);
 
   const sign = ROLLS[frame.index % ROLLS.length] < 0 ? -1 : 1;
-  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 2.5) * age + sign * 5 * Math.exp(-age / 0.1)) * Math.PI) / 180;
+  // The picture also swings back a few degrees while the camera pushes in.
+  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 2.5) * age + sign * 5 * Math.exp(-age / 0.1) - sign * 7 * ramp) * Math.PI) / 180;
 
   // The camera flies from the piece's square to the one it lands on.
   let tx = 0;
@@ -126,8 +144,16 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
     tx = lerp(ax, bx, k);
     tz = lerp(az, bz, k);
   } else {
-    const sq = frame.fxSquare ?? frame.marks[0]?.square ?? frame.arrows.find((a) => !a.path)?.to;
-    if (sq) [tx, tz] = squareXZ(sq);
+    // An arrow is framed by its middle, so the piece it starts from stays in the picture too.
+    const arrow = frame.arrows.find((a) => !a.path);
+    if (arrow && !frame.fxSquare) {
+      const [ax, az] = squareXZ(arrow.from);
+      const [bx, bz] = squareXZ(arrow.to);
+      [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
+    } else {
+      const sq = frame.fxSquare ?? frame.marks[0]?.square;
+      if (sq) [tx, tz] = squareXZ(sq);
+    }
   }
   // A wide shot shows the whole board, so it stays centred.
   const hold = clamp01(((S - wide) / (close - wide)) * 1.4);
@@ -152,7 +178,8 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
 
   // White strobe on every cut, a big one on the "flash" effect and the mating blow.
   // Every cut strobes: four to five frames (0.13 s) of near-white, then gone within two frames, as in the reference (frame brightness 220-235 of 255).
-  let flash = frame.index > 0 ? 0.9 * (1 - clamp01((age - 0.13) / 0.05)) : 0;
+  // Only the short beat cuts strobe; a long shot starts with a plain cut.
+  let flash = frame.index > 0 && !slow ? 0.9 * (1 - clamp01((age - 0.13) / 0.05)) : 0;
   const fl = fx("flash");
   if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * (1 - fl / 0.45) ** 2);
   if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.85 * (1 - mate / 0.25));
@@ -233,7 +260,7 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
   const p2: [number, number] = [b[0] - ux * 0.12, b[1] - uz * 0.12];
   const ctrl: [number, number] = [(p0[0] + p2[0]) / 2 + nx * bend * len, (p0[1] + p2[1]) / 2 + nz * bend * len];
   const at = (k: number): [number, number] => [(1 - k) ** 2 * p0[0] + 2 * (1 - k) * k * ctrl[0] + k * k * p2[0], (1 - k) ** 2 * p0[1] + 2 * (1 - k) * k * ctrl[1] + k * k * p2[1]];
-  const head = 0.66;
+  const head = 0.7;
   const end = clamp01(progress);
   if (end <= 0.02) return;
   const tip = at(end);
@@ -245,12 +272,13 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
   ctx.save();
   ctx.globalAlpha = clamp01(alpha);
   ctx.lineJoin = "round";
-  for (const pass of [0, 1]) {
+  // The reference's arrow sits in a thick cloud of light: three passes of a wide blur build it up, the last one stays tight so the edge reads.
+  for (const pass of [0, 1, 2]) {
     ctx.shadowColor = glow;
-    ctx.shadowBlur = (pass ? 0.3 : 0.7) * S;
+    ctx.shadowBlur = [1.35, 0.85, 0.35][pass] * S;
     ctx.strokeStyle = fill;
     ctx.fillStyle = fill;
-    ctx.lineWidth = 0.25;
+    ctx.lineWidth = 0.2;
     ctx.beginPath();
     const steps = 22;
     for (let i = 0; i <= steps; i++) {
@@ -264,8 +292,8 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(tip[0], tip[1]);
-    ctx.lineTo(baseC[0] - tz * 0.42, baseC[1] + tx * 0.42);
-    ctx.lineTo(baseC[0] + tz * 0.42, baseC[1] - tx * 0.42);
+    ctx.lineTo(baseC[0] - tz * 0.36, baseC[1] + tx * 0.36);
+    ctx.lineTo(baseC[0] + tz * 0.36, baseC[1] - tx * 0.36);
     ctx.closePath();
     ctx.fill();
   }
