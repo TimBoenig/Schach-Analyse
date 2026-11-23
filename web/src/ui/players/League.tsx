@@ -75,6 +75,7 @@ import { trFilter } from "../../domain/i18n";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
 import { formatOptionLabel } from "../useProfile";
+import { EloDelta, LeagueGoal, MoveChip, MoveSummary, type LeagueMoves, useLeagueMoves } from "./LeagueLive";
 import { AnalyzeFriends, Avatar, de, formatFactor, half, pct0, PlayerFilters, plural, profileFor, RefreshAll, signed, toneOf, Who } from "./common";
 import { t, tj, lang, locale } from "../../i18n";
 
@@ -222,7 +223,7 @@ function WhatIf({ me, sim, onSim, ranking }: { me: RankRow; sim: Sim; onSim: (s:
 
 type Sim = { points?: number; cut?: number };
 
-function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranking; tones: Tones; tournament: Tournament | null; sim: Sim; onSim: (s: Sim) => void }) {
+function LeagueHero({ ranking, tones, tournament, sim, onSim, moves }: { ranking: Ranking; tones: Tones; tournament: Tournament | null; sim: Sim; onSim: (s: Sim) => void; moves: LeagueMoves }) {
   const ranked = ranking.rows.filter((r) => r.strength !== null);
   const me = ranked.find((r) => r.is_me) ?? null;
   const [open, setOpen] = useState(false);
@@ -257,10 +258,13 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
         </div>
         {me && (
           <div class="lg-hero-me">
-            <span class="lg-hero-place tnum">{me.rank}.</span>
+            <span class="lg-hero-place tnum">
+              {me.rank}.<MoveChip move={moves.byId[me.id]} />
+            </span>
             <span class="lg-hero-me-text">
               <strong>{t("Dein Platz{n}", { n: me.odds && me.odds.low !== me.odds.high ? t(" (sicher: {placeRange})", { placeRange: placeRange(me) }) : "" })}</strong>
               <span class="faint small">
+                <MoveSummary move={moves.byId[me.id]} since={moves.since} />
                 {t("{n}{n2}", { n: above ? t("{0} hinter {name} (zu {winPct} wirklich stärker)", { 0: eloOf(strengthOf(above) as number) - eloOf(strengthOf(me) as number), name: above.name, winPct: winPct(pAbove as number) }) : t("niemand vor dir"), n2: below ? t(" · {0} vor {name} (zu {winPct} sicher)", { 0: eloOf(strengthOf(me) as number) - eloOf(strengthOf(below) as number), name: below.name, winPct: winPct(pBelow as number) }) : "" })}
               </span>
             </span>
@@ -380,7 +384,7 @@ function RangeBar({ row, bounds, tone, on }: { row: RankRow; bounds: { min: numb
   );
 }
 
-function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; types: Record<string, Archetype> }) {
+function Standings({ ranking, tones, types, moves }: { ranking: Ranking; tones: Tones; types: Record<string, Archetype>; moves: LeagueMoves }) {
   const [open, setOpen] = useState<string | null>(null);
   const on = useEntrance();
   const ranked = ranking.rows.filter((r) => r.strength);
@@ -403,7 +407,11 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                 </span>
                 <Avatar name={r.name} tone={tones[r.id]} ring={r.is_me} />
                 <span class="lg-row-name">
-                  <strong>{r.name}</strong>
+                  <strong>
+                    {r.name}
+                    {r.is_me && <span class="lg-you">{t("Du")}</span>}
+                    <MoveChip move={moves.byId[r.id]} />
+                  </strong>
                   <span class="faint small">
                     {r.strength === null
                       ? t("zu wenig Partien ({rated_games}/{MIN_RATED_GAMES})", { rated_games: r.rated_games, MIN_RATED_GAMES })
@@ -426,6 +434,7 @@ function Standings({ ranking, tones, types }: { ranking: Ranking; tones: Tones; 
                   <strong class="tnum" title={r.strength ? t("Elo {elo_low}–{elo_high} (95 %)", { elo_low: r.strength.elo_low, elo_high: r.strength.elo_high }) : undefined}>
                     {r.strength ? r.strength.elo : "–"}
                   </strong>
+                  <EloDelta move={moves.byId[r.id]} />
                 </span>
               </button>
               {isOpen && (
@@ -1543,6 +1552,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
       standing: groupStanding(ranking),
     };
   }, [ranking, h2hOf]);
+  const moves = useLeagueMoves(ranking, `${fmt}|${date}`);
   const [formSpan, setFormSpan] = useState(MOMENTUM_WEEKS);
   // Weeks back to the group's oldest game, so the curve offers no empty spans.
   const dataWeeks = useMemo(() => {
@@ -1622,9 +1632,19 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
           <div class={`dash${loading ? " busy" : ""}`}>
             <Section section={LEAGUE_SECTIONS[0]} defaultOpen>
               {/* The table is what a phone visit is for, so it comes first there. */}
-              {narrow && <Standings ranking={ranking} tones={tones} types={view.types} />}
-              <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />
-              {!narrow && <Standings ranking={ranking} tones={tones} types={view.types} />}
+              {narrow && <Standings ranking={ranking} tones={tones} types={view.types} moves={moves} />}
+              <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} moves={moves} />
+              <LeagueGoal
+                ranking={ranking}
+                tones={tones}
+                plan={view.plan}
+                moves={moves}
+                onTry={(changes) => {
+                  setSim(changes);
+                  scrollToId("lg-hero");
+                }}
+              />
+              {!narrow && <Standings ranking={ranking} tones={tones} types={view.types} moves={moves} />}
               <TournamentCard t={view.tournament} tones={tones} />
               <ClimbCard
                 plan={view.plan}
