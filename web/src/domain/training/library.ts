@@ -699,6 +699,225 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
       },
     ],
   },
+  {
+    key: "queens-indian",
+    name: t("Damenindische Verteidigung"),
+    color: "black",
+    group: "Gegen 1.d4", // i18n: id
+    idea: t("Schwarz kontrolliert e4 mit dem Läufer auf b7 und dem Springer f6. Eine solide, positionelle Wahl mit wenig Risiko."),
+    lines: [
+      {
+        name: t("Hauptlinie mit g3"),
+        moves: "d4 Nf6 c4 e6 Nf3 b6 g3 Bb7 Bg2 Be7 O-O O-O Nc3 Ne4 Qc2 Nxc3 Qxc3 c5 Rd1 cxd4 Nxd4 Bxg2 Kxg2 Qc8",
+        plan: t("Schwarz tauscht Figuren und holt sich mit ...c5 Gegenspiel. Nach dem Tausch der Läufer auf g2 ist die Stellung ausgeglichen und ruhig. Der Bauer auf d4 wird zum Ziel."),
+      },
+      {
+        name: t("Petrosjan-Variante 4.a3"),
+        moves: "d4 Nf6 c4 e6 Nf3 b6 a3 Bb7 Nc3 d5 cxd5 Nxd5 Qc2 Nxc3 bxc3 Be7 e4 O-O Bd3 c5",
+        plan: t("Weiß verhindert ...Lb4 und bereitet e4 vor. Schwarz antwortet mit ...d5 und ...c5, damit das Zentrum nicht erdrückend wird."),
+      },
+      {
+        name: t("Gegen 4.e3"),
+        moves: "d4 Nf6 c4 e6 Nf3 b6 e3 Bb7 Bd3 d5 O-O Bd6 Nc3 O-O b3 Nbd7 Bb2 Qe7",
+        plan: t("Weiß baut ruhig auf und lässt die Spannung zu. Schwarz spielt ...d5 und ...Ld6 und bekommt eine solide Stellung mit Gegenspiel in der Mitte."),
+      },
+    ],
+  },
+  {
+    key: "bogo",
+    name: t("Bogoindische Verteidigung"),
+    color: "black",
+    group: "Gegen 1.d4", // i18n: id
+    idea: t("Der Läufer gibt früh Schach und tauscht sich ab oder erzwingt eine Schwächung. Sehr stabil und einfach zu lernen."),
+    lines: [
+      {
+        name: t("Hauptlinie 4.Ld2"),
+        moves: "d4 Nf6 c4 e6 Nf3 Bb4+ Bd2 Qe7 g3 Nc6 Nc3 Bxc3 Bxc3 Ne4 Rc1 Nxc3 Rxc3 O-O Bg2 d6 O-O",
+        plan: t("Schwarz tauscht auf c3 und zerstört die Bauernstruktur nicht, bekommt dafür aber einfache Verteidigung. Schwarz kann in Ruhe ...d6 und ...e5 spielen."),
+      },
+      {
+        name: t("Gegen 4.Sbd2"),
+        moves: "d4 Nf6 c4 e6 Nf3 Bb4+ Nbd2 b6 a3 Bxd2+ Bxd2 Bb7 e3 O-O Bd3 d6 O-O Nbd7",
+        plan: t("Weiß verzichtet auf den Springer c3 und gibt Schwarz das Läuferpaar-Tauschrecht. Beide Seiten spielen ruhig. Schwarz hat eine solide Stellung mit ...Lb7 auf der langen Diagonale."),
+      },
+    ],
+  },
+  {
+    key: "sveshnikov",
+    name: t("Sweschnikow-Sizilianer"),
+    color: "black",
+    group: "Gegen 1.e4", // i18n: id
+    idea: t("Schwarz akzeptiert einen schwachen Bauern auf d6 und das Loch auf d5, bekommt dafür aktives Figurenspiel und Gegenangriff."),
+    lines: [
+      {
+        name: t("Hauptvariante 9.Sd5"),
+        moves: "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6 Bg5 a6 Na3 b5 Nd5 Be7 Bxf6 Bxf6 c3 O-O Nc2 Bg5",
+        plan: t("Weiß besetzt d5 mit einem Springer, Schwarz stört mit ...Lg5 und ...Le6. Weiß hat ein starkes Pferd auf d5, Schwarz Gegenspiel über ...f5 und am Damenflügel."),
+      },
+      {
+        name: t("Mit 9.Lxf6 gxf6"),
+        moves: "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 Nf6 Nc3 e5 Ndb5 d6 Bg5 a6 Na3 b5 Bxf6 gxf6 Nd5 f5 Bd3 Be6 c4 Bg7 cxb5 axb5 Bxb5 Rb8",
+        plan: t("Schwarz bekommt Doppelbauern, aber das Läuferpaar und schnelles Spiel am Königsflügel mit ...f5. Weiß hat Raum, Schwarz Aktivität. Die Zugfolge ist scharf."),
+      },
+      {
+        name: t("Gegen Rossolimo 3.Lb5"),
+        moves: "e4 c5 Nf3 Nc6 Bb5 g6 O-O Bg7 Re1 e5 b4 cxb4 a3 d5 axb4 dxe4 Nxe5 Qd4",
+        plan: t("Weiß will den Springer c6 nehmen und die Struktur beschädigen. Schwarz spielt ...g6 und ...e5 und sichert sich Raum im Zentrum. Gambits wie b4 wollen Schwarz aus dem Konzept bringen."),
+      },
+    ],
+  },
+  {
+    key: "taimanov",
+    name: t("Taimanow-Sizilianer"),
+    color: "black",
+    group: "Gegen 1.e4", // i18n: id
+    idea: t("Flexibler Aufbau mit ...e6, ...Sc6 und ...Dc7. Schwarz entscheidet später, ob er ...a6, ...Sf6 oder ...Lb4 spielt."),
+    lines: [
+      {
+        name: t("Mit Lb4"),
+        moves: "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7 Be3 a6 Qd2 Nf6 O-O-O Bb4 f3 Ne5 Nb3 d5",
+        plan: t("Beide rochieren auf entgegengesetzten Seiten. Schwarz spielt ...Lb4 und ...Se5 und greift mit ...d5 sofort das Zentrum an. Wer das Tempo hält, gewinnt."),
+      },
+      {
+        name: t("Ruhiger Aufbau"),
+        moves: "e4 c5 Nf3 e6 d4 cxd4 Nxd4 Nc6 Nc3 Qc7 Be2 a6 O-O Nf6 Be3 Bb4 Na4 Be7 c4 O-O Qd3 d6",
+        plan: t("Weiß rochiert kurz und baut ein Maroczy-ähnliches Zentrum. Schwarz hat eine solide Stellung und spielt ...Sxd4 und ...b5 mit Gegenspiel."),
+      },
+    ],
+  },
+  {
+    key: "benko",
+    name: t("Benkö-Gambit"),
+    color: "black",
+    group: "Gegen 1.d4", // i18n: id
+    idea: t("Schwarz opfert einen Bauern am Damenflügel für offene Linien. Dafür bekommt er dauerhaften Druck, auch im Endspiel."),
+    lines: [
+      {
+        name: t("Hauptlinie"),
+        moves: "d4 Nf6 c4 c5 d5 b5 cxb5 a6 bxa6 Bxa6 Nc3 d6 e4 Bxf1 Kxf1 g6 g3 Bg7 Kg2 O-O",
+        plan: t("Weiß verliert die Rochade, Schwarz hat Türme auf den offenen Linien a und b. Schwarz hat Druck gegen b2 und a2. Das Gambit ist gut, weil der Bauernvorsprung von Weiß kaum etwas zählt."),
+      },
+      {
+        name: t("Fianchetto-Variante"),
+        moves: "d4 Nf6 c4 c5 d5 b5 cxb5 a6 bxa6 g6 Nc3 Bxa6 g3 d6 Bg2 Bg7 Nf3 O-O O-O Nbd7",
+        plan: t("Weiß hält den Bauern und rochiert, Schwarz hat Aktivität am Damenflügel und das Läuferpaar. Wichtig ist, Druck auf b2 und die Felder a6 bis g1 aufzubauen."),
+      },
+    ],
+  },
+  {
+    key: "budapest",
+    name: t("Budapester Gambit"),
+    color: "black",
+    group: "Gegen 1.d4", // i18n: id
+    idea: t("Schwarz opfert früh einen Bauern auf e5 und erobert ihn mit Springerzügen zurück. Wenig Theorie, viel Überraschung."),
+    lines: [
+      {
+        name: t("Adler-Variante"),
+        moves: "d4 Nf6 c4 e5 dxe5 Ng4 Bf4 Nc6 Nf3 Bb4+ Nbd2 Qe7 a3 Ngxe5 axb4 Nxf3+ Nxf3 Nxb4 Bg5",
+        plan: t("Weiß hat zwei Bauern mehr, aber die Struktur ist kaputt und der König steht schlecht. Schwarz hat Druck und schnelles Spiel. Die Figuren zählen mehr als die Bauern."),
+      },
+      {
+        name: t("Rubinstein-Variante"),
+        moves: "d4 Nf6 c4 e5 dxe5 Ng4 Nf3 Nc6 Bf4 Bb4+ Nbd2 Qe7 e3 Ngxe5 Nxe5 Nxe5 Be2 O-O O-O Bxd2 Qxd2 d6",
+        plan: t("Weiß gibt den Bauern zurück und hat leichten Raumvorteil. Schwarz hat ein solides, ruhiges Spiel mit ...d6 und ...Sg6. Das Gambit ist hier eher eine sichere Waffe als ein Risiko."),
+      },
+    ],
+  },
+  {
+    key: "bishops",
+    name: t("Läuferspiel"),
+    color: "white",
+    group: "1.e4 mit Weiß", // i18n: id
+    idea: t("Der Läufer geht sofort nach c4 und zielt auf f7. Flexibler als die Italienische Partie, mit vielen Wegen zu Zentrum und Angriff."),
+    lines: [
+      {
+        name: t("Berlin-Verteidigung"),
+        moves: "e4 e5 Bc4 Nf6 d3 c6 Nf3 d5 Bb3 Bd6 Nc3 O-O O-O Nbd7 Re1 Re8",
+        plan: t("Weiß hält das Zentrum und entwickelt ruhig. Schwarz greift mit ...d5 das Zentrum an. Der Läufer b3 bleibt auf der Diagonale und wartet auf den Moment für d4."),
+      },
+      {
+        name: t("Urusov-Gambit"),
+        moves: "e4 e5 Bc4 Nf6 d4 exd4 Nf3 Nc6 e5 d5 Bb5 Ne4 Nxd4 Bd7 Bxc6 bxc6 O-O Bc5 Nxc6 Bxc6",
+        plan: t("Weiß opfert einen Bauern für Entwicklung und Angriff auf die schwarze Rochade. Schwarz muss Fallen vermeiden und das Material sicher festhalten. Taktisch scharf."),
+      },
+    ],
+  },
+  {
+    key: "closed-sicilian",
+    name: t("Geschlossener Sizilianer"),
+    color: "white",
+    group: "1.e4 mit Weiß", // i18n: id
+    idea: t("Weiß vermeidet die Theorie der offenen Sizilianer mit Sc3 und g3. Das Fianchetto zielt auf d5 und später auf einen Angriff am Königsflügel."),
+    lines: [
+      {
+        name: t("Gegen ...g6"),
+        moves: "e4 c5 Nc3 Nc6 g3 g6 Bg2 Bg7 d3 d6 Be3 Nf6 Qd2 O-O Nge2 Rb8 O-O b5",
+        plan: t("Weiß baut ruhig auf, spielt Be3 und Qd2 und bereitet f4 vor. Schwarz kontert mit ...Rb8 und ...b5 am Damenflügel. Beide Seiten greifen auf entgegengesetzten Flügeln an."),
+      },
+      {
+        name: t("Gegen ...e6"),
+        moves: "e4 c5 Nc3 Nc6 g3 e6 Bg2 Nge7 d3 d6 Be3 Nd4 Nce2 Nxe2 Nxe2 Bd7 c3 g6",
+        plan: t("Schwarz hält die Mitte und tauscht Figuren, um Platz zu bekommen. Weiß behält die lange Diagonale und kann mit f4 und Sf3 Druck machen."),
+      },
+    ],
+  },
+  {
+    key: "grand-prix",
+    name: t("Grand-Prix-Angriff"),
+    color: "white",
+    group: "1.e4 mit Weiß", // i18n: id
+    idea: t("Mit f4 und Läufer c4 stürmt Weiß am Königsflügel. Scharf, direkt und mit klaren Plänen."),
+    lines: [
+      {
+        name: t("Gegen ...g6"),
+        moves: "e4 c5 Nc3 Nc6 f4 g6 Nf3 Bg7 Bc4 e6 f5 Nge7 fxe6 fxe6 d3 O-O O-O d5",
+        plan: t("Weiß opfert nichts, sondern spielt f5 und öffnet die f-Linie. Schwarz hält mit ...d5 dagegen. Das Spiel wird scharf, wenn beide Seiten den Königsflügel angreifen."),
+      },
+      {
+        name: t("Gegen ...d6"),
+        moves: "e4 c5 Nc3 d6 f4 Nc6 Nf3 g6 Bb5 Bd7 O-O Bg7 d3 Nf6 Qe1 O-O",
+        plan: t("Weiß fesselt den Springer c6 und bereitet Qe1-h4 vor. Schwarz hat ...Bd7 und ...a6 als Mittel gegen die Fesselung."),
+      },
+    ],
+  },
+  {
+    key: "smith-morra",
+    name: t("Smith-Morra-Gambit"),
+    color: "white",
+    group: "1.e4 mit Weiß", // i18n: id
+    idea: t("Weiß opfert einen Bauern gegen Sizilianisch für schnelle Entwicklung und offene Linien. Wenig Theorie, viel Druck."),
+    lines: [
+      {
+        name: t("Hauptlinie"),
+        moves: "e4 c5 d4 cxd4 c3 dxc3 Nxc3 Nc6 Nf3 d6 Bc4 e6 O-O Nf6 Qe2 Be7 Rd1 e5",
+        plan: t("Weiß hat Entwicklung für den Bauern und spielt auf Druck gegen f7 und die offene d-Linie. Schwarz muss die Figuren heil entwickeln und die Bauernmehrheit nutzen."),
+      },
+      {
+        name: t("Gegen 3...Sf6"),
+        moves: "e4 c5 d4 cxd4 c3 Nf6 e5 Nd5 cxd4 d6 Nf3 Nc6 Bc4 Nb6 Bb5 dxe5 Nxe5 Bd7",
+        plan: t("Weiß nimmt den Bauern zurück und baut ein großes Zentrum. Schwarz hat Raum für Gegenspiel und greift die Mitte mit ...d6 an."),
+      },
+    ],
+  },
+  {
+    key: "ponziani",
+    name: t("Ponziani-Eröffnung"),
+    color: "white",
+    group: "1.e4 mit Weiß", // i18n: id
+    idea: t("Mit c3 bereitet Weiß d4 vor. Selten gespielt, deshalb haben Gegner oft wenig Wissen, und Weiß bekommt ein gutes Zentrum."),
+    lines: [
+      {
+        name: t("Hauptvariante"),
+        moves: "e4 e5 Nf3 Nc6 c3 Nf6 d4 Nxe4 d5 Ne7 Nxe5 Ng6 Qd4 Nxe5 Qxe5 Qe7 Qxe7+ Bxe7 Bd3 Nf6",
+        plan: t("Schwarz nimmt einen Bauern, verliert aber Zeit. Weiß tauscht die Damen und behält einen kleinen Vorteil im Endspiel. Wichtig sind die Zwischenzüge wie d5 und Sxe5."),
+      },
+      {
+        name: t("Gegen 3...d5"),
+        moves: "e4 e5 Nf3 Nc6 c3 d5 Qa4 f6 exd5 Qxd5 d3 Bd7 Be2 O-O-O O-O Kb8",
+        plan: t("Weiß setzt mit Da4 sofort unter Druck. Schwarz hält mit ...f6 die Mitte und spielt auf schnellen Ausgleich. Die Zugfolge ist wichtig, weil Weiß sonst den Bauern d5 nicht festhalten kann."),
+      },
+    ],
+  },
 ];
 
 /** Every line of the library as a drill (ids start with "lib:"). */
