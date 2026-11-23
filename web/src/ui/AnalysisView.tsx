@@ -5,7 +5,7 @@ import { enqueue, cancelCurrent, subscribeQueue, type QueueState } from "../app/
 import { LiveDepth } from "./LiveDepth";
 import { DEPTH_PRESETS, deeperPreset, settingsLabel, type DepthPreset } from "../domain/analysisDepth";
 import { lineScoreWhite, pvToSan } from "../domain/analyzer";
-import { type Explanation, explainMoveDetailed } from "../domain/explain";
+import { explainStored } from "../domain/explainStored";
 import { getWinProbability } from "../domain/math";
 import { getUserColor } from "../domain/metrics";
 import { glanzzuege, nextStop, stopsOf, type JumpSide } from "../domain/moveJump";
@@ -140,31 +140,7 @@ const ERROR_CLASSES = new Set(["Blunder", "Mistake", "Miss", "Inaccuracy"]);
 // Moves at least as good as the engine's choice: no "better was" hint, no best-move arrow.
 const TOP_CLASSES = new Set(["Best", "Great", "Brilliant"]);
 
-// Explanations read the position statically (a few ms each); keep them while
-// the player steps back and forth through a game.
-const explanations = new Map<string, Explanation>();
 
-/** Concrete reasons for a stored game move: what it does, stops or allows. */
-function explainStored(move: MoveData, next: MoveData | undefined, previous: MoveData | undefined): Explanation {
-  const input = {
-    fenBefore: move.fen_before,
-    uci: move.uci,
-    bestPv: move.multi_pvs[0]?.pv ?? move.pv,
-    replyPv: next?.multi_pvs[0]?.pv ?? [],
-    mateBefore: move.eval_before_mate,
-    mateAfter: move.eval_after_mate,
-    classification: move.classification,
-    previousMove: previous ? { uci: previous.uci, san: previous.san } : undefined,
-  };
-  const key = `${previous?.uci ?? ""}|${input.fenBefore}|${input.uci}|${input.classification}|${input.bestPv.slice(0, 6).join(" ")}|${input.replyPv.slice(0, 8).join(" ")}`;
-  let hit = explanations.get(key);
-  if (!hit) {
-    hit = explainMoveDetailed(input);
-    if (explanations.size > 500) explanations.delete(explanations.keys().next().value as string);
-    explanations.set(key, hit);
-  }
-  return hit;
-}
 
 
 
