@@ -178,10 +178,6 @@
   display: block;
   overflow: visible;
 }
-.wc-pick {
-  cursor: pointer;
-  touch-action: pan-y;
-}
 .wc-grid {
   stroke: var(--border);
   stroke-width: 1;
@@ -213,9 +209,6 @@
 }
 .wc-moment circle {
   stroke-width: 2;
-}
-.wc-moment.pick {
-  cursor: pointer;
 }
 .wc-turn {
   fill: none;

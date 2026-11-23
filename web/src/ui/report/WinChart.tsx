@@ -1,6 +1,8 @@
 // The player's winning chance through one game: above the middle line the
 // game leans their way, below it the opponent's. Key moments sit on the line
 // as dots in their move colour; the turning point gets a ring and a label.
+// The chart is a picture: touching it never moves the game, the thin cursor
+// line only shows which half move the board is on.
 import type { KeyMoment, WinPoint } from "../../domain/profile";
 import { useWidth } from "../charts";
 import { CLASS_COLOR } from "../labels";
@@ -14,7 +16,6 @@ export function WinChart({
   moments = [],
   turning = null,
   cursor,
-  onPick,
   height = 170,
 }: {
   points: WinPoint[];
@@ -24,7 +25,6 @@ export function WinChart({
   turning?: KeyMoment | null;
   /** The half move shown on the board, drawn as a thin line. */
   cursor?: number;
-  onPick?: (ply: number) => void;
   height?: number;
 }) {
   const [ref, width] = useWidth<HTMLDivElement>(400);
@@ -42,15 +42,9 @@ export function WinChart({
   // Move numbers on the axis: a tick every 10 moves (20 half moves), fewer on long games.
   const every = plies > 160 ? 40 : 20;
   const ticks = Array.from({ length: Math.floor(plies / every) }, (_, i) => (i + 1) * every);
-  const pick = (e: PointerEvent) => {
-    if (!onPick) return;
-    const box = (e.currentTarget as SVGElement).getBoundingClientRect();
-    const ply = Math.round(((e.clientX - box.left - PAD.left) / innerW) * plies);
-    onPick(Math.max(0, Math.min(plies, ply)));
-  };
   return (
     <div class="wc" ref={ref}>
-      <svg width={w} height={height} role="img" aria-label={t("Deine Gewinnchance im Verlauf der Partie")} onPointerDown={pick} class={onPick ? "wc-pick" : ""}>
+      <svg width={w} height={height} role="img" aria-label={t("Deine Gewinnchance im Verlauf der Partie")}>
         <defs>
           <clipPath id={`${id}-up`}>
             <rect x={0} y={0} width={w} height={mid} />
@@ -82,18 +76,7 @@ export function WinChart({
           const cy = y(k.wp_after);
           const isTurn = turning?.ply_index === k.ply_index;
           return (
-            <g
-              key={k.ply_index}
-              class={`wc-moment${k.by_user ? " own" : ""}${onPick ? " pick" : ""}`}
-              onPointerDown={
-                onPick
-                  ? (e) => {
-                      e.stopPropagation();
-                      onPick(k.ply_index + 1);
-                    }
-                  : undefined
-              }
-            >
+            <g key={k.ply_index} class={`wc-moment${k.by_user ? " own" : ""}`}>
               <title>{`${k.move_label}: ${Math.round(k.wp_before * 100)} → ${Math.round(k.wp_after * 100)} %`}</title>
               {isTurn && <circle class="wc-turn" cx={cx} cy={cy} r={9} />}
               <circle cx={cx} cy={cy} r={k.by_user ? 5 : 4} fill={k.by_user ? (CLASS_COLOR[k.classification] ?? "var(--text-2)") : "var(--surface)"} stroke={CLASS_COLOR[k.classification] ?? "var(--text-3)"} />
