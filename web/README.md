@@ -153,3 +153,19 @@ Root Directory `web`, Framework Vite, Build `npm run build`, Output `dist`.
 - Brett: eigener Code (`src/ui/Board.tsx`), keine GPL-Bestandteile mehr, siehe `THIRD_PARTY.md`.
 - Figuren (Cburnett): CC BY-SA 3.0, unverändert genutzt.
 - Eröffnungsdaten (lichess-org/chess-openings): CC0.
+
+## Admin area (dashboard in Settings, video studio)
+
+Hidden entry: tap the "About" heading in Settings seven times. The dashboard and
+the studio then ask for the admin password, which is checked by the Vercel
+function `api/admin.ts` (never in the browser). The device keeps a signed token
+for 30 days.
+
+Set on Vercel (Production, then redeploy):
+
+- `ADMIN_PASSWORD`: at least 12 characters. Changing it signs every device out.
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase → Project Settings → API (server only, never `VITE_`).
+- `SUPABASE_URL` is optional (falls back to `VITE_SUPABASE_URL`).
+
+The numbers come from `supabase/migrations/20261123_admin_stats.sql`
+(`admin_stats()`, executable only with the service-role key; aggregates only).
