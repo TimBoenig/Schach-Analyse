@@ -321,13 +321,13 @@ describe("opening library", () => {
       expect(ids.has(d.id)).toBe(false);
       ids.add(d.id);
     }
-    expect(OPENING_LIBRARY.length).toBeGreaterThanOrEqual(30);
+    expect(OPENING_LIBRARY.length).toBeGreaterThanOrEqual(41);
     const plan = buildDailyPlan({ skills: SKILLS, patterns: [], pool: [...pool(), ...LIBRARY_DRILLS], progress: {}, prefs: { minutes: 60, focus: "auto" }, today: TODAY });
     expect(plan.blocks.flatMap((b) => b.exercise_ids).some((id) => id.startsWith("lib:"))).toBe(false);
   });
 
   it("teaches deep theory: the core openings have several variations, 8+ moves deep, each with a strategy note", () => {
-    const core = ["italian", "ruy", "scotch", "london", "qgd-white", "english", "sicilian", "french", "caro", "scandi", "e5-black", "kid", "nimzo", "qgd-black", "grunfeld", "vienna", "catalan", "kia", "colle", "trompowsky", "philidor", "alekhine", "modern", "slav-black", "qga-black", "benoni"];
+    const core = ["italian", "ruy", "scotch", "london", "qgd-white", "english", "sicilian", "french", "caro", "scandi", "e5-black", "kid", "nimzo", "qgd-black", "grunfeld", "vienna", "catalan", "kia", "colle", "trompowsky", "philidor", "alekhine", "modern", "slav-black", "qga-black", "benoni", "queens-indian", "bogo", "sveshnikov", "taimanov", "benko", "budapest", "bishops", "closed-sicilian", "grand-prix", "smith-morra", "ponziani"];
     for (const key of core) {
       const o = OPENING_LIBRARY.find((x) => x.key === key)!;
       expect(o.lines.length, key).toBeGreaterThanOrEqual(2);
