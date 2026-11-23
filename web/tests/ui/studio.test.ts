@@ -28,6 +28,7 @@ import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
 import { reelCamera, reelSquareAt, ROLLS } from "../../src/ui/studio/reel";
+import { REEL_BEAT } from "../../src/ui/studio/timeline";
 import { setLangNow } from "../../src/i18n";
 import { EN } from "../../src/i18n/en";
 import { buildAiPrompt, guessPerspective, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
@@ -762,7 +763,7 @@ describe("reel look", () => {
     expect(cams[0].flash).toBe(0);
     expect(cams[2].flash).toBeGreaterThan(0.3);
     // The mate scene shakes after the moves landed, and no camera ever leaves the board's bounds.
-    const mate = tl.scenes[2];
+    const mate = tl.scenes.find((c) => c.scene.effects.includes("mate"))!;
     const late = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 0.05)!, 1080, 1080);
     expect(Math.abs(late.shakeX) + Math.abs(late.shakeY)).toBeGreaterThan(1);
     // The mate backs the camera off to the whole board so the breaking pieces are all in view, and does not leave anything for a label to say.
@@ -777,7 +778,7 @@ describe("reel look", () => {
   });
 
   it("pulls the shot back so a long arrow stays in the picture, and maps clicks back to squares", () => {
-    const fork = tl.scenes[3];
+    const fork = tl.scenes.find((c) => c.scene.moves === "Nc7+")!;
     const frame = frameAt(tl, project, fork.start + fork.annotate + 0.8)!;
     const cam = reelCamera(frame, 1080, 1080);
     const [ax, az] = squareXZ("c7");
@@ -786,6 +787,24 @@ describe("reel look", () => {
     // The camera's own centre is a square of the board, and the square it looks at maps to the middle of the picture.
     const view = { ...cam, W: 1080, H: 1080, dir: 1 as const };
     expect(reelSquareAt(view, 0.5 - cam.shakeX / 1080, 0.5 - cam.shakeY / 1080)).toBe(xzSquare(Math.max(-3.5, Math.min(3.5, cam.fx)), Math.max(-3.5, Math.min(3.5, cam.fz))));
+  });
+
+  it("cuts on the beat of the reference clip and keeps moves quick and zoom ramps short", () => {
+    // Reference: hard cuts every 20 frames (0.667 s) at 90 BPM, so every scene is a whole number of beats.
+    for (const c of tl.scenes) expect(c.dur / REEL_BEAT).toBeCloseTo(Math.round(c.dur / REEL_BEAT), 5);
+    // A move starts right after the cut and takes well under a second.
+    const move = tl.scenes.find((c) => c.scene.effects.includes("mate"))!.steps[0];
+    expect(move.t0).toBeLessThan(0.15);
+    expect(move.t1 - move.t0).toBeLessThan(0.7);
+    // No long zoom-in: the scale a third of a second into a shot is within 6 % of its scale two beats later.
+    for (const c of tl.scenes.filter((sc) => sc.scene.card === "none" && !sc.scene.effects.includes("mate"))) {
+      const at = (dt: number) => reelCamera(frameAt(tl, project, c.start + Math.min(dt, c.dur - 0.01))!, 1080, 1080).S;
+      expect(Math.abs(at(0.4) / at(Math.min(1.3, c.dur - 0.01)) - 1)).toBeLessThan(0.06);
+    }
+    // The strobe at a cut is gone after four frames.
+    const flash = (dt: number) => reelCamera(frameAt(tl, project, tl.scenes[1].start + dt)!, 1080, 1080).flash;
+    expect(flash(0.1)).toBeGreaterThan(0.6);
+    expect(flash(0.2)).toBeLessThan(0.02);
   });
 
   it("is reachable from an AI script", () => {
