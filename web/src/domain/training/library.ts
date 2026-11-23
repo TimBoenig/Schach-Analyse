@@ -555,7 +555,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
       },
       {
         name: t("Gegen 2...d5"),
-        moves: "d4 Nf6 Bg5 d5 Bxf6 exf6 e3 Be6 Nd2 Nd7 c3 c6 Bd3 Bd6 Qc2",
+        moves: "d4 Nf6 Bg5 d5 Bxf6 exf6 e3 Be6 Nd2 Nd7 c3 c6 Bd3 Bd6 Qc2 O-O",
         plan: t("Schwarz bekommt das Läuferpaar, aber schwache Bauern auf f6 und f7. Weiß spielt ruhig und plant Sgf3, h3 und den Angriff auf die schwarze Struktur."),
       },
     ],
