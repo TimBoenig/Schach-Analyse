@@ -302,8 +302,9 @@ export function Assistant({ onCreate, onClose, onTemplates, onAi }: { onCreate: 
                   ["viral", VIBE_LABEL.viral, t("schnelle Schnitte, Neon")],
                   ["calm", VIBE_LABEL.calm, t("Zeit zum Mitdenken")],
                   ["elegant", VIBE_LABEL.elegant, t("Holz, Serifenschrift")],
+                  ["reel", VIBE_LABEL.reel, t("schräg, Blitze, Glühen, wenig Text")],
                 ]}
-                onChange={(vibe) => set({ vibe, environment: vibe === "viral" ? "neon" : vibe === "calm" ? "podium" : "library" })}
+                onChange={(vibe) => set({ vibe, environment: vibe === "viral" ? "neon" : vibe === "calm" ? "podium" : vibe === "reel" ? "void" : "library" })}
               />
               <h4 class="wz-q">{t("Für wen?")}</h4>
               <Chips<Answers["level"]>

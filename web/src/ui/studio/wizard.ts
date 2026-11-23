@@ -14,6 +14,7 @@ import {
   scene,
   START_FEN,
   styleFromTheme,
+  type BoardView,
   type CameraPreset,
   type Environment,
   type Platform,
@@ -219,7 +220,7 @@ export function explainMove(fenBefore: string, san: string, ply: number): Insigh
 // ---------- questions ----------
 
 export type VideoKind = "opening" | "trap" | "puzzle" | "game";
-export type Vibe = "viral" | "calm" | "elegant";
+export type Vibe = "viral" | "calm" | "elegant" | "reel";
 export type Ending = "follow" | "comment" | "save" | "site";
 
 export interface Answers {
@@ -241,7 +242,7 @@ export interface Answers {
 }
 
 export const KIND_LABEL: Record<VideoKind, string> = { opening: t("Eröffnung erklären"), trap: t("Falle oder Trick"), puzzle: t("Rätsel"), game: t("Partie-Moment") };
-export const VIBE_LABEL: Record<Vibe, string> = { viral: t("Schnell & viral"), calm: t("Ruhig & lehrreich"), elegant: t("Edel & elegant") };
+export const VIBE_LABEL: Record<Vibe, string> = { viral: t("Schnell & viral"), calm: t("Ruhig & lehrreich"), elegant: t("Edel & elegant"), reel: t("Reel-Look (Schwarz-Weiß)") };
 export const ENDING_LABEL: Record<Ending, string> = { follow: t("Zum Folgen auffordern"), comment: t("Zum Kommentieren auffordern"), save: t("Zum Speichern auffordern"), site: t("Auf {BRAND_DOMAIN} schicken", { BRAND_DOMAIN }) };
 
 /** Opening lines for the first second, where people decide to keep watching. No invented numbers. */
@@ -278,10 +279,12 @@ const ENDINGS: Record<Ending, { title: string; text: string }> = {
   site: { title: t("Wie gut spielst du wirklich?"), text: t("Analysiere deine Partien kostenlos auf *{BRAND_DOMAIN}*", { BRAND_DOMAIN }) },
 };
 
-const VIBES: Record<Vibe, { theme: ThemeId; serif: boolean; tempo: number; orbit: number; env: Environment }> = {
+const VIBES: Record<Vibe, { theme: ThemeId; serif: boolean; tempo: number; orbit: number; env: Environment; view?: BoardView }> = {
   viral: { theme: "neon", serif: false, tempo: 1.25, orbit: 7, env: "neon" },
   calm: { theme: "nova", serif: false, tempo: 0.95, orbit: 3, env: "podium" },
   elegant: { theme: "holz", serif: true, tempo: 0.9, orbit: 4, env: "library" },
+  // The reel look moves the camera itself (roll, punch-ins), so the scenes keep a still orbit.
+  reel: { theme: "mono", serif: true, tempo: 1.2, orbit: 0, env: "void", view: "reel" },
 };
 
 export function defaultAnswers(kind: VideoKind = "opening"): Answers {
@@ -346,7 +349,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
   const vibe = VIBES[a.vibe];
   const scenes: Scene[] = [];
   const hook = a.hook.trim() || hookIdeas(a.kind, a.name, a.length)[0];
-  const fast = a.vibe === "viral";
+  const fast = a.vibe === "viral" || a.vibe === "reel";
   scenes.push(
     scene({
       card: a.kind === "puzzle" ? "question" : "intro",
@@ -502,7 +505,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
   const end = ENDINGS[a.ending];
   scenes.push(scene({ card: "outro", title: end.title, text: end.text, duration: 4, camera: "corner", orbit: 6, mood: "wow" }));
 
-  const style = styleFromTheme(vibe.theme, { titleFont: vibe.serif ? "serif" : "sans", environment: a.environment, view: a.platform === "youtube" ? "2d" : "3d" });
+  const style = styleFromTheme(vibe.theme, { titleFont: vibe.serif ? "serif" : "sans", environment: a.environment, view: a.platform === "youtube" ? "2d" : (vibe.view ?? "3d") });
   const project: StudioProject = {
     id: newId("p"),
     name: a.name.trim() || hook,

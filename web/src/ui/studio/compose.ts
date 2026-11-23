@@ -39,7 +39,7 @@ const backOut = (k: number) => {
   return 1 + (c + 1) * x * x * x + c * x * x;
 };
 
-interface Token {
+export interface Token {
   word: string;
   emph: boolean;
   /** Sticks to the word before (punctuation right after a *starred* word). */
@@ -693,7 +693,7 @@ export function compose(
   }
 }
 
-function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, assets: Assets, L: Layout, W: number, H: number): void {
+export function drawCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, assets: Assets, L: Layout, W: number, H: number): void {
   const { u } = L;
   const st = project.style;
   const a = frame.card.alpha;
