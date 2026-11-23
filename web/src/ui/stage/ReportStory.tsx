@@ -5,8 +5,10 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { getUserColor } from "../../domain/metrics";
-import { buildGameReview, type GameReview, type KeyMoment, ownStanding, parseGrade, reportMoments, sameSpeedAccuracies, type Standing, winCurve } from "../../domain/profile";
-import type { GameAnalysis, StoredGame } from "../../domain/types";
+import { explainStored } from "../../domain/explainStored";
+import { buildGameReview, type GameReview, type KeyMoment, openingParts, ownStanding, parseGrade, reportMoments, sameSpeedAccuracies, type Standing, winCurve } from "../../domain/profile";
+import { costlyMoments, endingText, type OpeningStory, openingStory } from "../../domain/profile/gameStory";
+import type { GameAnalysis, MoveData, StoredGame } from "../../domain/types";
 import { getGame, getSetting, listGames } from "../../storage/db";
 import { fromStoredGame } from "../../storage/rows";
 import { type Arrow, Board } from "../Board";
@@ -18,7 +20,7 @@ import { GradeBadge, gradeTone, MomentRow, ownErrors, PhaseRows, practiseGame, S
 import { WinChart } from "../report/WinChart";
 import { Stage } from "./Stage";
 import type { Mood } from "../Coach";
-import { t, tj, dec } from "../../i18n";
+import { t, tj, dec, tStored } from "../../i18n";
 
 const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
@@ -57,27 +59,76 @@ function useReport(gameId: string): Loaded | null | "missing" {
   return state;
 }
 
-/** The position before a key move, with the move played and, after an error, the better one. */
-function MomentBoard({ game, k, isWhite }: { game: GameAnalysis; k: KeyMoment; isWhite: boolean }) {
-  const m = game.moves[k.ply_index];
+/** What a move's explanation says about it, for a game move of the player's own; empty for the opponent's. */
+function reasonsFor(game: GameAnalysis, ply: number, byUser: boolean) {
+  const m = game.moves[ply];
+  if (!byUser || !m || !m.classification || m.classification === "Book") return { lines: [] as string[], arrows: [] as { from: string; to: string; by: "me" | "opp" }[], squares: [] as string[] };
+  return explainStored(m, game.moves[ply + 1], game.moves[ply - 1]);
+}
+
+/** The position before a move, with the move played and, after an error, the better one and the ideas behind the reasons. */
+function MomentBoard({ game, ply, isWhite, error, detail }: { game: GameAnalysis; ply: number; isWhite: boolean; error: boolean; detail?: ReturnType<typeof reasonsFor> }) {
+  const m: MoveData | undefined = game.moves[ply];
   if (!m) return null;
-  const error = k.wp_after < k.wp_before;
   const arrows: Arrow[] = [{ from: m.uci.slice(0, 2), to: m.uci.slice(2, 4), kind: error ? "wrong" : "best" }];
   if (error && m.best_move && m.best_move !== m.uci) arrows.push({ from: m.best_move.slice(0, 2), to: m.best_move.slice(2, 4), kind: "best" });
+  // The idea behind the sentences (the refutation, the fork, the stopped threat), as on the analysis board.
+  for (const a of detail?.arrows ?? []) {
+    if (!arrows.some((x) => x.from === a.from && x.to === a.to)) arrows.push({ from: a.from, to: a.to, kind: a.by === "opp" ? "threat" : "hint" });
+  }
+  const circles = (detail?.squares ?? []).map((at) => ({ at, kind: "user" as const }));
   return (
     <div class="rs-board">
-      <Board fen={m.fen_before} flipped={!isWhite} arrows={arrows} />
+      <Board fen={m.fen_before} flipped={!isWhite} arrows={arrows} circles={circles} />
       <div class="rs-board-key">
         <span>
           <i class={error ? "wrong" : "best"} /> {" "}{t("gespielt")}
         </span>
-        {arrows.length > 1 && (
+        {error && arrows.some((a) => a.kind === "best") && (
           <span>
             <i class="best" /> {" "}{t("besser")}
           </span>
         )}
+        {arrows.some((a) => a.kind === "hint") && (
+          <span>
+            <i class="hint" /> {" "}{t("Idee")}
+          </span>
+        )}
+        {arrows.some((a) => a.kind === "threat") && (
+          <span>
+            <i class="threat" /> {" "}{t("Drohung des Gegners")}
+          </span>
+        )}
       </div>
     </div>
+  );
+}
+
+/** The sentences that say why, one under the other. */
+function Reasons({ lines }: { lines: string[] }) {
+  if (!lines.length) return null;
+  return (
+    <ul class="rs-reasons">
+      {lines.map((l) => (
+        <li key={l}>{l}</li>
+      ))}
+    </ul>
+  );
+}
+
+/** The opening in one paragraph: how long theory lasted and who left it, with the way on. */
+function OpeningText({ o, isWhite }: { o: OpeningStory; isWhite: boolean }) {
+  void isWhite;
+  const ex = o.yourExit;
+  const bad = ex && ["Inaccuracy", "Mistake", "Miss", "Blunder"].includes(ex.classification);
+  return (
+    <>
+      <p>
+        {o.leftBy === "you" ? t("Bei {label} hast du die bekannte Theorie verlassen.", { label: o.exitLabel }) : t("Bei {label} hat dein Gegner die bekannte Theorie verlassen.", { label: o.exitLabel })}
+        {ex && (bad ? ` ${t("Der Zug war {cls}.", { cls: classLabel(ex.classification as never) })}${ex.best_move_san ? ` ${t("Besser war {best_move_san}.", { best_move_san: ex.best_move_san })}` : ""}` : ` ${t("Das war in Ordnung: {cls}.", { cls: classLabel(ex.classification as never) })}`)}
+      </p>
+      {o.known.length > 0 && <p>{t("Die Theorie kannte hier: {moves}.", { moves: o.known.slice(0, 4).join(", ") })}</p>}
+    </>
   );
 }
 
@@ -87,16 +138,34 @@ function turnSentence(tp: KeyMoment, lost: boolean): string {
   return tp.by_user ? t("Mit {move_label} hast du die Partie entschieden.", { move_label: tp.move_label }) : t("Bei {move_label} hat dein Gegner die Partie aus der Hand gegeben.", { move_label: tp.move_label });
 }
 
-type StepKey = "grade" | "course" | "best" | "worst" | "phases" | "take";
+type StepKey = "grade" | "opening" | "course" | "turn" | "best" | `error:${number}` | "phases" | "take";
 
 export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () => void }) {
   const data = useReport(gameId);
   const [index, setIndex] = useState(0);
-  const steps = useMemo((): StepKey[] => {
-    if (!data || data === "missing") return [];
-    const { best, worst } = reportMoments(data.review);
-    return ["grade", "course", ...(best ? (["best"] as const) : []), ...(worst ? (["worst"] as const) : []), ...(data.review.phases.some((p) => p.accuracy !== null) ? (["phases"] as const) : []), "take"];
+  // Costly moves in game order, the opening's course, and a turning point that no other step already shows.
+  const story = useMemo(() => {
+    if (!data || data === "missing") return null;
+    const { review, game, isWhite } = data;
+    const { best } = reportMoments(review);
+    const errors = costlyMoments(review);
+    const tp = review.turning_point;
+    const shown = tp && tp !== best && !errors.includes(tp) ? tp : null;
+    return { errors, best, turn: shown, opening: openingStory(game.moves, isWhite, Boolean(game.metadata.chess960)) };
   }, [data]);
+  const steps = useMemo((): StepKey[] => {
+    if (!data || data === "missing" || !story) return [];
+    return [
+      "grade",
+      ...(story.opening ? (["opening"] as const) : []),
+      "course",
+      ...(story.turn ? (["turn"] as const) : []),
+      ...(story.best ? (["best"] as const) : []),
+      ...story.errors.map((_, i): StepKey => `error:${i}`),
+      ...(data.review.phases.some((p) => p.accuracy !== null) ? (["phases"] as const) : []),
+      "take",
+    ];
+  }, [data, story]);
 
   if (data === "missing") {
     return (
@@ -117,6 +186,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
     navigate({ view: "analysis", gameId, ply });
   };
   const errors = ownErrors(review);
+  const ending = endingText(game.metadata);
   const outcome = review.result_text.split(" ")[0];
   const tone = gradeTone(grade.value);
   const mood: Mood = tone === "good" ? "wow" : tone === "bad" ? "sad" : tone === "warn" ? "think" : "happy";
@@ -190,6 +260,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
           <p>
             
             {t("Die Linie ist deine Gewinnchance nach jedem Zug. Über der Mitte stehst du besser, darunter dein Gegner.{n}", { n: tp ? t(" Am Wendepunkt ging sie von {pct} auf {pct2}.", { pct: pct(tp.wp_before), pct2: pct(tp.wp_after) }) : "" })}
+            {ending ? ` ${t("Die Partie endete so: {ending}.", { ending: tStored(ending) })}` : ""}
           </p>
         }
       >
@@ -201,7 +272,40 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
     );
   }
 
+  if (step === "opening" && story?.opening) {
+    const o = story.opening;
+    const parts = o.name ? openingParts(o.name) : null;
+    const slip = o.yourExit && ["Inaccuracy", "Mistake", "Miss", "Blunder"].includes(o.yourExit.classification);
+    return (
+      <Stage
+        {...frame}
+        mood={slip ? "think" : "happy"}
+        layout="split"
+        say={parts ? t("Die Eröffnung: {name}.", { name: parts.main }) : t("So ging die Eröffnung.")}
+        sub={
+          <>
+            {parts?.variation && <p>{parts.variation}</p>}
+            <OpeningText o={o} isWhite={isWhite} />
+          </>
+        }
+      >
+        <MomentBoard game={game} ply={o.exitPly} isWhite={isWhite} error={Boolean(slip)} />
+      </Stage>
+    );
+  }
+
+  if (step === "turn" && story?.turn) {
+    const tp = story.turn;
+    const lost = outcome === "Niederlage";
+    return (
+      <Stage {...frame} mood={lost ? "sad" : "wow"} layout="split" say={turnSentence(tp, lost)} sub={<p>{tp.text}</p>}>
+        <MomentBoard game={game} ply={tp.ply_index} isWhite={isWhite} error={tp.by_user ? tp.wp_after < tp.wp_before : false} />
+      </Stage>
+    );
+  }
+
   if (step === "best" && best) {
+    const detail = reasonsFor(game, best.ply_index, true);
     return (
       <Stage
         {...frame}
@@ -209,36 +313,45 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         layout="split"
         say={t("Dein stärkster Moment: {move_label}.", { move_label: best.move_label })}
         sub={
-          <p>
-            {classLabel(best.classification as never)}. {best.text}
-          </p>
+          <>
+            <p>
+              {classLabel(best.classification as never)}. {detail.lines.length ? t("Gewinnchance jetzt {pct}.", { pct: pct(best.wp_after) }) : best.text}
+            </p>
+            <Reasons lines={detail.lines} />
+          </>
         }
       >
-        <MomentBoard game={game} k={best} isWhite={isWhite} />
+        <MomentBoard game={game} ply={best.ply_index} isWhite={isWhite} error={false} detail={detail} />
       </Stage>
     );
   }
 
-  if (step === "worst" && worst) {
+  const errorAt = step.startsWith("error:") ? Number(step.slice(6)) : -1;
+  const costly = errorAt >= 0 ? story?.errors[errorAt] : undefined;
+  if (costly && story) {
+    const detail = reasonsFor(game, costly.ply_index, true);
+    const n = story.errors.length;
+    const priciest = costly === worst;
+    // The reasons already name the better move; without them the stored one is all there is to say.
+    const better = !detail.lines.length && costly.best_move_san ? tj("Besser war {best_move_san}.", { best_move_san: <strong>{costly.best_move_san}</strong> }) : null;
     return (
       <Stage
         {...frame}
         mood="sad"
         layout="split"
-        say={t("Am teuersten war {move_label}.", { move_label: worst.move_label })}
+        say={n === 1 || priciest ? t("Am teuersten war {move_label}.", { move_label: costly.move_label }) : t("Ein weiterer Fehler: {move_label}.", { move_label: costly.move_label })}
         sub={
-          <p>
-            
-            {tj("Deine Gewinnchance fiel von {x} auf {x2}.", { x: <strong>{pct(worst.wp_before)}</strong>, x2: <strong>{pct(worst.wp_after)}</strong> })}{worst.best_move_san ? (
-              <>
-                {" "}
-                
-                {tj("Besser war {best_move_san}.", { best_move_san: <strong>{worst.best_move_san}</strong> })}</>
-            ) : null}
-          </p>
+          <>
+            <p>
+              {classLabel(costly.classification as never)}. {tj("Deine Gewinnchance fiel von {x} auf {x2}.", { x: <strong>{pct(costly.wp_before)}</strong>, x2: <strong>{pct(costly.wp_after)}</strong> })}
+              {better && <> {better}</>}
+            </p>
+            <Reasons lines={detail.lines} />
+            {n > 1 && <p class="rs-count">{t("Fehler {i} von {n}", { i: errorAt + 1, n })}</p>}
+          </>
         }
       >
-        <MomentBoard game={game} k={worst} isWhite={isWhite} />
+        <MomentBoard game={game} ply={costly.ply_index} isWhite={isWhite} error detail={detail} />
       </Stage>
     );
   }
