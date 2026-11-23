@@ -91,6 +91,19 @@ describe("IndexedDB storage", () => {
     expect((await listGames()).map((g) => g.id)).toEqual(["evening", "morning", "old", "undated"]);
   });
 
+  it("sorts a correspondence game by when it ended, not when it started", async () => {
+    const game = (id: string, start: string, end?: string) => {
+      const head = `[UTCDate "${start}"]\n[UTCTime "10:00:00"]\n${end ? `[EndDate "${end}"]\n[EndTime "09:00:00"]\n` : ""}`;
+      return { ...toStoredGame(parsePgnText(head + PGN)[0], 1), id };
+    };
+    await putGames([
+      game("blitz-today", "2026.11.20"),
+      game("daily-started-early", "2026.10.01", "2026.11.22"),
+      game("blitz-old", "2026.11.01"),
+    ]);
+    expect((await listGames()).map((g) => g.id)).toEqual(["daily-started-early", "blitz-today", "blitz-old"]);
+  });
+
   it("persists settings with a fallback", async () => {
     expect(await getSetting("usernames", ["x"])).toEqual(["x"]);
     await setSetting("usernames", ["Me"]);

@@ -3,7 +3,7 @@
 // control and the opening, shows how the winning chance went, the moves
 // worth a look (brilliant, great, mistakes, blunders) and the accuracy.
 import { cancelGame, enqueue, type QueueState } from "../../app/analysisService";
-import { getUserColor } from "../../domain/metrics";
+import { finishedDate, getUserColor } from "../../domain/metrics";
 import type { Classification, StoredGame } from "../../domain/types";
 import { IconChevron, IconPlay, IconStop } from "../icons";
 import { CountUp, ResultRibbon } from "../kit";
@@ -222,7 +222,7 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
           <span class="gl-sub">
             {color && <span class={`side-dot ${color}`} title={color === "white" ? t("Du hattest Weiß") : t("Du hattest Schwarz")} />}
             {/* The month header above already names the year. */}
-            <span class="gl-sub-text">{[speed, formatDate(g.date).replace(/\.\d{4}$/, "."), opening].filter(Boolean).join(" · ")}</span>
+            <span class="gl-sub-text">{[speed, formatDate(finishedDate(g)).replace(/\.\d{4}$/, "."), opening].filter(Boolean).join(" · ")}</span>
           </span>
         </span>
         {analysed ? (
@@ -278,14 +278,14 @@ export function GameRow({ g, usernames, queue }: { g: StoredGame; usernames: str
 export function GameRows({ games, all, usernames, queue }: { games: StoredGame[]; all: StoredGame[]; usernames: string[]; queue: QueueState | null }) {
   const months = new Map<string, StoredGame[]>();
   for (const g of games) {
-    const m = monthLabel(g.date);
+    const m = monthLabel(finishedDate(g));
     const list = months.get(m);
     if (list) list.push(g);
     else months.set(m, [g]);
   }
   const totals = new Map<string, number>();
   for (const g of all) {
-    const m = monthLabel(g.date);
+    const m = monthLabel(finishedDate(g));
     totals.set(m, (totals.get(m) ?? 0) + 1);
   }
   return (

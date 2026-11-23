@@ -26,6 +26,13 @@ describe("LichessAPI", () => {
     expect(new LichessAPI().extractGameId(url)).toBe(id);
   });
 
+  it("adds the last move as EndDate/EndTime so correspondence games sort by their end", async () => {
+    const body = JSON.stringify({ id: "c1", players: {}, createdAt: 0, lastMoveAt: Date.UTC(2026, 10, 22, 8, 30, 15), pgn: '[UTCDate "2026.10.01"]\n\n1. e4 e5' });
+    mockFetch(() => new Response(`${body}\n`));
+    const [g] = await new LichessAPI().getUserGames("UserW", 5);
+    expect(g.pgn).toBe('[UTCDate "2026.10.01"]\n[EndDate "2026.11.22"]\n[EndTime "08:30:15"]\n\n1. e4 e5');
+  });
+
   it("streams NDJSON games with clocks and normalizes them", async () => {
     const line = (id: string, extra: object) =>
       JSON.stringify({
