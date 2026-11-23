@@ -185,8 +185,9 @@ function moveFacts(moves: MoveData[], color: "white" | "black", won: boolean): M
     if (i < 3 && san.startsWith("Q")) out.earlyQueen = true;
     if (typeof m.time_spent === "number" && m.time_spent >= 0) out.think = Math.max(out.think ?? 0, m.time_spent);
   });
+  // A game of one move has none for Black (the opponent left at once).
   const lastMine = mine[mine.length - 1];
-  if (typeof lastMine.time_left === "number" && lastMine.time_left >= 0) out.finalTimeLeft = lastMine.time_left;
+  if (lastMine && typeof lastMine.time_left === "number" && lastMine.time_left >= 0) out.finalTimeLeft = lastMine.time_left;
   // The Bongcloud, the Grob and the Orangutan are choices of the first moves.
   out.bongcloud = white ? sans[0] === "e4" && /^Ke2/.test(sans[1] ?? "") : sans[0] === "e5" && /^Ke7/.test(sans[1] ?? "");
   out.grob = white && sans[0] === "g4";
@@ -288,8 +289,13 @@ export function computeStats(games: RawGame[], names: string[], opts: TrophyOpti
 
   const facts: Fact[] = [];
   for (const g of games) {
-    const f = toFact(g, names);
-    if (f) facts.push(f);
+    // One odd stored game must never take the whole collection down.
+    try {
+      const f = toFact(g, names);
+      if (f) facts.push(f);
+    } catch {
+      // skipped: not countable
+    }
   }
   facts.sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 

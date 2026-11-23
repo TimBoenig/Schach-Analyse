@@ -33,6 +33,7 @@ type Holder = "all" | "both" | "me" | "them" | "none";
 
 interface Reports {
   me: TrophyReport | null;
+  failed?: boolean;
   friends: Record<string, TrophyReport>;
 }
 
@@ -57,15 +58,25 @@ function useReports(games: StoredGame[], me: string[], friends: TrackedPlayer[])
       if (!alive) return;
       const myNames = me;
       const rivalsOfMe = friends.flatMap(playerUsernames);
-      const mine = evaluateTrophies(games, myNames, { rivals: rivalsOfMe });
-      setReports((r) => ({ ...r, me: mine }));
+      let mine: TrophyReport;
+      try {
+        mine = evaluateTrophies(games, myNames, { rivals: rivalsOfMe });
+      } catch {
+        setReports({ me: null, friends: {}, failed: true });
+        return;
+      }
+      setReports((r) => ({ ...r, me: mine, failed: false }));
       const next: Record<string, TrophyReport> = {};
       for (const f of friends) {
         await pause();
         if (!alive) return;
         // Duels of a friend count against you and the other friends.
         const rivals = [...myNames, ...friends.filter((o) => o.id !== f.id).flatMap(playerUsernames)];
-        next[f.id] = evaluateTrophies(games, playerUsernames(f), { rivals });
+        try {
+          next[f.id] = evaluateTrophies(games, playerUsernames(f), { rivals });
+        } catch {
+          continue; // one friend's odd data must not hide the rest
+        }
         setReports((r) => ({ ...r, friends: { ...next } }));
       }
     })();
@@ -290,7 +301,7 @@ function FriendsCard({
 export function TrophiesView({ playerId }: { playerId?: string }) {
   const { players, games, me } = useData();
   const friends = useMemo(() => (players ?? []).filter((p) => p.friend && !p.hidden), [players]);
-  const { me: mine, friends: friendReports } = useReports(games, me, friends);
+  const { me: mine, friends: friendReports, failed } = useReports(games, me, friends);
   const fresh = useFresh(mine);
   const [picked, setPicked] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("all");
@@ -327,6 +338,15 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
       <div>
         <PageHeader />
         <NeedNames what={t("sammle ich hier deine Trophäen.")} />
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <div>
+        <PageHeader />
+        <p class="error">{t("Die Trophäen konnten nicht berechnet werden.")}</p>
       </div>
     );
   }

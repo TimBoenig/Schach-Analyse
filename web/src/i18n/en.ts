@@ -4608,4 +4608,5 @@ export const EN: Record<string, string> = {
   "{p} % weniger Fehler": "{p} % fewer errors",
   "Antippen und oben ausprobieren": "Tap to try it above",
   "Die Schritte sind die Plätze der Tabelle mit deren Elo-Abstand. Die Prozentzahl sagt, wie sicher der Abstand mehr ist als Zufall. Die Bewegung vergleicht mit deinem letzten Besuch auf diesem Gerät, nur unter den Spielern, die damals auch dabei waren.": "The steps are the table's places with their Elo gap. The percentage says how sure the gap is more than chance. Movement compares with your last visit on this device, only among the players who were there then.",
+  "Die Trophäen konnten nicht berechnet werden.": "The trophies could not be calculated.",
 };

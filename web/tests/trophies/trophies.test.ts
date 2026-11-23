@@ -387,6 +387,14 @@ describe("progress and comparison", () => {
     expect(c.both.length + c.onlyA.length + c.onlyB.length + c.neither.length).toBe(TROPHIES.length);
   });
 
+  it("survives games with one move, no moves or broken data", () => {
+    const oneMoveAsBlack = game({ user: "black", sans: ["e4"], result: "1-0" });
+    const noMoves = { ...game(), moves_json: [] } as RawGame;
+    const broken = { ...game(), moves_json: [null, 3], summary_json: "{" } as unknown as RawGame;
+    const r = evaluateTrophies([oneMoveAsBlack, noMoves, broken, game()], ME);
+    expect(r.unlocked).toBeGreaterThan(0);
+  });
+
   it("an empty collection is empty, not broken", () => {
     const r = evaluateTrophies([], ME);
     expect(r.unlocked).toBe(0);
