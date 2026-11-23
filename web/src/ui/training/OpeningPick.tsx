@@ -105,10 +105,21 @@ export function OpeningPick({ t: tk, start }: { t: TrainingState; start: StartSe
                 <small>{t(o.group)}</small>
               </header>
               <p>{o.idea}</p>
+              <details class="op-plans">
+                <summary>{t("Pläne der Varianten")}</summary>
+                {o.lines.map((l) => l.plan && (
+                  <p key={l.name} class="small">
+                    <strong>{l.name}:</strong> {l.plan}
+                  </p>
+                ))}
+              </details>
               <div class="op-lines">
                 {ids.map((id, i) => (
                   <button key={id} class="tn-row" onClick={() => start({ title: `${o.name}: ${o.lines[i].name}`, ids: [id] })}>
-                    <span class="tn-row-title">{o.lines[i].name}</span>
+                    <span class="tn-row-title">
+                      {o.lines[i].name}
+                      <small class="muted tnum"> · {t("{n} Züge", { n: Math.ceil(o.lines[i].moves.split(" ").length / 2) })}</small>
+                    </span>
                     <StateTag state={exerciseState(tk.progress[id], tk.today)} />
                   </button>
                 ))}

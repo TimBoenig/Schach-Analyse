@@ -1637,3 +1637,8 @@ html.focus-mode .main {
     font-size: 10.5px;
   }
 }
+
+/* Opening library: strategy notes per variation, folded so the card stays short. */
+.op-plans { margin: 0 0 8px; }
+.op-plans summary { cursor: pointer; font-size: 13px; color: var(--muted, inherit); }
+.op-plans p { margin: 6px 0 0; }

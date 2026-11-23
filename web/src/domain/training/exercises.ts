@@ -144,6 +144,8 @@ export interface RepertoireExercise extends Base {
   /** Set for lines from the opening library (its opening key), absent for the player's own lines. */
   library?: string;
   idea?: string;
+  /** Strategy note of the specific library line. */
+  plan?: string;
 }
 
 export type PlayoutGoal = "mate" | "promote" | "win" | "hold";
