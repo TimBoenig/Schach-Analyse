@@ -35,6 +35,8 @@ import { localDay } from "../domain/training";
 import type { StoredGame } from "../domain/types";
 import { getSetting, listGames, onDataChanged } from "../storage/db";
 import { PageHeader } from "./Layout";
+import { MoreMenu } from "./MoreMenu";
+import { useNarrow } from "./useNarrow";
 import { AreaChart, BarList, RadarChart, ratingSeriesPoints, StackBar } from "./charts";
 import type { BarRow } from "./charts";
 import { Calendar } from "./home/Activity";
@@ -279,6 +281,29 @@ function PlayersHero({ cards, onAdd, players, games }: { cards: PlayerCardData[]
   const tk = cards.reduce((a, c) => ({ w: a.w + c.h2h.wins, d: a.d + c.h2h.draws, l: a.l + c.h2h.losses }), { w: 0, d: 0, l: 0 });
   const n = tk.w + tk.d + tk.l;
   const friends = cards.filter((c) => c.player.friend).length;
+  const narrow = useNarrow();
+  if (narrow) {
+    // Phones: one line of facts, adding a player as the one button, the rest in the menu.
+    return (
+      <section class="card players-hero compact">
+        <div class="ph-line">
+          <span class="ph-line-text">
+            <span>
+              <strong class="tnum">{cards.length}</strong> {t("Spieler")} · <strong class="tnum">{friends}</strong> {t("Freunde")}
+            </span>
+            <small>{n ? `${pct0(((tk.w + tk.d / 2) / n) * 100)} ${t("deine Punkte aus {plural}", { plural: plural(n, t("Direktpartie"), t("Direktpartien")) })}` : t("noch keine Direktpartie")}</small>
+          </span>
+          <button class="btn primary small" onClick={onAdd}>
+            <IconPlus /> {t("Neu")}
+          </button>
+          <MoreMenu label={t("Mehr zu den Spielern")}>
+            <RefreshAll players={players.filter((p) => !p.hidden)} />
+            <AnalyzeFriends players={players} games={games} />
+          </MoreMenu>
+        </div>
+      </section>
+    );
+  }
   return (
     <section class="card players-hero">
       <div class="players-hero-stats">

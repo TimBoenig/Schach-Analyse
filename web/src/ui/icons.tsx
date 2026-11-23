@@ -77,6 +77,9 @@ export const IconCrown = () => (
 export const IconFlame = () => (
   <svg {...base}><path d="M12 21c-3.9 0-6.5-2.6-6.5-6.2 0-3.4 2.5-5.4 3.6-8.3.9 1.6 1.4 2.8 1.4 4.2C12.6 9 14 7 14 4c3 2.2 4.5 6 4.5 10.3 0 4-2.6 6.7-6.5 6.7z" /></svg>
 );
+export const IconCheck = () => (
+  <svg {...base}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+);
 export const IconShield = () => (
   <svg {...base}><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6zM9 12l2 2 4-4" /></svg>
 );

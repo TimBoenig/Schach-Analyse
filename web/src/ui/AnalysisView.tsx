@@ -17,7 +17,11 @@ import { deleteGame, getGame, getSetting, listGames, onDataChanged } from "../st
 import { fromStoredGame } from "../storage/rows";
 import { BrilliantFx } from "./BrilliantFx";
 import { Board, type Arrow, type Promotion } from "./Board";
-import { IconArrow, IconBack, IconFreeBoard, IconFirst, IconFlip, IconLast, IconNext, IconPlay, IconPrev, IconStop, IconTrash } from "./icons";
+import { IconArrow, IconBack, IconBolt, IconSpark, IconChevron, IconFreeBoard, IconFirst, IconFlip, IconInfo, IconLast, IconNext, IconPlay, IconPrev, IconSearch, IconStop, IconTrash } from "./icons";
+import { useHoldRepeat } from "./hold";
+import { MoreMenu } from "./MoreMenu";
+import { useNarrow } from "./useNarrow";
+import { PhoneReport, type SheetPart } from "./report/PhoneReport";
 import {
   CLASSIFICATION_ORDER,
   accClass,
@@ -44,7 +48,7 @@ import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t, tj, tStored, dec } from "../i18n";
+import { t, tj, tStored } from "../i18n";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -164,7 +168,7 @@ function explainStored(move: MoveData, next: MoveData | undefined, previous: Mov
 
 
 
-function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null }) {
+function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null; readonly?: boolean }) {
   const dragging = useRef(false);
   const [hover, setHover] = useState<number | null>(null);
   const n = moves.length;
@@ -196,27 +200,28 @@ function EvalGraph({ moves, idx, onPick, userColor }: { moves: MoveData[]; idx: 
   const hwc = shown !== null ? winChanceAt(moves, shown) : null;
   const userSide = userColor === "black" ? "b" : "w";
   return (
-    <div class="eval-graph-wrap">
+    <div class={`eval-graph-wrap${readonly ? " ro" : ""}`}>
       <svg
         class="eval-graph"
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
         role="img"
-        aria-label={t("Bewertungsverlauf, antippen oder ziehen zum Springen")}
-        // Drag to scrub through the game, like a video timeline.
-        onPointerDown={(e) => {
+        aria-label={readonly ? t("Bewertungsverlauf") : t("Bewertungsverlauf, antippen oder ziehen zum Springen")}
+        // Drag to scrub through the game, like a video timeline. On a phone the
+        // finger belongs to scrolling, so the line is only a picture there.
+        onPointerDown={readonly ? undefined : (e) => {
           dragging.current = true;
           (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
           onPick(indexAt(e));
         }}
-        onPointerMove={(e) => {
+        onPointerMove={readonly ? undefined : (e) => {
           const i = indexAt(e);
           if (e.pointerType === "mouse") setHover(i);
           if (dragging.current) onPick(i);
         }}
-        onPointerLeave={() => setHover(null)}
-        onPointerUp={() => (dragging.current = false)}
-        onPointerCancel={() => (dragging.current = false)}
+        onPointerLeave={readonly ? undefined : () => setHover(null)}
+        onPointerUp={readonly ? undefined : () => (dragging.current = false)}
+        onPointerCancel={readonly ? undefined : () => (dragging.current = false)}
       >
         <rect class="eg-bg" x="0" y="0" width={W} height={H} />
         <path class="eg-area" d={area} />
@@ -471,12 +476,18 @@ function MoveStrip({ moves, idx, onPick }: { moves: MoveData[]; idx: number; onP
 }
 
 export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number }) {
+  const narrow = useNarrow();
   const [row, setRow] = useState<StoredGame | null | undefined>(undefined);
   const [queue, setQueue] = useState<QueueState | null>(null);
   const [idx, setIdx] = useState(ply ?? 0);
   const [flipped, setFlipped] = useState(false);
   const [usernames, setUsernames] = useState<string[]>([]);
   const [tab, setTab] = useState<"moves" | "report">("moves");
+  const [sheetPart, setSheetPart] = useState<SheetPart>("move");
+  const openSheet = (part: SheetPart) => {
+    setSheetPart(part);
+    setTab("report");
+  };
   const [explore, setExplore] = useState<Explore | null>(null);
   const [showArrows, setShowArrows] = useState(true);
   // Side lines the player tried in this game, kept in the move list like lichess variations.
@@ -591,6 +602,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     if (target !== undefined) goTo(target + 1);
   };
   const errorPos = errorPlies.indexOf(idx - 1);
+  // Holding a step button runs through the moves and stops at the end of the game (or the line).
+  const canStep = (d: 1 | -1) => (explore ? (d === -1 ? true : explore.pending.length > 0) : d === -1 ? clamp(idx) > 0 : clamp(idx) < n);
+  const holdBack = useHoldRepeat(() => {
+    if (!canStep(-1)) return false;
+    step(-1);
+  });
+  const holdNext = useHoldRepeat(() => {
+    if (!canStep(1)) return false;
+    step(1);
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -626,8 +647,9 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     }
   }, [stored, userColor]);
   useEffect(() => {
-    if (!review) setTab("moves");
-  }, [review]);
+    // On a phone the sheet also holds the move and the move list, so it works without a report.
+    if (!review && !narrow) setTab("moves");
+  }, [review, narrow]);
 
   const highlights = useMemo(() => (game ? glanzzuege(game.moves) : []), [game]);
 
@@ -727,7 +749,18 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
   bestPv.current = (explore ? live.lines[0]?.pv : gameLines[0]?.pv) ?? [];
   const depthOf = (lines: PvLine[]) => Math.max(0, ...lines.map((l) => Number(l.depth) || 0));
   const threatLine = threat.lines[0];
-  const engineHead = (lines: PvLine[], busy: boolean) => (
+  const engineHead = (lines: PvLine[], busy: boolean) =>
+    narrow ? (
+      // The switches live in the three-dot menu on a phone; only the depth stays.
+      engine.live || lines.length ? (
+        <div class="engine-switches slim">
+          <span class="faint small engine-depth">
+            {engine.live ? `${ENGINE_NAME} live · ` : ""}
+            {engine.live && busy ? t("rechnet …") : lines.length && depthOf(lines) ? t("Tiefe {depthOf}", { depthOf: depthOf(lines) }) : ""}
+          </span>
+        </div>
+      ) : null
+    ) : (
     <div class="engine-switches">
       <label class="switch-pill" title={t("{ENGINE_NAME} rechnet live mit, drei beste Züge als Pfeile (L)", { ENGINE_NAME })}>
         <input type="checkbox" checked={engine.live} onChange={() => setEngine({ ...engine, live: !engine.live })} />
@@ -741,7 +774,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         {engine.live && busy ? t("rechnet …") : lines.length && depthOf(lines) ? t("Tiefe {depthOf}", { depthOf: depthOf(lines) }) : ""}
       </span>
     </div>
-  );
+    );
   const threatInfo =
     engine.threat && (exploreFen ?? gameFen) ? (
       <div class="threat-line small">
@@ -847,140 +880,58 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     for (const at of detail.squares) circles.push({ at, kind: "user" });
   }
 
-  const playerLine = (c: Side, r: number) => (
-    <div class="player-line" style={{ gridRow: r }}>
-      <span class="who">
-        <span class={`side-dot ${c}`} />
-        <span>
-          {nameOf(c)}
-          {eloOf(c) ? <span class="faint"> {eloOf(c)}</span> : null}
-        </span>
-      </span>
-      <span class="player-meta">
-        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", dec())} %</span>}
-        {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
-          <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
-            {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}
-          </span>
-        )}
-      </span>
-    </div>
+  const reportDetails = (
+                <>
+                  <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
+                  {highlights.length > 0 && (
+                    <>
+                      <h4>{t("Glanzzüge dieser Partie")}</h4>
+                      <div class="glanz-moves">
+                        {highlights.map((h) => (
+                          <button
+                            key={h.stop}
+                            class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
+                            style={{ "--tone": CLASS_COLOR[h.classification] }}
+                            onClick={() => jumpTo(h.stop)}
+                            title={t("{classLabel}: zum Zug springen", { classLabel: classLabel(h.classification) })}
+                          >
+                            <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
+                            <span class={`side-dot ${h.side}`} />
+                            {h.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
+                </>
   );
 
+  const phoneBanner = explore ? (
 
-  return (
-    <div>
-      <header class="an-head">
-        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label={t("Zurück zur Liste")}>
-          <IconBack />
-        </button>
-        <div class="an-head-title">
-          <h1>
-            <span class="an-player">
-              <span class="side-dot white" />
-              {game.metadata.white}
-              {game.metadata.white_elo ? <span class="faint tnum">{game.metadata.white_elo}</span> : null}
-            </span>
-            <span class="an-result tnum">{resultText(game.metadata.result)}</span>
-            <span class="an-player">
-              <span class="side-dot black" />
-              {game.metadata.black}
-              {game.metadata.black_elo ? <span class="faint tnum">{game.metadata.black_elo}</span> : null}
-            </span>
-          </h1>
-          <p class="an-head-sub">
-            {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <span class="spacer" />
-        <div class="an-head-actions">
-          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title={t("Diese Stellung frei weiteranalysieren")}>
-            <IconFreeBoard /> <span class="wide-label">{t("Im Analysebrett")}</span>
-          </button>
-          <GuideButton id="analysis" />
-          <button
-            class="btn icon ghost danger"
-            aria-label={t("Partie löschen")}
-            title={t("Partie löschen")}
-            onClick={() => {
-              if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) {
-                void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
-              }
-            }}
-          >
-            <IconTrash />
-          </button>
-        </div>
-      </header>
-      <div class="analysis">
-        <div class="board-area" ref={boardRef}>
-          {playerLine(top, 1)}
-          <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
-          <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
-            <Board
-              fen={fen}
-              flipped={flipped}
-              lastMove={lastMove}
-              arrows={arrows}
-              circles={circles}
-              badge={explore ? (lastVerdict?.classification || undefined) : move?.classification}
-              onMove={tryMove}
-              legalTargets={legalTargets}
-              annotate
-              onSwipe={(dir) => step(dir === "left" ? 1 : -1)}
-            />
-            {/* Stepping onto a brilliant move replays its celebration, in a finished analysis as in exploration. */}
-            {lastMove && (explore ? lastVerdict?.classification : move?.classification) === "Brilliant" && (
-              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} san={explore ? explore.sans[explore.sans.length - 1] : move?.san} />
-            )}
-          </div>
-          {playerLine(bottom, 3)}
-          <div class="controls" style={{ gridRow: 4 }}>
-            <button class="btn" onClick={() => goTo(0)} aria-label={t("Zum Anfang")}>
-              <IconFirst />
-            </button>
-            <button class="btn" onClick={() => step(-1)} aria-label={t("Zug zurück")}>
-              <IconPrev />
-            </button>
-            <button class="btn" onClick={() => step(1)} aria-label={t("Zug vor")} disabled={Boolean(explore && !explore.pending.length)}>
-              <IconNext />
-            </button>
-            <button class="btn" onClick={() => goTo(n)} aria-label={t("Zum Ende")}>
-              <IconLast />
-            </button>
-            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label={t("Brett drehen")} title={t("Brett drehen (F)")}>
-              <IconFlip />
-            </button>
-            <button
-              class={`btn${showArrows ? " on" : ""}`}
-              onClick={() => setShowArrows((v) => !v)}
-              aria-pressed={showArrows}
-              aria-label={t("Pfeil für den besten Zug ein- oder ausblenden")}
-              title={t("Bester-Zug-Pfeil (A)")}
-            >
-              <IconArrow />
-            </button>
-            {errorPlies.length > 0 && !explore && (
-              <div class="error-nav" role="group" aria-label={t("Eigene Fehler")}>
-                <button class="btn" onClick={() => jumpError(-1)} disabled={!errorPlies.some((p) => p + 1 < idx)} aria-label={t("Voriger eigener Fehler")} title={t("Voriger eigener Fehler (P)")}>
-                  <IconPrev />
+                <div class="an-banner">
+                  <span class="pill accent">{t("Eigene Variante")}</span>
+                  <span class="an-banner-text">{explore.sans.slice(-3).join(" ")}</span>
+                  <button class="btn small" onClick={leaveLine}>
+                    {t("Zurück")}
+                  </button>
+                </div>
+              ) : move && move.classification ? (
+                <button class="an-banner" style={{ "--tone": CLASS_COLOR[move.classification] ?? "var(--text-3)" }} onClick={() => openSheet("move")}>
+                  {badgeFor(move.classification) && <img src={badgeFor(move.classification)!} alt="" width={22} height={22} />}
+                  <span class="an-banner-text">{moveVerdict(move)}</span>
+                  <IconChevron />
                 </button>
-                <span class="error-count tnum">
-                  {errorPos >= 0 ? t("Fehler {0}/{length}", { 0: errorPos + 1, length: errorPlies.length }) : t("{length} Fehler", { length: errorPlies.length })}
-                </span>
-                <button class="btn" onClick={() => jumpError(1)} disabled={!errorPlies.some((p) => p + 1 > idx)} aria-label={t("Nächster eigener Fehler")} title={t("Nächster eigener Fehler (N)")}>
-                  <IconNext />
+              ) : review ? (
+                <button class="an-banner" onClick={() => openSheet("sum")}>
+                  <GradeBadge grade={review.grade} size="tiny" />
+                  <span class="an-banner-text">{review.headline}</span>
+                  <IconChevron />
                 </button>
-              </div>
-            )}
-          </div>
-          <div class="strip-row" style={{ gridRow: 5 }}>
-            <MoveStrip moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
-          </div>
-        </div>
+  ) : null;
 
-        <div class="side-panel">
-          <OpeningLine fens={shownFens} book={book} />
+  const statusCard = (
+    <>
           {status !== "completed" || analyzing ? (
             <div class="card">
               {analyzing ? (
@@ -1011,8 +962,11 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               )}
             </div>
           ) : null}
+    </>
+  );
 
-          <div class="card">
+  const moveCard = (
+          <div class={`card${narrow ? " an-card" : ""}`}>
             {explore ? (
               <>
                 <div class="explore-bar">
@@ -1077,7 +1031,16 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               <div>
                 <div class="an-intro">
                   {/* With the report open below, its grade, headline and story button stand there; here only the hint. */}
-                  {review && tab === "report" ? null : review ? (
+                  {review && tab === "report" ? null : review && narrow ? (
+                    <button class="an-intro-lite" onClick={() => setTab("report")}>
+                      <GradeBadge grade={review.grade} size="tiny" />
+                      <span class="an-intro-text">
+                        <strong>{review.headline}</strong>
+                        <span class="faint">{t("Bericht ansehen")}</span>
+                      </span>
+                      <IconChevron />
+                    </button>
+                  ) : review ? (
                     <>
                       <div class="an-intro-top">
                         <GradeBadge grade={review.grade} size="small" />
@@ -1108,7 +1071,244 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               </div>
             )}
           </div>
+  );
 
+  const playerLine = (c: Side, r: number) => (
+    <div class={`player-line ${r === 1 ? "pl-top" : "pl-bot"}`} style={{ gridRow: r }}>
+      <span class="who">
+        <span class={`side-dot ${c}`} />
+        <span>
+          {nameOf(c)}
+          {eloOf(c) ? <span class="faint"> {eloOf(c)}</span> : null}
+        </span>
+      </span>
+      <span class="player-meta">
+        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", ",")} %</span>}
+        {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
+          <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
+            {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+
+
+  return (
+    <div class={`an-page${narrow ? " phone" : ""}${narrow && tab === "report" ? " sheet" : ""}`}>
+      {narrow ? (
+        <header class="an-bar">
+          <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label={t("Zurück zur Liste")}>
+            <IconBack />
+          </button>
+          <div class="an-bar-title">
+            <strong class="an-result tnum">{resultText(game.metadata.result)}</strong>
+            <span class="an-bar-sub">
+              {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
+            </span>
+          </div>
+          <MoreMenu
+            label={t("Mehr zur Partie")}
+            items={[
+              { label: t("Brett drehen"), icon: <IconFlip />, onSelect: () => setFlipped((f) => !f) },
+              { label: t("Pfeile zeigen"), icon: <IconArrow />, checked: showArrows, onSelect: () => setShowArrows((v) => !v) },
+              { label: t("{ENGINE_NAME} live", { ENGINE_NAME }), icon: <IconBolt />, checked: engine.live, onSelect: () => setEngine({ ...engine, live: !engine.live }) },
+              { label: t("Drohung zeigen"), icon: <IconInfo />, checked: engine.threat, onSelect: () => setEngine({ ...engine, threat: !engine.threat }) },
+              errorPlies.length > 0 && !explore && { label: t("Voriger Fehler"), icon: <IconPrev />, divider: true, disabled: !errorPlies.some((p) => p + 1 < idx), onSelect: () => jumpError(-1) },
+              errorPlies.length > 0 && !explore && { label: t("Nächster Fehler"), icon: <IconNext />, disabled: !errorPlies.some((p) => p + 1 > idx), onSelect: () => jumpError(1) },
+              { label: t("Zum Anfang"), icon: <IconFirst />, divider: true, onSelect: () => goTo(0) },
+              { label: t("Zum Ende"), icon: <IconLast />, onSelect: () => goTo(n) },
+              { label: t("Im Analysebrett"), icon: <IconFreeBoard />, divider: true, onSelect: () => navigate({ view: "board", fen }) },
+              { label: t("Seite erklären"), icon: <IconSpark />, onSelect: () => openStage({ kind: "page", subject: "analysis" }) },
+              {
+                label: t("Partie löschen"),
+                icon: <IconTrash />,
+                danger: true,
+                divider: true,
+                onSelect: () => {
+                  if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+                },
+              },
+            ]}
+          />
+        </header>
+      ) : (
+      <header class="an-head">
+        <button class="btn icon ghost" onClick={() => navigate({ view: "games" })} aria-label={t("Zurück zur Liste")}>
+          <IconBack />
+        </button>
+        <div class="an-head-title">
+          <h1>
+            <span class="an-player">
+              <span class="side-dot white" />
+              {game.metadata.white}
+              {game.metadata.white_elo ? <span class="faint tnum">{game.metadata.white_elo}</span> : null}
+            </span>
+            <span class="an-result tnum">{resultText(game.metadata.result)}</span>
+            <span class="an-player">
+              <span class="side-dot black" />
+              {game.metadata.black}
+              {game.metadata.black_elo ? <span class="faint tnum">{game.metadata.black_elo}</span> : null}
+            </span>
+          </h1>
+          <p class="an-head-sub">
+            {[row.speed_category ? (SPEED_DE[row.speed_category] ?? row.speed_category) : null, formatDate(game.metadata.date), shortOpening(game.metadata.opening)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+        <span class="spacer" />
+        <div class="an-head-actions">
+          <button class="btn small" onClick={() => navigate({ view: "board", fen })} title={t("Diese Stellung frei weiteranalysieren")}>
+            <IconFreeBoard /> <span class="wide-label">{t("Im Analysebrett")}</span>
+          </button>
+          <GuideButton id="analysis" />
+          <button
+            class="btn icon ghost danger"
+            aria-label={t("Partie löschen")}
+            title={t("Partie löschen")}
+            onClick={() => {
+              if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) {
+                void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+              }
+            }}
+          >
+            <IconTrash />
+          </button>
+        </div>
+      </header>
+      )}
+      <div class="analysis">
+        <div class="board-area" ref={boardRef}>
+          {playerLine(top, 1)}
+          <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
+          <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
+            <Board
+              fen={fen}
+              flipped={flipped}
+              lastMove={lastMove}
+              arrows={arrows}
+              circles={circles}
+              badge={explore ? (lastVerdict?.classification || undefined) : move?.classification}
+              onMove={tryMove}
+              legalTargets={legalTargets}
+              annotate
+              onSwipe={(dir) => step(dir === "left" ? 1 : -1)}
+            />
+            {/* Stepping onto a brilliant move replays its celebration, in a finished analysis as in exploration. */}
+            {lastMove && (explore ? lastVerdict?.classification : move?.classification) === "Brilliant" && (
+              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} />
+            )}
+          </div>
+          {playerLine(bottom, 3)}
+          {narrow && tab !== "report" && phoneBanner ? <div class="pc-banner">{phoneBanner}</div> : null}
+          {narrow ? (
+            <div class="pc-controls" style={{ gridRow: 4 }}>
+              <button class="btn pc-step" aria-label={t("Zug zurück")} disabled={!canStep(-1)} {...holdBack}>
+                <IconPrev />
+              </button>
+              <button
+                class={`btn pc-lupe${tab === "report" ? " on" : ""}`}
+                aria-label={t("Bericht und Zug erklärt")}
+                aria-pressed={tab === "report"}
+                onClick={() => (tab === "report" ? setTab("moves") : openSheet(review ? "sum" : "move"))}
+              >
+                <IconSearch />
+                <span>{t("Analyse")}</span>
+              </button>
+              <button class="btn pc-step" aria-label={t("Zug vor")} disabled={!canStep(1)} {...holdNext}>
+                <IconNext />
+              </button>
+            </div>
+          ) : (
+          <div class="controls" style={{ gridRow: 4 }}>
+            <button class="btn" onClick={() => goTo(0)} aria-label={t("Zum Anfang")}>
+              <IconFirst />
+            </button>
+            <button class="btn" aria-label={t("Zug zurück")} {...holdBack}>
+              <IconPrev />
+            </button>
+            <button class="btn" aria-label={t("Zug vor")} disabled={!canStep(1)} {...holdNext}>
+              <IconNext />
+            </button>
+            <button class="btn" onClick={() => goTo(n)} aria-label={t("Zum Ende")}>
+              <IconLast />
+            </button>
+            <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label={t("Brett drehen")} title={t("Brett drehen (F)")}>
+              <IconFlip />
+            </button>
+            <button
+              class={`btn${showArrows ? " on" : ""}`}
+              onClick={() => setShowArrows((v) => !v)}
+              aria-pressed={showArrows}
+              aria-label={t("Pfeil für den besten Zug ein- oder ausblenden")}
+              title={t("Bester-Zug-Pfeil (A)")}
+            >
+              <IconArrow />
+            </button>
+            {errorPlies.length > 0 && !explore && (
+              <div class="error-nav" role="group" aria-label={t("Eigene Fehler")}>
+                <button class="btn" onClick={() => jumpError(-1)} disabled={!errorPlies.some((p) => p + 1 < idx)} aria-label={t("Voriger eigener Fehler")} title={t("Voriger eigener Fehler (P)")}>
+                  <IconPrev />
+                </button>
+                <span class="error-count tnum">
+                  {errorPos >= 0 ? t("Fehler {0}/{length}", { 0: errorPos + 1, length: errorPlies.length }) : t("{length} Fehler", { length: errorPlies.length })}
+                </span>
+                <button class="btn" onClick={() => jumpError(1)} disabled={!errorPlies.some((p) => p + 1 > idx)} aria-label={t("Nächster eigener Fehler")} title={t("Nächster eigener Fehler (N)")}>
+                  <IconNext />
+                </button>
+              </div>
+            )}
+          </div>
+          )}
+          <div class="strip-row" style={{ gridRow: 5 }}>
+            <MoveStrip moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} />
+          </div>
+        </div>
+
+        <div class="side-panel">
+          {narrow ? (
+            <>
+              {statusCard}
+              {tab === "report" ? (
+                <PhoneReport
+                  gameId={row.id}
+                  review={review}
+                  moves={game.moves}
+                  isWhite={userColor !== "black"}
+                  names={{ me: nameOf(userColor ?? "white"), opp: nameOf(userColor === "black" ? "white" : "black") }}
+                  speed={row.speed_category}
+                  standing={standing}
+                  idx={explore ? explore.base : i}
+                  onJump={jumpTo}
+                  onPeek={goTo}
+                  details={reportDetails}
+                  part={sheetPart}
+                  onPart={setSheetPart}
+                  onClose={() => setTab("moves")}
+                  moveView={
+                    <>
+                      <OpeningLine fens={shownFens} book={book} />
+                      {moveCard}
+                    </>
+                  }
+                  listView={
+                    <>
+                      <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} readonly />
+                      <MoveList
+                        moves={game.moves}
+                        idx={explore ? -1 : i}
+                        onPick={goTo}
+                        variations={{ lines: shownSideLines, active: activeIn(shownSideLines, explore), onPick: pickSideLine, onDrop: dropSideLine }}
+                      />
+                    </>
+                  }
+                />
+              ) : null}
+            </>
+          ) : (
+            <>
+              <OpeningLine fens={shownFens} book={book} />
+              {statusCard}
+              {moveCard}
           {review && (
             <div class="segmented full">
               <button class={tab === "moves" ? "active" : ""} onClick={() => setTab("moves")}>
@@ -1143,33 +1343,10 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
               standing={standing}
               idx={explore ? explore.base : i}
               onJump={jumpTo}
-              details={
-                <>
-                  <ClassTable game={game} idx={explore ? -1 : i} onJump={jumpTo} />
-                  {highlights.length > 0 && (
-                    <>
-                      <h4>{t("Glanzzüge dieser Partie")}</h4>
-                      <div class="glanz-moves">
-                        {highlights.map((h) => (
-                          <button
-                            key={h.stop}
-                            class={`glanz-move${!explore && h.stop === i ? " on" : ""}`}
-                            style={{ "--tone": CLASS_COLOR[h.classification] }}
-                            onClick={() => jumpTo(h.stop)}
-                            title={t("{classLabel}: zum Zug springen", { classLabel: classLabel(h.classification) })}
-                          >
-                            <img src={badgeFor(h.classification) ?? ""} alt={classLabel(h.classification)} />
-                            <span class={`side-dot ${h.side}`} />
-                            {h.label}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  <DepthNote game={game} queued={Boolean(queued)} onDeeper={(p) => enqueue([row.id], { front: true, restart: true, settings: DEPTH_PRESETS[p].settings })} />
-                </>
-              }
+              details={reportDetails}
             />
+          )}
+            </>
           )}
         </div>
       </div>
