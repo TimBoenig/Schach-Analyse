@@ -83,11 +83,11 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const s = frame.scene;
   const age = frame.local;
   const wide = m / 9.2;
-  const close = m / 3.3;
+  const close = m / 2.3;
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
 
   // How close the shot is: 0 = the whole tilted board, 1 = two or three squares.
-  let cl = clamp01(0.55 + (1 - s.zoom) * 0.8);
+  let cl = clamp01(0.75 + (1 - s.zoom) * 0.8);
   if (s.focus) cl += 0.15;
   if (fx("spotlight") !== undefined) cl += 0.1;
   if (s.card !== "none") cl = 0.08;
@@ -103,16 +103,16 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   }
   if (reach > 0) S = Math.min(S, (0.72 * m) / (reach + 1.6));
   // Cuts alternate between punching in from too close and pushing in from too far.
-  const start = frame.index % 2 === 0 ? 1.45 : 0.72;
-  S *= 1 + (start - 1) * Math.exp(-age / 0.24);
-  S *= 1 + 0.035 * age;
+  const start = frame.index % 2 === 0 ? 1.9 : 0.5;
+  S *= 1 + (start - 1) * Math.exp(-age / 0.16);
+  S *= 1 + 0.09 * age;
   const zoomAge = fx("zoom");
-  if (zoomAge !== undefined) S *= 1 + 0.4 * easeOut(zoomAge / 0.3);
+  if (zoomAge !== undefined) S *= 1 + 0.7 * easeOut(zoomAge / 0.2);
   // Every landing kicks the picture a little.
-  if (frame.landing) S *= 1 + 0.05 * Math.exp(-frame.landing.k * 9);
+  if (frame.landing) S *= 1 + 0.14 * Math.exp(-frame.landing.k * 8);
 
   const sign = ROLLS[frame.index % ROLLS.length] < 0 ? -1 : 1;
-  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 1.4) * age + sign * 8 * Math.exp(-age / 0.2)) * Math.PI) / 180;
+  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 1.4) * age + sign * 12 * Math.exp(-age / 0.14)) * Math.PI) / 180;
 
   // The camera flies from the piece's square to the one it lands on.
   let tx = 0;
@@ -131,6 +131,14 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const hold = clamp01(((S - wide) / (close - wide)) * 1.4);
   tx *= hold;
   tz *= hold;
+  // The mating blow: the camera backs off to show the whole board while the pieces break.
+  const mateAge = fx("mate");
+  if (mateAge !== undefined) {
+    const k = easeOut((mateAge - 0.3) / 0.7);
+    S = lerp(S, wide * 1.12, k);
+    tx *= 1 - k;
+    tz *= 1 - k;
+  }
 
   let shake = 0;
   const sh = fx("shake");
@@ -162,17 +170,6 @@ export function reelSquareAt(view: ReelView, sx: number, sy: number): string | n
 function rgba(hex: string, a: number): string {
   const n = parseInt(hex.slice(1), 16);
   return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
-  const rr = Math.min(r, h / 2, w / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + rr, y);
-  ctx.arcTo(x + w, y, x + w, y + h, rr);
-  ctx.arcTo(x + w, y + h, x, y + h, rr);
-  ctx.arcTo(x, y + h, x, y, rr);
-  ctx.arcTo(x, y, x + w, y, rr);
-  ctx.closePath();
 }
 
 /** A square lit from within: solid colour that bleeds over its neighbours. */
@@ -270,6 +267,84 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
     ctx.fill();
   }
   ctx.restore();
+}
+
+/** Deterministic pseudo-random 0..1, so a shard flies the same way in preview and export. */
+function rnd(seed: number): number {
+  const x = Math.sin(seed * 127.1 + 311.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** The pieces of the mated side break like glass: a crack runs through them, then the shards fly apart and fall. */
+function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Assets, S: number, dir: number, local: number): void {
+  const img = assets.pieces[pieceKey(p.color, p.type)];
+  if (!img) return;
+  const size = 0.96 * p.scale;
+  const x = dir * p.x;
+  const z = dir * p.z - 0.04;
+  const CRACK = 0.2;
+  // The piece trembles before it breaks.
+  const tremble = local < CRACK ? 0.025 * Math.sin(local * 140) : 0;
+  const ring = [
+    [-0.5, -0.5], [0, -0.5], [0.5, -0.5], [0.5, 0],
+    [0.5, 0.5], [0, 0.5], [-0.5, 0.5], [-0.5, 0],
+  ];
+  const cx = (rnd(p.id * 3.1) - 0.5) * 0.24;
+  const cz = (rnd(p.id * 5.7) - 0.5) * 0.24;
+  if (local < CRACK) {
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.translate(x + tremble, z);
+    ctx.shadowColor = "rgba(0,0,0,0.55)";
+    ctx.shadowBlur = 0.22 * S;
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    ctx.shadowBlur = 0;
+    // White cracks run from the middle to the edge.
+    const k = clamp01(local / CRACK);
+    ctx.strokeStyle = "rgba(255,255,255,0.95)";
+    ctx.lineWidth = 0.03;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ring.forEach(([ex, ez], i) => {
+      const mx = lerp(cx, ex, 0.5) + (rnd(p.id + i) - 0.5) * 0.14;
+      const mz = lerp(cz, ez, 0.5) + (rnd(p.id * 2 + i) - 0.5) * 0.14;
+      ctx.moveTo(cx, cz);
+      ctx.lineTo(lerp(cx, mx, Math.min(1, k * 2)), lerp(cz, mz, Math.min(1, k * 2)));
+      if (k > 0.5) ctx.lineTo(lerp(mx, ex, (k - 0.5) * 2), lerp(mz, ez, (k - 0.5) * 2));
+    });
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+  const t = local - CRACK;
+  const fade = 1 - clamp01((t - 0.55) / 0.55);
+  if (fade <= 0.01) return;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % ring.length];
+    const gx = (cx + a[0] + b[0]) / 3;
+    const gz = (cz + a[1] + b[1]) / 3;
+    // Flies away from the piece's middle, a little upward first, then falls.
+    const ang = Math.atan2(gz, gx) + (rnd(p.id * 7 + i) - 0.5) * 0.9;
+    const speed = 1.8 + rnd(p.id * 11 + i) * 3.2;
+    const ox = Math.cos(ang) * speed * t;
+    const oz = Math.sin(ang) * speed * t - 1.6 * t + 7 * t * t;
+    const spin = (rnd(p.id * 13 + i) - 0.5) * 12 * t;
+    ctx.save();
+    ctx.globalAlpha = p.alpha * fade;
+    ctx.translate(x + ox, z + oz);
+    ctx.translate(size * gx, size * gz);
+    ctx.rotate(spin);
+    ctx.translate(-size * gx, -size * gz);
+    ctx.beginPath();
+    ctx.moveTo(size * cx, size * cz);
+    ctx.lineTo(size * a[0], size * a[1]);
+    ctx.lineTo(size * b[0], size * b[1]);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    ctx.restore();
+  }
 }
 
 function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, S: number, dir: number): void {
@@ -402,7 +477,17 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
 
   // ---- pieces: the ones on the board first, the flying ones on top
   const ordered = [...frame.pieces].filter((p) => p.alpha > 0.01).sort((a, b) => Number(Boolean(a.flight)) - Number(Boolean(b.flight)) || a.y - b.y);
-  for (const p of ordered) drawPiece(ctx, p, frame, assets, S, dir);
+  // The side that got mated: all its pieces break, the nearest to the king first.
+  const matedColour = mateAge !== undefined && frame.mate ? frame.pieces.find((q) => q.type === "k" && xzSquare(q.x, q.z) === frame.mate!.king)?.color : undefined;
+  const matedKing = frame.mate ? squareXZ(frame.mate.king) : [0, 0];
+  for (const p of ordered) {
+    if (matedColour && p.color === matedColour && mateAge !== undefined) {
+      const dist = Math.hypot(p.x - matedKing[0], p.z - matedKing[1]);
+      const local = mateAge - (0.3 + dist * 0.07);
+      if (local >= 0) drawShattered(ctx, p, assets, S, dir, local);
+      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, S, dir);
+    } else drawPiece(ctx, p, frame, assets, S, dir);
+  }
 
   // ---- arrows: neutral ones black with a white glow, danger ones red and curved
   frame.arrows.forEach((a, i) => {
@@ -416,32 +501,6 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     else if (a.tone === "good") drawArrow(ctx, S, from, to, a.progress, GLOW.green, GLOW.green, 0, a.alpha);
     else drawArrow(ctx, S, from, to, a.progress, "#050505", "#ffffff", 0, a.alpha);
   });
-
-  // ---- "M1" tag above the mated king
-  if (mateAge !== undefined && frame.mate) {
-    const k = backOut((mateAge - 0.1) / 0.35);
-    if (k > 0) {
-      const [kx, kz] = squareXZ(frame.mate.king);
-      const [mx, mz] = squareXZ(frame.mate.by);
-      const ml = Math.hypot(mx - kx, mz - kz) || 1;
-      ctx.save();
-      // One square from the king towards the piece that gives mate.
-      ctx.translate(dir * (kx + ((mx - kx) / ml) * 1.05), dir * (kz + ((mz - kz) / ml) * 1.05));
-      ctx.scale(k, k);
-      ctx.shadowColor = GLOW.red;
-      ctx.shadowBlur = 0.6 * S;
-      roundRect(ctx, -0.46, -0.34, 0.92, 0.68, 0.08);
-      ctx.fillStyle = "rgba(255,226,226,0.95)";
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = "#3a0c0c";
-      ctx.font = `400 0.42px ${SERIF}`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("M1", 0, 0.03);
-      ctx.restore();
-    }
-  }
 
   // ---- rating badge on the corner of the square, like on the analysis page
   if (frame.badge) {

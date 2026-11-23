@@ -765,8 +765,12 @@ describe("reel look", () => {
     const mate = tl.scenes[2];
     const late = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 0.05)!, 1080, 1080);
     expect(Math.abs(late.shakeX) + Math.abs(late.shakeY)).toBeGreaterThan(1);
+    // The mate backs the camera off to the whole board so the breaking pieces are all in view, and does not leave anything for a label to say.
+    const settled = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 1.2)!, 1080, 1080);
+    expect(settled.S).toBeLessThan(1080 / 7);
+    expect(settled.fx).toBeCloseTo(0, 1);
     for (const c of [...cams, late]) {
-      expect(c.S).toBeGreaterThan(1080 / 9.3);
+      expect(c.S).toBeGreaterThan((1080 / 9.2) * 0.4);
       expect(Math.abs(c.fx)).toBeLessThanOrEqual(3.5);
       expect(Math.abs(c.fz)).toBeLessThanOrEqual(3.5);
     }

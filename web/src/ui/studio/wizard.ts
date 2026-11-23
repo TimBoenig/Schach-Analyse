@@ -284,7 +284,7 @@ const VIBES: Record<Vibe, { theme: ThemeId; serif: boolean; tempo: number; orbit
   calm: { theme: "nova", serif: false, tempo: 0.95, orbit: 3, env: "podium" },
   elegant: { theme: "holz", serif: true, tempo: 0.9, orbit: 4, env: "library" },
   // The reel look moves the camera itself (roll, punch-ins), so the scenes keep a still orbit.
-  reel: { theme: "mono", serif: true, tempo: 1.2, orbit: 0, env: "void", view: "reel" },
+  reel: { theme: "mono", serif: true, tempo: 1.6, orbit: 0, env: "void", view: "reel" },
 };
 
 export function defaultAnswers(kind: VideoKind = "opening"): Answers {

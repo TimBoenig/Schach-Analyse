@@ -575,10 +575,10 @@ export function reelTemplate(): StudioProject {
   const base = project(
     t("Siehst du das Matt?"),
     [
-      scene({ card: "intro", title: t("Siehst du das Matt?"), text: t("Nur ein Zug"), duration: 2.4, mood: "wow" }),
-      scene({ fen: afterQh5, moves: "3... Nf6??", duration: 2.6, zoom: 0.8, badge: "blunder", effects: ["zoom"], marks: [{ square: "f7", tone: "bad" }] }),
-      scene({ moves: "4. Qxf7#", duration: 3.6, zoom: 0.7, badge: "brilliant", effects: ["mate"], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
-      scene({ fen: fork, moves: "Nc7+", duration: 3.2, zoom: 0.7, badge: "best", effects: ["spotlight"], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] }),
+      scene({ card: "intro", title: t("Siehst du das Matt?"), text: t("Nur ein Zug"), duration: 1.6, mood: "wow" }),
+      scene({ fen: afterQh5, moves: "3... Nf6??", duration: 1.8, zoom: 0.8, badge: "blunder", effects: ["zoom", "slowmo"], marks: [{ square: "f7", tone: "bad" }] }),
+      scene({ moves: "4. Qxf7#", duration: 3.4, zoom: 0.7, badge: "brilliant", effects: ["mate", "slowmo"], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
+      scene({ fen: fork, moves: "Nc7+", duration: 2.2, zoom: 0.7, badge: "best", effects: ["spotlight", "slowmo"], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] }),
       outro({ title: t("Mehr Taktik aus deinen Partien") }),
     ],
     START_FEN,
@@ -587,7 +587,7 @@ export function reelTemplate(): StudioProject {
   return {
     ...base,
     style: styleFromTheme("mono", { view: "reel", titleFont: "serif", environment: "void" }),
-    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 1.2, lucena: false, movePill: false, music: "none" },
+    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 1.6, lucena: false, movePill: false, music: "none" },
   };
 }
 
