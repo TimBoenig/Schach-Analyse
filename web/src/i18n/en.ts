@@ -1364,6 +1364,8 @@ export const EN: Record<string, string> = {
   "Die Anmeldung ist abgelaufen. Bitte melde dich neu an.": "Your sign-in has expired. Please sign in again.",
   "Die Antwort ist kein lesbares JSON ({0}). Bitte die KI, nur den JSON-Codeblock zu schicken.": "The answer is not readable JSON ({0}). Ask the AI to send only the JSON code block.",
   "Die App": "The app",
+  "Diese Seite konnte nicht geladen werden. Prüfe die Verbindung und versuche es noch einmal.": "This page could not be loaded. Check your connection and try again.",
+  "Neu laden": "Reload",
   "Die App erkennt die Sprache deines Browsers. Hier kannst du sie fest einstellen; die Seite lädt dann neu.": "The app detects your browser's language. You can set it here; the page then reloads.",
   "Die App in einer Minute": "The app in one minute",
   "Die Aufgaben entstehen aus Stellungen, in denen du danebengegriffen hast. Sobald Partien analysiert sind, steht hier jeden Tag eine Einheit. Eröffnungen und Endspiel-Grundlagen kannst du schon jetzt üben.": "The tasks come from positions where you went wrong. As soon as games are analysed, a session waits here every day. You can already practise openings and endgame basics now.",
