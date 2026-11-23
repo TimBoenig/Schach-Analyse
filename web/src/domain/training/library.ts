@@ -617,7 +617,7 @@ export const OPENING_LIBRARY: LibraryOpening[] = [
     lines: [
       {
         name: t("Gegen 150-Angriff"),
-        moves: "e4 g6 d4 Bg7 Nc3 d6 Be3 a6 Qd2 b5 f3 Nd7 Bd3 Ngf6",
+        moves: "e4 g6 d4 Bg7 Nc3 d6 Be3 a6 Qd2 b5 f3 Nd7 Bd3 Ngf6 Nge2 Bb7",
         plan: t("Weiß rochiert lang und stürmt, Schwarz kontert mit ...a6 und ...b5 am Damenflügel. Das Spiel wird scharf, aber die Pläne sind klar."),
       },
       {
