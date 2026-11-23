@@ -17,6 +17,8 @@ export type { Battle, BattleFactor, BattleRound, RoundDef, Side } from "./battle
 export { FACTOR_WEIGHTS, SKILL_FACTORS } from "./weights";
 export { buildCrosstable, crossHighlights, MIN_PAIR_GAMES } from "./crosstable";
 export type { CrossCell, CrossHighlight, CrossMember, Crosstable } from "./crosstable";
+export { callOf, CLEAR_BAND, duelOverview, EVEN_BAND } from "./duelCall";
+export type { DuelCall, DuelOverview } from "./duelCall";
 export { groupMomentum, MOMENTUM_WEEKS, TREND_DAYS } from "./momentum";
 export type { FormWeek, MomentumMember, MomentumRow } from "./momentum";
 export { groupRecords } from "./records";

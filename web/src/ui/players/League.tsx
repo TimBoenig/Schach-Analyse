@@ -75,12 +75,13 @@ import { trFilter } from "../../domain/i18n";
 import { useBulletPrefs } from "../useAnalysisPrefs";
 import { useNarrow } from "../useNarrow";
 import { formatOptionLabel } from "../useProfile";
+import { DuelHub, LeagueExplainer } from "./LeagueDuel";
 import { AnalyzeFriends, Avatar, de, formatFactor, half, pct0, PlayerFilters, plural, profileFor, RefreshAll, signed, toneOf, Who } from "./common";
 import { t, tj, lang, locale } from "../../i18n";
 
 export const LEAGUE_SECTIONS: StatSection[] = [
+  { id: "duelle", title: t("Duelle"), sub: t("Du gegen deine Freunde, Runde für Runde"), cards: [t("Kreuztabelle"), t("Auffällig"), t("Battle-Arena")] },
   { id: "liga", title: t("Liga"), sub: t("Stand, Turnierchancen und dein Weg nach oben"), cards: [t("Liga-Spur"), t("Was wäre wenn"), t("Tabelle"), t("Turnier"), t("Überholen")] },
-  { id: "duelle", title: t("Duelle"), sub: t("jeder gegen jeden"), cards: [t("Kreuztabelle"), t("Auffällig"), t("Battle-Arena")] },
   { id: "staerken", title: t("Stärken"), sub: t("wer wo vorn liegt und wer mehr aus dem eigenen Spiel macht"), cards: [t("Stärken-Matrix"), t("Spielqualität gegen Ergebnis"), t("Spielertypen")] },
   { id: "form", title: t("Form"), sub: t("wer gerade besser spielt"), cards: [t("Formkurve"), t("Formtabelle")] },
   { id: "rekorde", title: t("Rekorde"), sub: t("die Ruhmeshalle eurer Gruppe"), cards: [t("Ruhmeshalle")] },
@@ -251,7 +252,7 @@ function LeagueHero({ ranking, tones, tournament, sim, onSim }: { ranking: Ranki
           <h2 class="lg-hero-title">{title}</h2>
           <p class="lg-hero-sub">
             
-            {t("Spielstärke Elo {eloLabel} (95 %: {elo_low}–{elo_high}){n}{n2}", { eloLabel: eloLabel(lead.value), elo_low: lead.elo_low, elo_high: lead.elo_high, n: leader.odds ? t(" · zu {winPct} wirklich der Stärkste", { winPct: winPct(leader.odds.first) }) : "", n2: lw !== null ? t(" · gewinnt {winPct} der simulierten Turniere", { winPct: winPct(lw) }) : "" })}
+            {t("Spielstärke Elo {eloLabel} (geschätzt zwischen {elo_low} und {elo_high}){n}", { eloLabel: eloLabel(lead.value), elo_low: lead.elo_low, elo_high: lead.elo_high, n: lw !== null ? t(" · gewinnt {winPct} der simulierten Turniere", { winPct: winPct(lw) }) : "" })}
           </p>
           </div>
         </div>
@@ -1469,6 +1470,7 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
   const [error, setError] = useState("");
   const [sim, setSim] = useState<Sim>({});
   const [pair, setPair] = useState<[string, string] | null>(null);
+  const [foeId, setFoeId] = useState<string | null>(null);
   const allFriends = players.filter((p) => p.friend);
   const friends = rankedFriends(players);
   const { excludeBullet, ready } = useBulletPrefs();
@@ -1618,9 +1620,35 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
         </div>
       ) : (
         <>
+          <LeagueExplainer />
+          <DuelHub
+            ranking={ranking}
+            tones={tones}
+            h2hOf={h2hOf}
+            foeId={foeId}
+            onFoe={setFoeId}
+            onBattle={(mine, foe) => {
+              setPair([mine, foe]);
+              scrollToId("lg-battle");
+            }}
+          />
           <SectionJump sections={LEAGUE_SECTIONS} />
           <div class={`dash${loading ? " busy" : ""}`}>
             <Section section={LEAGUE_SECTIONS[0]} defaultOpen>
+              <CrosstableCard
+                cross={cross}
+                tones={tones}
+                forecast={forecast}
+                onPick={(a, b) => {
+                  setPair([a, b]);
+                  scrollToId("lg-battle");
+                }}
+              />
+              <HighlightsCard cross={cross} tones={tones} />
+              <BattleArena ranking={ranking} h2hOf={h2hOf} tones={tones} pair={pair} onPair={setPair} />
+            </Section>
+
+            <Section section={LEAGUE_SECTIONS[1]} defaultOpen>
               {/* The table is what a phone visit is for, so it comes first there. */}
               {narrow && <Standings ranking={ranking} tones={tones} types={view.types} />}
               <LeagueHero ranking={ranking} tones={tones} tournament={view.tournament} sim={sim} onSim={setSim} />
@@ -1633,20 +1661,6 @@ export function LeaguePage({ players, games, me }: { players: TrackedPlayer[]; g
                   scrollToId("lg-hero");
                 }}
               />
-            </Section>
-
-            <Section section={LEAGUE_SECTIONS[1]}>
-              <CrosstableCard
-                cross={cross}
-                tones={tones}
-                forecast={forecast}
-                onPick={(a, b) => {
-                  setPair([a, b]);
-                  scrollToId("lg-battle");
-                }}
-              />
-              <HighlightsCard cross={cross} tones={tones} />
-              <BattleArena ranking={ranking} h2hOf={h2hOf} tones={tones} pair={pair} onPair={setPair} />
             </Section>
 
             <Section section={LEAGUE_SECTIONS[2]}>

@@ -3002,3 +3002,76 @@ div.lg-fame-card {
   opacity: 0.55;
   text-decoration: underline dotted;
 }
+
+/* ---------- league: explainer and duel with a friend (2026-11) ---------- */
+.lg-intro {
+  margin: 0 0 12px;
+  padding: 2px 2px 0;
+}
+.lg-intro strong {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-2, var(--text));
+}
+.lg-intro p {
+  margin: 4px 0 0;
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-2, inherit);
+}
+.duel-hub {
+  margin: 0 0 18px;
+  padding: 18px;
+}
+.duel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.duel-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+}
+.duel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.duel-vs-mark {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3, var(--text-2, inherit));
+}
+.duel-call {
+  margin: 12px 0 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.duel-note {
+  margin: 6px 0 0;
+  max-width: 70ch;
+}
+.duel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+@media (max-width: 640px) {
+  .duel-hub {
+    padding: 14px;
+  }
+  .duel-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}
