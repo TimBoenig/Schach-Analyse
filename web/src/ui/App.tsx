@@ -28,6 +28,7 @@ import { StudioRoute } from "./studio/StudioRoute";
 import { startSeenSync } from "./stage/seenSync";
 import { currentShow, markSeen, onSeenChange, openStage, takeAuto, wasSeen } from "./stage/store";
 import { TrainingView } from "./TrainingView";
+import { TrophiesView } from "./trophies/TrophiesView";
 import { useRoute, navigate, type Route } from "./router";
 import { t } from "../i18n";
 
@@ -200,6 +201,7 @@ export function App() {
             {route.view === "board" && <FreeBoardView key={route.fen ?? ""} fen={route.fen} />}
             {route.view === "profile" && <ProfileView />}
             {route.view === "players" && <PlayersView key={route.playerId ?? route.tab ?? ""} playerId={route.playerId} tab={route.tab} />}
+            {route.view === "trophies" && <TrophiesView key={route.playerId ?? ""} playerId={route.playerId} />}
             {route.view === "insights" && <InsightsView />}
             {route.view === "openings" && <OpeningsView />}
             {route.view === "moves" && <MovesView />}
