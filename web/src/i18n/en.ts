@@ -4620,4 +4620,5 @@ export const EN: Record<string, string> = {
   "Ein weiterer Fehler: {move_label}.": "Another mistake: {move_label}.",
   "Fehler {i} von {n}": "Mistake {i} of {n}",
   "Drohung des Gegners": "Opponent's threat",
+  "Die Trophäen konnten nicht berechnet werden.": "The trophies could not be calculated.",
 };
