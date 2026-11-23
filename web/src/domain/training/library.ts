@@ -938,3 +938,34 @@ export const LIBRARY_DRILLS: RepertoireExercise[] = OPENING_LIBRARY.flatMap((o) 
     plan: l.plan,
   })),
 );
+
+/**
+ * One test round for a library line: the opponent picks randomly among the
+ * replies that the opening's variation tree knows at that point, so the player
+ * learns to meet every branch instead of one memorised sequence. The player's own
+ * moves follow the drilled line as long as it stays in the tree and otherwise
+ * the book move of the branch the opponent chose.
+ */
+export function variedLine(openingKey: string, lineIndex: number, rng: () => number = Math.random): string[] {
+  const o = OPENING_LIBRARY.find((x) => x.key === openingKey);
+  const primary = o?.lines[lineIndex]?.moves.split(" ");
+  if (!o || !primary) return [];
+  const white = o.color === "white";
+  const all = o.lines.map((l) => l.moves.split(" "));
+  const path: string[] = [];
+  let candidates = all;
+  for (let i = 0; ; i++) {
+    const alive = candidates.filter((l) => l.length > i);
+    if (!alive.length) break;
+    let move: string;
+    if ((i % 2 === 0) === white) {
+      move = alive.some((l) => l[i] === primary[i]) ? primary[i] : alive[0][i];
+    } else {
+      const replies = [...new Set(alive.map((l) => l[i]))];
+      move = replies[Math.min(replies.length - 1, Math.floor(rng() * replies.length))];
+    }
+    path.push(move);
+    candidates = alive.filter((l) => l[i] === move);
+  }
+  return path;
+}

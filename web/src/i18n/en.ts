@@ -4828,4 +4828,5 @@ export const EN: Record<string, string> = {
   "Gegen 3...d5": "Against 3...d5",
   "Weiß setzt mit Da4 sofort unter Druck. Schwarz hält mit ...f6 die Mitte und spielt auf schnellen Ausgleich. Die Zugfolge ist wichtig, weil Weiß sonst den Bauern d5 nicht festhalten kann.": "White puts pressure on at once with Qa4. Black holds the centre with ...f6 and plays for a quick equaliser. The move order is important because White otherwise cannot hold the d5 pawn.",
   "Mit c3 bereitet Weiß d4 vor. Selten gespielt, deshalb haben Gegner oft wenig Wissen, und Weiß bekommt ein gutes Zentrum.": "With c3 White prepares d4. Rarely played, so opponents often have little knowledge and White gets a good centre.",
+  "Abfrage mit Varianten: Der Gegner antwortet zufällig mit einer Variante dieser Eröffnung.": "Variation quiz: the opponent replies with a random variation of this opening.",
 };
