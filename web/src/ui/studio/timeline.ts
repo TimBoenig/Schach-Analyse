@@ -228,6 +228,11 @@ function moveLabel(m: Move, fenBefore: string): string {
 }
 
 const MOVE = 0.85;
+/**
+ * The reel look cuts on a 90 BPM beat: in the reference clip every hard cut lands on a multiple of
+ * 20 frames (0.667 s), so every scene of the reel view lasts a whole number of beats.
+ */
+export const REEL_BEAT = 2 / 3;
 const GAP = 0.3;
 const CARD_FADE = 0.45;
 
@@ -273,7 +278,9 @@ export function compile(project: StudioProject): Timeline {
     const sceneTempo = Math.max(0.3, s.tempo || 1);
     const moveDur = MOVE / tempo / sceneTempo;
     const slowmo = s.effects.includes("slowmo");
-    const lead = index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
+    const reel = project.style.view === "reel";
+    // Reel: the move starts right after the cut, no waiting for the camera.
+    const lead = reel ? (jumpOut.length || jumpIn.size ? 0.25 : 0.08) : index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
     const steps: Step[] = [];
     let at = lead;
     const chess = new Chess(pos.before);
@@ -321,15 +328,16 @@ export function compile(project: StudioProject): Timeline {
     const fxAt = lastStep ? lastStep.t1 : lead;
     // Effects need their moment on screen; the speaker's text needs time to be said.
     // The reel look cuts on the beat: nothing stays on screen longer than it needs.
-    const reel = project.style.view === "reel";
-    const fxTime = s.effects.includes("mate") ? 2.2 : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.5 : 0.8) : 0;
+    const fxTime = s.effects.includes("mate") ? (reel ? 2.0 : 2.2) : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
     const minimum = Math.max(
-      annotate + (s.arrows.length || s.marks.length ? (reel ? 0.8 : 1.4) : reel ? 0.45 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
+      annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
       fxAt + fxTime,
       spoken,
     );
-    const dur = Math.max(s.duration / speed, minimum);
+    const wanted = Math.max(s.duration / speed, minimum);
+    // Reel: round up to whole beats so every cut lands on the beat.
+    const dur = reel ? Math.max(1, Math.ceil(wanted / REEL_BEAT - 1e-6)) * REEL_BEAT : wanted;
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
     let mate: CompiledScene["mate"] = null;
     if (s.effects.includes("mate")) {
@@ -490,7 +498,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     const [x, z] = squareXZ(sq);
     pieces.push({ id: p.id, type: p.type, color: p.color, x, y: 0, z, scale: 1, alpha: 1, ...extra });
   };
-  const fade = clamp01(local / 0.55);
+  const fade = clamp01(local / (project.style.view === "reel" ? 0.15 : 0.55));
   for (const p of c.jumpOut) if (fade < 1) place(p, p.square, { alpha: 1 - fade, scale: 1 - 0.25 * fade });
   const squares = new Map<number, string>(c.before.map((p) => [p.id, p.square]));
   const gone = new Set<number>();

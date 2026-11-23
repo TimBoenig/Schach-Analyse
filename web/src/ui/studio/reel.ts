@@ -49,7 +49,9 @@ const backOut = (k: number) => {
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 
 /** Camera roll per scene in degrees: each cut leans the other way, like a hand-held shot. */
-export const ROLLS = [-11, 8, -6, 13, -9, 5];
+export const ROLLS = [-14, 9, -21, 16, -7, 19];
+/** How close each cut of a four-shot cycle is (0 = whole board, 1 = two squares): wide, medium, wide-ish, one close hit. The reference never stays close for long. */
+export const SHOT_SIZES = [0.4, 0.7, 0.5, 0.95];
 /** Which pieces grow and flip when they move: the heavy ones, never pawns. */
 const WEIGHT: Record<PieceSymbol, number> = { p: 0.25, n: 0.8, b: 0.6, r: 0.6, q: 1, k: 0.4 };
 
@@ -87,9 +89,8 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
 
   // How close the shot is: 0 = the whole tilted board, 1 = two or three squares.
-  let cl = clamp01(0.75 + (1 - s.zoom) * 0.8);
-  if (s.focus) cl += 0.15;
-  if (fx("spotlight") !== undefined) cl += 0.1;
+  let cl = SHOT_SIZES[frame.index % SHOT_SIZES.length] + (1 - s.zoom) * 0.5;
+  if (fx("spotlight") !== undefined) cl += 0.05;
   if (s.card !== "none") cl = 0.08;
   cl = clamp01(cl);
   let S = Math.exp(lerp(Math.log(wide), Math.log(close), cl));
@@ -103,16 +104,17 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   }
   if (reach > 0) S = Math.min(S, (0.72 * m) / (reach + 1.6));
   // Cuts alternate between punching in from too close and pushing in from too far.
-  const start = frame.index % 2 === 0 ? 1.9 : 0.5;
-  S *= 1 + (start - 1) * Math.exp(-age / 0.16);
-  S *= 1 + 0.09 * age;
+  // A cut is a hard cut: the new shot stands at once, only a very quick settle (the reference has no zoom ramp longer than ~0.1 s) and a slight drift.
+  const start = frame.index % 2 === 0 ? 1.12 : 0.9;
+  S *= 1 + (start - 1) * Math.exp(-age / 0.08);
+  S *= 1 + 0.03 * age;
   const zoomAge = fx("zoom");
-  if (zoomAge !== undefined) S *= 1 + 0.7 * easeOut(zoomAge / 0.2);
+  if (zoomAge !== undefined) S *= 1 + 0.5 * easeOut(zoomAge / 0.1);
   // Every landing kicks the picture a little.
-  if (frame.landing) S *= 1 + 0.14 * Math.exp(-frame.landing.k * 8);
+  if (frame.landing) S *= 1 + 0.07 * Math.exp(-frame.landing.k * 8);
 
   const sign = ROLLS[frame.index % ROLLS.length] < 0 ? -1 : 1;
-  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 1.4) * age + sign * 12 * Math.exp(-age / 0.14)) * Math.PI) / 180;
+  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 2.5) * age + sign * 5 * Math.exp(-age / 0.1)) * Math.PI) / 180;
 
   // The camera flies from the piece's square to the one it lands on.
   let tx = 0;
@@ -149,7 +151,8 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const shakeY = shake * u * Math.cos(age * 63);
 
   // White strobe on every cut, a big one on the "flash" effect and the mating blow.
-  let flash = frame.index > 0 ? 0.5 * Math.exp(-age / 0.07) : 0;
+  // Every cut strobes: four to five frames (0.13 s) of near-white, then gone within two frames, as in the reference (frame brightness 220-235 of 255).
+  let flash = frame.index > 0 ? 0.9 * (1 - clamp01((age - 0.13) / 0.05)) : 0;
   const fl = fx("flash");
   if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * (1 - fl / 0.45) ** 2);
   if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.85 * (1 - mate / 0.25));
