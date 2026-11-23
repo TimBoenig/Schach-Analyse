@@ -1,3 +1,4 @@
+import type { FunctionComponent } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
 import { exportData, type ExportKind, restoreBackup } from "../app/exporter";
@@ -15,18 +16,19 @@ import { IconCloud, IconInfo, IconPalette, IconProfile, IconGlobe } from "./icon
 import { Coach, COACH_NAME, resetTips } from "./Coach";
 import { resetSeen } from "./stage/store";
 import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
+import { clearAdmin } from "../app/adminApi";
 import { onPhone, PHONE_SCALES, type PhoneScale, readPhoneScale, setPhoneScale } from "./phoneScale";
 import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
 import { t } from "../i18n";
 
 /**
- * "About" card. Holds the hidden way into the video studio: tapping the
- * heading seven times in a row unlocks it on this device. Not a security
- * measure (the studio shows no private data), just out of normal users' way.
+ * "About" card. Holds the hidden way into the admin area (dashboard and video
+ * studio): tapping the heading seven times in a row shows the entries on this
+ * device. That only keeps them out of normal users' way; the data and the
+ * studio are protected by the admin password, checked on the server.
  */
-function AboutCard() {
-  const [unlocked, setUnlocked] = useState(studioUnlocked);
+function AboutCard({ unlocked, setUnlocked }: { unlocked: boolean; setUnlocked: (on: boolean) => void }) {
   const taps = useRef<number[]>([]);
   const tap = () => {
     const now = Date.now();
@@ -55,6 +57,7 @@ function AboutCard() {
             class="btn ghost"
             onClick={() => {
               setStudioUnlocked(false);
+              clearAdmin();
               setUnlocked(false);
             }}
           >
@@ -63,6 +66,23 @@ function AboutCard() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Admin dashboard: the code and numbers load only after the password was accepted. */
+function AdminCard() {
+  const [Panel, setPanel] = useState<FunctionComponent | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    Promise.all([import("./admin/AdminPanel"), import("./admin/admin.css")])
+      .then(([m]) => setPanel(() => m.AdminPanel))
+      .catch(() => setFailed(true));
+  }, []);
+  return (
+    <div class="card settings-card admin-card">
+      <SettingsHead icon={<IconInfo />} title={t("Admin-Dashboard")} sub={t("Nutzung und Aktivität auf einen Blick. Nur für dich, mit Passwort.")} />
+      {failed ? <p class="small error">{t("Das Dashboard konnte nicht geladen werden. Bist du offline?")}</p> : Panel ? <Panel /> : <p class="small muted">{t("Lädt …")}</p>}
     </div>
   );
 }
@@ -270,6 +290,7 @@ function BackupCard() {
 export function SettingsView({ tab }: { tab?: SettingsTab }) {
   const [names, setNames] = useState("");
   const [saved, setSaved] = useState(false);
+  const [adminShown, setAdminShown] = useState(studioUnlocked);
 
   useEffect(() => {
     void getSetting<string[]>("usernames", []).then((u) => setNames(u.join(", ")));
@@ -327,7 +348,8 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
         <LanguageCard />
         <AppearanceCard />
         <AccountCard />
-        <AboutCard />
+        <AboutCard unlocked={adminShown} setUnlocked={setAdminShown} />
+        {adminShown && <AdminCard />}
       </div>
     </div>
   );

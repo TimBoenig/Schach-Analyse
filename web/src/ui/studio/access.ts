@@ -1,5 +1,7 @@
-// Whether the hidden video studio is unlocked on this device. Its own tiny
-// module, so the settings page does not pull the studio code into the app.
+// Whether the hidden admin entries (dashboard, video studio) are shown in
+// settings on this device. This is only a way to keep them out of the way: the
+// password is what protects them (app/adminApi.ts, checked on the server).
+// Its own tiny module, so the settings page does not pull the studio code in.
 const UNLOCK_KEY = "schach.studio.unlocked";
 
 /** Taps on the "About" heading in settings that open the hidden studio. */

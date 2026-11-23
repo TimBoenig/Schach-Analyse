@@ -34,6 +34,7 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,json,wasm,txt,woff2}"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/api\//],
         // The engine's neural network (76 MB) is not downloaded with the app shell
         // but on the first analysis; from then on it is served from this cache,
         // also offline. Its address carries the network's name (see engine/uci.ts).
