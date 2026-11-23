@@ -91,11 +91,23 @@ export interface DayCount {
   n: number;
 }
 
+export interface WeekCount {
+  week: string;
+  n: number;
+}
+
+export interface HourCount {
+  h: number;
+  n: number;
+}
+
 /** Aggregated numbers only, as returned by the SQL function admin_stats(). */
 export interface AdminStats {
   generatedAt: number;
-  users: { total: number; confirmed: number; signups1d: number; signups7d: number; signups30d: number; signupsByDay: DayCount[] };
-  activity: { active1d: number; active7d: number; active30d: number; oldUsers: number; oldUsersActive7d: number; activeByDay: DayCount[] };
+  users: { total: number; confirmed: number; signups1d: number; signups7d: number; signups30d: number; signupsByDay: DayCount[]; signupsByWeek?: WeekCount[] };
+  activity: { active1d: number; active7d: number; active30d: number; oldUsers: number; oldUsersActive7d: number; activeByDay: DayCount[]; byHour?: HourCount[] };
+  /** Only present once migration 20261123b_admin_stats_v2.sql is applied. */
+  retention?: { cohort: number; back1d: number; back7d: number };
   funnel: { signedUp: number; synced: number; analysed: number; analysedMany: number };
   games: {
     total: number;
