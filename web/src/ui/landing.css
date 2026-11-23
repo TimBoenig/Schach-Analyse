@@ -832,12 +832,19 @@
 .ld-cmp td.us {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
-.ld-cmp tbody tr:last-child td.us {
+.ld-cmp tbody:last-of-type tr:last-child td.us {
   border-radius: 0 0 12px 12px;
 }
 .ld-cmp thead th.us {
   border-radius: 12px 12px 0 0;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.ld-cmp tbody .ld-cmp-group th {
+  padding: 22px 0 8px;
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
 }
 .ld-cmp-yes,
 .ld-cmp-no {
