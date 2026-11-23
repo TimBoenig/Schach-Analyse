@@ -1,0 +1,1309 @@
+/* ==========================================================================
+   Phone layer, part two (2026-11): compact pages. Menus, the game page and
+   everything that used to fill whole screens. Loaded after every Nova file.
+   ========================================================================== */
+
+/* ---------- three-dot menu (all widths) ---------- */
+
+.more-menu {
+  position: relative;
+  flex: none;
+}
+.more-btn.on {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.more-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  min-width: 214px;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  box-shadow: var(--shadow-pop);
+}
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.more-item:hover:not(:disabled),
+.more-item:active:not(:disabled) {
+  background: var(--surface-3);
+}
+.more-item:disabled {
+  opacity: 0.4;
+}
+.more-item.divider {
+  margin-top: 5px;
+  box-shadow: 0 -6px 0 -5px var(--border);
+}
+.more-item.danger {
+  color: var(--loss);
+}
+.more-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  flex: none;
+  color: var(--text-2);
+}
+.more-item.danger .more-icon {
+  color: inherit;
+}
+.more-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.more-label {
+  flex: 1;
+  min-width: 0;
+}
+.more-tick {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+.more-tick.on {
+  background: var(--cta) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   Game page (AnalysisView, phone markup)
+   ========================================================================== */
+
+.flip-x {
+  display: inline-grid;
+  transform: scaleX(-1);
+}
+
+.an-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: -6px -6px 4px;
+}
+.an-bar .btn.icon {
+  width: 40px;
+  min-height: 40px;
+}
+.an-bar-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-left: 2px;
+}
+.an-bar-title .an-result {
+  align-self: flex-start;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.an-bar-sub {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-lupe.on {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* The board comes first: names sit on the board's edge, one thin line each. */
+.an-page.phone .analysis {
+  gap: 8px;
+}
+.an-page.phone .board-area {
+  row-gap: 4px;
+}
+.an-page.phone .player-line {
+  min-height: 22px;
+  font-size: 13.5px;
+}
+.an-page.phone .player-line .side-dot {
+  width: 10px;
+  height: 10px;
+}
+.an-page.phone .player-meta .pill {
+  padding: 1px 7px;
+  font-size: 11.5px;
+}
+
+.pc-controls {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: 1fr minmax(96px, auto) 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.pc-step {
+  width: 100%;
+  min-height: 46px;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.pc-step svg {
+  width: 22px;
+  height: 22px;
+}
+.pc-pos {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+}
+.an-page.phone .move-strip {
+  padding: 2px;
+}
+.an-page.phone .move-strip button {
+  min-height: 32px;
+  padding: 4px 7px;
+  font-size: 13.5px;
+}
+
+.an-page.phone .side-panel {
+  gap: 8px;
+}
+.an-page.phone .opening-line {
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.an-page.phone .an-card {
+  padding: 12px;
+}
+.an-page.phone .an-verdict {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+}
+.an-page.phone .an-verdict-head {
+  margin-bottom: 3px;
+}
+.an-page.phone .an-verdict-head strong {
+  font-size: 14.5px;
+}
+.an-page.phone .an-verdict-body {
+  font-size: 13.5px;
+  gap: 4px;
+}
+.an-page.phone .engine-lines {
+  margin-top: 6px;
+}
+.engine-switches.slim {
+  margin: 0 0 2px;
+}
+.an-intro-lite {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.an-intro-lite .an-intro-text {
+  flex: 1;
+  gap: 2px;
+}
+.an-intro-lite .an-intro-text strong {
+  font-size: 14px;
+  line-height: 1.3;
+}
+.an-intro-lite .an-intro-text .faint {
+  font-size: 12px;
+}
+.an-intro-lite > svg {
+  width: 18px;
+  flex: none;
+  color: var(--text-3);
+}
+.an-page.phone .an-intro {
+  margin-bottom: 6px;
+  gap: 0;
+}
+.an-page.phone .an-intro-hint {
+  display: none;
+}
+.rp-grade.tiny {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  flex: none;
+}
+.rp-grade.tiny strong {
+  font-size: 19px;
+}
+.rp-grade.tiny .rp-grade-label,
+.rp-grade.tiny .rp-grade-word {
+  display: none;
+}
+
+/* The line of winning chance is a picture on a phone: no scrubbing, so the page scrolls freely over it. */
+.eval-graph-wrap.ro {
+  padding: 5px;
+}
+.eval-graph-wrap.ro .eval-graph {
+  height: 64px;
+  cursor: default;
+  touch-action: pan-y;
+}
+.eval-graph-wrap.ro .eg-legend {
+  display: none;
+}
+.an-list {
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.an-list > summary {
+  padding: 12px 14px;
+  color: var(--text-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.an-list > summary::-webkit-details-marker {
+  display: none;
+}
+.an-list > summary::after {
+  content: "›";
+  float: right;
+  color: var(--text-3);
+  transform: rotate(90deg);
+}
+.an-list[open] > summary::after {
+  transform: rotate(-90deg);
+}
+.an-list .movelist {
+  max-height: 260px;
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+/* ---------- report on a phone (PhoneReport) ---------- */
+
+.pr {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pr-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+.pr-chips::-webkit-scrollbar {
+  display: none;
+}
+.pr-chips button {
+  flex: none;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+}
+.pr-chips button.on {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+}
+.pr-body {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.pr-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pr-sum-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.pr-sum-top .rp-grade {
+  width: 58px;
+  height: 58px;
+  border-radius: 15px;
+}
+.pr-sum-top .rp-grade strong {
+  font-size: 22px;
+}
+.pr-sum-top .rp-grade .rp-grade-label {
+  display: none;
+}
+.pr-sum-top .rp-grade .rp-grade-word {
+  margin-top: 1px;
+  font-size: 9.5px;
+}
+.pr-sum-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pr-sum-text strong {
+  font-size: 14.5px;
+  font-weight: 650;
+  line-height: 1.3;
+}
+.pr-sum-text .faint {
+  font-size: 12px;
+}
+.pr .rp-standing {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.pr-duel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pr-duel > div {
+  display: grid;
+  grid-template-columns: minmax(0, 84px) minmax(0, 1fr) 46px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.pr-duel > div > span {
+  overflow: hidden;
+  color: var(--text-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-duel > .me > span {
+  color: var(--text);
+  font-weight: 600;
+}
+.pr-duel b {
+  text-align: right;
+  font-size: 12.5px;
+}
+.pr-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+.pr-tile {
+  --tone: var(--text-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 7px 2px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 11%, var(--surface-2));
+}
+.pr-tile.good {
+  --tone: var(--win);
+}
+.pr-tile.warn {
+  --tone: var(--warn);
+}
+.pr-tile.bad {
+  --tone: var(--loss);
+}
+.pr-tile b {
+  color: var(--tone);
+  font-size: 18px;
+  line-height: 1.1;
+}
+.pr-tile.zero b {
+  color: var(--text-3);
+}
+.pr-tile span {
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pr-note {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.pr-course {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pr-course .wc {
+  width: 100%;
+}
+.pr-course .wc svg {
+  touch-action: pan-y;
+}
+
+/* Moments: swipe the cards, the board follows. */
+.pr-moments {
+  margin: -4px -12px -4px;
+}
+.pr-moments-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px 4px 12px;
+}
+.pr-count {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+}
+.pr-moments-hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding-left: 6px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 12px 6px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.pr-strip::-webkit-scrollbar {
+  display: none;
+}
+.pr-card {
+  --tone: var(--text-3);
+  flex: 0 0 84%;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 8%, var(--surface-2));
+  box-shadow: inset 3px 0 0 var(--tone);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  scroll-snap-align: center;
+}
+.pr-card.on {
+  background: color-mix(in srgb, var(--tone) 15%, var(--surface-2));
+}
+.pr-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pr-card-top strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 14.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-swing {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 650;
+}
+.pr-swing svg {
+  width: 12px;
+  height: 12px;
+}
+.pr-swing.up {
+  color: var(--win);
+}
+.pr-swing.down {
+  color: var(--loss);
+}
+.pr-card-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.4;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.pr-card-best {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.pr-end .fd-list {
+  margin: 0 0 8px;
+}
+.pr-end .rp-details {
+  margin-top: 10px;
+}
+.pr .rp-phases {
+  gap: 10px;
+}
+.an-page.phone .engine-line,
+.an-page.phone button.engine-line {
+  padding: 3px 6px;
+  font-size: 12.5px;
+}
+.an-page.phone .engine-line .ev {
+  min-width: 46px;
+  padding: 2px 6px;
+  font-size: 12.5px;
+}
+
+/* ==========================================================================
+   Folds and the start page (phone markup)
+   ========================================================================== */
+
+.fold {
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.fold-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 54px;
+  padding: 8px 12px 8px 16px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+.fold-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.fold-text strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.fold-text small {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fold-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--text-3);
+  transition: transform 0.2s;
+}
+.fold-icon svg {
+  width: 16px;
+  height: 16px;
+}
+.fold.open .fold-icon {
+  transform: rotate(90deg);
+}
+.fold-body {
+  padding: 0 8px 8px;
+}
+.fold-body > .card,
+.fold-body .ph-stack > .card {
+  box-shadow: none;
+  background: var(--surface-2);
+}
+
+.ph-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.phone-home .ph-stack > .card,
+.phone-home .fold-body .card {
+  grid-column: auto;
+  margin: 0;
+}
+.phone-home .ph-stack .card {
+  padding: 14px;
+}
+.ph-today {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ph-today-say {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ph-today-say p {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.ph-today-say .eyebrow {
+  font-size: 10px;
+}
+.ph-today-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+.ph-today-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.ph-today-text strong {
+  font-size: 14px;
+}
+.ph-today-text small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.ph-today-row .btn {
+  flex: none;
+}
+.ph-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ph-form-top {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ph-rating {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.ph-rating-num {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.ph-rating-num strong {
+  font-size: 34px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+.ph-ribbon {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.ph-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.ph-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.ph-kpi span {
+  overflow: hidden;
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ph-kpi b {
+  font-size: 16px;
+}
+.ph-kpi small {
+  font-size: 11px;
+}
+.ph-recent {
+  padding-bottom: 6px !important;
+}
+.ph-recent-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.ph-recent-head h3 {
+  margin: 0;
+}
+.ph-recent .recent-item {
+  padding-block: 7px;
+}
+.ph .ph-row {
+  gap: 4px;
+}
+
+/* ---------- players list (phone) ---------- */
+
+.more-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+}
+.more-custom .btn,
+.more-custom .refresh-all {
+  width: 100%;
+}
+.more-custom .btn {
+  justify-content: flex-start;
+}
+.players-hero.compact {
+  padding: 10px 10px 10px 14px;
+}
+.ph-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ph-line-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 14px;
+}
+.ph-line-text small {
+  color: var(--text-3);
+  font-size: 12px;
+}
+@media (max-width: 640px) {
+  .players-section .section-head {
+    margin: 12px 2px 6px;
+  }
+  .player-grid {
+    gap: 8px;
+  }
+  .player-card {
+    gap: 6px;
+    padding: 12px !important;
+  }
+  .player-card .pl-avatar.lg,
+  .player-card .pl-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+  .player-card-head {
+    gap: 10px;
+  }
+  .player-card-name strong {
+    font-size: 15px;
+  }
+  .player-card-name .faint {
+    font-size: 11.5px;
+  }
+  .player-card-stats {
+    gap: 12px;
+    font-size: 13px;
+  }
+  .player-card > .faint.small {
+    display: none;
+  }
+}
+
+/* ==========================================================================
+   Statistics and every card page on a phone: smaller cards, shorter heads
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .dash {
+    gap: 10px;
+  }
+  .card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+  .card-head {
+    margin-bottom: 8px;
+  }
+  .card h3 {
+    font-size: 15px;
+  }
+  /* The one-line description under a card title is a hint, not a paragraph. */
+  .card-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 11.5px;
+    line-height: 1.35;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .section-toggle {
+    min-height: 52px;
+    padding: 8px 10px 8px 16px;
+  }
+  .section-fold .section-toggle h2 {
+    font-size: 16.5px;
+  }
+  .section-fold.open .section-toggle {
+    min-height: 44px;
+  }
+  .section-fold.open .section-toggle h2 {
+    font-size: 19px;
+  }
+  .section-toggle .tile-sub {
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .section-toggle-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Profile summary: the four figures as a two by two grid, the sentence cut to three lines. */
+  .pf-hero {
+    padding: 14px;
+    gap: 12px;
+  }
+  .pf-hero-title {
+    font-size: 22px;
+  }
+  .pf-hero-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+  }
+  .pf-stats {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 14px 0;
+    padding-top: 12px;
+  }
+  .pf-stats .stat {
+    padding: 0 0 0 12px;
+    border-left: 1px solid var(--border);
+  }
+  .pf-stats .stat:nth-child(odd) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .pf-stats .stat-value {
+    font-size: 26px;
+  }
+  .pf-stats .stat-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 11px;
+    line-height: 1.35;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .pf-stats .stat-chips {
+    display: none;
+  }
+  /* Bars with a note: the note stays one line. */
+  .bar-note {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bar-row {
+    padding-block: 5px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* The page heroes (kit Hero): a headline and one short sentence. */
+  .card.lg-hero,
+  .lg-hero {
+    padding: 14px;
+  }
+  .lg-hero-title {
+    font-size: 21px;
+    line-height: 1.15;
+  }
+  .lg-hero-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    line-height: 1.45;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .stat-value {
+    font-size: 26px;
+  }
+}
+@media (max-width: 640px) {
+  .pf-stats .stat:nth-child(-n + 2) {
+    grid-column: auto;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .pf-stats .stat:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+@media (max-width: 640px) {
+  .pf-stats .stat:nth-child(2) {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+@media (max-width: 640px) {
+  .mv-title,
+  .td-title {
+    font-size: 21px;
+  }
+  .mv-sub {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 13px;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* ---------- info marks instead of explanation texts (phone) ---------- */
+
+@media (max-width: 640px) {
+  .card-head .card-sub {
+    display: none;
+  }
+  .card-head .card-sub[data-open] {
+    display: block;
+    margin-top: 4px;
+    -webkit-line-clamp: unset;
+  }
+  .card-head h3:has(+ .card-sub) {
+    cursor: pointer;
+  }
+  .card-head h3:has(+ .card-sub)::after {
+    content: "i";
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 7px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1.3px var(--text-3);
+    color: var(--text-3);
+    font-size: 10.5px;
+    font-style: italic;
+    font-weight: 700;
+    line-height: 1;
+    vertical-align: 1px;
+  }
+  .card-head h3:has(+ .card-sub[data-open])::after {
+    color: var(--accent);
+    box-shadow: inset 0 0 0 1.3px var(--accent);
+  }
+
+  /* Lucena's button: orb and a word, easy to hit. */
+  .guide-btn {
+    width: auto;
+    gap: 6px;
+    padding: 0 11px 0 8px;
+    border-radius: 999px;
+    background: var(--ai-soft);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ai-a) 45%, transparent);
+    color: var(--text);
+  }
+  .guide-btn-text {
+    display: inline;
+    font-size: 12.5px;
+    font-weight: 650;
+  }
+}
+
+/* ---------- game page, second pass: the board is the page ---------- */
+
+.pc-controls {
+  grid-template-columns: 1fr 0.62fr 1fr;
+}
+.pc-lupe {
+  width: 100%;
+  min-height: 46px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.pc-lupe.on {
+  background: var(--cta);
+  color: #fff;
+}
+.pc-lupe svg {
+  width: 21px;
+  height: 21px;
+}
+.an-page.phone .strip-row {
+  display: none;
+}
+/* With the sheet open the board shrinks a little, so the sheet gets room. */
+.an-page.phone.sheet .board-area {
+  max-width: min(100%, 318px);
+  margin-inline: auto;
+}
+.an-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone, var(--text-3)) 10%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--tone, var(--border-strong));
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.an-banner-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-banner > svg {
+  width: 17px;
+  flex: none;
+  color: var(--text-3);
+}
+.pr-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pr-chips-row .pr-chips {
+  flex: 1;
+  min-width: 0;
+}
+.pr-close {
+  flex: none;
+}
+.pr-move > .opening-line {
+  margin-bottom: 8px;
+}
+.pr-move .card,
+.pr-list .eval-graph-wrap {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+.pr-list .eval-graph-wrap {
+  margin-bottom: 8px;
+}
+.pr-list .movelist {
+  max-height: 280px;
+}
+
+/* ---------- game page, third pass: a fixed page, no scrolling ---------- */
+
+@media (max-width: 640px) {
+  .main[data-view="analysis"] {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    padding-top: calc(6px + var(--safe-top));
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 8px);
+    overflow: hidden;
+  }
+  /* Imprint links under an analysis look out of place; they stay in the menu pages. */
+  .main[data-view="analysis"] .page-legal {
+    display: none;
+  }
+  .main[data-view="analysis"] > .an-page {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .an-page.phone .analysis {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+  }
+  /* Board in the middle, buttons at the bottom: the spare height goes to the two spacer rows. */
+  .an-page.phone .board-area {
+    position: static;
+    flex: 1;
+    grid-template-rows: 1fr auto auto auto 1fr auto auto;
+    width: 100%;
+    max-width: min(100%, calc(100dvh - 250px));
+    min-height: 0;
+    margin-inline: auto;
+  }
+  .an-page.phone .board-area > .player-line.pl-top {
+    grid-row: 2 !important;
+  }
+  .an-page.phone .board-area > .evalbar {
+    grid-row: 3 !important;
+  }
+  .an-page.phone .board-area > .board-fx-wrap {
+    grid-row: 3 !important;
+  }
+  .an-page.phone .board-area > .player-line.pl-bot {
+    grid-row: 4 !important;
+  }
+  .an-page.phone .board-area > .pc-banner {
+    grid-column: 2;
+    grid-row: 6;
+    align-self: end;
+    margin-bottom: 6px;
+  }
+  .an-page.phone .board-area > .pc-controls {
+    grid-row: 7 !important;
+  }
+  .an-page.phone.sheet .board-area {
+    flex: none;
+    grid-template-rows: auto auto auto auto 0 auto auto;
+    max-width: min(100%, 290px);
+  }
+  .an-page.phone .side-panel {
+    flex: none;
+  }
+  .an-page.phone.sheet .side-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* The report button is the way into the analysis, so it must read as one. */
+.pc-controls {
+  grid-template-columns: 1fr 1.7fr 1fr;
+}
+.pc-lupe {
+  gap: 8px;
+  background: var(--cta);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: 0.01em;
+}
+.pc-lupe svg {
+  width: 22px;
+  height: 22px;
+}
+.pc-lupe.on {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+}
+.pc-lupe:not(.on) {
+  animation: pc-lupe-pulse 2.6s ease-in-out infinite;
+}
+@keyframes pc-lupe-pulse {
+  0%,
+  100% {
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent), 0 0 0 0 color-mix(in srgb, var(--cta) 45%, transparent);
+  }
+  55% {
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--cta) 38%, transparent), 0 0 0 9px transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pc-lupe:not(.on) {
+    animation: none;
+  }
+}
+.pr-more {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}

@@ -115,8 +115,8 @@ export const AREAS: Area[] = [
     hint: t("Freunde, Gegner, Rangliste"),
     icon: IconPlayers,
     sub: [
-      { label: t("Gegner & Freunde"), about: "", route: { view: "players" }, match: is("players", (r) => r.tab !== "rangliste") },
       { label: t("Rangliste"), about: "", route: { view: "players", tab: "rangliste" }, match: is("players", (r) => r.tab === "rangliste") },
+      { label: t("Gegner & Freunde"), about: "", route: { view: "players" }, match: is("players", (r) => r.tab !== "rangliste") },
     ],
   },
   {
