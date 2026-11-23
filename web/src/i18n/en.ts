@@ -4680,4 +4680,5 @@ export const EN: Record<string, string> = {
   "{n} Züge": "{n} moves",
   "Plan dieser Variante: {plan}": "Plan of this variation: {plan}",
   "Pläne der Varianten": "Plans of the variations",
+  "Die Trophäen konnten nicht berechnet werden.": "The trophies could not be calculated.",
 };
