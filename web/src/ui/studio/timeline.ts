@@ -305,7 +305,7 @@ export function compile(project: StudioProject): Timeline {
       }
       // Knights jump in a higher arc and need a moment longer.
       // Slow motion stretches only the scene's last move, the one that matters.
-      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? 2.6 : 1);
+      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? (project.style.view === "reel" ? 1.8 : 2.6) : 1);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
@@ -320,10 +320,12 @@ export function compile(project: StudioProject): Timeline {
     const lastStep = steps[steps.length - 1];
     const fxAt = lastStep ? lastStep.t1 : lead;
     // Effects need their moment on screen; the speaker's text needs time to be said.
-    const fxTime = s.effects.includes("mate") ? 2.2 : s.effects.includes("confetti") ? 1.4 : s.effects.length ? 0.8 : 0;
+    // The reel look cuts on the beat: nothing stays on screen longer than it needs.
+    const reel = project.style.view === "reel";
+    const fxTime = s.effects.includes("mate") ? 2.2 : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.5 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
     const minimum = Math.max(
-      annotate + (s.arrows.length || s.marks.length ? 1.4 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
+      annotate + (s.arrows.length || s.marks.length ? (reel ? 0.8 : 1.4) : reel ? 0.45 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
       fxAt + fxTime,
       spoken,
     );
