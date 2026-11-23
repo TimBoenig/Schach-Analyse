@@ -192,7 +192,7 @@ export function App() {
       <div class="app">
         <Sidebar route={route} area={area} analysing={analysing} onNavigate={open} onSearch={() => setOverlay("palette")} onKeys={() => setOverlay("keys")} />
         <Dock area={area} analysing={analysing} onNavigate={open} />
-        <main class="main">
+        <main class="main" data-view={route.view}>
           <ErrorBoundary key={route.view}>
             {route.view === "home" && <HomeView />}
             {route.view === "games" && <GamesView openImport={Boolean(route.import)} />}
