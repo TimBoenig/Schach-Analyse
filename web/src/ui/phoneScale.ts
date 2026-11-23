@@ -28,7 +28,7 @@ const isPhone = () => Math.min(screen.width, screen.height) < 600;
 export function applyPhoneScale(pick: PhoneScale = readPhoneScale()): void {
   if (!isPhone()) return;
   const meta = document.querySelector('meta[name="viewport"]');
-  meta?.setAttribute("content", `width=device-width, initial-scale=${PHONE_SCALES[pick].scale}, viewport-fit=cover`);
+  meta?.setAttribute("content", `width=device-width, initial-scale=${PHONE_SCALES[pick].scale}, user-scalable=no, viewport-fit=cover`);
 }
 
 export function setPhoneScale(pick: PhoneScale): void {

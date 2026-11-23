@@ -7235,10 +7235,13 @@ button.line-move:hover {
   background: var(--accent);
 }
 
-/* A quick double tap on a button must press it twice, not zoom the page in
-   (iOS and Android treat a double tap as zoom unless told otherwise).
-   Pinch zoom stays available. */
-html,
+/* The page itself is never zoomed: no pinch, no double tap (touch), see also
+   app/noZoom.ts for the browsers that ignore this. Scrolling stays. Elements
+   that need other gestures (board, studio) set their own touch-action, which
+   can only narrow this further. */
+html {
+  touch-action: pan-x pan-y;
+}
 button,
 a,
 select,

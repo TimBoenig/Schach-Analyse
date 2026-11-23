@@ -7,12 +7,13 @@ const read = (p: string) => readFileSync(new URL(`../../${p}`, import.meta.url),
 // There is no DOM in the test run, so these guard the source of the behaviours
 // Tim asked for: they fail if someone brings the old behaviour back.
 describe("touch behaviour of the game page", () => {
-  it("a quick double tap on buttons does not zoom the page", () => {
+  it("the page cannot be zoomed on any device", () => {
     const css = read("src/ui/styles.css");
-    const rule = css.slice(css.lastIndexOf("html,\nbutton,"));
-    expect(rule).toMatch(/touch-action:\s*manipulation/);
-    expect(rule).toMatch(/\bbutton\b/);
-    expect(rule).toMatch(/\bhtml\b/);
+    expect(css).toMatch(/html \{\s*touch-action:\s*pan-x pan-y/);
+    expect(read("index.html")).toMatch(/maximum-scale=1, user-scalable=no/);
+    // The phone size setting rewrites the viewport and must keep the lock.
+    expect(read("src/ui/phoneScale.ts")).toContain("user-scalable=no");
+    expect(read("src/main.tsx")).toContain("blockZoom()");
   });
 
   it("the winning-chance charts are pictures: no tap or drag moves the game", () => {
