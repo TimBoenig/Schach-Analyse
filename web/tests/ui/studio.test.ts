@@ -27,7 +27,7 @@ import { duckedVolume, loopSeconds, synthLoop } from "../../src/ui/studio/music"
 import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
-import { reelCamera, reelSquareAt, ROLLS } from "../../src/ui/studio/reel";
+import { reelCamera, reelSquareAt } from "../../src/ui/studio/reel";
 import { REEL_BEAT } from "../../src/ui/studio/timeline";
 import { setLangNow } from "../../src/i18n";
 import { EN } from "../../src/i18n/en";
@@ -753,29 +753,52 @@ describe("reel look", () => {
     expect(normalizeProject(JSON.parse(JSON.stringify(project))).style.view).toBe("reel");
   });
 
-  it("cuts: each scene leans another way, flashes on entry, and shakes on the mating blow", () => {
-    const starts = tl.scenes.map((c) => c.start);
-    const cams = starts.map((tk) => reelCamera(frameAt(tl, project, tk + 0.01)!, 1080, 1080));
-    // Roll follows the per-scene table (plus the whip that decays within a fraction of a second).
-    expect(Math.sign(cams[1].roll)).toBe(Math.sign(ROLLS[1]));
-    expect(Math.sign(cams[2].roll)).toBe(Math.sign(ROLLS[2]));
-    // A beat cut strobes white, the very first picture and a long opening shot do not.
-    expect(cams[0].flash).toBe(0);
-    expect(cams[2].flash).toBe(0);
-    expect(cams[3].flash).toBeGreaterThan(0.3);
+  it("flows without a cut: no strobe at scene changes, and shake only on the mating blow", () => {
+    const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
+    // No scene change strobes white (a white pulse is a cut), only the first picture is plain too.
+    for (const c of tl.scenes.filter((sc) => !sc.scene.effects.includes("mate"))) expect(cam(c.start + 0.05).flash).toBe(0);
     // The mate scene shakes after the moves landed, and no camera ever leaves the board's bounds.
     const mate = tl.scenes.find((c) => c.scene.effects.includes("mate"))!;
-    const late = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 0.05)!, 1080, 1080);
+    const late = cam(mate.start + mate.fxAt + 0.05);
     expect(Math.abs(late.shakeX) + Math.abs(late.shakeY)).toBeGreaterThan(1);
-    // The mate backs the camera off to the whole board so the breaking pieces are all in view, and does not leave anything for a label to say.
-    const settled = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 1.2)!, 1080, 1080);
+    // The mate backs the camera off to the whole board so the breaking pieces are all in view.
+    const settled = cam(mate.start + mate.fxAt + 1.2);
     expect(settled.S).toBeLessThan(1080 / 7);
     expect(settled.fx).toBeCloseTo(0, 1);
-    for (const c of [...cams, late]) {
+    for (let tk = 0.01; tk < tl.total; tk += 0.05) {
+      const c = cam(tk);
       expect(c.S).toBeGreaterThan((1080 / 9.2) * 0.4);
       expect(Math.abs(c.fx)).toBeLessThanOrEqual(3.5);
       expect(Math.abs(c.fz)).toBeLessThanOrEqual(3.5);
     }
+  });
+
+  it("moves the camera smoothly: a scene change never jumps the picture, and the overview is kept", () => {
+    const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
+    const dt = 1 / 30;
+    // Frame to frame, outside the mating blow, the zoom changes by a few percent at most, the centre by under a square, the horizon by a few degrees.
+    const mate = tl.scenes.find((c) => c.scene.effects.includes("mate"))!;
+    let prev = cam(0.01);
+    for (let tk = dt; tk < tl.total - 0.1; tk += dt) {
+      const c = cam(tk);
+      const inMate = tk > mate.start && tk < mate.start + mate.dur;
+      if (!inMate) {
+        expect(Math.abs(Math.log(c.S / prev.S))).toBeLessThan(0.1);
+        expect(Math.hypot(c.fx - prev.fx, c.fz - prev.fz)).toBeLessThan(0.45);
+        expect(Math.abs(c.roll - prev.roll)).toBeLessThan(0.05);
+      }
+      prev = c;
+    }
+    // The tightest the camera ever gets is still more than three squares across; it moves in and out and never stays at one size.
+    let tightest = 0;
+    let widest = Infinity;
+    for (let tk = 0.01; tk < tl.total - 0.1; tk += 0.05) {
+      const s = cam(tk).S;
+      tightest = Math.max(tightest, s);
+      widest = Math.min(widest, s);
+    }
+    expect(tightest).toBeLessThan(1080 / 2.8);
+    expect(tightest / widest).toBeGreaterThan(1.3);
   });
 
   it("pulls the shot back so a long arrow stays in the picture, and maps clicks back to squares", () => {
@@ -790,30 +813,25 @@ describe("reel look", () => {
     expect(reelSquareAt(view, 0.5 - cam.shakeX / 1080, 0.5 - cam.shakeY / 1080)).toBe(xzSquare(Math.max(-3.5, Math.min(3.5, cam.fx)), Math.max(-3.5, Math.min(3.5, cam.fz))));
   });
 
-  it("cuts on the beat of the reference clip and keeps moves quick and zoom ramps short", () => {
+  it("keeps scenes on the 90 BPM grid of the reference and moves starting right away", () => {
     // Reference: hard cuts every 20 frames (0.667 s) at 90 BPM, so every scene is a whole number of beats.
     for (const c of tl.scenes) expect(c.dur / REEL_BEAT).toBeCloseTo(Math.round(c.dur / REEL_BEAT), 5);
     // A move starts right after the cut and takes well under a second.
     const move = tl.scenes.find((c) => c.scene.effects.includes("mate"))!.steps[0];
     expect(move.t0).toBeLessThan(0.15);
     expect(move.t1 - move.t0).toBeLessThan(0.7);
-    // No long zoom-in. A beat cut stands at once (its scale a third of a second in is within 6 % of the end) ...
-    const shots = tl.scenes.filter((sc) => sc.scene.card === "none" && !sc.scene.effects.includes("mate"));
-    const sizeAt = (c: (typeof shots)[number], dt: number) => reelCamera(frameAt(tl, project, c.start + Math.min(dt, c.dur - 0.01))!, 1080, 1080).S;
-    for (const c of shots.filter((sc) => sc.dur < 1.2)) expect(Math.abs(sizeAt(c, 0.4) / sizeAt(c, 1.3) - 1)).toBeLessThan(0.06);
-    // ... a long shot pushes in once, in well under half a second, and then only creeps.
-    const longShots = shots.filter((sc) => sc.dur >= 1.2);
-    expect(longShots.length).toBeGreaterThan(0);
-    expect(Math.max(...longShots.map((c) => sizeAt(c, c.dur * 0.3 + 0.45) / sizeAt(c, 0.1)))).toBeGreaterThan(1.15);
-    for (const c of longShots) {
-      expect(sizeAt(c, c.dur * 0.3 + 0.45) / sizeAt(c, 0.1)).toBeGreaterThanOrEqual(1);
-      expect(Math.abs(sizeAt(c, c.dur) / sizeAt(c, c.dur * 0.3 + 0.45) - 1)).toBeLessThan(0.08);
-    }
-    // The strobe at a beat cut is gone after four frames.
-    const cut = tl.scenes.find((sc) => sc.dur < 1.2 && sc.start > 0)!;
-    const flash = (dt: number) => reelCamera(frameAt(tl, project, cut.start + dt)!, 1080, 1080).flash;
-    expect(flash(0.1)).toBeGreaterThan(0.6);
-    expect(flash(0.2)).toBeLessThan(0.02);
+  });
+
+  it("turns heavy pieces slowly and leans the camera in while one is in the air, keeping the overview", () => {
+    const flight = tl.scenes.find((c) => c.steps.some((st) => st.movers.length && c.scene.moves.includes("Q")))!;
+    const step = flight.steps[0];
+    const mid = flight.start + (step.t0 + step.t1) / 2;
+    const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
+    // The queen's move is slower than a pawn's would be (a normal move takes 0.4 s).
+    expect(step.t1 - step.t0).toBeGreaterThan(0.5);
+    // In the air the camera is closer than just before take-off and just after landing, but still wider than four squares.
+    expect(cam(mid).S).toBeGreaterThan(cam(flight.start + step.t0 - 0.02).S * 0.97);
+    expect(cam(mid).S).toBeLessThanOrEqual(1080 / 4.2 + 1e-6);
   });
 
   it("an AI script of type edit becomes a quiet, fast reel, and the prompt asks for the type", () => {

@@ -16,7 +16,7 @@ import { t } from "../../i18n";
 import { drawCard, fitText, layout, tokens, type Assets } from "./compose";
 import { pieceKey } from "./flat";
 import type { Badge, Tone, StudioProject } from "./model";
-import { squareXZ, xzSquare, type Frame, type FramePiece } from "./timeline";
+import { squareXZ, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
 
 const SANS = '"Geist", -apple-system, "Segoe UI", sans-serif';
 const SERIF = '"Instrument Serif", Georgia, serif';
@@ -51,15 +51,11 @@ const easeInOut = (k: number) => {
   const x = clamp01(k);
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 };
-/** A shot at least this long (seconds) gets a push-in; shorter ones are beat cuts. */
-const SLOW_SHOT = 1.2;
-/** How long the push-in takes. */
-const RAMP = 0.4;
+/** Seconds a flight into the next framing takes at most. */
+const FLOW = 0.9;
 
-/** Camera roll per scene in degrees: each cut leans the other way, like a hand-held shot. */
-export const ROLLS = [-14, 9, -21, 16, -7, 19];
-/** How close each cut of a four-shot cycle is (0 = whole board, 1 = two squares): wide, medium, wide-ish, one close hit. The reference never stays close for long. */
-export const SHOT_SIZES = [0.4, 0.7, 0.5, 0.85];
+/** How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board. */
+export const SHOT_SIZES = [0.3, 0.65, 0.4, 0.75];
 /** Which pieces grow and flip when they move: the heavy ones, never pawns. */
 const WEIGHT: Record<PieceSymbol, number> = { p: 0.25, n: 0.8, b: 0.6, r: 0.6, q: 1, k: 0.4 };
 
@@ -86,86 +82,83 @@ export interface ReelView extends ReelCam {
 
 const flipped = (yaw: number) => Math.cos((yaw * Math.PI) / 180) < 0;
 
-/** The camera of one frame: pure, so the cuts can be tested without a canvas. */
-export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
-  const m = Math.min(W, H);
-  const u = m / 1080;
-  const s = frame.scene;
-  const age = frame.local;
+interface Pose {
+  /** Pixels per square. */
+  S: number;
+  /** Board point in the middle of the picture. */
+  x: number;
+  z: number;
+}
+
+/** How a scene is framed once the camera has arrived: pure, so the previous scene's framing can be the start of this one's flight. */
+function shotPose(shot: ReelShot, m: number): Pose {
   const wide = m / 9.2;
   const close = m / 2.3;
-  const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
-
-  // How close the shot is: 0 = the whole tilted board, 1 = two or three squares.
-  let cl = SHOT_SIZES[frame.index % SHOT_SIZES.length] + (1 - s.zoom) * 0.5;
-  if (fx("spotlight") !== undefined) cl += 0.05;
-  if (s.card !== "none") cl = 0.08;
-  cl = clamp01(cl);
-  let S = Math.exp(lerp(Math.log(wide), Math.log(close), cl));
-  // The arrows must fit: a long arrow pulls the shot back so both ends stay in the picture.
-  let reach = 0;
-  for (const a of frame.arrows) {
-    if (a.path) continue;
-    const [ax, az] = squareXZ(a.from);
-    const [bx, bz] = squareXZ(a.to);
-    reach = Math.max(reach, Math.hypot(bx - ax, bz - az));
-  }
-  const arrowCap = reach > 0 ? (0.6 * m) / (reach + 1.6) : Infinity;
-  S = Math.min(S, arrowCap);
-  // Cuts alternate between punching in from too close and pushing in from too far.
-  // A cut is a hard cut: the new shot stands at once, only a very quick settle (the reference has no zoom ramp longer than ~0.1 s) and a slight drift.
-  const start = frame.index % 2 === 0 ? 1.12 : 0.9;
-  S *= 1 + (start - 1) * Math.exp(-age / 0.08);
-  // Long shots are not still: after a short hold the camera pushes in on the action in one quick move (about 0.4 s, like the reference's ramps) and then keeps creeping.
-  const slow = frame.dur >= SLOW_SHOT && s.card === "none";
-  const rampAt = Math.min(0.6, frame.dur * 0.3);
-  const ramp = slow ? easeInOut((age - rampAt) / RAMP) : 0;
-  const before = S;
-  S *= 1 + (slow ? 0.45 * ramp + 0.05 * age : 0.03 * age);
-  // The push stops at three squares across and never pushes an arrow out of the picture.
-  if (slow) S = Math.min(S, Math.max(before, m / 3.0));
-  S = Math.min(S, arrowCap);
-  const zoomAge = fx("zoom");
-  if (zoomAge !== undefined) S *= 1 + 0.5 * easeOut(zoomAge / 0.1);
-  // Every landing kicks the picture a little.
-  if (frame.landing) S *= 1 + 0.07 * Math.exp(-frame.landing.k * 8);
-
-  const sign = ROLLS[frame.index % ROLLS.length] < 0 ? -1 : 1;
-  // The picture also swings back a few degrees while the camera pushes in.
-  const roll = ((ROLLS[frame.index % ROLLS.length] + (s.orbit || sign * 2.5) * age + sign * 5 * Math.exp(-age / 0.1) - sign * 7 * ramp) * Math.PI) / 180;
-
-  // The camera flies from the piece's square to the one it lands on.
-  let tx = 0;
-  let tz = 0;
-  if (frame.focus) {
-    const [ax, az] = squareXZ(frame.focus.from);
-    const [bx, bz] = squareXZ(frame.focus.to);
-    const k = easeOut(age / Math.max(0.5, frame.dur * 0.5));
-    tx = lerp(ax, bx, k);
-    tz = lerp(az, bz, k);
+  // How close: 0 = the whole tilted board, 1 = two or three squares. The overview is never given up, so the range stays moderate.
+  // The mating blow ends with the whole board in view, so the next scene flies on from there.
+  if (shot.effects.includes("mate")) return { S: wide * 1.12, x: 0, z: 0 };
+  let cl = SHOT_SIZES[shot.index % SHOT_SIZES.length] + (1 - shot.zoom) * 0.5;
+  if (shot.effects.includes("spotlight")) cl += 0.05;
+  if (shot.card !== "none") cl = 0.08;
+  let S = Math.exp(lerp(Math.log(wide), Math.log(close), clamp01(cl)));
+  // A long arrow or move pulls the shot back so both ends stay in the picture.
+  let [tx, tz] = [0, 0];
+  const span = shot.arrow ?? shot.move;
+  if (span) {
+    const [ax, az] = squareXZ(span.from);
+    const [bx, bz] = squareXZ(span.to);
+    S = Math.min(S, (0.6 * m) / (Math.hypot(bx - ax, bz - az) + 1.6));
+    // Framed by the middle, so the piece it starts from stays in the picture too.
+    [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
   } else {
-    // An arrow is framed by its middle, so the piece it starts from stays in the picture too.
-    const arrow = frame.arrows.find((a) => !a.path);
-    if (arrow && !frame.fxSquare) {
-      const [ax, az] = squareXZ(arrow.from);
-      const [bx, bz] = squareXZ(arrow.to);
-      [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
-    } else {
-      const sq = frame.fxSquare ?? frame.marks[0]?.square;
-      if (sq) [tx, tz] = squareXZ(sq);
-    }
+    const sq = shot.fxSquare ?? shot.mark;
+    if (sq) [tx, tz] = squareXZ(sq);
   }
   // A wide shot shows the whole board, so it stays centred.
   const hold = clamp01(((S - wide) / (close - wide)) * 1.4);
-  tx *= hold;
-  tz *= hold;
+  return { S, x: tx * hold, z: tz * hold };
+}
+
+/**
+ * The camera of one frame: pure, so the movement can be tested without a canvas.
+ * There are no cuts. Each scene's framing is reached by an eased flight that starts from where the
+ * previous scene's framing ended, and the picture rolls slowly like an orbit around the board, so the
+ * whole video is one continuous move.
+ */
+export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
+  const m = Math.min(W, H);
+  const u = m / 1080;
+  const age = frame.local;
+  const wide = m / 9.2;
+  const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
+
+  const to = shotPose(frame.shot, m);
+  const from = frame.prevShot ? shotPose(frame.prevShot, m) : to;
+  const k = easeInOut(age / Math.min(frame.dur, FLOW));
+  let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
+  let tx = lerp(from.x, to.x, k);
+  let tz = lerp(from.z, to.z, k);
+  // After arriving the camera keeps creeping in, so a held shot is never dead.
+  S *= 1 + 0.04 * Math.max(0, age - FLOW);
+  const zoomAge = fx("zoom");
+  if (zoomAge !== undefined) S *= 1 + 0.35 * easeOut(zoomAge / 0.5);
+  // While a heavy piece turns in the air the camera leans in a little (the piece is slowed down on the timeline), never past a four-square view.
+  const flying = frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
+  if (flying > 0) S = Math.min(S * (1 + 0.22 * flying), Math.max(S, m / 4.2));
+  // Every landing nudges the picture.
+  if (frame.landing) S *= 1 + 0.04 * Math.exp(-frame.landing.k * 8);
+
+  // The orbit: a slow swing of the horizon, never the same twice in a row, and the same in every scene, so nothing jumps.
+  const t = frame.time;
+  const roll = ((13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3) + (frame.scene.orbit || 0) * age) * Math.PI) / 180;
+
   // The mating blow: the camera backs off to show the whole board while the pieces break.
   const mateAge = fx("mate");
   if (mateAge !== undefined) {
-    const k = easeOut((mateAge - 0.3) / 0.7);
-    S = lerp(S, wide * 1.12, k);
-    tx *= 1 - k;
-    tz *= 1 - k;
+    const km = easeOut((mateAge - 0.3) / 0.7);
+    S = lerp(S, wide * 1.12, km);
+    tx *= 1 - km;
+    tz *= 1 - km;
   }
 
   let shake = 0;
@@ -176,13 +169,11 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const shakeX = shake * u * Math.sin(age * 71);
   const shakeY = shake * u * Math.cos(age * 63);
 
-  // White strobe on every cut, a big one on the "flash" effect and the mating blow.
-  // Every cut strobes: four to five frames (0.13 s) of near-white, then gone within two frames, as in the reference (frame brightness 220-235 of 255).
-  // Only the short beat cuts strobe; a long shot starts with a plain cut.
-  let flash = frame.index > 0 && !slow ? 0.9 * (1 - clamp01((age - 0.13) / 0.05)) : 0;
+  // No strobe at cuts, there are none: white only for the "flash" effect and the mating blow.
+  let flash = 0;
   const fl = fx("flash");
   if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * (1 - fl / 0.45) ** 2);
-  if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.85 * (1 - mate / 0.25));
+  if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.55 * (1 - mate / 0.25));
   return { roll, S, fx: tx, fz: tz, shakeX, shakeY, flash: clamp01(flash) };
 }
 

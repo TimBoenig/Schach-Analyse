@@ -137,6 +137,20 @@ export interface FrameMark {
   alpha: number;
 }
 
+/** What the reel camera needs to know about one scene to frame it: enough to fly from the previous scene's framing into this one without a cut. */
+export interface ReelShot {
+  index: number;
+  card: Card;
+  zoom: number;
+  effects: Effect[];
+  /** The squares of the scene's last move. */
+  move: { from: string; to: string } | null;
+  /** The first arrow the scene draws (a poll's answers do not count), the first mark, and the square the effects point at. */
+  arrow: { from: string; to: string } | null;
+  mark: string | null;
+  fxSquare: string | null;
+}
+
 export interface Frame {
   index: number;
   /** Seconds since the start of the video. */
@@ -169,6 +183,9 @@ export interface Frame {
   /** Seconds the scene lasts and the squares of its last move: the reel look's camera flies from one to the other. */
   dur: number;
   focus: { from: string; to: string } | null;
+  /** The reel camera's framing of this scene and of the one before it. */
+  shot: ReelShot;
+  prevShot: ReelShot | null;
   /** Moves played so far in this line, for the lesson's move list (last one is the current). */
   moveList: string[];
   /** Letter bubbles at the end of the poll arrows. */
@@ -312,7 +329,9 @@ export function compile(project: StudioProject): Timeline {
       }
       // Knights jump in a higher arc and need a moment longer.
       // Slow motion stretches only the scene's last move, the one that matters.
-      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? (project.style.view === "reel" ? 1.8 : 2.6) : 1);
+      // The reel look turns its heavy pieces slowly in the air (they flip and swell), and the key move slower still.
+      const heavy = reel && "nbrq".includes(m.piece) ? 1.4 : 1;
+      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? (reel ? 1.8 : 2.6) : heavy);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
@@ -376,6 +395,21 @@ export function compile(project: StudioProject): Timeline {
     prevFen = pos.after;
   });
   return { scenes, total: tk, sounds, flip: project.video.perspective === "black" };
+}
+
+function shotOf(c: CompiledScene, index: number): ReelShot {
+  const last = c.steps[c.steps.length - 1];
+  const arrow = c.scene.arrows[0];
+  return {
+    index,
+    card: c.scene.card,
+    zoom: c.scene.zoom,
+    effects: c.scene.effects,
+    move: last ? { from: last.from, to: last.to } : null,
+    arrow: arrow ? { from: arrow.from, to: arrow.to } : null,
+    mark: c.scene.marks[0]?.square ?? null,
+    fxSquare: c.fxSquare,
+  };
 }
 
 export function sceneAt(timeline: Timeline, tk: number): number {
@@ -673,6 +707,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     lesson,
     dur: c.dur,
     focus: c.steps.length ? { from: c.steps[c.steps.length - 1].from, to: c.steps[c.steps.length - 1].to } : null,
+    shot: shotOf(c, index),
+    prevShot: index > 0 ? shotOf(timeline.scenes[index - 1], index - 1) : null,
     moveList: lesson ? moveListAt(timeline, index, local) : [],
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,
