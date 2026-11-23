@@ -886,3 +886,254 @@ describe("reel look", () => {
     expect(res.project?.style.theme).toBe("mono");
   });
 });
+
+describe("edit pressure: hit-stop, cuts, strengths, stamps", () => {
+  const reelOf = (scenes: StudioProject["scenes"]): StudioProject => ({ ...make(scenes), style: { ...styleFromTheme("mono"), view: "reel" }, video: { ...DEFAULT_VIDEO, introFly: false, tempo: 2.4 } });
+
+  it("freezes the animation clock for 0.25 s at the impact while the post effects keep running", () => {
+    const p = reelOf([scene({ moves: "1. e4", duration: 1.4, effects: ["hitstop", "invert"], stamp: "wow" })]);
+    const tl = compile(p);
+    const c = tl.scenes[0];
+    expect(c.hit).toBe(c.fxAt);
+    const before = frameAt(tl, p, c.fxAt - 0.05)!;
+    const during = frameAt(tl, p, c.fxAt + 0.1)!;
+    const later = frameAt(tl, p, c.fxAt + 0.2)!;
+    const after = frameAt(tl, p, c.fxAt + 0.3)!;
+    // The picture (clock) stands still from the impact until 0.25 s later, then runs on from there.
+    expect(during.local).toBeCloseTo(c.fxAt, 5);
+    expect(later.local).toBeCloseTo(c.fxAt, 5);
+    expect(after.local).toBeCloseTo(c.fxAt + 0.05, 5);
+    expect(before.local).toBeLessThan(c.fxAt);
+    // The invert flash and the stamp play on the real clock, during the freeze.
+    expect(before.impact.invert).toBe(0);
+    expect(during.impact.invert).toBe(1);
+    expect(after.impact.invert).toBe(0);
+    expect(during.impact.stamp).toMatchObject({ text: "WOW" });
+    expect(frameAt(tl, p, c.fxAt + 0.45)!.impact.stamp).toBeNull();
+    // Scenes stay a whole number of beats and are as long as the freeze needs.
+    expect(c.dur / REEL_BEAT).toBeCloseTo(Math.round(c.dur / REEL_BEAT), 6);
+    expect(c.dur).toBeGreaterThanOrEqual(c.fxAt + 0.25);
+    // The very last frame of the scene is not still in the middle of a fade: tails count in clock time.
+    expect(frameAt(tl, p, c.dur - 1e-3)!.dur).toBeCloseTo(c.dur - 0.25, 6);
+  });
+
+  it("gives a blunder or brilliant move in the reel look the invert flash and RGB split by itself, unless switched off", () => {
+    const flash = (badge: "blunder" | "best", power: Partial<Record<"invert" | "glitch", number>> = {}) => {
+      const p = reelOf([scene({ moves: "1. e4", duration: 1.4, badge, power })]);
+      const tl = compile(p);
+      return frameAt(tl, p, tl.scenes[0].fxAt + 0.05)!.impact;
+    };
+    expect(flash("blunder")).toMatchObject({ invert: 1 });
+    expect(flash("blunder").glitch).toBeGreaterThan(0.3);
+    expect(flash("best").invert).toBe(0);
+    expect(flash("blunder", { invert: 0, glitch: 0 })).toMatchObject({ invert: 0, glitch: 0 });
+    // A half-strength invert is half inverted.
+    const p = reelOf([scene({ moves: "1. e4", effects: ["invert"], power: { invert: 0.5 } })]);
+    const tl = compile(p);
+    expect(frameAt(tl, p, tl.scenes[0].fxAt + 0.05)!.impact.invert).toBe(0.5);
+  });
+
+  it("cuts through the angles of a scene on the beat, quickly, and starts after the hit-stop", () => {
+    const p = make([scene({ moves: "1. e4", duration: 3, cameras: ["close", "low", "top"] }), scene({ duration: 3, cameras: ["close", "top"], effects: ["hitstop"], moves: "1... e5" })]);
+    const tl = compile(p);
+    const [a, b] = tl.scenes;
+    // Three angles share the scene evenly.
+    expect(a.cutIv).toBeCloseTo((a.dur - a.cutFrom) / 3, 6);
+    const preset = (c: typeof a, local: number) => frameAt(tl, p, c.start + local)!.cut?.preset;
+    expect(preset(a, 0.01)).toBe("close");
+    expect(preset(a, a.cutIv + 0.01)).toBe("low");
+    expect(preset(a, 2 * a.cutIv + 0.01)).toBe("top");
+    // A whip, not a slow flight: half way through the cut the yaw is between the two angles, a fifth of a second later it has arrived.
+    const yaw = (local: number) => frameAt(tl, p, a.start + local)!.camera.yaw;
+    expect(yaw(a.cutIv + 0.1)).toBeLessThan(Math.max(yaw(a.cutIv - 0.01), yaw(a.cutIv + 0.3)));
+    expect(yaw(a.cutIv + 0.25)).toBeCloseTo(yaw(a.cutIv + 0.3), 0);
+    // With a hit-stop the plain camera runs until the impact, the cuts begin there.
+    expect(b.cutFrom).toBe(b.fxAt);
+    expect(frameAt(tl, p, b.start + b.fxAt - 0.05)!.cut).toBeNull();
+    expect(frameAt(tl, p, b.start + b.fxAt + 0.3)!.cut?.preset).toBe("close");
+    expect(b.dur).toBeGreaterThanOrEqual(b.fxAt + 0.25 + 2 * 0.25);
+  });
+
+  it("scales shake and zoom with their strength and pushes the picture in with punch and riser", () => {
+    const shake = (power: number) => {
+      const p = make([scene({ moves: "1. e4", effects: ["shake"], power: { shake: power } })]);
+      const tl = compile(p);
+      const c = tl.scenes[0];
+      const tremor = (tk: number) => frameAt(tl, p, c.start + c.fxAt + tk)!.camera;
+      return Math.abs(tremor(0.02).yaw - tremor(0.4).yaw) + Math.abs(tremor(0.02).tx - tremor(0.4).tx);
+    };
+    expect(shake(1)).toBeGreaterThan(shake(0.3) * 2);
+    const p = make([scene({ moves: "1. e4", duration: 3, effects: ["punch", "dutch"] }), scene({ moves: "1... e5", duration: 3, effects: ["dutch", "riser"], power: { dutch: 0.5 } })]);
+    const tl = compile(p);
+    const at = (i: number, local: number) => frameAt(tl, p, tl.scenes[i].start + local)!;
+    // Punch-in: from 1.0 to 0.65 in half a second, then it stays.
+    expect(at(0, 0).push).toBe(1);
+    expect(at(0, 0.5).push).toBeCloseTo(0.65, 5);
+    expect(at(0, 2).push).toBeCloseTo(0.65, 5);
+    // Dutch angle tilts one way, the next scene the other way, half as much at half strength.
+    expect(at(0, 1).roll).toBeCloseTo(12, 5);
+    expect(at(1, 1).roll).toBeCloseTo(-6, 5);
+    expect(at(0, 1).camera.roll).toBeCloseTo(12, 5);
+    // Riser: slow at first, faster towards the impact, closer at the end.
+    const c = tl.scenes[1];
+    expect(at(1, c.fxAt * 0.3).push).toBeGreaterThan(at(1, c.fxAt * 0.7).push);
+    expect(1 - at(1, c.fxAt * 0.6).push).toBeLessThan((1 - at(1, c.fxAt).push) * 0.5);
+    expect(at(1, c.fxAt).push).toBeLessThan(0.75);
+  });
+
+  it("frames each angle of a cutting reel scene differently and rolls the horizon for a Dutch angle", () => {
+    const p = reelOf([scene({ moves: "1. e4", duration: 2, cameras: ["top", "close", "side"] })]);
+    const tl = compile(p);
+    const c = tl.scenes[0];
+    const cam = (local: number) => reelCamera(frameAt(tl, p, c.start + local)!, 1080, 1080);
+    const wide = cam(c.cutIv * 0.9);
+    const near = cam(c.cutIv + 0.4);
+    expect(near.S).toBeGreaterThan(wide.S * 1.3);
+    // Side angle leans the horizon the other way than top does.
+    expect(cam(2 * c.cutIv + 0.4).roll).not.toBeCloseTo(wide.roll, 2);
+    const tilted = reelOf([scene({ moves: "1. e4", duration: 2, effects: ["dutch"] })]);
+    const plain = reelOf([scene({ moves: "1. e4", duration: 2 })]);
+    const rollOf = (q: StudioProject) => reelCamera(frameAt(compile(q), q, 1)!, 1080, 1080).roll;
+    expect(Math.abs(rollOf(tilted) - rollOf(plain))).toBeCloseTo((12 * Math.PI) / 180, 3);
+    // The zoom stays out of the black around the board whatever the cuts do.
+    for (let tk = 0.01; tk < c.dur; tk += 0.05) expect(Math.abs(cam(tk).fx)).toBeLessThanOrEqual(3.5);
+  });
+
+  it("blurs only a scene that asks for a whip, along the way the camera swings", () => {
+    const p = make([scene({ moves: "1. e4", duration: 2, cameras: ["close", "side"], effects: ["whip"] }), scene({ duration: 2, cameras: ["close", "side"] })]);
+    const tl = compile(p);
+    const a = tl.scenes[0];
+    const mid = frameAt(tl, p, a.start + a.cutIv + 0.1)!.impact.blur!;
+    expect(mid.amount).toBeGreaterThan(0.9);
+    expect(Math.hypot(mid.dx, mid.dy)).toBeCloseTo(1, 5);
+    // Sideways for a turn of the camera, none when it stands still.
+    expect(Math.abs(mid.dx)).toBeGreaterThan(0.8);
+    expect(frameAt(tl, p, a.start + a.cutIv + 0.4)!.impact.blur).toBeNull();
+    expect(frameAt(tl, p, tl.scenes[1].start + tl.scenes[1].cutIv + 0.1)!.impact.blur).toBeNull();
+  });
+
+  it("repairs the new scene fields of stored projects and old projects keep working", () => {
+    const raw = JSON.parse(JSON.stringify(make([scene({ moves: "1. e4" })])));
+    raw.scenes[0].cameras = ["close", "nonsense", "top"];
+    raw.scenes[0].stamp = "very long stamp text that is cut";
+    raw.scenes[0].power = { shake: 7, bogus: 1, zoom: "x" };
+    delete raw.scenes[0].effects;
+    const fixed = normalizeProject(raw).scenes[0];
+    expect(fixed.cameras).toEqual(["close", "top"]);
+    expect(fixed.stamp).toBe("VERY LONG STAM");
+    expect(fixed.power).toEqual({ shake: 1 });
+    const old = JSON.parse(JSON.stringify(make([scene({ moves: "1. e4" })])));
+    for (const k of ["cameras", "stamp", "power"]) delete old.scenes[0][k];
+    expect(normalizeProject(old).scenes[0]).toMatchObject({ cameras: [], stamp: "", power: {} });
+  });
+});
+
+describe("AI script: game on top, half-move numbers, cuts and strengths", () => {
+  const PGN = "[Event \"x\"]\n\n1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7# 1-0";
+  const run = (scenes: unknown[], extra: Record<string, unknown> = {}) => importAiScript(JSON.stringify({ videoart: "edit", titel: "T", pgn: PGN, szenen: scenes, ...extra }));
+
+  it("plays the named half-moves of the game and shows the same position again without a number", () => {
+    const res = run([{ zugNr: "1-3" }, { dauer: 1.3, kameras: ["nah", "oben"] }, { zugNr: 4 }, { zugNr: 5 }, { zugNr: "4." }]);
+    expect(res.errors).toEqual([]);
+    const sc = res.project!.scenes;
+    expect(sc.map((s) => s.moves)).toEqual(["1. e4 e5 2. Lc4", "", "2… Sc6", "3. Dh5", "4. Dxf7#"]);
+    // Continuing needs no jump; a scene without number stays on the position, and skipping ahead cross-fades to the position before the move.
+    expect(sc.map((s) => s.fen === "")).toEqual([true, true, true, true, false]);
+    const positions = scenePositions(res.project!);
+    expect(positions[1].before).toBe(positions[0].after);
+    expect(sc[4].fen).toBe(positions[4].before);
+    expect(positions[4].before).not.toBe(positions[3].after);
+    expect(new Chess(positions[4].after).isCheckmate()).toBe(true);
+    // The mate gets its animation, the scene without a camera takes the first cut as its own.
+    expect(sc[4].effects).toContain("mate");
+    expect(sc[1]).toMatchObject({ cameras: ["close", "top"], camera: "close" });
+  });
+
+  it("counts chess move numbers as half-moves, jumps back, and reports numbers that do not exist", () => {
+    const res = run([{ zugNr: 7 }, { zugNr: "1..." }, { zugNr: 9 }, { zugNr: "abc" }]);
+    const sc = res.project!.scenes;
+    expect(sc[0].moves).toBe("4. Dxf7#");
+    expect(sc[1].moves).toBe("1… e5");
+    expect(sc[1].fen).not.toBe("");
+    expect(res.warnings.join("|")).toContain("zugNr 9");
+    expect(res.warnings.join("|")).toContain("abc");
+    // Without a game on top zugNr is ignored with a hint, and spelled-out moves still work next to it.
+    const none = importAiScript(JSON.stringify({ szenen: [{ zugNr: 3, zug: "1. e4" }] }));
+    expect(none.project!.scenes[0].moves).toBe("1. e4");
+    expect(none.warnings.join("|")).toContain("zugNr");
+    // An impossible move in the game is named; the moves before it are usable.
+    const broken = importAiScript(JSON.stringify({ pgn: "1. e4 e5 2. Ke4 Nc6", szenen: [{ zugNr: 2 }] }));
+    expect(broken.errors.join("|")).toContain("Ke4");
+    expect(broken.project!.scenes[0].moves).toBe("1… e5");
+    // The old format with spelled-out moves is untouched.
+    expect(importAiScript(JSON.stringify({ szenen: [{ zug: "1. e4 e5" }] })).project!.scenes[0].moves).toBe("1. e4 e5");
+  });
+
+  it("reads effect strengths in every shape and leaves out effects with strength 0", () => {
+    const res = run([
+      { zugNr: 1, effekte: { wackeln: 0.3, zoom: 1, blitz: 0 } },
+      { zugNr: 2, effekte: ["wackeln:0.4", { effekt: "glitch", staerke: 0.5 }, "Hitstop"] },
+      { zugNr: 3, effekte: ["wackeln", "punch"], intensitaet: 0.5 },
+      { zugNr: 4, wackeln: 0.2, invert: true, stempel: "sacrifice", bewertung: "patzer" },
+      { zugNr: 5, effekte: ["gibtesnicht"] },
+    ]);
+    const sc = res.project!.scenes;
+    expect(sc[0].effects).toEqual(["shake", "zoom"]);
+    expect(sc[0].power).toEqual({ shake: 0.3, flash: 0 });
+    expect(sc[1].effects).toEqual(["shake", "glitch", "hitstop"]);
+    expect(sc[1].power).toEqual({ shake: 0.4, glitch: 0.5 });
+    expect(sc[2].power).toEqual({ shake: 0.5, punch: 0.5 });
+    expect(sc[3]).toMatchObject({ effects: expect.arrayContaining(["shake", "invert"]), power: { shake: 0.2 }, stamp: "SACRIFICE" });
+    expect(res.warnings.join("|")).toContain("gibtesnicht");
+  });
+
+  it("exports cuts, stamps and strengths in the same format, in both languages, and reads them back", () => {
+    const res = run([{ zugNr: "1-2", kameras: ["nah", "tief"], stempel: "??", effekte: { wackeln: 0.3, hitstop: 1, invert: 0 } }]);
+    const out = toAiScript(res.project!);
+    expect(out).toContain('"kameras"');
+    expect(out).toContain('"stempel": "??"');
+    expect(out).toContain('"wackeln": 0.3');
+    expect(out).toContain('"invert": 0');
+    const back = importAiScript(out).project!.scenes[0];
+    expect(back).toMatchObject({ cameras: ["close", "low"], stamp: "??", power: { shake: 0.3, invert: 0 } });
+    expect(back.effects).toEqual(["shake", "hitstop"]);
+    setLangNow("en", EN);
+    try {
+      const en = toAiScript(res.project!);
+      expect(en).toContain('"cameras"');
+      expect(en).toContain('"stamp"');
+      expect(en).toContain('"shake": 0.3');
+      expect(importAiScript(en).project!.scenes[0]).toMatchObject({ cameras: ["close", "low"], stamp: "??", power: { shake: 0.3, invert: 0 } });
+    } finally {
+      setLangNow("de");
+    }
+  });
+
+  it("teaches the prompt the game on top, the cuts, strengths and stamps, and its example uses them cleanly", () => {
+    const prompt = buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" });
+    for (const word of ['"pgn"', "zugNr", '"kameras"', '"stempel"', "hitstop", "riser", "whip", "schraeglage", "intensitaet"]) expect(prompt).toContain(word);
+    const example = prompt.split("```json")[1].split("```")[0];
+    const res = importAiScript(example);
+    expect(res.errors).toEqual([]);
+    expect(res.warnings).toEqual([]);
+    const p = res.project!;
+    // The example is built like the advice: calm build-up, impact with hit-stop and stamp, quick cuts, mate with full strength.
+    expect(p.scenes.some((s) => s.effects.includes("riser"))).toBe(true);
+    expect(p.scenes.some((s) => s.effects.includes("hitstop") && s.stamp !== "")).toBe(true);
+    expect(p.scenes.some((s) => s.cameras.length === 3 && s.effects.includes("whip"))).toBe(true);
+    expect(p.scenes.find((s) => s.effects.includes("mate"))?.power).toEqual({});
+    const tl = compile(p);
+    expect(tl.scenes.every((c) => !c.error)).toBe(true);
+    // The plain (non-edit) prompt knows the new format too, and a spelled-out script keeps working.
+    expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 20, notes: "" })).toContain("zugNr");
+  });
+});
+
+describe("side guess and effect names", () => {
+  it("does not read the effect \"dutch\" as the Dutch Defence", () => {
+    const res = importAiScript(JSON.stringify({ titel: "Falle", szenen: [{ zug: "1. e4", effekte: ["dutch"] }] }));
+    expect(res.project!.video.perspective).toBe("white");
+    // The texts still decide: a title naming a Black opening shows the video from Black's side.
+    expect(importAiScript(JSON.stringify({ titel: "Sizilianisch", szenen: [{ zug: "1. e4" }] })).project!.video.perspective).toBe("black");
+  });
+});
