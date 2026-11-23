@@ -7,6 +7,7 @@ import { BADGE_FILE } from "./model";
 import type { BoardView, StudioProject } from "./model";
 import { StudioRenderer } from "./renderer";
 import { paintReel, reelSquareAt, type ReelView } from "./reel";
+import { paintImpact } from "./impact";
 import { frameAt, type Frame, type Timeline } from "./timeline";
 
 export class StudioStage {
@@ -111,6 +112,8 @@ export class StudioStage {
       const sprites = project.style.view === "billboard" ? (ctx: CanvasRenderingContext2D) => drawStandees(ctx, frame, this.renderer.viewProj, this.assets.pieces) : undefined;
       compose(this.ctx, frame, project, this.renderer.canvas, this.renderer.viewProj, this.assets, opts, sprites);
     }
+    // Whip blur, RGB split, invert flash and the stamped word go over every look.
+    paintImpact(this.ctx, frame);
     return frame;
   }
 

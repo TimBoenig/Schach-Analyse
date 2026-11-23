@@ -3,13 +3,14 @@
 // answer is pasted back and turned into a project: every move checked,
 // variations resolved by "go back n half-moves", unknown values replaced by
 // safe defaults with a note. Pure, so it is tested headless.
-import { Chess } from "chess.js";
+import { Chess, type Move } from "chess.js";
 
 import {
   CAMERA_LABEL,
   DEFAULT_VIDEO,
   EFFECT_LABEL,
   ENV_LABEL,
+  MAX_CAMERAS,
   normalizeProject,
   parseMoves,
   PLATFORM_LABEL,
@@ -93,6 +94,13 @@ const EFFECTS: Record<string, Effect> = {
   blitz: "flash", flash: "flash",
   konfetti: "confetti", confetti: "confetti",
   zeitlupe: "slowmo", slowmo: "slowmo", slowmotion: "slowmo",
+  hitstop: "hitstop", stillstand: "hitstop", freeze: "hitstop", freezeframe: "hitstop", standbild: "hitstop", einfrieren: "hitstop",
+  invert: "invert", invertieren: "invert", negativ: "invert", umkehren: "invert", inverted: "invert",
+  glitch: "glitch", rgb: "glitch", rgbsplit: "glitch", chromatic: "glitch", chromaticaberration: "glitch", aberration: "glitch", farbverschiebung: "glitch",
+  schraeglage: "dutch", dutch: "dutch", dutchangle: "dutch", kippen: "dutch", schief: "dutch", kamerakippen: "dutch",
+  punch: "punch", punchin: "punch", einschlag: "punch", schnellerzoom: "punch",
+  riser: "riser", aufbau: "riser", spannungsaufbau: "riser", heranzoomen: "riser", creep: "riser", pushin: "riser",
+  whip: "whip", whippan: "whip", schwenk: "whip", wischer: "whip", wisch: "whip",
 };
 const ENVS: Record<string, Environment> = {
   schwebend: "void", void: "void", keine: "void", nichts: "void", floating: "void", none: "void",
@@ -163,21 +171,23 @@ const LONG_LAYOUT = () => t("SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)
 
 const ART_AUTO = () => t("VORAB: WAS FÜR EIN VIDEO IST DAS?\nEntscheide zuerst, welche Art Video zu Thema und Wunsch passt, und schreib sie als \"videoart\" ganz oben ins JSON:\n- \"erklaerung\": ruhiges Erklärvideo mit Untertiteln und Sprechtext (Eröffnung oder Plan erklären, etwas lernen).\n- \"edit\": schneller Clip im Reel-Stil, harte Schnitte im Takt, schräge Kamera, kaum Text (Matt-Rätsel, Falle, Highlight, \"Siehst du das Matt?\").\nWenn Thema oder Wunsch nach kurz, knackig, viral, Edit oder Reel klingen, nimm \"edit\", sonst \"erklaerung\". Bei \"edit\" gelten die Regeln unten unter VIDEOART EDIT.\n\n") + EDIT_RULES() + "\n\n";
 const ART_EXPLAIN = () => t("VORAB: VIDEOART\nDas ist ein Erklärvideo. Setz \"videoart\": \"erklaerung\" ganz oben ins JSON.\n\n");
-const EDIT_RULES = () => t("VIDEOART EDIT (nur wenn \"videoart\": \"edit\"; diese Regeln gehen allen anderen Regeln vor)\nEin Edit ist ein schneller schwarz-weißer Clip: das Brett steht schräg, die Kamera springt im Takt, Felder leuchten, Pfeile sind dick, fast kein Text.\n1. Setz \"videoart\": \"edit\". Look, Ansicht und Umgebung weglassen: das Studio nimmt automatisch Schwarz-Weiß.\n2. Takt: 90 BPM, also ein Schnitt alle 0,67 Sekunden. Eine Szene ist ein Schnitt und dauert \"dauer\": 0.6 (das Studio rundet auf ganze Takte). Nur zwei ruhige Anfangsszenen (je 1.4 Sekunden, ein Pfeil, eine Markierung) und Abspann (4) sind länger.\n3. Aufbau: keine Titelkarte und kein Text am Anfang, das Video startet direkt auf dem Brett mit zwei ruhigen Szenen, die die Stellung und die Idee zeigen, dann viele schnelle Szenen im Takt (derselbe Zug oder dieselbe Stellung aus anderem Blickwinkel, mit Pfeil und Markierung), ein Höhepunkt mit \"bewertung\" und Effekt, Abspann.\n4. Pro Szene höchstens ein Zug (die Stellung davor kommt aus \"startstellung\"). Der Zug beginnt sofort und dauert unter einer halben Sekunde, lass keine langen Pausen.\n5. Höhepunkt: Züge mit \"bewertung\" brillant, grossartig oder bester und Züge mit \"zeitlupe\" spielt das Studio als Show: Ranzoomen, Zeitlupe, die Figur dreht sich einmal um sich selbst, harter Aufprall, wieder raus. Der Mattzug bekommt \"effekte\": [\"matt\", \"zeitlupe\"] (die Figuren des Mattgesetzten zerbrechen), der Schlüsselzug \"zeitlupe\" oder \"spotlight\". Zeitlupe nur ein bis zweimal im ganzen Video.\n6. Pfeile (dick, schwarz mit Leuchten) für Züge und Ideen, \"gefahr\" für Drohungen (rot, geschwungen). Markierungen: \"gefahr\" rot, \"gut\" grün, \"idee\" cyan, \"akzent\" blau. Bewertungen (patzer, brillant, bester) wie auf Analyse-Seiten.\n7. Fast kein Text: kein \"untertitel\", kein \"sprechtext\", \"titel\" nur im Abspann. Keine Umfragen, keine Fragekarten, keine Lucena-Kugel.\n8. Länge 15 bis 25 Sekunden. Der Ton kommt später, schreib keine Musik hinein.");
+const EDIT_RULES = () => t("VIDEOART EDIT (nur wenn \"videoart\": \"edit\"; diese Regeln gehen allen anderen Regeln vor)\nEin Edit ist ein schneller schwarz-weißer Clip im Phonk-/Anime-Edit-Stil: das Brett steht schräg, die Kamera ist ständig in Bewegung, Felder leuchten, Pfeile sind dick, fast kein Text. Er lebt vom Kontrast zwischen Spannungsaufbau und Aufprall, nicht von einem gleichmäßigen Takt, der nach 10 Sekunden monoton wird.\n1. Setz \"videoart\": \"edit\". Look, Ansicht und Umgebung weglassen: das Studio nimmt automatisch Schwarz-Weiß.\n2. Takt: 90 BPM, ein Schlag alle 0,67 Sekunden. Das Studio rundet jede Szene auf ganze Schläge (\"dauer\": 0.6 ist ein Schlag). Brich das Muster, immer in dieser Folge:\n   a) Aufbau: vor einem Opfer, Patzer oder Mattzug eine ruhige Szene von 1.3 bis 2 Sekunden mit dem Effekt \"riser\" (die Kamera zoomt langsam heran), Pfeil und Markierung zeigen schon das Ziel.\n   b) Aufprall: die Szene mit dem Zug bekommt \"hitstop\" (0,25 Sekunden Stillstand beim Aufsetzen), bei Patzer und brillantem Zug dazu \"invert\" (0,15 Sekunden) und \"glitch\", dazu \"wackeln\" und einen \"stempel\" (ein Wort wie \"BLUNDER\", \"SACRIFICE\", \"??\", \"MATT\").\n   c) Danach schnelle Schnitte: Szenen mit \"dauer\": 1.3 und \"kameras\": [\"nah\", \"tief\", \"oben\"] (etwa 0,4 Sekunden pro Winkel) auf dieselbe Stellung ohne neuen Zug (bei \"pgn\" einfach ohne zugNr), mit \"whip\" für den Schwenk und Pfeilen auf die Folgen.\n   d) Dann wieder Ruhe oder der nächste Aufbau. Wechsle zwischen langsam, Stillstand und schnell.\n3. Aufbau des Videos: keine Titelkarte und kein Text am Anfang, das Video startet direkt auf dem Brett mit zwei ruhigen Szenen (je 1.4 Sekunden, ein Pfeil, eine Markierung), die die Stellung und die Idee zeigen. Dann die Folge aus Aufbau, Aufprall und schnellen Schnitten, ein Höhepunkt, Abspann (4).\n4. Pro Szene höchstens ein Zug (bei \"pgn\" ein \"zugNr\", sonst kommt die Stellung davor aus \"startstellung\"). Der Zug beginnt sofort und dauert unter einer halben Sekunde, lass keine langen Pausen.\n5. Höhepunkt: Züge mit \"bewertung\" brillant, grossartig oder bester und Züge mit \"zeitlupe\" spielt das Studio als Show: Ranzoomen, Zeitlupe, die Figur dreht sich einmal um sich selbst, harter Aufprall, wieder raus. Der Mattzug bekommt \"effekte\": [\"matt\", \"zeitlupe\"] (die Figuren des Mattgesetzten zerbrechen), der Schlüsselzug \"zeitlupe\" oder \"spotlight\". Zeitlupe nur ein bis zweimal im ganzen Video.\n6. Stärke: normale Schläge schwach, nur der Höhepunkt voll, z. B. \"effekte\": {\"wackeln\": 0.3, \"zoom\": 0.5} beim ersten Schlag und {\"wackeln\": 1.0, \"matt\": 1} beim Matt oder Damenopfer. \"punch\" (schneller Zoom auf 0.65) und \"schraeglage\" (Kamera kippt, für Drohungen) geben dem Bild zusätzlich Druck.\n7. Pfeile (dick, schwarz mit Leuchten) für Züge und Ideen, \"gefahr\" für Drohungen (rot, geschwungen). Markierungen: \"gefahr\" rot, \"gut\" grün, \"idee\" cyan, \"akzent\" blau. Bewertungen (patzer, brillant, bester) wie auf Analyse-Seiten.\n8. Stempel nur an den 3 bis 4 stärksten Aufprallen, nie in den schnellen Schnitt-Szenen.\n9. Fast kein Text: kein \"untertitel\", kein \"sprechtext\", \"titel\" nur im Abspann. Keine Umfragen, keine Fragekarten, keine Lucena-Kugel.\n10. Länge 15 bis 25 Sekunden. Der Ton kommt später, schreib keine Musik hinein.");
 
 function EDIT_EXAMPLE(platform: Platform) {
+  // The whole game once on top; the scenes only name half-moves. Build-up, impact with hit-stop, then quick cuts on the same position.
   return {
     videoart: "edit",
     titel: t("Siehst du das Matt?"),
     plattform: platform,
     laenge: 16,
     perspektive: "weiss",
-    startstellung: parseMoves(START_FEN, "e4 e5 Bc4 Nc6 Qh5").fen,
+    pgn: "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#",
     szenen: [
-      { zug: "3... Nf6", bewertung: "patzer", dauer: 1.4 },
-      { pfeile: ["h5-f7 akzent"], markierungen: ["f7 gefahr"], dauer: 1.4 }, // i18n: format words
-      { pfeile: ["h5-f7 akzent"], markierungen: ["f7 gefahr"], dauer: 0.6 }, // i18n: format words
-      { zug: "4. Qxf7#", bewertung: "brillant", effekte: ["matt", "zeitlupe"], pfeile: ["h5-f7 akzent"], dauer: 0.6 },
+      { zugNr: "1-5", dauer: 1.4, markierungen: ["f7 gefahr"] }, // i18n: format words
+      { dauer: 2, effekte: ["riser"], pfeile: ["h5-f7 akzent"], markierungen: ["f7 gefahr"] }, // i18n: format words
+      { zugNr: 6, dauer: 1.4, bewertung: "patzer", stempel: "BLUNDER", effekte: { hitstop: 1, invert: 1, glitch: 0.7, wackeln: 0.4 } },
+      { dauer: 1.3, kameras: ["nah", "tief", "oben"], effekte: ["whip"], pfeile: ["h5-f7 gefahr"] },
+      { zugNr: 7, dauer: 2, bewertung: "brillant", stempel: "MATT", effekte: { matt: 1, zeitlupe: 1, hitstop: 1, wackeln: 1 } },
       { karte: "abspann", titel: t("Mehr Taktik aus deinen Partien"), dauer: 4 },
     ],
   };
@@ -219,6 +229,7 @@ const KEY_EN: Record<string, string> = {
   einstellungen: "settings", effektTon: "effectSound", zuganzeige: "moveDisplay", zugInWorten: "moveInWords",
   zuegeAusschreiben: "spellMoves", felderLeuchten: "glowSquares", fortschritt: "progress", koordinaten: "coordinates",
   kameraflug: "cameraFlight", spiegelung: "reflection", videoart: "videoType",
+  zugNr: "moveNo", kameras: "cameras", stempel: "stamp", intensitaet: "intensity",
 };
 // i18n: format words, not texts
 const VALUE_EN: Record<string, Record<string, string>> = {
@@ -232,7 +243,8 @@ const VALUE_EN: Record<string, Record<string, string>> = {
   musik: { keine: "none", spannung: "tension", episch: "epic" },
   karte: { titel: "title", frage: "question", umfrage: "poll", abspann: "outro" },
   kamera: { schraeg: "angled", seitlich: "side", oben: "top", tief: "low", nah: "close", gegenueber: "opposite" },
-  effekte: { matt: "mate", drohung: "threat", wackeln: "shake", blitz: "flash", konfetti: "confetti", zeitlupe: "slowmo" },
+  kameras: { schraeg: "angled", seitlich: "side", oben: "top", tief: "low", nah: "close", gegenueber: "opposite" },
+  effekte: { matt: "mate", drohung: "threat", wackeln: "shake", blitz: "flash", konfetti: "confetti", zeitlupe: "slowmo", schraeglage: "dutch" },
   bewertung: { brillant: "brilliant", grossartig: "great", bester: "best", exzellent: "excellent", gut: "good", buch: "book", ungenau: "inaccuracy", fehler: "mistake", verpasst: "miss", patzer: "blunder" },
   stimmung: { froehlich: "happy", nachdenklich: "thoughtful", begeistert: "excited", traurig: "sad" },
 };
@@ -244,7 +256,9 @@ function inFormatLanguage(v: unknown, key = ""): unknown {
   if (lang() !== "en") return v;
   if (Array.isArray(v)) return v.map((x) => inFormatLanguage(x, key));
   if (v && typeof v === "object") {
-    return Object.fromEntries(Object.entries(v as Obj).map(([k, x]) => [KEY_EN[k] ?? k, inFormatLanguage(x, k)]));
+    // Effects with strengths are an object: its keys are effect words.
+    const words = key === "effekte" ? VALUE_EN.effekte : null;
+    return Object.fromEntries(Object.entries(v as Obj).map(([k, x]) => [words?.[k] ?? KEY_EN[k] ?? k, inFormatLanguage(x, k)]));
   }
   if (typeof v !== "string") return v;
   if (key === "pfeile" || key === "markierungen") return v.replace(/(\S+)$/, (w) => TONE_EN[w] ?? w);
@@ -275,7 +289,7 @@ export function buildAiPrompt(o: PromptOptions): string {
     ],
   };
   const prefix = type === "edit" ? EDIT_RULES() + "\n\n" : type === "explain" ? ART_EXPLAIN() : ART_AUTO();
-  return prefix + t("Du schreibst das komplette Drehbuch für {0}, das mein Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.\n\nMEIN VIDEO\n- Thema: {1}\n{2}- Plattform: {3} ({4})\n- Ziellänge: etwa {5}\n{6}\n{7}WAS DAS STUDIO KANN (setz es gezielt ein, nicht in jeder Szene)\nEffekte (\"effekte\", mehrere möglich):\n- matt: Der König kippt um, eine rote Druckwelle läuft übers Brett, die Kamera fährt ran, großer Schriftzug SCHACHMATT, dumpfer Schlag. Nur in der Szene mit dem Mattzug.\n- drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).\n- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel. Für den einen Zug, auf den es ankommt.\n- wackeln: Die Kamera bebt, wenn die Figur aufsetzt. Für harte Schläge.\n- zoom: Schneller Zoom auf das Zielfeld.\n- blitz: Kurzer heller Blitz beim Zug. Für Überraschungen.\n- konfetti: Konfetti-Explosion. Für den Gewinnzug oder das Ende.\n- zeitlupe: Der letzte Zug der Szene läuft langsam. Für den Schlüsselzug.\nBewertung des Zugs (\"bewertung\", das Symbol erscheint wie auf Analyse-Seiten über dem Zielfeld): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.\nUmfrage (\"karte\": \"umfrage\"): bis zu 3 Antworten als Züge, z. B. \"A) Sf6\". Jede Antwort bekommt auf dem Brett automatisch einen farbigen Pfeil (A blau, B orange, C lila) in derselben Farbe wie ihr Knopf, so verstehen es auch Zuschauer ohne Notation. Die Antworten müssen legale Züge in der aktuellen Stellung sein. Die nächste Szene zeigt die Auflösung.\nFrage mit Countdown (\"karte\": \"frage\"): Rätsel-Frage, dann tickt der Countdown herunter.\nKameras (\"kamera\"): normal (hinter der eigenen Seite), schraeg, seitlich, oben (von oben, gut für Pläne), tief (tief und dramatisch), nah (nah dran), gegenueber (von der anderen Seite, selten). Dazu zoom (0.5 = nah, 1 = ganzes Brett), drehung (langsame Kamerafahrt in Grad pro Sekunde, z. B. 5 oder -5) und fokus (true = Kamera lehnt sich zum Zielfeld).\nTempo: \"zugtempo\" pro Szene (0.4 langsam bis 2.5 schnell), oben \"geschwindigkeit\" für das ganze Video (0.5 bis 2.5).\nLucena: eine KI-Kugel neben den Untertiteln mit \"stimmung\": froehlich, nachdenklich, begeistert, traurig.\n\n{8}DESIGN (\"design\" oben im JSON, alles optional, passend zum Thema wählen)\n- look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).\n- ansicht: 2d (flaches Brett von oben, am klarsten, Standard bei YouTube), 3d (plastisches Show-Brett, Standard bei TikTok, Reels, Shorts) oder aufsteller (3D-Brett mit flachen 2D-Figuren, die sich immer zur Kamera drehen).\n- figuren (nur 3D): lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.\n- untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).\n- schrift: modern oder elegant (Serifen, für Geschichte und Klassiker).\n- akzent: eigene Akzentfarbe als Farbcode, z. B. \"#ffb84d\".\n- textgroesse: 0.8 bis 1.3 (1 = normal). Bei größerer Schrift passen weniger Zeichen.\n- musik: keine, lofi (ruhig, zum Lernen), spannung (treibend, für Fallen), episch (groß, für Meisterpartien).\n- figurenRand: true (heller Rand, Figuren besser zu unterscheiden) oder false.\nUmgebungen (\"umgebung\"): schwebend, buehne, holztisch, neon, turniersaal, bibliothek.\n\nSCHACH-REGELN (sehr wichtig)\n- Nur legale Züge in der richtigen Reihenfolge. Prüfe jeden Zug, bevor du ihn schreibst.\n- Standard-Notation, deutsch (S, L, T, D, K) oder englisch (N, B, R, Q, K), z. B. \"1. e4 e5 2. Sf3\" oder \"3... a6\".\n- Eine Szene kann einen oder mehrere Züge haben (\"zug\"). Die Züge gehen in der Stellung weiter, in der die vorige Szene aufgehört hat.\n- Variante: \"variante\": { \"zurueck\": n } geht vorher n Halbzüge zurück (1 Halbzug = ein Zug von Weiß oder Schwarz) und spielt dann die Züge dieser Szene.\n- Zurück zur Hauptvariante: \"hauptvariante\": true springt zur Stellung, bevor die Variante begann.\n- Eine besondere Startstellung (Rätsel, Endspiel) gibst du als \"startstellung\" (FEN) an.\n\nALLE FELDER\nVideo (oben): titel, plattform ({list}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, design { ansicht, figuren, untertitelStil, schrift, akzent, textgroesse, musik, figurenRand }, startstellung, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, zuegeAusschreiben, felderLeuchten, fortschritt, koordinaten, kameraflug, spiegelung } (jeweils true oder false).\nSzene: karte (titel, frage, umfrage, abspann oder weglassen), zug, titel, untertitel, sprechtext, kleineZeile (z. B. \"Variante 1\"), dauer, kamera, zoom, drehung, fokus, pfeile (z. B. \"f3-e5 gefahr\"), markierungen (z. B. \"e5 gut\"), effekte, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.\nFarben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.\n\nPRÜF VOR DEM ANTWORTEN\n- Spiel alle Züge im Kopf nach: legal, richtige Reihenfolge, richtige Seite am Zug.\n- Jeder Titel höchstens {title} Zeichen, jeder Untertitel höchstens {11} Zeichen.\n- Die Summe der Dauern passt zur Ziellänge, und der Sprechtext jeder Szene ist in ihrer Dauer sprechbar.\n- Hook, eine klare Idee pro Szene, Pfeile für jede Drohung, Abspann mit Aufforderung.\n\nBEISPIEL (nur für das Format, schreib dein eigenes Video):\n```json\n{12}\n```", { 0: long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"), 1: o.topic.trim() || t("(such dir ein spannendes Thema aus)"), 2: o.side === "black" ? t("- Perspektive: schwarz (setz \"perspektive\": \"schwarz\")\n") : o.side === "white" ? t("- Perspektive: weiss (setz \"perspektive\": \"weiss\")\n") : "", 3: PLATFORM_LABEL[o.platform], 4: o.platform === "youtube" ? t("Querformat") : t("Hochformat"), 5: o.length >= 120 ? t("{0} Minuten ({length} Sekunden)", { 0: Math.round(o.length / 60), length: o.length }) : t("{length} Sekunden", { length: o.length }), 6: o.notes.trim() ? t("- Das ist mir wichtig:\n{0}\n", { 0: o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n") }) : "", 7: long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK }), 8: long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option }), list: list(PLATFORMS), title: FIT.title, 11: long ? FIT.lesson : SHORT_CHUNK, 12: JSON.stringify(inFormatLanguage(example), null, 2) });
+  return prefix + t("Du schreibst das komplette Drehbuch für {0}, das mein Videostudio automatisch daraus baut. Antworte NUR mit einem JSON-Codeblock in genau dem Format unten, ohne Text davor oder danach.\n\nMEIN VIDEO\n- Thema: {1}\n{2}- Plattform: {3} ({4})\n- Ziellänge: etwa {5}\n{6}\n{7}WAS DAS STUDIO KANN (setz es gezielt ein, nicht in jeder Szene)\nEffekte (\"effekte\", mehrere möglich):\n- matt: Der König kippt um, eine rote Druckwelle läuft übers Brett, die Kamera fährt ran, großer Schriftzug SCHACHMATT, dumpfer Schlag. Nur in der Szene mit dem Mattzug.\n- drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).\n- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel. Für den einen Zug, auf den es ankommt.\n- wackeln: Die Kamera bebt, wenn die Figur aufsetzt. Für harte Schläge.\n- zoom: Schneller Zoom auf das Zielfeld.\n- blitz: Kurzer heller Blitz beim Zug. Für Überraschungen.\n- konfetti: Konfetti-Explosion. Für den Gewinnzug oder das Ende.\n- zeitlupe: Der letzte Zug der Szene läuft langsam. Für den Schlüsselzug.\n- hitstop: Das ganze Bild friert für 0,25 Sekunden ein, genau im Moment des Aufpralls (Figur landet, Opfer, Patzer). Danach geht es weiter, oft mit schnellen Schnitten.\n- invert: Die Farben kehren sich für 0,15 Sekunden um. Für einen Patzer oder einen brillanten Zug.\n- glitch: Kurze RGB-Verschiebung an den Rändern (Chromatic Aberration) beim Aufprall.\n- schraeglage: Die Kamera kippt schräg (Dutch Angle). Für Drohungen.\n- punch: Punch-In: schneller Zoom von 1.0 auf 0.65 in einer halben Sekunde am Anfang der Szene.\n- riser: Langsames, immer schnelleres Heranzoomen bis zum Aufprall. Spannungsaufbau vor einem Opfer oder Patzer.\n- whip: Schneller Kameraschwenk mit Bewegungsunschärfe zum nächsten Winkel (beim Wechsel der \"kameras\" und beim Einstieg in die Szene).\nStärke der Effekte: Jeder Effekt hat eine Stärke von 0 bis 1 (ohne Angabe 1), damit der Höhepunkt auffällt: \"effekte\": {\"wackeln\": 0.3, \"zoom\": 0.5} (normale Schläge 0.3, Matt oder Damenopfer 1.0). Eine Liste ohne Zahlen (\"effekte\": [\"wackeln\"]) heißt Stärke 1. Mit \"intensitaet\": 0.5 bekommen alle Effekte der Szene ohne eigene Stärke diese.\nStempel (\"stempel\"): ein Wort, riesig mitten über dem Brett, 0,4 Sekunden lang im Moment des Aufpralls, z. B. \"BLUNDER\", \"SACRIFICE\", \"??\", \"MATT\" (höchstens 14 Zeichen). Sparsam einsetzen.\nMehrere Kameras pro Szene (\"kameras\": [\"nah\", \"tief\", \"oben\"]): die Winkel schalten im Takt durch, mit schnellem Schwenk dazwischen (nach einem Hitstop erst danach). So wechselst du die Kamera während eines Zugs, ohne leere Szenen zu bauen.\nBewertung des Zugs (\"bewertung\", das Symbol erscheint wie auf Analyse-Seiten über dem Zielfeld): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.\nUmfrage (\"karte\": \"umfrage\"): bis zu 3 Antworten als Züge, z. B. \"A) Sf6\". Jede Antwort bekommt auf dem Brett automatisch einen farbigen Pfeil (A blau, B orange, C lila) in derselben Farbe wie ihr Knopf, so verstehen es auch Zuschauer ohne Notation. Die Antworten müssen legale Züge in der aktuellen Stellung sein. Die nächste Szene zeigt die Auflösung.\nFrage mit Countdown (\"karte\": \"frage\"): Rätsel-Frage, dann tickt der Countdown herunter.\nKameras (\"kamera\"): normal (hinter der eigenen Seite), schraeg, seitlich, oben (von oben, gut für Pläne), tief (tief und dramatisch), nah (nah dran), gegenueber (von der anderen Seite, selten). Dazu zoom (0.5 = nah, 1 = ganzes Brett), drehung (langsame Kamerafahrt in Grad pro Sekunde, z. B. 5 oder -5) und fokus (true = Kamera lehnt sich zum Zielfeld).\nTempo: \"zugtempo\" pro Szene (0.4 langsam bis 2.5 schnell), oben \"geschwindigkeit\" für das ganze Video (0.5 bis 2.5).\nLucena: eine KI-Kugel neben den Untertiteln mit \"stimmung\": froehlich, nachdenklich, begeistert, traurig.\n\n{8}DESIGN (\"design\" oben im JSON, alles optional, passend zum Thema wählen)\n- look: nova (dunkelblau mit Violett, modern), marmor (helles Marmorbrett, kühles Türkis), holz (klassisches Holzbrett mit echten Holzfiguren, warmes Orange), walnuss (dunkles Edelholz mit Holzfiguren, Goldgelb, sehr edel), turnier (grün-weiß wie Online-Schach), neon (dunkles Lila mit Chromfiguren, für Action).\n- ansicht: 2d (flaches Brett von oben, am klarsten, Standard bei YouTube), 3d (plastisches Show-Brett, Standard bei TikTok, Reels, Shorts) oder aufsteller (3D-Brett mit flachen 2D-Figuren, die sich immer zur Kamera drehen).\n- figuren (nur 3D): lack (glänzend), matt, chrom, holz (Holz mit Maserung). Überschreibt die Figuren des Looks.\n- untertitelStil: kasten (Text in dunklem Kasten, ruhig), kontur (weiße Schrift mit dicker Kontur wie TikTok), gross (sehr groß und fett, höchstens 2 Zeilen, für schnelle Videos).\n- schrift: modern oder elegant (Serifen, für Geschichte und Klassiker).\n- akzent: eigene Akzentfarbe als Farbcode, z. B. \"#ffb84d\".\n- textgroesse: 0.8 bis 1.3 (1 = normal). Bei größerer Schrift passen weniger Zeichen.\n- musik: keine, lofi (ruhig, zum Lernen), spannung (treibend, für Fallen), episch (groß, für Meisterpartien).\n- figurenRand: true (heller Rand, Figuren besser zu unterscheiden) oder false.\nUmgebungen (\"umgebung\"): schwebend, buehne, holztisch, neon, turniersaal, bibliothek.\n\nSCHACH-REGELN (sehr wichtig)\n- Nur legale Züge in der richtigen Reihenfolge. Prüfe jeden Zug, bevor du ihn schreibst.\n- Standard-Notation, deutsch (S, L, T, D, K) oder englisch (N, B, R, Q, K), z. B. \"1. e4 e5 2. Sf3\" oder \"3... a6\".\n- Eine Szene kann einen oder mehrere Züge haben (\"zug\"). Die Züge gehen in der Stellung weiter, in der die vorige Szene aufgehört hat.\n- Variante: \"variante\": { \"zurueck\": n } geht vorher n Halbzüge zurück (1 Halbzug = ein Zug von Weiß oder Schwarz) und spielt dann die Züge dieser Szene.\n- Zurück zur Hauptvariante: \"hauptvariante\": true springt zur Stellung, bevor die Variante begann.\n- Eine besondere Startstellung (Rätsel, Endspiel) gibst du als \"startstellung\" (FEN) an.\n- Besser bei einer ganzen Partie: gib sie oben einmal als \"pgn\" an (Zugliste, Kopfzeilen erlaubt) und schreib in den Szenen nur \"zugNr\" statt \"zug\". zugNr zählt Halbzüge ab 1: 1 ist 1. e4, 2 ist 1... e5, 3 ist 2. Sf3, 14 ist 7... (Zug von Schwarz). \"zugNr\": 14 zeigt diesen Zug, \"zugNr\": \"14-16\" drei Züge hintereinander. Eine Szene ohne zugNr zeigt dieselbe Stellung noch einmal, z. B. aus einem neuen Kamerawinkel. Springt zugNr nach vorn oder zurück, blendet das Studio zur Stellung vor diesem Zug über. So stimmen die Züge garantiert, und du kannst dich ganz auf Schnitt, Pfeile und Drama konzentrieren.\n\nALLE FELDER\nVideo (oben): titel, plattform ({list}), laenge (Sekunden), perspektive (weiss, schwarz), geschwindigkeit, zugtempo, look, umgebung, design { ansicht, figuren, untertitelStil, schrift, akzent, textgroesse, musik, figurenRand }, startstellung, pgn, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, zuegeAusschreiben, felderLeuchten, fortschritt, koordinaten, kameraflug, spiegelung } (jeweils true oder false).\nSzene: karte (titel, frage, umfrage, abspann oder weglassen), zug, zugNr, titel, untertitel, sprechtext, kleineZeile (z. B. \"Variante 1\"), dauer, kamera, kameras, zoom, drehung, fokus, pfeile (z. B. \"f3-e5 gefahr\"), markierungen (z. B. \"e5 gut\"), effekte, intensitaet, stempel, bewertung, zugtempo, stimmung, countdown (Sekunden, bei frage und umfrage), antworten (bei umfrage), variante, hauptvariante.\nFarben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.\n\nPRÜF VOR DEM ANTWORTEN\n- Spiel alle Züge im Kopf nach: legal, richtige Reihenfolge, richtige Seite am Zug.\n- Jeder Titel höchstens {title} Zeichen, jeder Untertitel höchstens {11} Zeichen.\n- Die Summe der Dauern passt zur Ziellänge, und der Sprechtext jeder Szene ist in ihrer Dauer sprechbar.\n- Hook, eine klare Idee pro Szene, Pfeile für jede Drohung, Abspann mit Aufforderung.\n\nBEISPIEL (nur für das Format, schreib dein eigenes Video):\n```json\n{12}\n```", { 0: long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"), 1: o.topic.trim() || t("(such dir ein spannendes Thema aus)"), 2: o.side === "black" ? t("- Perspektive: schwarz (setz \"perspektive\": \"schwarz\")\n") : o.side === "white" ? t("- Perspektive: weiss (setz \"perspektive\": \"weiss\")\n") : "", 3: PLATFORM_LABEL[o.platform], 4: o.platform === "youtube" ? t("Querformat") : t("Hochformat"), 5: o.length >= 120 ? t("{0} Minuten ({length} Sekunden)", { 0: Math.round(o.length / 60), length: o.length }) : t("{length} Sekunden", { length: o.length }), 6: o.notes.trim() ? t("- Das ist mir wichtig:\n{0}\n", { 0: o.notes.trim().split("\n").map((l) => `  ${l.trim()}`).join("\n") }) : "", 7: long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK }), 8: long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option }), list: list(PLATFORMS), title: FIT.title, 11: long ? FIT.lesson : SHORT_CHUNK, 12: JSON.stringify(inFormatLanguage(example), null, 2) });
 }
 
 // ---------- reading the answer ----------
@@ -366,6 +380,104 @@ function markOf(v: unknown): StudioMark | null {
   return SQ.test(square) ? { square, tone: TONES[word(tone)] ?? "accent" } : null;
 }
 
+/** "14" → 14..14, "14-16" or [14, 16] → 14..16, "7." → White's 7th move, "7..." → Black's 7th move (all as half-moves counted from 1). */
+function plyRange(v: unknown): [number, number] | null {
+  const nums: number[] = [];
+  const take = (x: unknown) => {
+    if (typeof x === "number") nums.push(Math.round(x));
+    else if (typeof x === "string") {
+      const str = x.trim();
+      const mm = str.match(/^(\d+)\s*(\.{3}|…|\.)$/);
+      if (mm) nums.push(mm[2] === "." ? Number(mm[1]) * 2 - 1 : Number(mm[1]) * 2);
+      else for (const part of str.split(/\s*(?:-|–|—|bis|to|\.\.|,|;)\s*/)) if (/^\d+$/.test(part)) nums.push(Number(part));
+    }
+  };
+  if (Array.isArray(v)) v.forEach(take);
+  else take(v);
+  return nums.length && nums.every((n) => Number.isFinite(n)) ? [Math.min(...nums), Math.max(...nums)] : null;
+}
+
+/** The whole game of a script: its moves and the position after every half-move (index 0 = before the first). PGN headers, comments, variations and NAGs are skipped. */
+function readGame(pgn: string, start: string): { moves: Move[]; fens: string[]; error?: string } {
+  let body = pgn.replace(/^\s*\[[^\]]*\]\s*$/gm, " ").replace(/;[^\n]*/g, " ").replace(/\$\d+/g, " ");
+  for (let i = 0; i < 6; i++) body = body.replace(/\([^()]*\)/g, " ");
+  const parsed = parseMoves(start, body);
+  const fens = [start];
+  const walk = new Chess(start);
+  for (const m of parsed.moves) {
+    walk.move(m.san);
+    fens.push(walk.fen());
+  }
+  return { moves: parsed.moves, fens, error: parsed.error };
+}
+
+/** Which camera angle a word means; "weiss"/"schwarz" are sides: the video's own side is the normal view, the other one is "von gegenüber". */
+function cameraOf(w: string, perspective: Side): CameraPreset | null {
+  if (w === "weiss" || w === "white" || w === "weisssicht") return perspective === "white" ? "white" : "black";
+  if (w === "schwarz" || w === "black" || w === "schwarzsicht") return perspective === "black" ? "white" : "black";
+  return CAMERAS[w] ?? null;
+}
+
+/** Effect strengths: 0..1 like 0.3; a number between 10 and 100 is read as a percentage, anything from 1 to 10 as full power. */
+const strength = (v: unknown): number => {
+  const x = number(v);
+  return x === null ? 1 : x > 1 ? (x <= 10 ? 1 : Math.min(1, x / 100)) : Math.max(0, x);
+};
+
+/**
+ * The effects of a scene with their strengths. Accepted: a list ("effekte": ["wackeln"]), a list with strengths
+ * ("wackeln:0.3", {"effekt": "wackeln", "staerke": 0.3}), an object ({"wackeln": 0.3}), and a number straight on the
+ * scene ("wackeln": 0.3). "intensitaet" sets the strength of every effect of the scene that has none of its own.
+ * A strength of 0 (or false) leaves the effect out, which also switches off the reel look's automatic ones.
+ */
+function readEffects(o: Obj, n: number, warnings: string[]): { effects: Effect[]; power: Partial<Record<Effect, number>>; given: boolean } {
+  const raw = field(o, "effekte", "effects", "effekt");
+  const entries: [unknown, unknown][] = [];
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) entries.push(...Object.entries(raw));
+  else {
+    for (const e of asList(raw)) {
+      if (e && typeof e === "object") {
+        const eo = e as Obj;
+        const name = field(eo, "effekt", "name", "art", "typ", "effect", "id");
+        if (name !== undefined) entries.push([name, field(eo, "staerke", "intensitaet", "intensity", "power", "wert", "strength", "value", "level")]);
+        else entries.push(...Object.entries(eo));
+      } else if (typeof e === "string") {
+        const m = e.match(/^\s*([^\d:=\s][^:=]*?)\s*[:=\s]\s*(\d*[.,]?\d+)\s*$/);
+        entries.push(m ? [m[1], Number(m[2].replace(",", "."))] : [e, 1]);
+      } else entries.push([e, 1]);
+    }
+  }
+  // A strength straight on the scene ("wackeln": 0.3). "zoom" stays the camera's zoom there.
+  for (const [k, v] of Object.entries(o)) if ((typeof v === "number" || typeof v === "boolean") && EFFECTS[word(k)] && word(k) !== "zoom") entries.push([k, v]);
+  const given = raw !== undefined || entries.length > 0;
+  const general = number(field(o, "intensitaet", "intensity", "staerke", "strength"));
+  const effects: Effect[] = [];
+  const power: Partial<Record<Effect, number>> = {};
+  for (const [name, p] of entries) {
+    const id = EFFECTS[word(name)];
+    if (!id) {
+      warnings.push(t("Szene {n}: Effekt „{1}“ gibt es nicht.", { n, 1: String(name).trim() }));
+      continue;
+    }
+    const k = typeof p === "boolean" ? (p ? 1 : 0) : strength(p);
+    if (k <= 0) power[id] = 0;
+    else {
+      effects.push(id);
+      if (k < 1) power[id] = k;
+    }
+  }
+  if (general !== null) for (const id of effects) if (power[id] === undefined && general < 1) power[id] = Math.max(0, strength(general));
+  return { effects: [...new Set(effects)], power, given };
+}
+
+/** The words of the scenes' texts, for guessing the side: effect names such as "dutch" must not read as the Dutch Defence. */
+function storyText(scenes: unknown[]): string {
+  return scenes
+    .map((x) => (x && typeof x === "object" ? ["titel", "title", "untertitel", "subtitle", "text", "sprechtext", "voiceover", "kleinezeile", "label"].map((k) => field(x as Obj, k)).filter((v) => typeof v === "string").join(" ") : ""))
+    .join(" ")
+    .slice(0, 4000);
+}
+
 export function importAiScript(input: string): AiImport {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -385,9 +497,15 @@ export function importAiScript(input: string): AiImport {
     if (validFen(sf)) startFen = sf;
     else warnings.push(t("Die Startstellung (FEN) ist ungültig, ich nehme die Grundstellung."));
   }
+  // The whole game once on top ("pgn"); scenes then only name a half-move ("zugNr") instead of spelling out moves.
+  const pgnText = text(field(root, "pgn", "partie", "game"), 12000);
+  const pgnFen = pgnText.match(/\[FEN\s+"([^"]+)"\]/i)?.[1];
+  if (pgnFen && !sf && validFen(pgnFen)) startFen = pgnFen;
+  const game = pgnText ? readGame(pgnText, startFen) : null;
+  if (game?.error) errors.push(t("Die Partie („pgn“) hat nach Halbzug {n} einen unmöglichen Zug: „{error}“. Nur die Züge davor werden benutzt.", { n: game.moves.length, error: game.error }));
 
   const perspWord = word(field(root, "perspektive", "perspective", "sicht", "seite"));
-  const perspective: Side = perspWord ? (["schwarz", "black", "s", "b"].includes(perspWord) ? "black" : "white") : guessPerspective(`${text(field(root, "titel", "title"), 200)} ${JSON.stringify(rawScenes).slice(0, 4000)}`);
+  const perspective: Side = perspWord ? (["schwarz", "black", "s", "b"].includes(perspWord) ? "black" : "white") : guessPerspective(`${text(field(root, "titel", "title"), 200)} ${pgnText.slice(0, 600)} ${storyText(rawScenes)}`);
   if (!perspWord && perspective === "black") warnings.push(t("Keine Perspektive angegeben. Das Video ist für Schwarz, darum zeige ich es aus Sicht von Schwarz."));
 
   const artWord = word(field(root, "videoart", "videotype", "art", "videokind", "kind"));
@@ -433,11 +551,30 @@ export function importAiScript(input: string): AiImport {
         jump = line[line.length - 1];
       } else warnings.push(t("Szene {n}: „hauptvariante“ ohne vorherige Variante wird ignoriert.", { n }));
     }
+    // With a game on top the scene names its half-moves ("zugNr": 14, "14-16"): the picture jumps to the position before them when the line is not there already.
+    let pgnMoves: string | null = null;
+    const plyRaw = field(o, "zugnr", "zugnummer", "halbzug", "ply", "moveno", "movenumber");
+    if (plyRaw !== undefined && plyRaw !== null && plyRaw !== "") {
+      const range = plyRange(plyRaw);
+      if (!game) warnings.push(t("Szene {n}: zugNr gibt es nur mit einer ganzen Partie („pgn“) oben im Skript, ich ignoriere es.", { n }));
+      else if (!range) warnings.push(t("Szene {n}: zugNr „{String}“ ist keine Zugnummer.", { n, String: String(plyRaw) }));
+      else if (range[1] > game.moves.length) warnings.push(t("Szene {n}: zugNr {0} gibt es nicht, die Partie hat {1} Halbzüge.", { n, 0: range[1], 1: game.moves.length }));
+      else {
+        // 0 = the starting position without a move.
+        const first = Math.max(1, range[0]);
+        const target = game.fens[first - 1];
+        if (line[line.length - 1] !== target) {
+          line = [target];
+          jump = target;
+        }
+        pgnMoves = range[1] === 0 ? "" : game.moves.slice(first - 1, Math.min(range[1], first + 7)).map((m) => m.san).join(" ");
+      }
+    }
     const before = line[line.length - 1];
 
     // Moves: checked one by one, an illegal one ends the scene's moves.
-    const movesText = text(field(o, "zug", "zuege", "moves", "move"), 600);
-    const parsed = parseMoves(before, Array.isArray(field(o, "zuege", "moves")) ? (field(o, "zuege", "moves") as unknown[]).join(" ") : movesText);
+    const movesText = pgnMoves ?? text(field(o, "zug", "zuege", "moves", "move"), 600);
+    const parsed = parseMoves(before, pgnMoves === null && Array.isArray(field(o, "zuege", "moves")) ? (field(o, "zuege", "moves") as unknown[]).join(" ") : movesText);
     if (parsed.error) errors.push(t("Szene {n}: „{error}“ ist in dieser Stellung nicht möglich{2}.", { n, error: parsed.error, 2: parsed.moves.length ? t(", nur {movesLabel} wird gezeigt", { movesLabel: movesLabel(parsed.moves, before) }) : "" }));
     const walk = new Chess(before);
     for (const m of parsed.moves) {
@@ -450,20 +587,21 @@ export function importAiScript(input: string): AiImport {
     const card = cardWord ? CARDS[cardWord] : "none";
     if (cardWord && !card) warnings.push(t("Szene {n}: Karte „{String}“ kenne ich nicht.", { n, String: String(field(o, "karte", "card", "typ", "type")) }));
     const camWord = word(field(o, "kamera", "camera", "perspektive"));
-    // "weiss"/"schwarz" mean a side: the video's own side is the normal view, the other one is "von gegenüber".
-    const sideCam = camWord === "weiss" || camWord === "white" || camWord === "weisssicht" ? (perspective === "white" ? "white" : "black") : camWord === "schwarz" || camWord === "black" || camWord === "schwarzsicht" ? (perspective === "black" ? "white" : "black") : null;
-    const camera = sideCam ?? CAMERAS[camWord] ?? (card === "outro" ? "corner" : "white");
-    if (camWord && !sideCam && !CAMERAS[camWord]) warnings.push(t("Szene {n}: Kamera „{String}“ kenne ich nicht, ich nehme {2}.", { n, String: String(field(o, "kamera", "camera")), 2: CAMERA_LABEL[camera] }));
-
-    const effectsRaw = field(o, "effekte", "effects", "effekt");
-    const effects: Effect[] = [];
-    for (const e of asList(effectsRaw)) {
-      const id = EFFECTS[word(e)];
-      if (id) effects.push(id);
-      else warnings.push(t("Szene {n}: Effekt „{1}“ gibt es nicht.", { n, 1: String(e).trim() }));
+    // Several angles cut through the scene on the beat ("kameras": ["nah", "tief", "oben"]).
+    const cameras: CameraPreset[] = [];
+    for (const c of asList(field(o, "kameras", "cameras", "winkel", "angles"))) {
+      const preset = cameraOf(word(c), perspective);
+      if (preset) cameras.push(preset);
+      else warnings.push(t("Szene {n}: Kamera „{String}“ kenne ich nicht, ich lasse sie weg.", { n, String: String(c).trim() }));
     }
+    cameras.length = Math.min(cameras.length, MAX_CAMERAS);
+    const sideCam = camWord ? cameraOf(camWord, perspective) : null;
+    const camera = sideCam ?? (camWord ? null : cameras[0]) ?? (card === "outro" ? "corner" : "white");
+    if (camWord && !sideCam) warnings.push(t("Szene {n}: Kamera „{String}“ kenne ich nicht, ich nehme {2}.", { n, String: String(field(o, "kamera", "camera")), 2: CAMERA_LABEL[camera] }));
+
+    const { effects, power, given } = readEffects(o, n, warnings);
     // A mate on the board gets its animation even when the AI forgot it.
-    if (effectsRaw === undefined && parsed.moves.length && walk.isCheckmate()) effects.push("mate");
+    if (!given && parsed.moves.length && walk.isCheckmate()) effects.push("mate");
 
     const badgeRaw = text(field(o, "bewertung", "badge", "symbol", "rating"), 30);
     const badge: Badge = BADGES[badgeRaw] ?? BADGES[word(badgeRaw)] ?? "";
@@ -488,8 +626,11 @@ export function importAiScript(input: string): AiImport {
         speech: text(field(o, "sprechtext", "sprecher", "voiceover", "sagen", "speech"), 1200),
         label: text(field(o, "kleinezeile", "label", "kicker", "zeile"), 40) || (back ? t("Variante {variations}", { variations }) : toMain && jump ? t("Zurück zur Hauptvariante") : ""),
         // An edit cuts every beat (two thirds of a second); the timeline rounds up to whole beats.
-        duration: Math.min(30, Math.max(edit ? 0.3 : 1, number(field(o, "dauer", "duration", "sekunden")) ?? (card === "outro" ? 4 : card === "intro" ? (edit ? 1.3 : 3) : edit ? 0.6 : 2.8 + parsed.moves.length * 0.6))),
+        duration: Math.min(30, Math.max(edit ? 0.3 : 1, number(field(o, "dauer", "duration", "sekunden")) ?? (card === "outro" ? 4 : card === "intro" ? (edit ? 1.3 : 3) : edit ? Math.max(0.6, cameras.length * 0.4) : 2.8 + parsed.moves.length * 0.6))),
         camera,
+        cameras,
+        stamp: text(field(o, "stempel", "stamp", "impacttext"), 14).toUpperCase(),
+        power,
         zoom: Math.min(1.6, Math.max(0.45, number(field(o, "zoom")) ?? 1)),
         orbit: Math.min(30, Math.max(-30, number(field(o, "drehung", "orbit", "kamerafahrt", "rotation", "rotate")) ?? 0)),
         focus: bool(field(o, "fokus", "focus")) === true,
@@ -594,6 +735,15 @@ export function importAiScript(input: string): AiImport {
 const rev = <T extends string>(map: Record<string, T>, value: T) => Object.keys(map).find((k) => map[k] === value) ?? value;
 const TONE_WORD: Record<Tone, string> = { accent: "akzent", good: "gut", bad: "gefahr", idea: "idee", white: "weiss" };
 
+/** The effects of a scene for the export: a plain list, or an object with strengths when some effect is not at full power. */
+function effectsOut(s: Scene): string[] | Record<string, number> {
+  if (!Object.keys(s.power).length) return s.effects.map((e) => rev(EFFECTS, e));
+  const map: Record<string, number> = {};
+  for (const e of s.effects) map[rev(EFFECTS, e)] = s.power[e] ?? 1;
+  for (const [k, v] of Object.entries(s.power)) if (v === 0) map[rev(EFFECTS, k as Effect)] = 0;
+  return map;
+}
+
 /** The current project in the AI format, to let an AI revise it. Variations become plain position jumps (FEN). */
 export function toAiScript(project: StudioProject): string {
   const out = {
@@ -631,7 +781,9 @@ export function toAiScript(project: StudioProject): string {
       ...(s.focus ? { fokus: true } : {}),
       ...(s.arrows.length ? { pfeile: s.arrows.map((a) => `${a.from}-${a.to} ${TONE_WORD[a.tone]}`) } : {}),
       ...(s.marks.length ? { markierungen: s.marks.map((m) => `${m.square} ${TONE_WORD[m.tone]}`) } : {}),
-      ...(s.effects.length ? { effekte: s.effects.map((e) => rev(EFFECTS, e)) } : {}),
+      ...(s.cameras.length ? { kameras: s.cameras.map((c) => rev(CAMERAS, c)) } : {}),
+      ...(s.effects.length || Object.keys(s.power).length ? { effekte: effectsOut(s) } : {}),
+      ...(s.stamp ? { stempel: s.stamp } : {}),
       ...(s.badge ? { bewertung: rev(BADGES, s.badge) } : {}),
       ...(s.tempo !== 1 ? { zugtempo: s.tempo } : {}),
       ...(s.options.length ? { antworten: s.options } : {}),

@@ -160,7 +160,20 @@ export function cameraMatrix(cam: CameraState, aspect: number, lesson = false): 
   // In a tall video the board sits in the middle band, between the headline and the subtitles, so neither covers a piece.
   const shift = aspect < 0.8 ? 0.0 : 0;
   const proj = perspective(FOV_Y, aspect, 0.5, 120, shift, lesson ? 0.46 : 0);
-  return { viewProj: multiply(proj, lookAt(eye, target)), eye };
+  const viewProj = multiply(proj, lookAt(eye, target));
+  // Dutch angle: the finished picture is turned about its middle (rotated in pixels, not in the stretched clip space).
+  const roll = ((cam.roll ?? 0) * Math.PI) / 180;
+  if (!roll) return { viewProj, eye };
+  const c = Math.cos(roll);
+  const sn = Math.sin(roll);
+  const turn = new Float32Array(16);
+  turn[0] = c;
+  turn[1] = sn * aspect;
+  turn[4] = (-sn) / aspect;
+  turn[5] = c;
+  turn[10] = 1;
+  turn[15] = 1;
+  return { viewProj: multiply(turn, viewProj), eye };
 }
 
 export class StudioRenderer {

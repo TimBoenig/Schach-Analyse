@@ -18,7 +18,7 @@ export type Card = "none" | "intro" | "question" | "poll" | "outro";
 export type Environment = "void" | "podium" | "table" | "neon" | "hall" | "library";
 export type Platform = "tiktok" | "reels" | "shorts" | "youtube";
 /** Show effects that start when the scene's moves have landed. */
-export type Effect = "mate" | "threat" | "spotlight" | "shake" | "zoom" | "flash" | "confetti" | "slowmo";
+export type Effect = "mate" | "threat" | "spotlight" | "shake" | "zoom" | "flash" | "confetti" | "slowmo" | "hitstop" | "invert" | "glitch" | "dutch" | "punch" | "whip" | "riser";
 /** Move rating shown as the analysis page's round badge on the square the last move landed on. */
 export type Badge = "" | "brilliant" | "great" | "best" | "excellent" | "good" | "book" | "inaccuracy" | "mistake" | "miss" | "blunder";
 /** The side the whole video is watched from; camera presets are relative to it. */
@@ -68,6 +68,15 @@ export interface Scene {
   speech: string;
   /** Speed of this scene's piece moves, 1 = normal. */
   tempo: number;
+  /**
+   * Camera angles that cut through the scene on the beat (empty = the scene's own `camera` all the way).
+   * With a hit-stop they start after it: build-up, freeze, then fast cuts.
+   */
+  cameras: CameraPreset[];
+  /** One loud word stamped over the picture for about 0.4 s at the impact ("BLUNDER", "??"); empty = none. */
+  stamp: string;
+  /** How hard each effect hits, 0..1 (missing = 1). Lets the climax stand out from the normal blows. */
+  power: Partial<Record<Effect, number>>;
 }
 
 export type ThemeId = "nova" | "marmor" | "holz" | "walnuss" | "turnier" | "neon" | "mono";
@@ -203,7 +212,22 @@ export const EFFECT_LABEL: Record<Effect, { label: string; hint: string }> = {
   flash: { label: "Blitz", hint: t("Kurzer heller Blitz beim Zug") },
   confetti: { label: t("Konfetti"), hint: t("Konfetti für starke Züge und Siege") },
   slowmo: { label: t("Zeitlupe"), hint: t("Der letzte Zug der Szene läuft langsam") },
+  hitstop: { label: "Hitstop", hint: t("Kompletter Stillstand für 0,25 s im Moment des Aufpralls") },
+  invert: { label: t("Invertieren"), hint: t("Farben kehren sich für 0,15 s um (Patzer, Brillant)") },
+  glitch: { label: "Glitch", hint: t("Kurze RGB-Verschiebung an den Rändern (Chromatic Aberration)") },
+  dutch: { label: t("Schräglage"), hint: t("Kamera kippt schräg, für Drohungen") },
+  punch: { label: "Punch-In", hint: t("Schneller Zoom von 1,0 auf 0,65 in einer halben Sekunde") },
+  riser: { label: "Riser", hint: t("Langsames, immer schnelleres Heranzoomen bis zum Aufprall (Spannungsaufbau)") },
+  whip: { label: "Whip-Pan", hint: t("Schneller Schwenk mit Bewegungsunschärfe zum nächsten Winkel") },
 };
+
+/** Seconds the picture freezes on a hit-stop. */
+export const HITSTOP = 0.25;
+/** Most camera angles one scene can cut through. */
+export const MAX_CAMERAS = 8;
+
+/** How hard an effect of the scene hits: 0..1, 1 when the scene says nothing. */
+export const powerOf = (s: Pick<Scene, "power">, kind: Effect): number => s.power[kind] ?? 1;
 export const BADGE_LABEL: Record<Badge, string> = {
   "": t("Keine"),
   brilliant: t("Brillant"),
@@ -297,6 +321,9 @@ export function scene(over: Partial<Scene> = {}): Scene {
     badge: "",
     speech: "",
     tempo: 1,
+    cameras: [],
+    stamp: "",
+    power: {},
     ...over,
   };
 }
@@ -495,6 +522,13 @@ export function normalizeProject(raw: unknown): StudioProject {
       badge: BADGE_FROM_SYMBOL[String(s.badge)] ?? pick(s.badge, Object.keys(BADGE_LABEL) as Badge[], ""),
       speech: str(s.speech, "", 1200),
       tempo: num(s.tempo, 0.3, 3, 1),
+      cameras: (Array.isArray(s.cameras) ? s.cameras : []).filter((c): c is CameraPreset => typeof c === "string" && c in CAMERA_LABEL).slice(0, MAX_CAMERAS),
+      stamp: str(s.stamp, "", 14).toUpperCase(),
+      power: Object.fromEntries(
+        Object.entries(s.power && typeof s.power === "object" ? (s.power as Record<string, unknown>) : {})
+          .filter(([k, v]) => k in EFFECT_LABEL && typeof v === "number" && Number.isFinite(v))
+          .map(([k, v]) => [k, Math.min(1, Math.max(0, v as number))]),
+      ),
     });
   });
   return {

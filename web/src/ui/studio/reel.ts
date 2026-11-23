@@ -15,8 +15,8 @@ import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { t } from "../../i18n";
 import { drawCard, fitText, layout, tokens, type Assets } from "./compose";
 import { pieceKey } from "./flat";
-import type { Badge, Tone, StudioProject } from "./model";
-import { squareXZ, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
+import { powerOf, type Badge, type CameraPreset, type Tone, type StudioProject } from "./model";
+import { squareXZ, WHIP_T, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
 
 const SANS = '"Geist", -apple-system, "Segoe UI", sans-serif';
 const SERIF = '"Instrument Serif", Georgia, serif';
@@ -88,16 +88,33 @@ interface Pose {
   /** Board point in the middle of the picture. */
   x: number;
   z: number;
+  /** Tilt of the horizon in degrees. */
+  roll: number;
 }
 
+/**
+ * The camera angles of a scene that cuts (`cameras`), translated to this flat tilted board: how close the picture is
+ * (0 = whole board, 1 = very close; kept at 3 squares or more) and how far the horizon leans.
+ */
+export const PRESET_LOOK: Record<CameraPreset, { cl: number; roll: number }> = {
+  white: { cl: 0.2, roll: 0 },
+  black: { cl: 0.25, roll: 0 },
+  top: { cl: 0.1, roll: 0 },
+  corner: { cl: 0.45, roll: 9 },
+  side: { cl: 0.55, roll: -12 },
+  low: { cl: 0.7, roll: -7 },
+  close: { cl: 0.9, roll: 4 },
+};
+
 /** How a scene is framed once the camera has arrived: pure, so the previous scene's framing can be the start of this one's flight. */
-function shotPose(shot: ReelShot, m: number): Pose {
+function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.entryPreset): Pose {
   const wide = m / 9.2;
   const close = m / 2.3;
   // How close: 0 = the whole tilted board, 1 = two or three squares. The overview is never given up, so the range stays moderate.
   // The mating blow ends with the whole board in view, so the next scene flies on from there.
-  if (shot.effects.includes("mate")) return { S: wide * 1.12, x: 0, z: 0 };
-  let cl = SHOT_SIZES[shot.index % SHOT_SIZES.length] + (1 - shot.zoom) * 0.5;
+  if (shot.effects.includes("mate")) return { S: wide * 1.12, x: 0, z: 0, roll: 0 };
+  let cl = (preset ? PRESET_LOOK[preset].cl : SHOT_SIZES[shot.index % SHOT_SIZES.length]) + (1 - shot.zoom) * 0.5;
+  if (preset) cl = Math.min(0.8, cl);
   if (shot.effects.includes("spotlight")) cl += 0.05;
   if (shot.card !== "none") cl = 0.08;
   let S = Math.exp(lerp(Math.log(wide), Math.log(close), clamp01(cl)));
@@ -116,7 +133,7 @@ function shotPose(shot: ReelShot, m: number): Pose {
   }
   // A wide shot shows the whole board, so it stays centred.
   const hold = clamp01(((S - wide) / (close - wide)) * 1.4);
-  return { S, x: tx * hold, z: tz * hold };
+  return { S, x: tx * hold, z: tz * hold, roll: preset ? PRESET_LOOK[preset].roll : 0 };
 }
 
 /** How close the camera gets on the showcase move: the picture is this many squares across. */
@@ -162,17 +179,33 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const wide = m / 9.2;
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
 
+  const sc = frame.scene;
   const to = shotPose(frame.shot, m);
   // The very first picture is already moving: it starts close and pulls out, so the clip has motion from frame one.
-  const from = frame.prevShot ? shotPose(frame.prevShot, m) : { ...to, S: to.S * 1.45 };
-  const k = easeInOut(age / Math.min(frame.dur, FLOW));
+  const from = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset) : { ...to, S: to.S * 1.45 };
+  // A scene that cuts between angles (or whips) is entered quickly, any other by a slow flight.
+  const k = easeInOut(age / Math.min(frame.dur, frame.shot.fastEntry ? WHIP_T : FLOW));
   let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
   let tx = lerp(from.x, to.x, k);
   let tz = lerp(from.z, to.z, k);
+  let tilt = lerp(from.roll, to.roll, k);
+  // The cuts of the scene: a quick whip from the angle before to the one now; the first cut after a hit-stop starts from where the picture is.
+  const cut = frame.cut;
+  if (cut && cut.prev !== null) {
+    const a: Pose = cut.prev === "plain" ? { S, x: tx, z: tz, roll: tilt } : shotPose(frame.shot, m, cut.prev);
+    const b = shotPose(frame.shot, m, cut.preset);
+    const kc = easeInOut((age - cut.since) / WHIP_T);
+    S = Math.exp(lerp(Math.log(a.S), Math.log(b.S), kc));
+    tx = lerp(a.x, b.x, kc);
+    tz = lerp(a.z, b.z, kc);
+    tilt = lerp(a.roll, b.roll, kc);
+  }
   // After arriving the camera keeps creeping in, so a held shot is never dead.
   S *= 1 + 0.04 * Math.max(0, age - FLOW);
   const zoomAge = fx("zoom");
-  if (zoomAge !== undefined) S *= 1 + 0.35 * easeOut(zoomAge / 0.5);
+  if (zoomAge !== undefined) S *= 1 + 0.35 * powerOf(sc, "zoom") * easeOut(zoomAge / 0.5);
+  // Punch-in and riser push the picture in.
+  S /= frame.push;
   // The showcase move: the camera goes in on the spinning piece, follows it through the air in slow motion,
   // takes the landing and then backs out to where the scene was. Close, but still about three squares across.
   const heroK = heroFocus(frame);
@@ -192,7 +225,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
 
   // The orbit: a slow swing of the horizon, never the same twice in a row, and the same in every scene, so nothing jumps.
   const t = frame.time;
-  const roll = ((13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3) + (frame.scene.orbit || 0) * age) * Math.PI) / 180;
+  const roll = ((13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3) + (frame.scene.orbit || 0) * age + tilt + frame.roll) * Math.PI) / 180;
 
   // The mating blow: the camera backs off to show the whole board while the pieces break.
   const mateAge = fx("mate");
@@ -211,9 +244,9 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
 
   let shake = 0;
   const sh = fx("shake");
-  if (sh !== undefined) shake = Math.max(shake, 16 * Math.exp(-sh * 6));
+  if (sh !== undefined) shake = Math.max(shake, 16 * powerOf(sc, "shake") * Math.exp(-sh * 6));
   const mate = fx("mate");
-  if (mate !== undefined) shake = Math.max(shake, 24 * Math.exp(-mate * 4));
+  if (mate !== undefined) shake = Math.max(shake, 24 * powerOf(sc, "mate") * Math.exp(-mate * 4));
   // The showcase piece hits the board hard.
   const impact = hero ? age - hero.t1 : -1;
   if (impact >= 0) shake = Math.max(shake, 14 * Math.exp(-impact * 9));
@@ -223,7 +256,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   // No strobe at cuts, there are none: white only for the "flash" effect and the mating blow.
   let flash = 0;
   const fl = fx("flash");
-  if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * (1 - fl / 0.45) ** 2);
+  if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * powerOf(sc, "flash") * (1 - fl / 0.45) ** 2);
   if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.55 * (1 - mate / 0.25));
   if (impact >= 0 && impact < 0.12) flash = Math.max(flash, 0.3 * (1 - impact / 0.12));
   return { roll, S, fx: tx, fz: tz, shakeX, shakeY, flash: clamp01(flash) };
@@ -279,7 +312,7 @@ function glows(frame: Frame): Glow[] {
   for (const h of frame.hints) put(h.square, GLOW.blue, 0.7 * h.alpha);
   for (const m of frame.marks) put(m.square, TONE_GLOW[m.tone], m.alpha);
   const threat = frame.fx.find((f) => f.kind === "threat")?.age;
-  if (threat !== undefined) for (const sq of frame.threats) put(sq, GLOW.red, Math.min(1, threat / 0.3) * (0.75 + 0.25 * Math.sin(threat * 8)));
+  if (threat !== undefined) for (const sq of frame.threats) put(sq, GLOW.red, powerOf(frame.scene, "threat") * Math.min(1, threat / 0.3) * (0.75 + 0.25 * Math.sin(threat * 8)));
   const mate = frame.fx.find((f) => f.kind === "mate")?.age;
   if (mate !== undefined && frame.mate) put(frame.mate.king, GLOW.red, Math.min(1, mate / 0.2));
   if (frame.badge) {
@@ -682,11 +715,11 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   let hole = 0.42;
   if (spot !== undefined && frame.fxSquare) {
     [cx, cy] = onScreen(frame.fxSquare);
-    hole = lerp(0.42, 0.1, easeOut(spot / 0.4));
+    hole = lerp(0.42, 0.1, easeOut(spot / 0.4) * powerOf(frame.scene, "spotlight"));
   }
   const vig = ctx.createRadialGradient(cx, cy, Math.min(W, H) * hole, cx, cy, Math.max(W, H) * 0.8);
   vig.addColorStop(0, "rgba(0,0,0,0)");
-  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.92 : 0.72})`);
+  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.72 + 0.2 * powerOf(frame.scene, "spotlight") : 0.72})`);
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
   const danger = mateAge !== undefined ? Math.min(1, mateAge / 0.3) * Math.max(0.12, 0.34 - 0.1 * mateAge) * (1 + 0.2 * Math.sin(mateAge * 9)) : frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "miss") ? 0.3 * Math.exp(-frame.badge.age * 3.5) : 0;

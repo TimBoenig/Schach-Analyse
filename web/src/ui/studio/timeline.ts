@@ -5,6 +5,8 @@
 import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import {
+  HITSTOP,
+  powerOf,
   displaySan,
   spellNotation,
   parseMoves,
@@ -73,6 +75,11 @@ export interface CompiledScene {
   threats: string[];
   /** Poll answers drawn as coloured arrows on the board. */
   poll: { from: string; to: string; colour: string; letter: string }[];
+  /** Hit-stop: scene time at which the picture freezes for HITSTOP seconds (the animation clock stands still), or null. */
+  hit: number | null;
+  /** Camera cuts of the scene: when they start (animation clock) and how long each angle stays. */
+  cutFrom: number;
+  cutIv: number;
   error?: string;
 }
 
@@ -91,6 +98,8 @@ export interface CameraState {
   zoom: number;
   tx: number;
   tz: number;
+  /** Camera tilted about its viewing axis (Dutch angle), degrees. 3D views only. */
+  roll?: number;
 }
 
 export const CAMERAS: Record<CameraPreset, CameraState> = {
@@ -151,6 +160,11 @@ export interface ReelShot {
   fxSquare: string | null;
   /** The showcase move (reel look): its flight in scene seconds and squares, so the camera can follow it in and back out. */
   hero: { t0: number; t1: number; from: string; to: string } | null;
+  /** Camera cuts: the angle the scene starts on (when its cuts start at once) and the one it ends on, for the flight into the next scene. */
+  entryPreset: CameraPreset | null;
+  lastPreset: CameraPreset | null;
+  /** The scene is entered by a quick whip instead of a slow flight. */
+  fastEntry: boolean;
 }
 
 /** Ratings that make a move a showcase in the reel look. */
@@ -200,10 +214,47 @@ export interface Frame {
   prevShot: ReelShot | null;
   /** Moves played so far in this line, for the lesson's move list (last one is the current). */
   moveList: string[];
+  /** The camera angle the scene is cutting on right now (null = the scene's own camera). prev null = no cut transition (the flight into the scene leads here). */
+  cut: { preset: CameraPreset; prev: CameraPreset | "plain" | null; since: number; index: number } | null;
+  /** Factor the picture is pushed in by (1 = not, 0.65 = punched in): punch-in and riser. */
+  push: number;
+  /** Dutch angle in degrees (positive = clockwise); the reel look rolls its picture, 3D views tilt the camera. */
+  roll: number;
+  /** Post effects on the finished picture: they run on the real clock, so they play during a hit-stop too. */
+  impact: Impact;
   /** Letter bubbles at the end of the poll arrows. */
   pollMarks: { square: string; letter: string; colour: string; alpha: number }[];
   /** Squares the subtitle names, softly lit so viewers find them. */
   hints: { square: string; alpha: number }[];
+}
+
+export interface Impact {
+  /** Real seconds since the scene's impact (negative before it). */
+  age: number;
+  /** 0..1: how much the colours are inverted. */
+  invert: number;
+  /** 0..1: strength of the RGB split at the edges. */
+  glitch: number;
+  /** The stamped word with its age in seconds, and its colour. */
+  stamp: { text: string; age: number; colour: string } | null;
+  /** Motion blur of a whip: direction (unit) and strength 0..1. */
+  blur: { dx: number; dy: number; amount: number } | null;
+}
+
+/** Seconds a whip between two camera angles takes. */
+export const WHIP_T = 0.2;
+/** Seconds the stamped word stays on screen, and the invert flash lasts. */
+export const STAMP_T = 0.4;
+export const INVERT_T = 0.15;
+const GLITCH_T = 0.4;
+
+/** Scene seconds the picture actually plays: a hit-stop freezes the clock for HITSTOP of the scene's length. */
+export const animDur = (c: Pick<CompiledScene, "dur" | "hit">): number => c.dur - (c.hit !== null ? HITSTOP : 0);
+
+/** Animation clock from the real scene time: stands still during the hit-stop, runs on afterwards. */
+export function warp(c: Pick<CompiledScene, "hit">, real: number): number {
+  if (c.hit === null || real < c.hit) return real;
+  return real < c.hit + HITSTOP ? c.hit : real - HITSTOP;
 }
 
 /** Board coordinates: file a..h along x (-3.5..3.5), rank 1..8 along z (3.5..-3.5). */
@@ -346,7 +397,9 @@ export function compile(project: StudioProject): Timeline {
       // Slow motion stretches only the scene's last move, the one that matters.
       // The reel look turns its heavy pieces slowly in the air (they flip and swell), and the key move slower still.
       const heavy = reel && "nbrq".includes(m.piece) ? 1.4 : 1;
-      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (hero && mi === pos.parsed.moves.length - 1 ? HERO_SLOW : slowmo && mi === pos.parsed.moves.length - 1 ? (reel ? 1.8 : 2.6) : heavy);
+      // How slow the slow motion is depends on its power (0 = none, 1 = full).
+      const slow = 1 + ((reel ? 1.8 : 2.6) - 1) * powerOf(s, "slowmo");
+      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (hero && mi === pos.parsed.moves.length - 1 ? HERO_SLOW : slowmo && mi === pos.parsed.moves.length - 1 ? slow : heavy);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
@@ -364,9 +417,15 @@ export function compile(project: StudioProject): Timeline {
     // The reel look cuts on the beat: nothing stays on screen longer than it needs.
     const fxTime = s.effects.includes("mate") ? (reel ? 1.6 : 2.2) : hero && steps.length ? HERO_AFTER : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
+    // Hit-stop: the picture stands still for a moment at the impact, so the scene is that much longer.
+    const hit = s.effects.includes("hitstop") ? fxAt : null;
+    const freeze = hit !== null ? HITSTOP : 0;
+    // Every camera angle of a cutting scene needs a moment on screen, after the hit-stop when there is one.
+    const cutsNeed = s.cameras.length ? (hit ?? 0) + freeze + s.cameras.length * 0.25 : 0;
     const minimum = Math.max(
-      annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
-      fxAt + fxTime,
+      annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0) + freeze,
+      fxAt + fxTime + freeze,
+      cutsNeed,
       spoken,
     );
     const wanted = Math.max(s.duration / speed, minimum);
@@ -405,7 +464,11 @@ export function compile(project: StudioProject): Timeline {
         if (mv) poll.push({ from: mv.from, to: mv.to, colour: POLL_COLOURS[k % POLL_COLOURS.length], letter: m ? m[1].toUpperCase() : String.fromCharCode(65 + k) });
       });
     }
-    scenes.push({ scene: s, start: tk, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, error: pos.parsed.error });
+    const cutFrom = hit ?? 0;
+    const cutIv = s.cameras.length ? Math.max(0.2, (dur - freeze - cutFrom) / s.cameras.length) : 1;
+    if (s.effects.includes("punch") || s.effects.includes("whip")) sounds.push({ t: tk, kind: "whoosh" });
+    if (hit !== null || s.effects.includes("invert")) sounds.push({ t: tk + fxAt, kind: "boom" });
+    scenes.push({ scene: s, start: tk, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, hit, cutFrom, cutIv, error: pos.parsed.error });
     tk += dur;
     prevFen = pos.after;
   });
@@ -425,7 +488,44 @@ function shotOf(c: CompiledScene, index: number): ReelShot {
     mark: c.scene.marks[0]?.square ?? null,
     fxSquare: c.fxSquare,
     hero: last && isHero(c.scene) ? { t0: last.t0, t1: last.t1, from: last.from, to: last.to } : null,
+    entryPreset: c.scene.cameras.length && c.cutFrom === 0 ? c.scene.cameras[0] : null,
+    lastPreset: c.scene.cameras.length ? c.scene.cameras[c.scene.cameras.length - 1] : null,
+    fastEntry: fastEntry(c.scene),
   };
+}
+
+/** A scene that cuts between angles or asks for a whip is entered by a quick whip, not a slow flight. */
+export const fastEntry = (s: Scene): boolean => s.cameras.length > 0 || s.effects.includes("whip");
+
+/** Which camera angle a scene is cutting on at this animation time, and where it came from. */
+export function cutAt(c: CompiledScene, local: number): Frame["cut"] {
+  const list = c.scene.cameras;
+  if (!list.length || local < c.cutFrom) return null;
+  const index = Math.min(list.length - 1, Math.floor((local - c.cutFrom) / c.cutIv + 1e-9));
+  const since = c.cutFrom + index * c.cutIv;
+  return { preset: list[index], prev: index > 0 ? list[index - 1] : c.cutFrom > 0 ? "plain" : null, since, index };
+}
+
+/**
+ * How far the picture is pushed in: the punch-in (1 → 0.65 in half a second at the start of the scene) and the riser
+ * (a slow, accelerating push towards the impact). 1 = not pushed, smaller = closer.
+ */
+export function pushAt(c: CompiledScene, local: number): number {
+  const s = c.scene;
+  let f = 1;
+  if (s.effects.includes("punch")) f *= 1 - 0.35 * powerOf(s, "punch") * ease(local / 0.5);
+  if (s.effects.includes("riser")) {
+    const end = Math.max(0.4, c.steps.length || c.hit !== null ? c.fxAt : animDur(c));
+    const p = clamp01(local / end);
+    f *= 1 - 0.3 * powerOf(s, "riser") * p * p;
+  }
+  return f;
+}
+
+/** The Dutch angle in degrees: tilts in quickly at the start of the scene and holds; every other scene tilts the other way. */
+export function rollAt(c: CompiledScene, index: number, local: number): number {
+  if (!c.scene.effects.includes("dutch")) return 0;
+  return (index % 2 ? -1 : 1) * 12 * powerOf(c.scene, "dutch") * ease(local / 0.3);
 }
 
 export function sceneAt(timeline: Timeline, tk: number): number {
@@ -434,9 +534,10 @@ export function sceneAt(timeline: Timeline, tk: number): number {
   return 0;
 }
 
-function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraState {
+/** The camera of one angle (preset) of the scene at this animation time. */
+function presetState(c: CompiledScene, camera: CameraPreset, local: number, flip: boolean): CameraState {
   const s = c.scene;
-  const preset = CAMERAS[s.camera];
+  const preset = CAMERAS[camera];
   // Presets are relative to the video's side: "Normal" from Black's side looks from rank 8.
   const base = flip ? { ...preset, yaw: preset.yaw + 180 } : preset;
   let tx = base.tx;
@@ -448,7 +549,25 @@ function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraStat
     tz += fz * 0.4;
     zoom *= 0.94;
   }
-  return { yaw: holdSide(base.yaw + s.orbit * local, flip, s.camera === "black"), pitch: base.pitch, zoom, tx, tz };
+  return { yaw: holdSide(base.yaw + s.orbit * local, flip, camera === "black"), pitch: base.pitch, zoom, tx, tz };
+}
+
+/** The scene's camera: its own angle, or the angles of `cameras` cutting through on the beat with a quick whip between them. */
+function sceneCamera(c: CompiledScene, local: number, flip: boolean): CameraState {
+  const cut = cutAt(c, local);
+  if (!cut) return presetState(c, c.scene.camera, local, flip);
+  const to = presetState(c, cut.preset, local, flip);
+  if (cut.prev === null) return to;
+  const from = presetState(c, cut.prev === "plain" ? c.scene.camera : cut.prev, cut.since, flip);
+  return lerpCamera(unwrapYaw(from, to.yaw), to, ease((local - cut.since) / WHIP_T));
+}
+
+/** Never spin the long way round between two angles. */
+function unwrapYaw(from: CameraState, targetYaw: number): CameraState {
+  let yaw = from.yaw;
+  while (targetYaw - yaw > 180) yaw += 360;
+  while (targetYaw - yaw < -180) yaw -= 360;
+  return { ...from, yaw };
 }
 
 /** Largest turn away from the video's own side. Beyond this viewers lose track of who plays up the board. */
@@ -470,18 +589,20 @@ function lerpCamera(a: CameraState, b: CameraState, k: number): CameraState {
     zoom: a.zoom + (b.zoom - a.zoom) * k,
     tx: a.tx + (b.tx - a.tx) * k,
     tz: a.tz + (b.tz - a.tz) * k,
+    roll: (a.roll ?? 0) + ((b.roll ?? 0) - (a.roll ?? 0)) * k,
   };
 }
 
 /** Zoom and shake effects on top of the scene's camera. */
-function effectCamera(c: CompiledScene, local: number, cam: CameraState): CameraState {
+function effectCamera(c: CompiledScene, index: number, local: number, cam: CameraState): CameraState {
   const fx = c.scene.effects;
   const age = local - c.fxAt;
   let out = cam;
   if (fx.includes("zoom") && c.fxSquare && age > -0.15) {
     const k = ease(clamp01((age + 0.15) / 0.4));
     const [x, z] = squareXZ(c.fxSquare);
-    out = { ...out, zoom: out.zoom * (1 - 0.3 * k), tx: out.tx + (x * 0.6 - out.tx) * k, tz: out.tz + (z * 0.6 - out.tz) * k };
+    const power = powerOf(c.scene, "zoom");
+    out = { ...out, zoom: out.zoom * (1 - 0.3 * k * power), tx: out.tx + (x * 0.6 * power - out.tx) * k * power, tz: out.tz + (z * 0.6 * power - out.tz) * k * power };
   }
   if (c.mate && age > 0) {
     // The camera moves in on the falling king.
@@ -490,6 +611,7 @@ function effectCamera(c: CompiledScene, local: number, cam: CameraState): Camera
     out = { ...out, zoom: out.zoom * (1 - 0.28 * k), tx: out.tx + (x * 0.7 - out.tx) * k, tz: out.tz + (z * 0.7 - out.tz) * k };
   }
   const shakes = fx.includes("shake") || fx.includes("mate");
+  const shakePower = powerOf(c.scene, fx.includes("shake") ? "shake" : "mate");
   if (shakes) {
     // A short decaying tremor on every landing of the scene, strongest on the last.
     let amp = 0;
@@ -504,29 +626,30 @@ function effectCamera(c: CompiledScene, local: number, cam: CameraState): Camera
       amp = (1 - age / 0.7) ** 2;
       phase = age;
     }
+    amp *= shakePower;
     if (amp > 0) out = { ...out, yaw: out.yaw + Math.sin(phase * 70) * 1.6 * amp, pitch: out.pitch + Math.sin(phase * 53 + 1) * 1.1 * amp, tx: out.tx + Math.sin(phase * 61 + 2) * 0.08 * amp };
   }
+  const push = pushAt(c, local);
+  const roll = rollAt(c, index, local);
+  if (push !== 1 || roll) out = { ...out, zoom: out.zoom * push, roll: (out.roll ?? 0) + roll };
   return out;
 }
 
 export function cameraAt(timeline: Timeline, index: number, local: number, introFly: boolean): CameraState {
   const c = timeline.scenes[index];
-  const target = effectCamera(c, local, sceneCamera(c, local, timeline.flip));
+  const target = effectCamera(c, index, local, sceneCamera(c, local, timeline.flip));
   if (index === 0) {
     if (!introFly) return target;
     // Opening shot: the camera sweeps in from high above and to the side.
     const from: CameraState = { yaw: target.yaw - 30, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
     return lerpCamera(from, target, ease(local / 2.2));
   }
-  const span = 1.15;
+  // A scene with cuts or a whip is entered by a quick whip, any other by a slow flight.
+  const span = fastEntry(c.scene) ? WHIP_T : 1.15;
   if (local >= span) return target;
   const prev = timeline.scenes[index - 1];
-  const from = cameraAt(timeline, index - 1, prev.dur, introFly);
-  // Never spin the long way round between two presets.
-  let yaw = from.yaw;
-  while (target.yaw - yaw > 180) yaw += 360;
-  while (target.yaw - yaw < -180) yaw -= 360;
-  return lerpCamera({ ...from, yaw }, target, ease(local / span));
+  const from = cameraAt(timeline, index - 1, animDur(prev), introFly);
+  return lerpCamera(unwrapYaw(from, target.yaw), target, ease(local / span));
 }
 
 const arrowKey = (a: { from: string; to: string; tone: Tone }) => `${a.from}${a.to}${a.tone}`;
@@ -539,8 +662,12 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   const c = timeline.scenes[index];
   const prev = timeline.scenes[index - 1];
   const nextScene = timeline.scenes[index + 1];
-  const local = time - c.start;
+  // The animation clock stands still during a hit-stop; `real` keeps running for the post effects of the impact.
+  const real = time - c.start;
+  const local = warp(c, real);
+  const clock = c.start + local;
   const s = c.scene;
+  const stillDur = animDur(c);
 
   // ---- pieces
   const pieces: FramePiece[] = [];
@@ -627,7 +754,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   // ---- arrows and marks (kept on screen when the next scene shows the same one)
   const prevArrows = new Set((prev?.scene.arrows ?? []).map(arrowKey));
   const nextArrows = new Set((nextScene?.scene.arrows ?? []).map(arrowKey));
-  const tail = c.dur - local;
+  const tail = stillDur - local;
   const arrows: FrameArrow[] = s.arrows.map((a, i) => {
     const carried = prevArrows.has(arrowKey(a));
     const start = c.annotate + i * 0.14;
@@ -674,7 +801,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
   let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
   if (parts.length > 1) {
-    const share = c.dur / parts.length;
+    const share = stillDur / parts.length;
     const k = Math.min(parts.length - 1, Math.floor(local / share));
     textNow = parts[k];
     textStart = c.start + k * share;
@@ -687,7 +814,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   const hints: Frame["hints"] = [];
   if (project.video.squareHints && s.card === "none") {
     const named = new Set((textNow.match(/\b[a-h][1-8]\b/g) ?? []).filter((sq) => !s.marks.some((m) => m.square === sq)));
-    const k = clamp01((time - textStart - 0.2) / 0.35) * textAlpha;
+    const k = clamp01((clock - textStart - 0.2) / 0.35) * textAlpha;
     for (const square of [...named].slice(0, 4)) hints.push({ square, alpha: k });
   }
 
@@ -699,7 +826,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
 
   return {
     index,
-    time,
+    time: clock,
     local,
     scene: s,
     pieces,
@@ -708,8 +835,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     lastMove,
     landing,
     camera: cameraAt(timeline, index, local, project.video.introFly),
-    title: { text: spell(s.title), age: time - titleStart, alpha: titleAlpha },
-    text: { text: textNow, age: time - textStart, alpha: textAlpha },
+    title: { text: spell(s.title), age: clock - titleStart, alpha: titleAlpha },
+    text: { text: textNow, age: clock - textStart, alpha: textAlpha },
     label: s.label,
     pill,
     card: { kind: s.card, age: local, alpha: s.card === "none" ? 0 : Math.min(cardIn, cardOut) },
@@ -721,7 +848,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     mate: c.mate,
     threats: c.threats,
     lesson,
-    dur: c.dur,
+    dur: stillDur,
     focus: c.steps.length ? { from: c.steps[c.steps.length - 1].from, to: c.steps[c.steps.length - 1].to } : null,
     shot: shotOf(c, index),
     prevShot: index > 0 ? shotOf(timeline.scenes[index - 1], index - 1) : null,
@@ -729,7 +856,63 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,
     hints,
+    cut: cutAt(c, local),
+    push: pushAt(c, local),
+    roll: rollAt(c, index, local),
+    impact: impactAt(timeline, project, index, real, local),
   };
+}
+
+/** Colour of the stamp: the rating's colour, red for a mate, white otherwise. */
+const STAMP_COLOUR: Partial<Record<Exclude<Badge, "">, string>> = { brilliant: "#19e0e0", great: "#5b6cff", best: "#1fdc3c", excellent: "#1fdc3c", inaccuracy: "#ffcf40", mistake: "#ff2a2a", miss: "#ff2a2a", blunder: "#ff2a2a" };
+
+/**
+ * The post effects at this moment: invert flash, RGB split, the stamped word and the whip blur. They run on the real clock,
+ * so during a hit-stop the world stands still while these still play. In the reel look a blunder or brilliant move gets the
+ * invert flash and the RGB split by itself, an effect listed with power 0 switches it off.
+ */
+function impactAt(timeline: Timeline, project: StudioProject, index: number, real: number, local: number): Impact {
+  const c = timeline.scenes[index];
+  const s = c.scene;
+  const age = real - c.fxAt;
+  const reel = project.style.view === "reel";
+  const loud = reel && (s.badge === "blunder" || s.badge === "brilliant");
+  const has = (kind: Effect) => s.effects.includes(kind) || (loud && (kind === "invert" || kind === "glitch") && powerOf(s, kind) > 0);
+  let invert = 0;
+  if (has("invert") && age >= 0 && age < INVERT_T) invert = powerOf(s, "invert");
+  let glitch = 0;
+  if (has("glitch") && age >= -0.02 && age < GLITCH_T) glitch = powerOf(s, "glitch") * Math.exp(-Math.max(0, age) * 7) * (0.75 + 0.25 * Math.sin(age * 90));
+  const stamp = s.stamp.trim() && age >= 0 && age < STAMP_T ? { text: s.stamp.trim().toUpperCase(), age, colour: (s.badge && STAMP_COLOUR[s.badge]) || (c.mate ? "#ff2a2a" : "#ffffff") } : null;
+  let blur: Impact["blur"] = null;
+  if (s.effects.includes("whip")) {
+    const power = powerOf(s, "whip");
+    let k = -1;
+    let a: CameraPreset | null = null;
+    let b: CameraPreset | null = null;
+    const cut = cutAt(c, local);
+    if (cut && cut.prev !== null && local - cut.since < WHIP_T) {
+      k = (local - cut.since) / WHIP_T;
+      a = cut.prev === "plain" ? s.camera : cut.prev;
+      b = cut.preset;
+    } else if (index > 0 && local < WHIP_T) {
+      k = local / WHIP_T;
+      const before = timeline.scenes[index - 1].scene;
+      a = before.cameras.length ? before.cameras[before.cameras.length - 1] : before.camera;
+      b = s.cameras.length && c.cutFrom === 0 ? s.cameras[0] : s.camera;
+    }
+    if (k >= 0 && a && b) {
+      // The blur streaks the way the camera swings: sideways for a turn, up and down for a change of height.
+      const dyaw = CAMERAS[b].yaw - CAMERAS[a].yaw;
+      const dpitch = CAMERAS[b].pitch - CAMERAS[a].pitch;
+      let dx = Math.abs(dyaw) > 1 ? Math.sign(dyaw) : index % 2 ? -1 : 1;
+      let dy = Math.max(-1, Math.min(1, dpitch / 40)) * 0.6;
+      const len = Math.hypot(dx, dy) || 1;
+      dx /= len;
+      dy /= len;
+      blur = { dx, dy, amount: power * Math.sin(Math.PI * clamp01(k)) ** 1.2 };
+    }
+  }
+  return { age, invert, glitch, stamp, blur };
 }
 
 export const isLesson = (p: StudioProject) => p.video.lesson && p.video.format === "16:9";

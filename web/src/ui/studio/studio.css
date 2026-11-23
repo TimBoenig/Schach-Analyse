@@ -1185,6 +1185,15 @@
 .fx-flash { background: radial-gradient(circle, #fff 0 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%); }
 .fx-confetti { background: radial-gradient(circle at 25% 30%, #34d3a1 0 3px, transparent 4px), radial-gradient(circle at 70% 25%, #ffb84d 0 3px, transparent 4px), radial-gradient(circle at 45% 70%, #ff6b6b 0 3px, transparent 4px), radial-gradient(circle at 80% 75%, #8d9aff 0 3px, transparent 4px), var(--surface-3); }
 .fx-slowmo { background: conic-gradient(var(--accent) 0 25%, var(--surface-3) 25%); }
+.fx-hitstop { background: linear-gradient(90deg, var(--accent) 0 30%, transparent 30% 42%, var(--accent) 42% 58%, transparent 58% 70%, var(--accent) 70%); }
+.fx-invert { background: linear-gradient(90deg, #fff 0 50%, #0b0d13 50%); }
+.fx-glitch { background: linear-gradient(90deg, #ff2a2a 0 33%, #1fdc3c 33% 66%, #5b6cff 66%); }
+.fx-dutch { background: linear-gradient(160deg, var(--accent) 0 46%, transparent 46% 54%, var(--surface-3) 54%); }
+.fx-punch { background: radial-gradient(circle, var(--accent) 0 40%, transparent 42% 56%, var(--accent) 58% 66%, transparent 68%); }
+.fx-riser { background: linear-gradient(0deg, var(--accent) 0 20%, var(--surface-3) 20% 100%); }
+.fx-whip { background: repeating-linear-gradient(90deg, var(--accent) 0 2px, transparent 2px 4px, var(--accent) 4px 7px, transparent 7px 12px); }
+.studio-stamp-cams { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.studio-stamp-cams button { padding: 4px 10px; }
 .studio-badges {
   display: flex;
   gap: 6px;

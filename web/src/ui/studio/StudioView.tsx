@@ -18,7 +18,9 @@ import {
   EFFECT_LABEL,
   ENV_LABEL,
   FORMAT_SIZE,
+  MAX_CAMERAS,
   PLATFORM_LABEL,
+  powerOf,
   fromMoves,
   MOOD_LABEL,
   newId,
@@ -994,6 +996,17 @@ function SceneEditor({
         })}
       </div>
       {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
+      {scene.effects.length > 0 && (
+        <details class="studio-fine">
+          <summary>{t("Stärke der Effekte")}</summary>
+          {scene.effects.map((fx) => (
+            <Slider key={fx} label={EFFECT_LABEL[fx].label} value={powerOf(scene, fx)} min={0} max={1} step={0.05} unit="" onChange={(v) => onChange({ power: { ...scene.power, [fx]: v } })} />
+          ))}
+        </details>
+      )}
+      <Field label={t("Stempel")} hint={t("Ein Wort, riesig über dem Brett, 0,4 s lang im Moment des Aufpralls, z. B. BLUNDER oder ??.")}>
+        <input value={scene.stamp} maxLength={14} onInput={(e) => onChange({ stamp: e.currentTarget.value.toUpperCase() })} placeholder={t("Optional")} spellcheck={false} />
+      </Field>
       <Field label={t("Bewertung des Zugs")} hint={scene.badge ? t("{0}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.", { 0: BADGE_LABEL[scene.badge] }) : t("Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.")}>
         <div class="studio-badges">
           {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
@@ -1015,6 +1028,25 @@ function SceneEditor({
           </button>
         ))}
       </div>
+      <Field label={t("Kameras im Takt")} hint={t("Die Szene schaltet der Reihe nach durch diese Winkel, mit schnellem Schwenk dazwischen (nach einem Hitstop erst danach). Leer = nur die Kamera oben.")}>
+        <div class="studio-stamp-cams">
+          {scene.cameras.map((c, i) => (
+            <button key={`${c}${i}`} class="on" onClick={() => onChange({ cameras: scene.cameras.filter((_, k) => k !== i) })} title={t("Entfernen")}>
+              {i + 1}. {CAMERA_LABEL[c]} ✕
+            </button>
+          ))}
+          {scene.cameras.length < MAX_CAMERAS && (
+            <select value="" onChange={(e) => e.currentTarget.value && onChange({ cameras: [...scene.cameras, e.currentTarget.value as CameraPreset] })} aria-label={t("Winkel hinzufügen")}>
+              <option value="">{t("+ Winkel")}</option>
+              {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
+                <option key={c} value={c}>
+                  {CAMERA_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      </Field>
       <details class="studio-fine">
         <summary>{t("Feinschliff der Kamera")}</summary>
       <Slider label={t("Zoom")} value={scene.zoom} min={0.45} max={1.6} step={0.05} unit="×" onChange={(zoom) => onChange({ zoom })} />
