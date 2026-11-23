@@ -1,17 +1,21 @@
 // The front door: what new visitors see first (at "/" on a fresh device, and
-// at /hello from social media). It lets them try the product before asking for
-// anything: Lucena sets a puzzle in the hero, a slider shows why many games
-// beat one, the sample report and the 3D king and cup show what they get.
+// at /hello from social media). It shows the product before asking for
+// anything: a showreel of puzzles and games that play themselves with the
+// app's badges, the pattern many games reveal, a fair comparison, the sample
+// report and the 3D king and cup. That it is completely free is said in the
+// hero, in a band under it, in the table and in the price answer.
 // Price, privacy and the person behind it are answered where a visitor looks
 // for them; the founder only shows when someone opens that question.
 import type { ComponentChildren } from "preact";
+import { useEffect, useState } from "preact/hooks";
 
 import { BRAND, SUPPORT_EMAIL } from "../brand";
 import { COACH_NAME, CoachAvatar } from "./Coach";
-import { IconBolt, IconChevron, IconShield } from "./icons";
+import { IconBolt, IconCheck, IconChevron, IconShield } from "./icons";
 import { MAKER, PRICE, QUOTES } from "./landing/content";
 import { HeroStage } from "./landing/HeroStage";
-import { CompareTable, PatternLab } from "./landing/PatternLab";
+import { CompareTable } from "./landing/CompareTable";
+import { PatternLab } from "./landing/PatternLab";
 import { Privacy } from "./landing/Privacy";
 import { Specimen } from "./landing/Specimen";
 import { Model3D } from "./Model3D";
@@ -44,6 +48,37 @@ const STEPS: { title: string; text: string }[] = [
   { title: t("Gezielt trainieren"), text: t("Aus deinen Fehlstellungen werden Aufgaben, ein paar Minuten am Tag.") },
 ];
 
+/** Phone only: a start button that stays reachable once the hero is out of view. */
+function StickyCta() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const hero = document.querySelector(".ld-hero");
+    const end = document.querySelector(".ld-final");
+    if (!hero || !end || !("IntersectionObserver" in window)) return;
+    let heroIn = true;
+    let endIn = false;
+    const update = () => setShow(!heroIn && !endIn);
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.target === hero) heroIn = e.isIntersecting;
+        else endIn = e.isIntersecting;
+      }
+      update();
+    });
+    io.observe(hero);
+    io.observe(end);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div class={`ld-sticky${show ? " show" : ""}`} aria-hidden={!show}>
+      <button class="btn primary big" tabIndex={show ? 0 : -1} onClick={startAnalysis}>
+        <IconBolt />
+        {t("Kostenlos analysieren")}
+      </button>
+    </div>
+  );
+}
+
 function Faq({ q, children, open = false }: { q: string; children: ComponentChildren; open?: boolean }) {
   return (
     <details class="ld-faq-item" open={open}>
@@ -70,13 +105,20 @@ export function LandingView() {
           <button onClick={() => scrollTo("fragen")}>{t("Fragen")}</button>
         </nav>
         <LangToggle class="ld-lang" />
-        <button class="btn ld-open" onClick={openApp}>
+        <button class="btn ghost ld-open ld-open-app" onClick={openApp}>
           {t("Zur App")}
+        </button>
+        <button class="btn primary ld-open ld-open-start" onClick={startAnalysis}>
+          {t("Kostenlos starten")}
         </button>
       </header>
 
       <section class="ld-hero">
         <div class="ld-hero-text">
+          <p class="ld-pill">
+            <IconCheck />
+            {t("Komplett kostenlos")}
+          </p>
           <h1>{t("Dein Schach hat ein Muster. {COACH_NAME} findet es.", { COACH_NAME })}</h1>
           <p class="ld-lead">
             {t("{BRAND} liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und macht daraus dein Training. Mit deinen eigenen Stellungen statt zufälliger Rätsel.", { BRAND })}
@@ -84,28 +126,43 @@ export function LandingView() {
           <div class="ld-cta-row">
             <button class="btn primary big ld-cta" onClick={startAnalysis}>
               <IconBolt />
-              {t("Meine Partien analysieren")}
+              {t("Kostenlos analysieren")}
             </button>
-            <button class="btn big ld-ghost" onClick={() => scrollTo("vergleich")}>
-              {t("Warum viele Partien?")}
+            <button class="btn big ld-ghost" onClick={() => scrollTo("muster")}>
+              {t("Wie das funktioniert")}
             </button>
           </div>
           <p class="ld-assure">
             <IconShield />
-            <span>{t("Kostenlos. Ohne Anmeldung. Die Analyse läuft auf deinem Gerät.")}</span>
+            <span>{t("Komplett kostenlos, ohne Anmeldung. Die Analyse läuft auf deinem Gerät.")}</span>
           </p>
         </div>
         <HeroStage />
       </section>
 
-      <section class="ld-why" id="vergleich" aria-labelledby="ld-why-title">
+      <section class="ld-free" aria-labelledby="ld-free-title">
+        <h2 id="ld-free-title">{t("Komplett kostenlos")}</h2>
+        <ul>
+          {[t("Kein Abo"), t("Keine Werbung"), t("Keine Kreditkarte"), t("Unbegrenzt viele Partien")].map((x) => (
+            <li key={x}>
+              <IconCheck />
+              {x}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="ld-why" id="muster" aria-labelledby="ld-why-title">
         <div class="ld-why-head">
           <h2 id="ld-why-title">{t("Eine Partie zeigt dir einen Fehler. Viele Partien zeigen dir dein Muster.")}</h2>
-          <p class="ld-lead">{t("Die Analyse nach der Partie ist gut für den Moment. Woran du arbeiten solltest, sieht man erst über viele Partien. Wähl, wie viele Partien gelesen werden, und schau, wie sich das Bild verändert.")}</p>
+          <p class="ld-lead">{t("Die Analyse nach der Partie ist gut für den Moment. Woran du arbeiten solltest, sieht man erst über viele Partien: Jedes Kästchen ist eine Partie, und erst wenn genug zusammenkommen, nenne ich ein Muster.")}</p>
         </div>
         <div class="ld-why-grid">
           <PatternLab />
-          <CompareTable />
+          <div class="ld-cmp-block" id="vergleich">
+            <h3>{t("Neben dem Game Review auf Chess.com")}</h3>
+            <CompareTable />
+          </div>
         </div>
       </section>
 
@@ -176,7 +233,7 @@ export function LandingView() {
       <section class="ld-faq" id="fragen" aria-labelledby="ld-faq-title">
         <h2 id="ld-faq-title">{t("Fragen, bevor du loslegst")}</h2>
         <div class="ld-faq-list">
-          <Faq q={t("Was kostet das?")} open>
+          <Faq q={t("Ist das wirklich kostenlos?")} open>
             <p>{PRICE.text}</p>
           </Faq>
           <Faq q={t("Brauche ich ein Konto?")}>
@@ -211,10 +268,13 @@ export function LandingView() {
         <h2>{t("Finde heraus, was dich Punkte kostet.")}</h2>
         <p class="ld-lead">{t("Namen eingeben, {COACH_NAME} holt deine Partien und zeigt dir den ersten Befund.", { COACH_NAME })}</p>
         <button class="btn primary big ld-cta" onClick={startAnalysis}>
-          {t("Meine Partien analysieren")}
+          {t("Kostenlos analysieren")}
           <IconChevron />
         </button>
+        <p class="ld-assure ld-assure-final">{t("Komplett kostenlos, ohne Anmeldung, in wenigen Minuten.")}</p>
       </section>
+
+      <StickyCta />
 
       <footer class="ld-foot">
         <a href="#/rechtliches">{t("Impressum")}</a>

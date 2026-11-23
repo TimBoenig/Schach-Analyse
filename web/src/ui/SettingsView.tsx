@@ -17,8 +17,6 @@ import { resetSeen } from "./stage/store";
 import { setStudioUnlocked, studioUnlocked, UNLOCK_TAPS } from "./studio/access";
 import { BOARD_THEMES, DEFAULT_BOARD, THEME_LABELS, setBoardTheme, setTheme, type BoardTheme, type ThemeMode } from "./theme";
 import { ENGINE_NAME, ENGINE_VERSION } from "../engine/info";
-import { playUltraBrilliant } from "./fx/ultraBrilliant";
-import { BRILLIANT_STYLE_LABELS, fxPrefs, loadFxPrefs, prefersReducedMotion, setFxPrefs, type BrilliantStyle, type FxPrefs } from "./fxPrefs";
 import { t } from "../i18n";
 
 /**
@@ -63,66 +61,6 @@ function AboutCard() {
             {t("Wieder verstecken")}
           </button>
         </div>
-      )}
-    </div>
-  );
-}
-
-/** How a brilliant move is celebrated: the quiet burst on the board or the full-screen show. */
-function BrilliantSetting() {
-  const [prefs, setPrefs] = useState<FxPrefs>(fxPrefs);
-  useEffect(() => {
-    void loadFxPrefs().then(setPrefs);
-  }, []);
-  const update = (next: FxPrefs) => {
-    setPrefs(next);
-    void setFxPrefs(next);
-  };
-  const reduced = prefersReducedMotion();
-  const preview = (e: MouseEvent) => {
-    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    // Started after this click, so the click does not count as "tap to end the show".
-    window.setTimeout(() => playUltraBrilliant({ x: r.left + r.width / 2, y: r.top + r.height / 2, sound: prefs.sound, san: t("Dxh7+") }), 0);
-  };
-  return (
-    <div class="fx-setting">
-      <div class="muted small" style={{ marginBottom: "6px" }}>
-        
-        {t("Feier für brillante Züge")}
-      </div>
-      <div class="segmented">
-        {(Object.keys(BRILLIANT_STYLE_LABELS) as BrilliantStyle[]).map((k) => (
-          <button key={k} class={prefs.brilliant === k ? "active" : ""} aria-pressed={prefs.brilliant === k} onClick={() => update({ ...prefs, brilliant: k })}>
-            {BRILLIANT_STYLE_LABELS[k]}
-          </button>
-        ))}
-      </div>
-      <p class="small faint" style={{ margin: "8px 0 0" }}>
-        {prefs.brilliant === "ultra"
-          ? t("Ultra: Feuerwerk, Konfetti und Lichtsäule über den ganzen Bildschirm. Völlig übertrieben, mit voller Absicht. Ein Klick oder Tipp beendet die Feier sofort.")
-          : t("Normal: ein kurzer Ring und das Abzeichen auf dem Brett. Ultra macht daraus eine Feier über den ganzen Bildschirm.")}
-      </p>
-      {prefs.brilliant === "ultra" && (
-        <>
-          <div class="fx-extra">
-            <label class="switch-pill">
-              <input type="checkbox" checked={prefs.sound} onChange={() => update({ ...prefs, sound: !prefs.sound })} />
-              <span>{t("Mit Fanfare und Vibration")}</span>
-            </label>
-            {!reduced && (
-              <button class="btn small" onClick={preview}>
-                
-                {t("Ausprobieren")}
-              </button>
-            )}
-          </div>
-          {reduced && (
-            <p class="small faint" style={{ margin: "8px 0 0" }}>
-              
-              {t("Dein Gerät ist auf „Bewegung reduzieren“ gestellt. Solange das so ist, bleibt es bei der normalen Feier.")}
-            </p>
-          )}
-        </>
       )}
     </div>
   );
@@ -181,7 +119,6 @@ function AppearanceCard() {
           );
         })}
       </div>
-      <BrilliantSetting />
       <div class="row" style={{ marginTop: "14px" }}>
         <button
           class="btn small"

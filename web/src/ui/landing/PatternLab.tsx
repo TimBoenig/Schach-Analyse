@@ -1,50 +1,90 @@
-// "Eine Partie oder viele": the comparison at the heart of the page. Buttons
-// read 1, 10, 40 or 150 games of an invented player; the squares are the
-// games, the bars show where the costly moves fall, and Lucena only names a
-// pattern once enough games back it (the app's own evidence rule).
-import { useState } from "preact/hooks";
+// "Viele Partien zeigen dein Muster": the squares are the games of an invented
+// player. When the section scrolls into view they are read one after another,
+// the bars show where the costly moves fall, and Lucena only names a pattern
+// once enough games back it (the app's own evidence rule). There is no way to
+// pick a single game: one game proves nothing and would only look like junk.
+import { useEffect, useRef, useState } from "preact/hooks";
 
-import { BRAND } from "../../brand";
 import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
-import { MIN_GAMES, PHASE_LABEL, PHASES, readSample, SAMPLE_STEPS } from "./patternSample";
+import { IconReset } from "../icons";
+import { MIN_GAMES, PHASE_LABEL, PHASES, readSample, SAMPLE_SIZE } from "./patternSample";
 import { t } from "../../i18n";
 
+const START_AT = 8;
+const READ_MS = 4200;
+
 function verdict(n: number, pattern: ReturnType<typeof readSample>["pattern"]): { mood: Mood; text: string } {
-  if (n === 1) return { mood: "sad", text: t("Nach einer Partie sieht es so aus, als wäre die Eröffnung dein Problem. Das ist ein Zufall, kein Muster.") };
-  if (!pattern) return { mood: "think", text: t("Noch zu wenig. Unter {min} Partien sage ich lieber nichts, als dich auf eine falsche Spur zu setzen.", { min: MIN_GAMES }) };
-  if (n < SAMPLE_STEPS[SAMPLE_STEPS.length - 1]) return { mood: "think", text: t("Jetzt zeichnet sich etwas ab: {motif}, in {games} Partien.", { motif: pattern.motif, games: pattern.games }) };
+  if (n < MIN_GAMES) return { mood: "think", text: t("Ich lese noch. Unter {min} Partien nenne ich kein Muster, sonst setze ich dich auf eine falsche Spur.", { min: MIN_GAMES }) };
+  if (!pattern) return { mood: "think", text: t("Noch nichts, was sich oft genug wiederholt.") };
+  if (n < SAMPLE_SIZE) return { mood: "think", text: t("Jetzt zeichnet sich etwas ab: {motif}, in {games} Partien.", { motif: pattern.motif, games: pattern.games }) };
   return { mood: "wow", text: t("Klar belegt: Die meisten Punkte verlierst du im Endspiel. {motif}, in {games} von {n} Partien. Das trainieren wir.", { motif: pattern.motif, games: pattern.games, n }) };
 }
 
 export function PatternLab() {
-  const [step, setStep] = useState(0);
-  const n = SAMPLE_STEPS[step];
+  const [n, setN] = useState(SAMPLE_SIZE);
+  const root = useRef<HTMLElement>(null);
+  const raf = useRef(0);
+
+  const run = () => {
+    cancelAnimationFrame(raf.current);
+    const start = performance.now();
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / READ_MS);
+      setN(Math.round(START_AT + (SAMPLE_SIZE - START_AT) * (1 - (1 - p) ** 2)));
+      if (p < 1) raf.current = requestAnimationFrame(tick);
+    };
+    setN(START_AT);
+    raf.current = requestAnimationFrame(tick);
+  };
+
+  // Shows the finished picture first (no script, reduced motion) and counts up once when seen.
+  useEffect(() => {
+    const el = root.current;
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (!el || reduce || !("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        run();
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf.current);
+    };
+  }, []);
+
   const reading = readSample(n);
   const say = verdict(n, reading.pattern);
   const top = PHASES.reduce((a, b) => (reading.share[b] > reading.share[a] ? b : a));
+  const all = readSample(SAMPLE_SIZE);
 
   return (
-    <figure class="ld-lab" aria-label={t("Beispiel: was eine und was viele Partien zeigen")}>
-      <div class="ld-lab-control">
-        <span id="ld-lab-label">{t("Gelesene Partien")}</span>
-        <div class="ld-lab-steps" role="radiogroup" aria-labelledby="ld-lab-label">
-          {SAMPLE_STEPS.map((s, i) => (
-            <button key={s} role="radio" aria-checked={i === step} class={i === step ? "on" : ""} onClick={() => setStep(i)}>
-              {s}
-            </button>
-          ))}
-        </div>
+    <figure class="ld-lab" ref={root} aria-label={t("Beispiel: was viele Partien zeigen")}>
+      <div class="ld-lab-head">
+        <span class="ld-lab-count tnum">
+          <b>{n}</b> {t("Partien gelesen")}
+        </span>
+        <span class="ld-lab-count tnum">
+          <b>{reading.costly}</b> {t("teure Züge")}
+        </span>
+        <button class="btn small ghost" onClick={run} aria-label={t("Noch einmal ablaufen lassen")}>
+          <IconReset /> {t("Nochmal")}
+        </button>
       </div>
 
       <div class="ld-lab-games" aria-hidden="true">
-        {reading.games.map((g, i) => (
-          <i key={i} class={`g-${g.result}`} style={{ "--i": i }} />
+        {all.games.map((g, i) => (
+          <i key={i} class={`g-${g.result}${i < n ? " read" : ""}`} />
         ))}
       </div>
 
       <div class="ld-lab-bars">
         {PHASES.map((p) => (
-          <div class={`ld-lab-bar${p === top ? " top" : ""}`} key={p}>
+          <div class={`ld-lab-bar${p === top && n >= MIN_GAMES ? " top" : ""}`} key={p}>
             <span>{PHASE_LABEL[p]}</span>
             <span class="ld-lab-track">
               <span style={{ width: `${Math.round(reading.share[p] * 100)}%` }} />
@@ -55,73 +95,24 @@ export function PatternLab() {
         <p class="ld-lab-axis">{t("Anteil der teuren Züge nach Partiephase")}</p>
       </div>
 
+      {reading.motifs.length > 0 && (
+        <ul class="ld-lab-motifs">
+          {reading.motifs.map((m) => (
+            <li key={m.motif}>
+              <span>{m.motif}</span>
+              <b class="tnum">{t("{games} Partien", { games: m.games })}</b>
+            </li>
+          ))}
+        </ul>
+      )}
+
       <div class="ld-lab-say">
         <CoachAvatar mood={say.mood} size={44} />
-        <p aria-live="polite">
+        <p aria-live="off">
           <b>{COACH_NAME}</b> {say.text}
         </p>
       </div>
       <figcaption class="ld-note">{t("Beispielspieler mit erfundenen Partien. Jedes Kästchen ist eine Partie: grün gewonnen, grau remis, rot verloren.")}</figcaption>
     </figure>
-  );
-}
-
-const ROWS: { what: string; them: string | boolean; us: string | boolean }[] = [
-  { what: t("Bewertet jeden Zug einer Partie"), them: true, us: true },
-  { what: t("Liest alle deine Partien zusammen"), them: false, us: true },
-  { what: t("Zeigt, welcher Fehler sich wiederholt und wie oft"), them: false, us: true },
-  { what: t("Sagt, wie viele Partien hinter einer Aussage stehen"), them: false, us: true },
-  { what: t("Aufgaben aus deinen eigenen Stellungen"), them: false, us: true },
-  { what: t("Fairer Vergleich mit Freunden, auch bei anderer Bedenkzeit"), them: false, us: true },
-  { what: t("Kosten"), them: t("je nach Seite mit Abo-Grenzen"), us: t("kostenlos") },
-];
-
-function Cell({ v }: { v: string | boolean }) {
-  if (typeof v === "string") return <span class="ld-cmp-text">{v}</span>;
-  return v ? (
-    <span class="ld-cmp-yes" aria-label={t("ja")}>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M3.5 8.5l3 3 6-7" />
-      </svg>
-    </span>
-  ) : (
-    <span class="ld-cmp-no" aria-label={t("nein")}>
-      <svg viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M4 8h8" />
-      </svg>
-    </span>
-  );
-}
-
-/** Feature by feature: the usual review after a game next to this app. */
-export function CompareTable() {
-  return (
-    <table class="ld-cmp">
-      <caption class="sr-only">{t("Vergleich: Analyse nach der Partie und {BRAND}", { BRAND })}</caption>
-      <thead>
-        <tr>
-          <th scope="col">
-            <span class="sr-only">{t("Funktion")}</span>
-          </th>
-          <th scope="col">{t("Analyse nach der Partie")}</th>
-          <th scope="col" class="us">
-            {BRAND}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {ROWS.map((r) => (
-          <tr key={r.what}>
-            <th scope="row">{r.what}</th>
-            <td>
-              <Cell v={r.them} />
-            </td>
-            <td class="us">
-              <Cell v={r.us} />
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
   );
 }

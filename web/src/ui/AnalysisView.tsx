@@ -931,7 +931,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             />
             {/* Stepping onto a brilliant move replays its celebration, in a finished analysis as in exploration. */}
             {lastMove && (explore ? lastVerdict?.classification : move?.classification) === "Brilliant" && (
-              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} san={explore ? explore.sans[explore.sans.length - 1] : move?.san} />
+              <BrilliantFx key={`${i}:${explore?.lastUci ?? ""}`} square={lastMove.to} flipped={flipped} />
             )}
           </div>
           {playerLine(bottom, 3)}

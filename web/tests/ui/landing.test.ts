@@ -1,8 +1,9 @@
 import { Chess } from "chess.js";
 import { describe, expect, it } from "vitest";
 
-import { MIN_GAMES, MIN_REPEATS, readSample, SAMPLE_STEPS } from "../../src/ui/landing/patternSample";
-import { PUZZLE_FEN, PUZZLE_HINT } from "../../src/ui/landingPuzzle";
+import { MIN_GAMES, MIN_REPEATS, readSample, SAMPLE_SIZE } from "../../src/ui/landing/patternSample";
+import { buildFrames, SCENES } from "../../src/ui/landing/reel";
+import { PUZZLE_FEN } from "../../src/ui/landingPuzzle";
 import { parseHash, toHash } from "../../src/ui/router";
 
 describe("landing page", () => {
@@ -12,29 +13,45 @@ describe("landing page", () => {
     expect(toHash({ view: "landing" })).toBe("#/hello");
   });
 
-  it("asks a puzzle with exactly one mating move, which is the hint", () => {
+  it("opens the showreel with a puzzle that has exactly one mating move", () => {
     const g = new Chess(PUZZLE_FEN);
-    const mates = g.moves({ verbose: true }).filter((m) => {
+    const mates = g.moves().filter((san) => {
       const t = new Chess(PUZZLE_FEN);
-      t.move(m);
+      t.move(san);
       return t.isCheckmate();
     });
-    expect(mates.map((m) => ({ from: m.from, to: m.to }))).toEqual([{ ...PUZZLE_HINT }]);
+    expect(mates).toEqual(["Rd8#"]);
+  });
+});
+
+describe("landing showreel", () => {
+  it("plays only legal moves, ends every clip with mate and badges real moves", () => {
+    for (const scene of SCENES) {
+      const frames = buildFrames(scene);
+      expect(frames).toHaveLength(scene.beats.length + 1);
+      const end = new Chess(frames[frames.length - 1].fen);
+      expect(end.isCheckmate(), scene.id).toBe(true);
+      // The quick moves between two comments keep the last comment; the first frame has no move.
+      expect(frames[0].label).toBeNull();
+      expect(frames[0].badge).toBeUndefined();
+      expect(frames.slice(1).every((f) => f.last && f.label)).toBe(true);
+    }
+    // The show covers the kinds the page promises: brilliant, best and blunder.
+    const badges = new Set(SCENES.flatMap((s) => s.beats.map((b) => b.badge)));
+    expect([...badges]).toEqual(expect.arrayContaining(["Brilliant", "Best", "Blunder"]));
   });
 });
 
 describe("landing pattern example", () => {
-  it("misleads after one game and settles on the endgame pattern only with enough games", () => {
-    const one = readSample(1);
-    expect(one.share.opening).toBe(1);
-    expect(one.pattern).toBeNull();
-    // Below the evidence floor Lucena names no pattern, whatever the counts say.
+  it("names the endgame pattern only once enough games back it", () => {
     expect(readSample(MIN_GAMES - 1).pattern).toBeNull();
-    const all = readSample(SAMPLE_STEPS[SAMPLE_STEPS.length - 1]);
-    expect(all.games).toHaveLength(SAMPLE_STEPS[SAMPLE_STEPS.length - 1]);
+    expect(readSample(MIN_GAMES - 1).motifs).toEqual([]);
+    const all = readSample(SAMPLE_SIZE);
+    expect(all.games).toHaveLength(SAMPLE_SIZE);
     expect(all.share.endgame).toBeGreaterThan(all.share.middlegame);
     expect(all.share.middlegame).toBeGreaterThan(all.share.opening);
     expect(all.pattern?.motif).toBe("Turmendspiel nicht gehalten");
     expect(all.pattern!.games).toBeGreaterThanOrEqual(MIN_REPEATS);
+    expect(all.motifs).toHaveLength(3);
   });
 });
