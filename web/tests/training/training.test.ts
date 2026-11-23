@@ -17,6 +17,7 @@ import {
   recordAttempt,
   refutationLine,
   LIBRARY_DRILLS,
+  variedLine,
   OPENING_LIBRARY,
   addDays,
   compareRates,
@@ -336,5 +337,33 @@ describe("opening library", () => {
         expect(l.plan?.length ?? 0, `${key} ${l.name}`).toBeGreaterThan(60);
       }
     }
+  });
+});
+
+describe("variation tree quiz", () => {
+  it("draws the opponent's replies from the opening's tree and keeps every line legal", () => {
+    for (const d of LIBRARY_DRILLS) {
+      const idx = Number(d.id.split(":")[2]);
+      const o = OPENING_LIBRARY.find((x) => x.key === d.library)!;
+      const lines = o.lines.map((l) => l.moves.split(" "));
+      for (const rng of [() => 0, () => 0.99]) {
+        const path = variedLine(d.library!, idx, rng);
+        const b = new Chess();
+        path.forEach((san, i) => {
+          expect(() => b.move(san), `${d.id} ${san}`).not.toThrow();
+          expect(lines.some((l) => l.slice(0, i + 1).join(" ") === path.slice(0, i + 1).join(" ")), `${d.id} ply ${i}`).toBe(true);
+        });
+        expect(path.length).toBeGreaterThanOrEqual(1);
+      }
+    }
+  });
+
+  it("branches where the tree branches and follows the drilled line when the opponent stays in it", () => {
+    const italian = LIBRARY_DRILLS.find((d) => d.id === "lib:italian:0")!;
+    expect(variedLine("italian", 0, () => 0)).toEqual(italian.moves);
+    const other = variedLine("italian", 0, () => 0.99);
+    expect(other.slice(0, 5)).toEqual(["e4", "e5", "Nf3", "Nc6", "Bc4"]);
+    expect(other[5]).toBe("Nf6");
+    expect(variedLine("nope", 0)).toEqual([]);
   });
 });

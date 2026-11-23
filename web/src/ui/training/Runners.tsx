@@ -18,6 +18,7 @@ import {
   refutationLine,
   type RepertoireExercise,
   type Verdict,
+  variedLine,
 } from "../../domain/training";
 import type { Classification } from "../../domain/types";
 import { Board, type Arrow, type Promotion } from "../Board";
@@ -637,6 +638,8 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
   const [missesHere, setMissesHere] = useState(0);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [playOn, setPlayOn] = useState(false);
+  // Test rounds of library lines draw the opponent's replies from the variation tree; a new round draws again.
+  const [round, setRound] = useState(0);
   const reported = useRef(false);
   const userWhite = ex.color === "white";
   const isUserPly = (p: number) => (p % 2 === 0) === userWhite;
@@ -645,7 +648,9 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
     const b = new Chess();
     const out = [b.fen()];
     const sans: string[] = [];
-    for (const san of ex.moves) {
+    const idx = Number(ex.id.split(":")[2]);
+    const varied = !learning && ex.library && Number.isInteger(idx) ? variedLine(ex.library, idx) : [];
+    for (const san of varied.length ? varied : ex.moves) {
       try {
         sans.push(b.move(san).san);
       } catch {
@@ -654,7 +659,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
       out.push(b.fen());
     }
     return [out, sans] as const;
-  }, [ex.id]);
+  }, [ex.id, learning, round]);
   const done = ply >= moves.length;
   const fen = positions[ply];
   const plyRef = useRef(ply);
@@ -676,6 +681,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
 
   const startTest = () => {
     setLearning(false);
+    setRound((r) => r + 1);
     setPly(0);
     setErrors(0);
     setMissesHere(0);
@@ -751,6 +757,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
               : t("Deine Hauptvariante aus {games} Partien{1}.", { games: ex.games, 1: ex.score_pct !== null ? t(" ({0} % Punkte)", { 0: Math.round(ex.score_pct) }) : "" }) })}
           </p>
           {ex.idea && <p class="note-box small">{t("Idee: {idea}", { idea: ex.idea })}</p>}
+          {ex.library && !learning && <p class="small muted">{t("Abfrage mit Varianten: Der Gegner antwortet zufällig mit einer Variante dieser Eröffnung.")}</p>}
           {ex.plan && <p class="note-box small">{t("Plan dieser Variante: {plan}", { plan: ex.plan })}</p>}
           <div class={`learn-mode${learning ? " on" : ""}`}>
             {learning ? t("Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach.") : t("Abfrage: ohne Hilfe.")}

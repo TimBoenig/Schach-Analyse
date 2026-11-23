@@ -43,7 +43,7 @@ export { isSoundMove, playOnStats, REFUTATION_MAX_REPLIES, refutationLine } from
 export type { LineStep, PlayOnStats } from "./refutation";
 export { compareRates, openingProgress, trainingTrends, TREND_MIN_ATTEMPTS, weeklyRates } from "./trend";
 export type { Direction, OpeningProgress, Trend, WeekPoint } from "./trend";
-export { LIBRARY_DRILLS, OPENING_LIBRARY } from "./library";
+export { LIBRARY_DRILLS, OPENING_LIBRARY, variedLine } from "./library";
 export type { LibraryLine, LibraryOpening } from "./library";
 export {
   activity,
