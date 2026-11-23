@@ -149,7 +149,19 @@ export interface ReelShot {
   arrow: { from: string; to: string } | null;
   mark: string | null;
   fxSquare: string | null;
+  /** The showcase move (reel look): its flight in scene seconds and squares, so the camera can follow it in and back out. */
+  hero: { t0: number; t1: number; from: string; to: string } | null;
 }
+
+/** Ratings that make a move a showcase in the reel look. */
+const HERO_BADGES = new Set(["brilliant", "great", "best"]);
+/** A move is shown off when it is rated great or the scene asks for slow motion. */
+export const isHero = (s: Scene) => s.moves.trim() !== "" && (HERO_BADGES.has(s.badge) || s.effects.includes("slowmo"));
+/** How much slower the showcase move flies than a normal one, and how long the scene stays after its landing. */
+export const HERO_SLOW = 2.6;
+export const HERO_AFTER = 0.9;
+/** Seconds before the showcase piece takes off. */
+export const HERO_LEAD = 0.6;
 
 export interface Frame {
   index: number;
@@ -296,8 +308,11 @@ export function compile(project: StudioProject): Timeline {
     const moveDur = MOVE / tempo / sceneTempo;
     const slowmo = s.effects.includes("slowmo");
     const reel = project.style.view === "reel";
+    // The reel look's showcase: a great move (or one in slow motion) is played as a slow, spinning throw with a hard landing.
+    const hero = reel && isHero(s);
     // Reel: the move starts right after the cut, no waiting for the camera.
-    const lead = reel ? (jumpOut.length || jumpIn.size ? 0.25 : 0.08) : index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
+    // A showcase move waits a moment, so the camera is already in on the piece when it takes off.
+    const lead = reel ? (hero ? HERO_LEAD : jumpOut.length || jumpIn.size ? 0.25 : 0.08) : index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
     const steps: Step[] = [];
     let at = lead;
     const chess = new Chess(pos.before);
@@ -331,7 +346,7 @@ export function compile(project: StudioProject): Timeline {
       // Slow motion stretches only the scene's last move, the one that matters.
       // The reel look turns its heavy pieces slowly in the air (they flip and swell), and the key move slower still.
       const heavy = reel && "nbrq".includes(m.piece) ? 1.4 : 1;
-      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (slowmo && mi === pos.parsed.moves.length - 1 ? (reel ? 1.8 : 2.6) : heavy);
+      const dur = moveDur * (m.piece === "n" ? 1.12 : 1) * (hero && mi === pos.parsed.moves.length - 1 ? HERO_SLOW : slowmo && mi === pos.parsed.moves.length - 1 ? (reel ? 1.8 : 2.6) : heavy);
       steps.push({ t0: at, t1: at + dur, label: moveLabel(m, fenBefore), movers, captured, promo, from: m.from, to: m.to, check, capture: Boolean(m.captured), plain: plainMove(m), color: m.color });
       // Board after the move.
       board = board.filter((p) => p.id !== captured);
@@ -347,7 +362,7 @@ export function compile(project: StudioProject): Timeline {
     const fxAt = lastStep ? lastStep.t1 : lead;
     // Effects need their moment on screen; the speaker's text needs time to be said.
     // The reel look cuts on the beat: nothing stays on screen longer than it needs.
-    const fxTime = s.effects.includes("mate") ? (reel ? 1.5 : 2.2) : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
+    const fxTime = s.effects.includes("mate") ? (reel ? 1.6 : 2.2) : hero && steps.length ? HERO_AFTER : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
     const minimum = Math.max(
       annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0),
@@ -409,6 +424,7 @@ function shotOf(c: CompiledScene, index: number): ReelShot {
     arrow: arrow ? { from: arrow.from, to: arrow.to } : null,
     mark: c.scene.marks[0]?.square ?? null,
     fxSquare: c.fxSquare,
+    hero: last && isHero(c.scene) ? { t0: last.t0, t1: last.t1, from: last.from, to: last.to } : null,
   };
 }
 

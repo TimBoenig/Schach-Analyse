@@ -783,8 +783,8 @@ describe("reel look", () => {
       const c = cam(tk);
       const inMate = tk > mate.start && tk < mate.start + mate.dur;
       if (!inMate) {
-        expect(Math.abs(Math.log(c.S / prev.S))).toBeLessThan(0.1);
-        expect(Math.hypot(c.fx - prev.fx, c.fz - prev.fz)).toBeLessThan(0.45);
+        expect(Math.abs(Math.log(c.S / prev.S))).toBeLessThan(0.18);
+        expect(Math.hypot(c.fx - prev.fx, c.fz - prev.fz)).toBeLessThan(0.6);
         expect(Math.abs(c.roll - prev.roll)).toBeLessThan(0.05);
       }
       prev = c;
@@ -816,22 +816,42 @@ describe("reel look", () => {
   it("keeps scenes on the 90 BPM grid of the reference and moves starting right away", () => {
     // Reference: hard cuts every 20 frames (0.667 s) at 90 BPM, so every scene is a whole number of beats.
     for (const c of tl.scenes) expect(c.dur / REEL_BEAT).toBeCloseTo(Math.round(c.dur / REEL_BEAT), 5);
-    // A move starts right after the cut and takes well under a second.
-    const move = tl.scenes.find((c) => c.scene.effects.includes("mate"))!.steps[0];
-    expect(move.t0).toBeLessThan(0.15);
-    expect(move.t1 - move.t0).toBeLessThan(0.7);
+    // An ordinary move starts right away and is quick.
+    const plain = tl.scenes.find((c) => c.steps.length && !c.scene.badge.match(/brilliant|great|best/) && !c.scene.effects.includes("slowmo"))!;
+    expect(plain.steps[0].t0).toBeLessThan(0.15);
+    expect(plain.steps[0].t1 - plain.steps[0].t0).toBeLessThan(0.7);
   });
 
-  it("turns heavy pieces slowly and leans the camera in while one is in the air, keeping the overview", () => {
-    const flight = tl.scenes.find((c) => c.steps.some((st) => st.movers.length && c.scene.moves.includes("Q")))!;
-    const step = flight.steps[0];
-    const mid = flight.start + (step.t0 + step.t1) / 2;
+  it("shows off a great move: in close on the piece, slow spin through the air, hard landing, back out", () => {
+    const fork = tl.scenes.find((c) => c.scene.moves === "Nc7+")!;
+    const step = fork.steps[fork.steps.length - 1];
+    const at = (dt: number) => frameAt(tl, project, fork.start + dt)!;
+    const cam = (dt: number) => reelCamera(at(dt), 1080, 1080);
+    // The camera is in before take-off, and the move itself is in slow motion (an ordinary move takes 0.4 s).
+    expect(step.t0).toBeGreaterThan(0.5);
+    expect(step.t1 - step.t0).toBeGreaterThan(0.8);
+    expect(cam(step.t0).S).toBeGreaterThan(cam(0.02).S * 1.3);
+    // In the air the camera stays on the piece, close but still about three squares across.
+    const mid = (step.t0 + step.t1) / 2;
+    const flying = at(mid).pieces.find((p) => p.flight && p.flight.k > 0 && p.flight.k < 1)!;
+    expect(Math.hypot(cam(mid).fx - flying.x, cam(mid).fz - flying.z)).toBeLessThan(0.3);
+    expect(cam(mid).S).toBeLessThanOrEqual(1080 / 3.3 + 1e-6);
+    // The landing hits: the picture shakes and flashes briefly.
+    const hit = cam(step.t1 + 0.02);
+    expect(Math.abs(hit.shakeX) + Math.abs(hit.shakeY)).toBeGreaterThan(1);
+    expect(hit.flash).toBeGreaterThan(0);
+    // Then the camera backs out again before the scene ends.
+    expect(cam(fork.dur - 0.02).S).toBeLessThan(cam(mid).S * 0.8);
+    // A blunder is no show.
+    const blunder = tl.scenes.find((c) => c.scene.badge === "blunder")!;
+    expect(blunder.steps[0].t0).toBeLessThan(0.15);
+  });
+
+  it("starts on the board without a title card and already moving", () => {
+    expect(project.scenes[0].card).toBe("none");
+    expect(project.scenes[0].title).toBe("");
     const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
-    // The queen's move is slower than a pawn's would be (a normal move takes 0.4 s).
-    expect(step.t1 - step.t0).toBeGreaterThan(0.5);
-    // In the air the camera is closer than just before take-off and just after landing, but still wider than four squares.
-    expect(cam(mid).S).toBeGreaterThan(cam(flight.start + step.t0 - 0.02).S * 0.97);
-    expect(cam(mid).S).toBeLessThanOrEqual(1080 / 4.2 + 1e-6);
+    expect(cam(0.01).S).toBeGreaterThan(cam(0.6).S * 1.2);
   });
 
   it("an AI script of type edit becomes a quiet, fast reel, and the prompt asks for the type", () => {
