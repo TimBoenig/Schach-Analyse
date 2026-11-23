@@ -759,9 +759,10 @@ describe("reel look", () => {
     // Roll follows the per-scene table (plus the whip that decays within a fraction of a second).
     expect(Math.sign(cams[1].roll)).toBe(Math.sign(ROLLS[1]));
     expect(Math.sign(cams[2].roll)).toBe(Math.sign(ROLLS[2]));
-    // A cut strobes white, the very first picture does not.
+    // A beat cut strobes white, the very first picture and a long opening shot do not.
     expect(cams[0].flash).toBe(0);
-    expect(cams[2].flash).toBeGreaterThan(0.3);
+    expect(cams[2].flash).toBe(0);
+    expect(cams[3].flash).toBeGreaterThan(0.3);
     // The mate scene shakes after the moves landed, and no camera ever leaves the board's bounds.
     const mate = tl.scenes.find((c) => c.scene.effects.includes("mate"))!;
     const late = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 0.05)!, 1080, 1080);
@@ -796,15 +797,48 @@ describe("reel look", () => {
     const move = tl.scenes.find((c) => c.scene.effects.includes("mate"))!.steps[0];
     expect(move.t0).toBeLessThan(0.15);
     expect(move.t1 - move.t0).toBeLessThan(0.7);
-    // No long zoom-in: the scale a third of a second into a shot is within 6 % of its scale two beats later.
-    for (const c of tl.scenes.filter((sc) => sc.scene.card === "none" && !sc.scene.effects.includes("mate"))) {
-      const at = (dt: number) => reelCamera(frameAt(tl, project, c.start + Math.min(dt, c.dur - 0.01))!, 1080, 1080).S;
-      expect(Math.abs(at(0.4) / at(Math.min(1.3, c.dur - 0.01)) - 1)).toBeLessThan(0.06);
+    // No long zoom-in. A beat cut stands at once (its scale a third of a second in is within 6 % of the end) ...
+    const shots = tl.scenes.filter((sc) => sc.scene.card === "none" && !sc.scene.effects.includes("mate"));
+    const sizeAt = (c: (typeof shots)[number], dt: number) => reelCamera(frameAt(tl, project, c.start + Math.min(dt, c.dur - 0.01))!, 1080, 1080).S;
+    for (const c of shots.filter((sc) => sc.dur < 1.2)) expect(Math.abs(sizeAt(c, 0.4) / sizeAt(c, 1.3) - 1)).toBeLessThan(0.06);
+    // ... a long shot pushes in once, in well under half a second, and then only creeps.
+    const longShots = shots.filter((sc) => sc.dur >= 1.2);
+    expect(longShots.length).toBeGreaterThan(0);
+    expect(Math.max(...longShots.map((c) => sizeAt(c, c.dur * 0.3 + 0.45) / sizeAt(c, 0.1)))).toBeGreaterThan(1.15);
+    for (const c of longShots) {
+      expect(sizeAt(c, c.dur * 0.3 + 0.45) / sizeAt(c, 0.1)).toBeGreaterThanOrEqual(1);
+      expect(Math.abs(sizeAt(c, c.dur) / sizeAt(c, c.dur * 0.3 + 0.45) - 1)).toBeLessThan(0.08);
     }
-    // The strobe at a cut is gone after four frames.
-    const flash = (dt: number) => reelCamera(frameAt(tl, project, tl.scenes[1].start + dt)!, 1080, 1080).flash;
+    // The strobe at a beat cut is gone after four frames.
+    const cut = tl.scenes.find((sc) => sc.dur < 1.2 && sc.start > 0)!;
+    const flash = (dt: number) => reelCamera(frameAt(tl, project, cut.start + dt)!, 1080, 1080).flash;
     expect(flash(0.1)).toBeGreaterThan(0.6);
     expect(flash(0.2)).toBeLessThan(0.02);
+  });
+
+  it("an AI script of type edit becomes a quiet, fast reel, and the prompt asks for the type", () => {
+    const text = JSON.stringify({ videoart: "edit", titel: "T", laenge: 40, szenen: [{ zug: "1. e4" }, { zug: "1... e5" }, { zug: "2. Nf3", dauer: 0.6 }] });
+    const res = importAiScript(text);
+    const p = res.project!;
+    expect(p.style.view).toBe("reel");
+    expect(p.style.theme).toBe("mono");
+    expect(p.video.music).toBe("none");
+    expect(p.video.lucena).toBe(false);
+    expect(p.video.tempo).toBeGreaterThan(2);
+    // Scenes without a duration default to one beat and are not stretched to the asked length.
+    expect(p.scenes.map((x) => x.duration)).toEqual([0.6, 0.6, 0.6]);
+    // The same script without the type stays an explainer.
+    expect(importAiScript(JSON.stringify({ titel: "T", szenen: [{ zug: "1. e4" }] })).project!.style.view).not.toBe("reel");
+    // A reel project exports with its type, and the prompt asks for it or sets it.
+    expect(toAiScript(p)).toContain("videoart");
+    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "" })).toContain('"videoart"');
+    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" })).toContain("VIDEOART EDIT");
+    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "explain" })).toContain('"videoart": "erklaerung"');
+    // The example in an edit prompt imports without a single complaint.
+    const example = buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" }).split("```json")[1].split("```")[0];
+    const ex = importAiScript(example);
+    expect(ex.errors).toEqual([]);
+    expect(ex.project!.style.view).toBe("reel");
   });
 
   it("is reachable from an AI script", () => {

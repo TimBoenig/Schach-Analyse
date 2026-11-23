@@ -479,7 +479,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       fen: str(s.fen, "", 120),
       title: str(s.title, "", 120),
       text: str(s.text, "", 900),
-      duration: num(s.duration, 1, 30, 3.5),
+      duration: num(s.duration, 0.3, 30, 3.5),
       camera: pick(s.camera, Object.keys(CAMERA_LABEL) as CameraPreset[], "white"),
       zoom: num(s.zoom, 0.45, 1.6, 1),
       orbit: num(s.orbit, -30, 30, 0),
@@ -576,9 +576,10 @@ export function reelTemplate(): StudioProject {
     t("Siehst du das Matt?"),
     [
       scene({ card: "intro", title: t("Siehst du das Matt?"), text: t("Nur ein Zug"), duration: 1.3, mood: "wow" }),
-      scene({ fen: afterQh5, moves: "3... Nf6??", duration: 0.6, badge: "blunder" }),
-      // Beat cuts: the same picture again from another distance and angle, one cut per beat.
-      scene({ duration: 0.6, marks: [{ square: "f7", tone: "bad" }], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
+      // The opening is slower: two held shots, each with one quick push-in, like the reference's first seconds.
+      scene({ fen: afterQh5, moves: "3... Nf6??", duration: 1.4, badge: "blunder" }),
+      scene({ duration: 1.4, marks: [{ square: "f7", tone: "bad" }], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
+      // Then the beat cuts: one picture per beat from another distance and angle.
       scene({ duration: 0.6, marks: [{ square: "f7", tone: "bad" }], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
       scene({ moves: "4. Qxf7#", duration: 0.6, badge: "brilliant", effects: ["mate", "slowmo"], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
       scene({ fen: fork, moves: "Nc7+", duration: 0.6, badge: "best", effects: ["spotlight", "slowmo"], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] }),
