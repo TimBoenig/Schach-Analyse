@@ -44,6 +44,19 @@ export interface CallOptions {
 const str = (v: unknown, fallback: string): string => (typeof v === "string" ? v : fallback);
 const optNum = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
 
+/**
+ * Lichess PGN only names the start (UTCDate/UTCTime). Add the last move as
+ * EndDate/EndTime, like chess.com, so correspondence games sort by their end.
+ */
+function withEnd(pgn: string, lastMoveAt: number | undefined): string {
+  if (!pgn || lastMoveAt === undefined || /\[EndDate\s/.test(pgn)) return pgn;
+  const iso = new Date(lastMoveAt).toISOString();
+  const head = `[EndDate "${iso.slice(0, 10).replace(/-/g, ".")}"]\n[EndTime "${iso.slice(11, 19)}"]\n`;
+  const i = pgn.search(/\n\s*\n/);
+  // Headers end at the first blank line; a PGN without moves has none.
+  return i === -1 ? `${pgn.trimEnd()}\n${head}` : `${pgn.slice(0, i + 1)}${head}${pgn.slice(i + 1)}`;
+}
+
 function normalizeGame(raw: unknown): LichessGame {
   const g = asRecord(raw);
   const players = asRecord(g.players);
@@ -61,7 +74,7 @@ function normalizeGame(raw: unknown): LichessGame {
     black: side("black"),
     time_class: str(g.speed, "standard"),
     end_time: Math.trunc((optNum(g.createdAt) ?? 0) / 1000),
-    pgn: str(g.pgn, ""),
+    pgn: withEnd(str(g.pgn, ""), optNum(g.lastMoveAt)),
     url: `https://lichess.org/${String(g.id)}`,
   };
 }
