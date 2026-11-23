@@ -119,6 +119,36 @@ function shotPose(shot: ReelShot, m: number): Pose {
   return { S, x: tx * hold, z: tz * hold };
 }
 
+/** How close the camera gets on the showcase move: the picture is this many squares across. */
+const HERO_CLOSE = 3.3;
+
+/** 0..1: how much the camera is on the showcase piece right now (in shortly before take-off, out half a second after the landing). */
+export function heroFocus(frame: Frame): number {
+  const hero = frame.shot.hero;
+  if (!hero) return 0;
+  const into = easeInOut((frame.local - (hero.t0 - 0.55)) / 0.55);
+  const out = easeInOut((frame.local - (hero.t1 + 0.3)) / 0.6);
+  return into * (1 - out);
+}
+
+/** Where the showcase piece is: on its square before and after, in the air in between. */
+function heroPoint(frame: Frame): [number, number] {
+  const hero = frame.shot.hero!;
+  const [ax, az] = squareXZ(hero.from);
+  const [bx, bz] = squareXZ(hero.to);
+  const p = frame.pieces.find((q) => q.flight && q.flight.k > 0 && q.flight.k < 1 && Math.hypot(q.flight.fromX - ax, q.flight.fromZ - az) < 0.1);
+  if (p) return [p.x, p.z];
+  return frame.local < hero.t0 ? [ax, az] : [bx, bz];
+}
+
+/** Is this piece the showcase piece in the air? */
+function isHeroFlight(frame: Frame, p: FramePiece): boolean {
+  const hero = frame.shot.hero;
+  if (!hero || !p.flight) return false;
+  const [ax, az] = squareXZ(hero.from);
+  return Math.hypot(p.flight.fromX - ax, p.flight.fromZ - az) < 0.1;
+}
+
 /**
  * The camera of one frame: pure, so the movement can be tested without a canvas.
  * There are no cuts. Each scene's framing is reached by an eased flight that starts from where the
@@ -133,7 +163,8 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
 
   const to = shotPose(frame.shot, m);
-  const from = frame.prevShot ? shotPose(frame.prevShot, m) : to;
+  // The very first picture is already moving: it starts close and pulls out, so the clip has motion from frame one.
+  const from = frame.prevShot ? shotPose(frame.prevShot, m) : { ...to, S: to.S * 1.45 };
   const k = easeInOut(age / Math.min(frame.dur, FLOW));
   let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
   let tx = lerp(from.x, to.x, k);
@@ -142,9 +173,20 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   S *= 1 + 0.04 * Math.max(0, age - FLOW);
   const zoomAge = fx("zoom");
   if (zoomAge !== undefined) S *= 1 + 0.35 * easeOut(zoomAge / 0.5);
-  // While a heavy piece turns in the air the camera leans in a little (the piece is slowed down on the timeline), never past a four-square view.
-  const flying = frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
-  if (flying > 0) S = Math.min(S * (1 + 0.22 * flying), Math.max(S, m / 4.2));
+  // The showcase move: the camera goes in on the spinning piece, follows it through the air in slow motion,
+  // takes the landing and then backs out to where the scene was. Close, but still about three squares across.
+  const heroK = heroFocus(frame);
+  const hero = frame.shot.hero;
+  if (hero && heroK > 0) {
+    const [px, pz] = heroPoint(frame);
+    S = Math.exp(lerp(Math.log(S), Math.log(Math.max(S, m / HERO_CLOSE)), heroK));
+    tx = lerp(tx, px, heroK);
+    tz = lerp(tz, pz, heroK);
+  } else {
+    // Any other heavy piece in the air makes the camera lean in a little, never past a four-square view.
+    const flying = frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
+    if (flying > 0) S = Math.min(S * (1 + 0.22 * flying), Math.max(S, m / 4.2));
+  }
   // Every landing nudges the picture.
   if (frame.landing) S *= 1 + 0.04 * Math.exp(-frame.landing.k * 8);
 
@@ -161,11 +203,20 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
     tz *= 1 - km;
   }
 
+  // Never show the black around the board when close: the centre stays far enough inside that the picture (with some slack for the roll) is all board.
+  const half = (m / 2 / S) * 1.25;
+  const limit = Math.max(0, 4 - half);
+  tx = Math.max(-limit, Math.min(limit, tx));
+  tz = Math.max(-limit, Math.min(limit, tz));
+
   let shake = 0;
   const sh = fx("shake");
   if (sh !== undefined) shake = Math.max(shake, 16 * Math.exp(-sh * 6));
   const mate = fx("mate");
   if (mate !== undefined) shake = Math.max(shake, 24 * Math.exp(-mate * 4));
+  // The showcase piece hits the board hard.
+  const impact = hero ? age - hero.t1 : -1;
+  if (impact >= 0) shake = Math.max(shake, 14 * Math.exp(-impact * 9));
   const shakeX = shake * u * Math.sin(age * 71);
   const shakeY = shake * u * Math.cos(age * 63);
 
@@ -174,6 +225,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const fl = fx("flash");
   if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * (1 - fl / 0.45) ** 2);
   if (mate !== undefined && mate < 0.25) flash = Math.max(flash, 0.55 * (1 - mate / 0.25));
+  if (impact >= 0 && impact < 0.12) flash = Math.max(flash, 0.3 * (1 - impact / 0.12));
   return { roll, S, fx: tx, fz: tz, shakeX, shakeY, flash: clamp01(flash) };
 }
 
@@ -298,15 +350,14 @@ function rnd(seed: number): number {
 }
 
 /** The pieces of the mated side break like glass: a crack runs through them, then the shards fly apart and fall. */
-function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Assets, S: number, dir: number, local: number): void {
+function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Assets, S: number, dir: number, local: number, blast: [number, number]): void {
   const img = assets.pieces[pieceKey(p.color, p.type)];
   if (!img) return;
   const size = 0.96 * p.scale;
   const x = dir * p.x;
   const z = dir * p.z - 0.04;
-  const CRACK = 0.2;
-  // The piece trembles before it breaks.
-  const tremble = local < CRACK ? 0.025 * Math.sin(local * 140) : 0;
+  // A very short crack, then the piece bursts: the shards fly outwards, away from the mated king, instead of dropping.
+  const CRACK = 0.1;
   const ring = [
     [-0.5, -0.5], [0, -0.5], [0.5, -0.5], [0.5, 0],
     [0.5, 0.5], [0, 0.5], [-0.5, 0.5], [-0.5, 0],
@@ -314,58 +365,88 @@ function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Ass
   const cx = (rnd(p.id * 3.1) - 0.5) * 0.24;
   const cz = (rnd(p.id * 5.7) - 0.5) * 0.24;
   if (local < CRACK) {
+    const k = clamp01(local / CRACK);
     ctx.save();
     ctx.globalAlpha = p.alpha;
-    ctx.translate(x + tremble, z);
-    ctx.shadowColor = "rgba(0,0,0,0.55)";
-    ctx.shadowBlur = 0.22 * S;
-    ctx.drawImage(img, -size / 2, -size / 2, size, size);
+    ctx.translate(x + 0.03 * Math.sin(local * 160), z);
+    // It swells a little under the pressure and glows white before it goes.
+    const swell = 1 + 0.12 * k;
+    ctx.shadowColor = "#ffffff";
+    ctx.shadowBlur = 0.5 * k * S;
+    ctx.drawImage(img, (-size * swell) / 2, (-size * swell) / 2, size * swell, size * swell);
     ctx.shadowBlur = 0;
-    // White cracks run from the middle to the edge.
-    const k = clamp01(local / CRACK);
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
-    ctx.lineWidth = 0.03;
+    ctx.lineWidth = 0.035;
     ctx.lineCap = "round";
     ctx.beginPath();
-    ring.forEach(([ex, ez], i) => {
-      const mx = lerp(cx, ex, 0.5) + (rnd(p.id + i) - 0.5) * 0.14;
-      const mz = lerp(cz, ez, 0.5) + (rnd(p.id * 2 + i) - 0.5) * 0.14;
+    ring.forEach(([ex, ez]) => {
       ctx.moveTo(cx, cz);
-      ctx.lineTo(lerp(cx, mx, Math.min(1, k * 2)), lerp(cz, mz, Math.min(1, k * 2)));
-      if (k > 0.5) ctx.lineTo(lerp(mx, ex, (k - 0.5) * 2), lerp(mz, ez, (k - 0.5) * 2));
+      ctx.lineTo(lerp(cx, ex, k) * swell, lerp(cz, ez, k) * swell);
     });
     ctx.stroke();
     ctx.restore();
     return;
   }
   const t = local - CRACK;
-  const fade = 1 - clamp01((t - 0.55) / 0.55);
+  const fade = 1 - clamp01((t - 0.45) / 0.5);
   if (fade <= 0.01) return;
+  // A white burst where the piece stood.
+  if (t < 0.18) {
+    ctx.save();
+    const g = ctx.createRadialGradient(x, z, 0, x, z, 0.9);
+    g.addColorStop(0, `rgba(255,255,255,${0.9 * (1 - t / 0.18)})`);
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 1, z - 1, 2, 2);
+    ctx.restore();
+  }
+  // Away from the king; the king itself bursts evenly in all directions.
+  const bdx = p.x - blast[0];
+  const bdz = p.z - blast[1];
+  const bl = Math.hypot(bdx, bdz);
+  const push: [number, number] = bl > 0.1 ? [(dir * bdx) / bl, (dir * bdz) / bl] : [0, 0];
+  // Sixteen shards: each of the eight wedges split once more at a jittered point on its outer edge.
+  let n = 0;
   for (let i = 0; i < ring.length; i++) {
     const a = ring[i];
     const b = ring[(i + 1) % ring.length];
-    const gx = (cx + a[0] + b[0]) / 3;
-    const gz = (cz + a[1] + b[1]) / 3;
-    // Flies away from the piece's middle, a little upward first, then falls.
-    const ang = Math.atan2(gz, gx) + (rnd(p.id * 7 + i) - 0.5) * 0.9;
-    const speed = 1.8 + rnd(p.id * 11 + i) * 3.2;
-    const ox = Math.cos(ang) * speed * t;
-    const oz = Math.sin(ang) * speed * t - 1.6 * t + 7 * t * t;
-    const spin = (rnd(p.id * 13 + i) - 0.5) * 12 * t;
-    ctx.save();
-    ctx.globalAlpha = p.alpha * fade;
-    ctx.translate(x + ox, z + oz);
-    ctx.translate(size * gx, size * gz);
-    ctx.rotate(spin);
-    ctx.translate(-size * gx, -size * gz);
-    ctx.beginPath();
-    ctx.moveTo(size * cx, size * cz);
-    ctx.lineTo(size * a[0], size * a[1]);
-    ctx.lineTo(size * b[0], size * b[1]);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(img, -size / 2, -size / 2, size, size);
-    ctx.restore();
+    const j = 0.35 + rnd(p.id * 17 + i) * 0.3;
+    const mid: [number, number] = [lerp(a[0], b[0], j), lerp(a[1], b[1], j)];
+    for (const [u, v] of [[a, mid], [mid, b]] as const) {
+      n += 1;
+      const gx = (cx + u[0] + v[0]) / 3;
+      const gz = (cz + u[1] + v[1]) / 3;
+      const gl = Math.hypot(gx, gz) || 1;
+      const spread = (rnd(p.id * 7 + n) - 0.5) * 0.7;
+      const ang = Math.atan2(gz / gl, gx / gl) + spread;
+      const speed = 5 + rnd(p.id * 11 + n) * 6;
+      // Fast out, then dragged by the air; only a touch of gravity.
+      const travel = (speed * (1 - Math.exp(-t * 3.2))) / 3.2;
+      const ox = (Math.cos(ang) + push[0] * 0.9) * travel;
+      const oz = (Math.sin(ang) + push[1] * 0.9) * travel + 1.2 * t * t;
+      const spin = (rnd(p.id * 13 + n) - 0.5) * 22 * t;
+      // Shards come towards the camera as they fly.
+      const grow = 1 + 0.7 * t;
+      ctx.save();
+      ctx.globalAlpha = p.alpha * fade;
+      ctx.translate(x + ox, z + oz);
+      ctx.translate(size * gx, size * gz);
+      ctx.rotate(spin);
+      ctx.scale(grow, grow);
+      ctx.translate(-size * gx, -size * gz);
+      ctx.beginPath();
+      ctx.moveTo(size * cx, size * cz);
+      ctx.lineTo(size * u[0], size * u[1]);
+      ctx.lineTo(size * v[0], size * v[1]);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      // A bright edge on every shard catches the light.
+      ctx.strokeStyle = "rgba(255,255,255,0.7)";
+      ctx.lineWidth = 0.02;
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 }
 
@@ -381,12 +462,21 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
   const flying = p.flight && p.flight.k > 0 && p.flight.k < 1 ? p.flight.k : null;
   ctx.save();
   ctx.globalAlpha = p.alpha;
-  if (flying !== null) {
+  const hero = flying !== null && isHeroFlight(frame, p);
+  let squash = 0;
+  if (flying !== null && hero) {
+    // The showcase: the piece rises towards the camera and turns a full 360° in slow motion, then drops onto its square.
+    const arc = Math.sin(Math.PI * flying);
+    size *= 1 + 1.25 * arc;
+    rot = (p.id % 2 ? 1 : -1) * 2 * Math.PI * easeInOut(flying);
+  } else if (flying !== null) {
     // The piece swells towards the camera and flips like a coin, so every move feels thrown.
     const arc = Math.sin(Math.PI * flying);
     size *= 1 + 0.9 * w * arc;
     if (w >= 0.8) flipX = Math.cos(2 * Math.PI * flying);
     rot = arc * 0.35 * (p.id % 2 ? 1 : -1) * w;
+  }
+  if (flying !== null) {
     // Motion trail: fainter copies back along the path.
     if (w >= 0.6 && flying > 0.05) {
       const [fx0, fz0] = [dir * p.flight!.fromX, dir * p.flight!.fromZ];
@@ -400,10 +490,15 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
       }
     }
     ctx.shadowColor = "rgba(255,255,255,0.85)";
-    ctx.shadowBlur = 0.5 * S;
+    ctx.shadowBlur = (hero ? 0.9 : 0.5) * S;
   } else {
-    // A piece that just landed squashes once.
-    if (frame.landing && xzSquare(p.x, p.z) === frame.landing.square) size *= 1 + 0.14 * Math.sin(Math.min(1, frame.landing.k / 0.3) * Math.PI);
+    const landed = frame.landing && xzSquare(p.x, p.z) === frame.landing.square;
+    const heroLanded = landed && frame.shot.hero && frame.shot.hero.to === frame.landing!.square && frame.local >= frame.shot.hero.t1;
+    if (heroLanded) {
+      // The showcase piece slams down: it squashes flat, springs up and wobbles out, like a ball hitting the floor.
+      const tk = frame.landing!.k * 0.7;
+      squash = 0.34 * Math.exp(-tk * 7) * Math.cos(tk * 26);
+    } else if (landed) size *= 1 + 0.14 * Math.sin(Math.min(1, frame.landing!.k / 0.3) * Math.PI);
     ctx.shadowColor = "rgba(0,0,0,0.55)";
     ctx.shadowBlur = 0.22 * S;
     ctx.shadowOffsetY = 0.07 * S;
@@ -418,6 +513,12 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
   }
   ctx.rotate(rot);
   ctx.scale(Math.abs(flipX) < 0.05 ? 0.05 * Math.sign(flipX || 1) : flipX, 1);
+  if (squash) {
+    // Squash about the piece's foot, so it stays standing on the square.
+    ctx.translate(0, size * 0.42);
+    ctx.scale(1 + squash, 1 - squash);
+    ctx.translate(0, -size * 0.42);
+  }
   ctx.drawImage(img, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
@@ -505,14 +606,48 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   for (const p of ordered) {
     if (matedColour && p.color === matedColour && mateAge !== undefined) {
       const dist = Math.hypot(p.x - matedKing[0], p.z - matedKing[1]);
-      const local = mateAge - (0.3 + dist * 0.07);
-      if (local >= 0) drawShattered(ctx, p, assets, S, dir, local);
+      const local = mateAge - (0.25 + dist * 0.05);
+      if (local >= 0) drawShattered(ctx, p, assets, S, dir, local, matedKing as [number, number]);
       else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, S, dir);
     } else drawPiece(ctx, p, frame, assets, S, dir);
   }
 
+  // ---- the showcase landing: a white shock ring, a second fainter one and dust flying off the square
+  const heroShot = frame.shot.hero;
+  if (heroShot && frame.local >= heroShot.t1) {
+    const tk = frame.local - heroShot.t1;
+    const [hx, hz] = squareXZ(heroShot.to);
+    ctx.save();
+    for (const [delay, width] of [[0, 0.16], [0.08, 0.07]] as const) {
+      const k = (tk - delay) / 0.55;
+      if (k <= 0 || k >= 1) continue;
+      ctx.beginPath();
+      ctx.arc(dir * hx, dir * hz, 0.45 + easeOut(k) * 2.4, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - k)})`;
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 0.4 * S;
+      ctx.lineWidth = width * (1 - k) + 0.015;
+      ctx.stroke();
+    }
+    const dust = tk / 0.6;
+    if (dust < 1) {
+      ctx.fillStyle = `rgba(255,255,255,${0.8 * (1 - dust)})`;
+      for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2 + rnd(i * 3.3) * 0.4;
+        const r = 0.4 + easeOut(dust) * (1.1 + rnd(i * 7.1) * 1.2);
+        ctx.beginPath();
+        ctx.arc(dir * hx + Math.cos(ang) * r, dir * hz + Math.sin(ang) * r, 0.035 + rnd(i * 1.7) * 0.04, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
   // ---- arrows: neutral ones black with a white glow, danger ones red and curved
-  frame.arrows.forEach((a, i) => {
+  // While the showcase piece is in the air its arrow steps back, so the spin is not drawn over.
+  const heroAir = heroShot && frame.local > heroShot.t0 - 0.2 && frame.local < heroShot.t1 + 0.1 ? 0.15 : 1;
+  frame.arrows.forEach((a0, i) => {
+    const a = { ...a0, alpha: a0.alpha * heroAir };
     if (a.path || a.progress <= 0 || a.alpha <= 0) return;
     const [ax, az] = squareXZ(a.from);
     const [bx, bz] = squareXZ(a.to);

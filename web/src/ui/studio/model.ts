@@ -575,7 +575,7 @@ export function reelTemplate(): StudioProject {
   const base = project(
     t("Siehst du das Matt?"),
     [
-      scene({ card: "intro", title: t("Siehst du das Matt?"), text: t("Nur ein Zug"), duration: 1.3, mood: "wow" }),
+      // No title card: a TikTok edit starts on the board, already moving, and lets the moves speak.
       // The opening is slower: two held shots, each with one quick push-in, like the reference's first seconds.
       scene({ fen: afterQh5, moves: "3... Nf6??", duration: 1.4, badge: "blunder" }),
       scene({ duration: 1.4, marks: [{ square: "f7", tone: "bad" }], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
