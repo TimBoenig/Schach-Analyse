@@ -1,8 +1,9 @@
-// The example behind "Eine Partie oder viele" on the landing page: an invented
-// player whose costly moves fall mostly in the endgame. After one game the
-// picture is wrong (that game went wrong in the opening); the more games are
-// read, the closer it comes to the truth. Plainly marked as an example on the
-// page: nothing here belongs to a real person.
+// The example behind "Viele Partien zeigen dein Muster" on the landing page: an
+// invented player whose costly moves fall mostly in the endgame. The page counts
+// the games up, and the pattern is only named once enough games back it, as
+// everywhere in the app. Plainly marked as an example on the page: nothing here
+// belongs to a real person. There is deliberately no one-game view: a single
+// game proves nothing, and a sample that small would look like broken data.
 
 import { t } from "../../i18n";
 
@@ -17,8 +18,8 @@ export interface SampleGame {
 export const PHASE_LABEL: Record<Phase, string> = { opening: t("Eröffnung"), middlegame: t("Mittelspiel"), endgame: t("Endspiel") };
 export const PHASES: Phase[] = ["opening", "middlegame", "endgame"];
 
-/** How many games the slider offers. */
-export const SAMPLE_STEPS = [1, 10, 40, 150] as const;
+/** How many games the example player has. */
+export const SAMPLE_SIZE = 150;
 
 // Same rule as everywhere in the app: a pattern needs enough games behind it.
 export const MIN_GAMES = 20;
@@ -42,9 +43,8 @@ function rng(seed: number): () => number {
 function build(): SampleGame[] {
   const next = rng(7);
   const pick = <T>(list: readonly T[]) => list[Math.floor(next() * list.length)];
-  // The newest game, the one a player looks at right after playing it.
-  const games: SampleGame[] = [{ result: "loss", mistakes: [{ phase: "opening", motif: t("Gambit falsch angenommen") }] }];
-  for (let i = 1; i < SAMPLE_STEPS[SAMPLE_STEPS.length - 1]; i++) {
+  const games: SampleGame[] = [];
+  for (let i = 0; i < SAMPLE_SIZE; i++) {
     const count = next() < 0.25 ? 0 : next() < 0.6 ? 1 : 2;
     const mistakes = Array.from({ length: count }, () => {
       const r = next();
@@ -66,6 +66,10 @@ export interface SampleReading {
   share: Record<Phase, number>;
   /** The most frequent motif, only once enough games back it. */
   pattern: { motif: string; games: number } | null;
+  /** The three most frequent motifs with the number of games they appear in; empty below the evidence floor. */
+  motifs: { motif: string; games: number }[];
+  /** All costly moves in these games. */
+  costly: number;
 }
 
 /** What the newest `n` games of the example player say. */
@@ -80,7 +84,8 @@ export function readSample(n: number): SampleReading {
   }
   const total = counts.opening + counts.middlegame + counts.endgame || 1;
   const share = { opening: counts.opening / total, middlegame: counts.middlegame / total, endgame: counts.endgame / total };
-  const [motif, repeats] = [...motifs].sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
-  const pattern = games.length >= MIN_GAMES && repeats >= MIN_REPEATS ? { motif, games: repeats } : null;
-  return { games, share, pattern };
+  const ranked = [...motifs].sort((a, b) => b[1] - a[1]).map(([motif, g]) => ({ motif, games: g }));
+  const enough = games.length >= MIN_GAMES;
+  const pattern = enough && ranked[0] && ranked[0].games >= MIN_REPEATS ? ranked[0] : null;
+  return { games, share, pattern, motifs: enough ? ranked.slice(0, 3) : [], costly: total === 1 && !counts.opening && !counts.middlegame && !counts.endgame ? 0 : total };
 }

@@ -1,83 +1,123 @@
-// The hero's stage: Lucena, large, next to a board the visitor can play on.
-// She sets a mate in one, follows the pointer with her eyes and reacts to the
-// move that was played: the product's core (a coach reading your moves) in ten
-// seconds, before anyone types a name.
-import { Chess, type Square } from "chess.js";
-import { useMemo, useState } from "preact/hooks";
+// The hero's stage: Lucena next to a board that plays by itself, like a short
+// video. Puzzles get solved and famous games run, and every move shows the
+// badge the app would give it (brilliant, best move, blunder...). Nobody has to
+// click anything to see what the product does; the controls only let a visitor
+// pause, step or jump to another clip.
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
-import { type Arrow, Board } from "../Board";
-import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
-import { IconReset } from "../icons";
-import { PUZZLE_FEN, PUZZLE_HINT } from "../landingPuzzle";
-import { lang, t } from "../../i18n";
+import { Board } from "../Board";
+import { BrilliantFx } from "../BrilliantFx";
+import { CoachAvatar } from "../Coach";
+import { IconNext, IconPlay, IconPrev } from "../icons";
+import { badgeFor, classLabel } from "../labels";
+import { buildFrames, SCENES } from "./reel";
+import { t } from "../../i18n";
 
-type State = { fen: string; last: { from: string; to: string } | null; misses: number; solved: boolean; wrong: string | null };
+const reducedMotion = () => typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 
-// German piece letters, as a German player reads the move (T for Turm, not R).
-const DE: Record<string, string> = { Q: "D", R: "T", B: "L", N: "S" };
-const germanSan = (san: string) => (lang() === "de" ? san.replace(/[QRBN]/g, (c) => DE[c]) : san);
-
-const START: State = { fen: PUZZLE_FEN, last: null, misses: 0, solved: false, wrong: null };
-
-function speech(s: State): { mood: Mood; text: string } {
-  if (s.solved) return { mood: "wow", text: t("Matt. Stark gesehen! Genau so gehe ich durch deine Partien: Zug für Zug, und ich merke mir, was du übersiehst.") };
-  if (s.wrong && s.misses >= 2) return { mood: "think", text: t("{move} setzt nicht matt. Der Pfeil zeigt dir den Weg: Die letzte Reihe ist offen.", { move: s.wrong }) };
-  if (s.wrong) return { mood: "sad", text: t("{move} setzt noch nicht matt. Schau dir den schwarzen König an: Seine Bauern sperren ihn ein.", { move: s.wrong }) };
-  return { mood: "happy", text: t("Hallo, ich bin {COACH_NAME}. Probier es aus: Weiß zieht und setzt in einem Zug matt.", { COACH_NAME }) };
-}
+const IconPause = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </svg>
+);
 
 export function HeroStage() {
-  const [s, setS] = useState<State>(START);
-  const game = useMemo(() => new Chess(s.fen), [s.fen]);
-  const say = speech(s);
+  const allFrames = useMemo(() => SCENES.map(buildFrames), []);
+  const reduced = useMemo(reducedMotion, []);
+  const [scene, setScene] = useState(0);
+  // People who ask for less motion start on the finished first clip, paused.
+  const [frame, setFrame] = useState(reduced ? allFrames[0].length - 1 : 0);
+  const [playing, setPlaying] = useState(!reduced);
+  const [visible, setVisible] = useState(true);
+  const root = useRef<HTMLDivElement>(null);
 
-  const onMove = (from: string, to: string): boolean => {
-    if (s.solved) return false;
-    const trial = new Chess(PUZZLE_FEN);
-    let move;
-    try {
-      move = trial.move({ from, to, promotion: "q" });
-    } catch {
-      return false;
-    }
-    if (trial.isCheckmate()) {
-      setS({ fen: trial.fen(), last: { from, to }, misses: s.misses, solved: true, wrong: null });
-      return true;
-    }
-    // A wrong move is shown for a moment by its name, the board stays on the task.
-    setS({ ...s, misses: s.misses + 1, wrong: germanSan(move.san), last: null });
-    return false;
+  const frames = allFrames[scene];
+  const f = frames[frame];
+
+  // The show stops when it is scrolled out of view, so it does not run unseen.
+  useEffect(() => {
+    const el = root.current;
+    if (!el || !("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!playing || !visible) return;
+    const id = window.setTimeout(() => {
+      if (frame < frames.length - 1) setFrame(frame + 1);
+      else {
+        setScene((scene + 1) % SCENES.length);
+        setFrame(0);
+      }
+    }, f.ms);
+    return () => window.clearTimeout(id);
+  }, [playing, visible, scene, frame]);
+
+  const goScene = (i: number) => {
+    setScene(i);
+    setFrame(0);
+    setPlaying(!reduced);
+  };
+  const step = (d: number) => {
+    setPlaying(false);
+    const next = frame + d;
+    if (next >= 0 && next < frames.length) return setFrame(next);
+    const to = (scene + (d > 0 ? 1 : SCENES.length - 1)) % SCENES.length;
+    setScene(to);
+    setFrame(d > 0 ? 0 : allFrames[to].length - 1);
   };
 
-  const arrows: Arrow[] = !s.solved && s.misses >= 2 ? [{ ...PUZZLE_HINT, kind: "hint" }] : [];
-
+  const badge = f.badge ? badgeFor(f.badge) : null;
   return (
-    <div class={`ld-stage mood-${say.mood}`}>
+    <div class={`ld-stage mood-${f.mood}`} ref={root} role="group" aria-label={t("Kurzfilm: Aufgaben und Partien, Zug für Zug bewertet")}>
       <div class="ld-stage-coach">
         <div class="ld-stage-orb">
-          <CoachAvatar mood={say.mood} size={200} />
+          <CoachAvatar mood={f.mood} size={200} />
         </div>
-        <p class="ld-stage-say" aria-live="polite" key={say.text}>
-          {say.text}
+        <p class="ld-stage-say" aria-live="off" key={`${scene}:${f.say}`}>
+          {f.say}
         </p>
       </div>
       <div class="ld-stage-board">
-        <Board
-          fen={s.fen}
-          lastMove={s.last}
-          badge={s.solved ? "Best" : undefined}
-          arrows={arrows}
-          onMove={onMove}
-          legalTargets={(from) => (s.solved ? [] : game.moves({ square: from as Square, verbose: true }).map((m) => m.to))}
-        />
+        <Board key={scene} fen={f.fen} lastMove={f.last} badge={f.badge} />
+        {f.badge === "Brilliant" && f.last && <BrilliantFx key={`${scene}:${frame}`} square={f.last.to} flipped={false} />}
       </div>
-      <div class="ld-stage-foot">
-        <span>{s.solved ? t("Gelöst") : s.misses ? (s.misses === 1 ? t("1 Versuch") : t("{n} Versuche", { n: s.misses })) : t("Zieh eine Figur oder tippe sie an")}</span>
-        {(s.solved || s.misses > 0) && (
-          <button class="btn small ghost" onClick={() => setS(START)}>
-            <IconReset /> {t("Nochmal")}
-          </button>
+      <div class="ld-reel-tag" aria-live="polite">
+        {f.label ? (
+          <span class={`ld-reel-chip${f.badge ? ` q-${f.badge}` : ""}`} key={`${scene}:${frame}`}>
+            {badge && <img src={badge} alt="" />}
+            <b>{f.badge ? classLabel(f.badge) : t("Gespielt")}</b>
+            <span>{f.label}</span>
+          </span>
+        ) : (
+          <span class="ld-reel-chip idle">{SCENES[scene].kind === "puzzle" ? t("Aufgabe") : t("Partie")}</span>
         )}
+      </div>
+      <div class="ld-reel-bar">
+        <div class="ld-reel-clips" role="tablist" aria-label={t("Kurzfilme")}>
+          {SCENES.map((s, i) => (
+            <button key={s.id} role="tab" aria-selected={i === scene} class={i === scene ? "on" : ""} onClick={() => goScene(i)}>
+              <span class="ld-reel-name">{s.title}</span>
+              <span class="ld-reel-prog">
+                <span style={{ width: i < scene ? "100%" : i === scene ? `${(frame / (frames.length - 1)) * 100}%` : "0%" }} />
+              </span>
+            </button>
+          ))}
+        </div>
+        <div class="ld-reel-ctl">
+          <button class="btn small ghost" onClick={() => step(-1)} aria-label={t("Ein Zug zurück")}>
+            <IconPrev />
+          </button>
+          <button class="btn small ghost" onClick={() => setPlaying(!playing)} aria-label={playing ? t("Anhalten") : t("Abspielen")}>
+            {playing ? <IconPause /> : <IconPlay />}
+          </button>
+          <button class="btn small ghost" onClick={() => step(1)} aria-label={t("Ein Zug vor")}>
+            <IconNext />
+          </button>
+        </div>
       </div>
     </div>
   );
