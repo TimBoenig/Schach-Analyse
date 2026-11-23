@@ -29,3 +29,5 @@ export { AREA_LABEL, archetypes, areaTable, climbPlan, expectedPoints, PAIR_SD, 
 export type { AreaCell, AreaLeader, Archetype, ClimbPlan, MapPoint, PairForecast, QualityMap, Tournament, TournamentRow } from "./league";
 export { AREAS, eloText, MIN_QUALITY_GAMES, MIN_RATED_GAMES, playerStrength, probStronger, strengthGap } from "./strength";
 export type { Area, AreaStrength, RankOdds, StrengthEstimate, StrengthReport } from "./strength";
+export { advanceSnapshots, movements, SNAPSHOT_GAP_MS, snapshotOf } from "./movement";
+export type { Movement, Snapshot, SnapshotPair, SnapshotRow } from "./movement";
