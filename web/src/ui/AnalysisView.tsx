@@ -41,7 +41,7 @@ import { usePositionLines, useVerdicts } from "./useLive";
 import { navigate } from "./router";
 import { OpeningLine } from "./OpeningLine";
 import { GradeBadge, ReportPanel } from "./report/ReportPanel";
-import { GuideButton, usePageGuide } from "./stage/PageGuide";
+import { usePageGuide } from "./stage/PageGuide";
 import { REPORT_INTRO } from "./stage/ReportStory";
 import { currentShow, markSeen, openStage, takeAuto, wasSeen } from "./stage/store";
 import { useBook } from "./useBook";
@@ -168,9 +168,12 @@ function explainStored(move: MoveData, next: MoveData | undefined, previous: Mov
 
 
 
-function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves: MoveData[]; idx: number; onPick: (i: number) => void; userColor: Side | null; readonly?: boolean }) {
-  const dragging = useRef(false);
-  const [hover, setHover] = useState<number | null>(null);
+/**
+ * The line of winning chance. It is a picture, not a slider: tapping or
+ * dragging it never moves the game (a touch on a tablet used to skip dozens of
+ * moves at once). A marker and a label only say which move the board shows.
+ */
+function EvalGraph({ moves, idx, userColor, readonly = false }: { moves: MoveData[]; idx: number; userColor: Side | null; readonly?: boolean }) {
   const n = moves.length;
   if (!n) return null;
   const pts: [number, number][] = [];
@@ -189,40 +192,14 @@ function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves:
     .map((m, i) => ({ m, i }))
     .filter(({ m }) => m.classification === "Blunder" || m.classification === "Mistake" || m.classification === "Miss");
   const bookEnd = moves.findIndex((m) => m.classification && m.classification !== "Book");
-  const indexAt = (e: PointerEvent) => {
-    const rect = (e.currentTarget as Element).getBoundingClientRect();
-    const f = rect.width > 0 ? (e.clientX - rect.left) / rect.width : 0;
-    return Math.round(Math.max(0, Math.min(1, f)) * n);
-  };
-  // The hover index outlives a switch to a shorter game (palette, links), so clamp it.
-  const shown = hover !== null && hover <= n ? hover : null;
-  const hm = shown !== null && shown > 0 ? moves[shown - 1] : null;
-  const hwc = shown !== null ? winChanceAt(moves, shown) : null;
+  // The index can outlive a switch to a shorter game (palette, links), so clamp it.
+  const shown = Math.max(0, Math.min(n, idx));
+  const hm = shown > 0 ? moves[shown - 1] : null;
+  const hwc = winChanceAt(moves, shown);
   const userSide = userColor === "black" ? "b" : "w";
   return (
     <div class={`eval-graph-wrap${readonly ? " ro" : ""}`}>
-      <svg
-        class="eval-graph"
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        role="img"
-        aria-label={readonly ? t("Bewertungsverlauf") : t("Bewertungsverlauf, antippen oder ziehen zum Springen")}
-        // Drag to scrub through the game, like a video timeline. On a phone the
-        // finger belongs to scrolling, so the line is only a picture there.
-        onPointerDown={readonly ? undefined : (e) => {
-          dragging.current = true;
-          (e.currentTarget as SVGElement).setPointerCapture(e.pointerId);
-          onPick(indexAt(e));
-        }}
-        onPointerMove={readonly ? undefined : (e) => {
-          const i = indexAt(e);
-          if (e.pointerType === "mouse") setHover(i);
-          if (dragging.current) onPick(i);
-        }}
-        onPointerLeave={readonly ? undefined : () => setHover(null)}
-        onPointerUp={readonly ? undefined : () => (dragging.current = false)}
-        onPointerCancel={readonly ? undefined : () => (dragging.current = false)}
-      >
+      <svg class="eval-graph" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-label={t("Bewertungsverlauf")}>
         <rect class="eg-bg" x="0" y="0" width={W} height={H} />
         <path class="eg-area" d={area} />
         <path class="eg-line" d={line} />
@@ -237,10 +214,9 @@ function EvalGraph({ moves, idx, onPick, userColor, readonly = false }: { moves:
             class={`eg-dot ${m.classification.toLowerCase()}${m.fen_before.split(" ")[1] === userSide ? " own" : ""}`}
           />
         ))}
-        {shown !== null && <line class="eg-hover" x1={x(shown)} y1="0" x2={x(shown)} y2={H} />}
-        <line class="eg-cursor" x1={x(idx)} y1="0" x2={x(idx)} y2={H} />
+        <line class="eg-cursor" x1={x(shown)} y1="0" x2={x(shown)} y2={H} />
       </svg>
-      {shown !== null && (
+      {!readonly && (
         <div class="eg-tip" style={{ left: `${Math.max(12, Math.min(88, (shown / n) * 100))}%` }}>
           <strong>{hm ? `${hm.move_number}${hm.fen_before.split(" ")[1] === "w" ? "." : "..."} ${hm.san}` : t("Start")}</strong>
           {hm?.classification && hm.classification !== "Book" ? ` · ${classLabel(hm.classification)}` : ""}
@@ -1160,19 +1136,21 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
           <button class="btn small" onClick={() => navigate({ view: "board", fen })} title={t("Diese Stellung frei weiteranalysieren")}>
             <IconFreeBoard /> <span class="wide-label">{t("Im Analysebrett")}</span>
           </button>
-          <GuideButton id="analysis" />
-          <button
-            class="btn icon ghost danger"
-            aria-label={t("Partie löschen")}
-            title={t("Partie löschen")}
-            onClick={() => {
-              if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) {
-                void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
-              }
-            }}
-          >
-            <IconTrash />
-          </button>
+          <MoreMenu
+            label={t("Mehr zur Partie")}
+            items={[
+              { label: t("Seite erklären"), icon: <IconSpark />, onSelect: () => openStage({ kind: "page", subject: "analysis" }) },
+              {
+                label: t("Partie löschen"),
+                icon: <IconTrash />,
+                danger: true,
+                divider: true,
+                onSelect: () => {
+                  if (confirm(t("Partie {white} – {black} löschen?", { white: game.metadata.white, black: game.metadata.black }))) void deleteGame(row.id).then(() => navigate({ view: "games" }, true));
+                },
+              },
+            ]}
+          />
         </div>
       </header>
       )}
@@ -1220,29 +1198,14 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
             </div>
           ) : (
           <div class="controls" style={{ gridRow: 4 }}>
-            <button class="btn" onClick={() => goTo(0)} aria-label={t("Zum Anfang")}>
-              <IconFirst />
-            </button>
             <button class="btn" aria-label={t("Zug zurück")} {...holdBack}>
               <IconPrev />
             </button>
             <button class="btn" aria-label={t("Zug vor")} disabled={!canStep(1)} {...holdNext}>
               <IconNext />
             </button>
-            <button class="btn" onClick={() => goTo(n)} aria-label={t("Zum Ende")}>
-              <IconLast />
-            </button>
             <button class="btn" onClick={() => setFlipped((f) => !f)} aria-label={t("Brett drehen")} title={t("Brett drehen (F)")}>
               <IconFlip />
-            </button>
-            <button
-              class={`btn${showArrows ? " on" : ""}`}
-              onClick={() => setShowArrows((v) => !v)}
-              aria-pressed={showArrows}
-              aria-label={t("Pfeil für den besten Zug ein- oder ausblenden")}
-              title={t("Bester-Zug-Pfeil (A)")}
-            >
-              <IconArrow />
             </button>
             {errorPlies.length > 0 && !explore && (
               <div class="error-nav" role="group" aria-label={t("Eigene Fehler")}>
@@ -1257,6 +1220,15 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                 </button>
               </div>
             )}
+            <MoreMenu
+              class="controls-more"
+              label={t("Mehr zur Brettsteuerung")}
+              items={[
+                { label: t("Zum Anfang"), icon: <IconFirst />, onSelect: () => goTo(0) },
+                { label: t("Zum Ende"), icon: <IconLast />, onSelect: () => goTo(n) },
+                { label: t("Pfeile zeigen"), icon: <IconArrow />, checked: showArrows, divider: true, onSelect: () => setShowArrows((v) => !v) },
+              ]}
+            />
           </div>
           )}
           <div class="strip-row" style={{ gridRow: 5 }}>
@@ -1292,7 +1264,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                   }
                   listView={
                     <>
-                      <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} readonly />
+                      <EvalGraph moves={game.moves} idx={explore ? explore.base : i} userColor={userColor} readonly />
                       <MoveList
                         moves={game.moves}
                         idx={explore ? -1 : i}
@@ -1324,7 +1296,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
 
           {tab === "moves" || !review ? (
             <>
-              <EvalGraph moves={game.moves} idx={explore ? explore.base : i} onPick={goTo} userColor={userColor} />
+              <EvalGraph moves={game.moves} idx={explore ? explore.base : i} userColor={userColor} />
               <MoveList
                 moves={game.moves}
                 idx={explore ? -1 : i}

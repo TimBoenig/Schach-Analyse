@@ -3,11 +3,14 @@
 // picks the language (and loads the English texts if needed) and then imports
 // the app.
 import { initLang, lang, pageLang, t } from "./i18n";
+import { blockZoom } from "./app/noZoom";
 import { parseHash } from "./ui/router";
 
 // Bio links may drop the "#" part, so the landing page also answers at /hello (and the older /hallo).
 // The app itself lives at "/" with hash routes; switch over without a reload.
 if (/^\/(hello|hallo)\/?$/.test(location.pathname)) history.replaceState(null, "", `/${location.hash || "#/hello"}`);
+
+blockZoom();
 
 const viewOf = () => parseHash(location.hash).view;
 

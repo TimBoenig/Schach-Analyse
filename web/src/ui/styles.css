@@ -1664,10 +1664,11 @@ button.engine-line:hover {
   width: 100%;
   height: 120px;
   display: block;
-  cursor: crosshair;
+  cursor: default;
   border-radius: 8px;
   overflow: hidden;
-  touch-action: none;
+  /* A picture: the page scrolls over it, nothing scrubs. */
+  touch-action: pan-y;
 }
 
 .eg-bg {
@@ -1692,11 +1693,6 @@ button.engine-line:hover {
   stroke: var(--book);
   stroke-width: 1;
   stroke-dasharray: 2 3;
-  vector-effect: non-scaling-stroke;
-}
-.eg-hover {
-  stroke: rgba(128, 128, 128, 0.8);
-  stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
 .eg-cursor {
@@ -7237,4 +7233,22 @@ button.line-move:hover {
 }
 .puzzle-steps span.cur {
   background: var(--accent);
+}
+
+/* The page itself is never zoomed: no pinch, no double tap (touch), see also
+   app/noZoom.ts for the browsers that ignore this. Scrolling stays. Elements
+   that need other gestures (board, studio) set their own touch-action, which
+   can only narrow this further. */
+html {
+  touch-action: pan-x pan-y;
+}
+button,
+a,
+select,
+summary,
+label,
+[role="button"],
+[role="menuitem"],
+[role="menuitemcheckbox"] {
+  touch-action: manipulation;
 }

@@ -272,7 +272,7 @@
   display: none;
 }
 
-/* The line of winning chance is a picture on a phone: no scrubbing, so the page scrolls freely over it. */
+/* On a phone the line is compact (the label and legend are hidden). */
 .eval-graph-wrap.ro {
   padding: 5px;
 }
@@ -1306,4 +1306,13 @@
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid var(--border);
+}
+
+/* Board controls on PC and tablet: the rarely used buttons sit behind ⋯, which opens upwards because the row is at the bottom of the board. */
+.controls .controls-more {
+  flex: 0 0 auto;
+}
+.controls .controls-more .more-pop {
+  top: auto;
+  bottom: calc(100% + 6px);
 }

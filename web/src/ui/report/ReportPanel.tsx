@@ -176,7 +176,7 @@ export function ReportPanel({
             <p class="card-sub">{t("Deine Gewinnchance nach jedem Zug. Tippe, um zur Stelle zu springen.")}</p>
           </div>
         </header>
-        <WinChart points={winCurve(moves, isWhite)} plies={moves.length} moments={review.key_moments} turning={turning} cursor={idx} onPick={onJump} />
+        <WinChart points={winCurve(moves, isWhite)} plies={moves.length} moments={review.key_moments} turning={turning} cursor={idx} />
         {turning && (
           <button class="rp-turn" onClick={() => onJump(turning.ply_index + 1)}>
             <span class="rp-turn-tag">{t("Wendepunkt")}</span>
