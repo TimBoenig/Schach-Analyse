@@ -1096,8 +1096,8 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
   );
   return (
     <div class="studio-form">
-      <Field label={t("Brett")} hint={style.view === "2d" ? t("Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos.") : style.view === "billboard" ? t("3D-Brett mit Kamerafahrten, die Figuren sind flache Aufsteller, die sich immer zur Kamera drehen.") : t("Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts.")}>
-        <Seg<BoardView> value={style.view} options={VIEWS.map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange({ view })} />
+      <Field label={t("Brett")} hint={style.view === "2d" ? t("Flach von oben mit den Figuren der Website: am leichtesten zu verfolgen, besonders auf dem Handy. Standard für YouTube-Lernvideos.") : style.view === "reel" ? t("Schwarz-Weiß auf Schwarz, immer schräg und in Bewegung: harte Schnitte, Blitze, Glühen in Rot, Grün und Cyan, dicke Pfeile und runde Bewertungs-Symbole. Fast ohne Text, wie die schnellen Schach-Clips.") : style.view === "billboard" ? t("3D-Brett mit Kamerafahrten, die Figuren sind flache Aufsteller, die sich immer zur Kamera drehen.") : t("Plastisches Show-Brett mit Kamerafahrten, für TikTok, Reels und Shorts.")}>
+        <Seg<BoardView> value={style.view} options={VIEWS.map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange(view === "reel" && style.theme !== "mono" ? styleFromTheme("mono", { reflection: style.reflection, coords: style.coords, titleFont: "serif", pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment, view }) : { view })} />
       </Field>
       <Field label={t("Look")}>
         <div class="studio-themes">

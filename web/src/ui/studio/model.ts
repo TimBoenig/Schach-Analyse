@@ -70,7 +70,7 @@ export interface Scene {
   tempo: number;
 }
 
-export type ThemeId = "nova" | "marmor" | "holz" | "walnuss" | "turnier" | "neon";
+export type ThemeId = "nova" | "marmor" | "holz" | "walnuss" | "turnier" | "neon" | "mono";
 export type Material = "porcelain" | "chrome" | "matte" | "wood";
 
 /** How the subtitles sit on the video: in a dark box, as bold outlined text, or big and heavy without a box. */
@@ -79,12 +79,12 @@ export type CaptionStyle = "box" | "outline" | "punch";
  * How the board is drawn: the 3D show board (TikTok, Shorts) or a flat board
  * seen from above, like in a book, which beginners and phone screens read best.
  */
-export type BoardView = "3d" | "2d" | "billboard";
+export type BoardView = "3d" | "2d" | "billboard" | "reel";
 /** Order of the choices in the editor. */
-export const VIEWS: BoardView[] = ["2d", "billboard", "3d"];
-export const VIEW_LABEL: Record<BoardView, string> = { "2d": t("2D – klar wie im Buch"), billboard: t("3D-Brett, 2D-Figuren"), "3d": t("3D – Show-Look") };
-/** The views with a 3D board (camera, surroundings, reflection). */
-export const isBoard3d = (v: BoardView) => v !== "2d";
+export const VIEWS: BoardView[] = ["2d", "billboard", "3d", "reel"];
+export const VIEW_LABEL: Record<BoardView, string> = { "2d": t("2D – klar wie im Buch"), billboard: t("3D-Brett, 2D-Figuren"), "3d": t("3D – Show-Look"), reel: t("Reel – Schwarz-Weiß mit Glühen") };
+/** The views with a 3D board (camera, surroundings, reflection). The reel look draws its own tilted flat board. */
+export const isBoard3d = (v: BoardView) => v === "3d" || v === "billboard";
 export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: t("Im Kasten"), outline: t("Mit Kontur"), punch: t("Groß und fett") };
 export const MATERIAL_LABEL: Record<Material, string> = { porcelain: t("Lack"), matte: t("Matt"), chrome: t("Chrom"), wood: t("Holz") };
 
@@ -166,6 +166,8 @@ export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "them
   walnuss: { label: t("Walnuss"), light: "#e6cfa3", dark: "#6e4a2f", frame: "#2a1a10", whitePiece: "#f0d9ae", blackPiece: "#24140c", material: "wood", bgTop: "#3a2a1f", bgBottom: "#0b0806", accent: "#ffcf70" },
   turnier: { label: t("Turnier"), light: "#eeeed2", dark: "#769656", frame: "#27301f", whitePiece: "#f6f4ee", blackPiece: "#1c1d1f", material: "porcelain", bgTop: "#1c2618", bgBottom: "#060805", accent: "#34d3a1" },
   neon: { label: "Neon", light: "#2b3050", dark: "#141729", frame: "#0a0c18", whitePiece: "#eaf6ff", blackPiece: "#40307a", material: "chrome", bgTop: "#22104a", bgBottom: "#04030b", accent: "#3fd2ea" },
+  // Grey squares on pure black: the base of the reel look (colour only comes from the glow).
+  mono: { label: t("Mono (Reel)"), light: "#bdbdbd", dark: "#5f5f5f", frame: "#000000", whitePiece: "#f3f3f3", blackPiece: "#1a1a1a", material: "matte", bgTop: "#000000", bgBottom: "#000000", accent: "#5b6cff" },
 };
 
 export const TONES: Record<Exclude<Tone, "accent">, string> = {
@@ -431,7 +433,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
     textScale: num(st.textScale, 0.8, 1.3, 1),
     // Projects from before the 2D board: YouTube lessons get the clearer flat board, short videos keep 3D.
-    view: st.view === "2d" || st.view === "3d" || st.view === "billboard" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
+    view: st.view === "2d" || st.view === "3d" || st.view === "billboard" || st.view === "reel" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
   const video: StudioVideo = {
@@ -566,6 +568,29 @@ export function puzzleTemplate(): StudioProject {
   );
 }
 
+/** The reel look on a trap and a fork: tilted grey board, glows, thick arrows, almost no words. */
+export function reelTemplate(): StudioProject {
+  const afterQh5 = parseMoves(START_FEN, "e4 e5 Bc4 Nc6 Qh5").fen;
+  const fork = "r3k2r/8/8/3N4/8/8/8/4K3 w kq - 0 1";
+  const base = project(
+    t("Siehst du das Matt?"),
+    [
+      scene({ card: "intro", title: t("Siehst du das Matt?"), text: t("Nur ein Zug"), duration: 2.4, mood: "wow" }),
+      scene({ fen: afterQh5, moves: "3... Nf6??", duration: 2.6, zoom: 0.8, badge: "blunder", effects: ["zoom"], marks: [{ square: "f7", tone: "bad" }] }),
+      scene({ moves: "4. Qxf7#", duration: 3.6, zoom: 0.7, badge: "brilliant", effects: ["mate"], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
+      scene({ fen: fork, moves: "Nc7+", duration: 3.2, zoom: 0.7, badge: "best", effects: ["spotlight"], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] }),
+      outro({ title: t("Mehr Taktik aus deinen Partien") }),
+    ],
+    START_FEN,
+    "mono",
+  );
+  return {
+    ...base,
+    style: styleFromTheme("mono", { view: "reel", titleFont: "serif", environment: "void" }),
+    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 1.2, lucena: false, movePill: false, music: "none" },
+  };
+}
+
 export function blankProject(): StudioProject {
   return project(t("Neues Video"), [scene({ card: "intro", title: t("Dein Titel"), text: t("Untertitel"), camera: "white" }), scene({ moves: "1. e4", title: t("Erster Zug"), text: t("Erkläre hier den Zug.") }), outro()]);
 }
@@ -601,5 +626,6 @@ export const TEMPLATES: { id: string; label: string; hint: string; make: () => S
   { id: "spanish", label: t("Eröffnung erklären"), hint: t("Beispiel: die Spanische Eröffnung, Zug für Zug"), make: spanishTemplate },
   { id: "scholar", label: t("Falle zeigen"), hint: t("Matt in 4 Zügen und die richtige Verteidigung"), make: scholarTemplate },
   { id: "puzzle", label: t("Rätsel mit Countdown"), hint: t("Stellung, Frage, 3-2-1, Lösung"), make: puzzleTemplate },
+  { id: "reel", label: t("Reel-Stil"), hint: t("Schwarz-Weiß, schräge Kamera, Glühen: wie die schnellen Clips"), make: reelTemplate },
   { id: "blank", label: t("Leeres Video"), hint: t("Titel, eine Szene, Abspann"), make: blankProject },
 ];

@@ -115,6 +115,8 @@ export interface FramePiece {
   /** Toppling (radians) towards `tiltYaw`, for the mated king. */
   tilt?: number;
   tiltYaw?: number;
+  /** A piece on its way: progress 0..1 and the square centre it started from (motion trail, spin of the reel look). */
+  flight?: { k: number; fromX: number; fromZ: number };
 }
 
 export interface FrameArrow {
@@ -125,6 +127,8 @@ export interface FrameArrow {
   alpha: number;
   /** Own colour instead of a tone (poll answers). */
   colour?: string;
+  /** The faint path of a piece in flight, not an arrow the scene asked for. */
+  path?: boolean;
 }
 
 export interface FrameMark {
@@ -162,6 +166,9 @@ export interface Frame {
   badge: { kind: Exclude<Badge, "">; square: string; age: number } | null;
   /** Lesson layout (wide video, explanation panel on the right). */
   lesson: boolean;
+  /** Seconds the scene lasts and the squares of its last move: the reel look's camera flies from one to the other. */
+  dur: number;
+  focus: { from: string; to: string } | null;
   /** Moves played so far in this line, for the lesson's move list (last one is the current). */
   moveList: string[];
   /** Letter bubbles at the end of the poll arrows. */
@@ -510,7 +517,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
         const dist = Math.hypot(bx - ax, bz - az);
         const knight = p.type === "n";
         const lift = (knight ? 1.0 : 0.22 + Math.min(0.35, dist * 0.06)) * Math.sin(Math.PI * k);
-        flying = { x: ax + (bx - ax) * k, z: az + (bz - az) * k, y: lift };
+        flying = { x: ax + (bx - ax) * k, z: az + (bz - az) * k, y: lift, flight: { k, fromX: ax, fromZ: az } };
       }
       if (st.promo?.pawn === p.id && local >= st.t1) gone.add(p.id);
     }
@@ -571,9 +578,9 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   // The piece in flight draws a faint path, so it is clear which piece goes where.
   if (moving) {
     const k = clamp01((local - moving.t0) / (moving.t1 - moving.t0));
-    arrows.push({ from: moving.from, to: moving.to, tone: "accent", progress: ease(Math.min(1, k * 1.6)), alpha: 0.55 });
+    arrows.push({ from: moving.from, to: moving.to, tone: "accent", progress: ease(Math.min(1, k * 1.6)), alpha: 0.55, path: true });
   } else if (lastDone && local - lastDone.t1 < 0.4) {
-    arrows.push({ from: lastDone.from, to: lastDone.to, tone: "accent", progress: 1, alpha: 0.55 * (1 - (local - lastDone.t1) / 0.4) });
+    arrows.push({ from: lastDone.from, to: lastDone.to, tone: "accent", progress: 1, alpha: 0.55 * (1 - (local - lastDone.t1) / 0.4), path: true });
   }
   // Poll answers appear together with their buttons.
   const pollMarks: Frame["pollMarks"] = [];
@@ -654,6 +661,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     mate: c.mate,
     threats: c.threats,
     lesson,
+    dur: c.dur,
+    focus: c.steps.length ? { from: c.steps[c.steps.length - 1].from, to: c.steps[c.steps.length - 1].to } : null,
     moveList: lesson ? moveListAt(timeline, index, local) : [],
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,

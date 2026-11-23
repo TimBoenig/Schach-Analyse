@@ -6,6 +6,7 @@ import { drawStandees, FlatBoard, pieceKey } from "./flat";
 import { BADGE_FILE } from "./model";
 import type { BoardView, StudioProject } from "./model";
 import { StudioRenderer } from "./renderer";
+import { paintReel, reelSquareAt, type ReelView } from "./reel";
 import { frameAt, type Frame, type Timeline } from "./timeline";
 
 export class StudioStage {
@@ -16,6 +17,7 @@ export class StudioStage {
   /** The flat board, made on first use. */
   private flat: FlatBoard | null = null;
   private lastView: BoardView = "3d";
+  private reelView: ReelView | null = null;
   private orb: Orb | null = null;
   private orbCanvas: HTMLCanvasElement | null = null;
 
@@ -81,6 +83,7 @@ export class StudioStage {
 
   /** The square under a point of the picture (0..1, y down), in whichever board was painted last. */
   squareAt(sx: number, sy: number): string | null {
+    if (this.lastView === "reel") return this.reelView ? reelSquareAt(this.reelView, sx, sy) : null;
     return this.lastView === "2d" && this.flat ? this.flat.squareAt(sx, sy) : this.renderer.squareAt(sx, sy);
   }
 
@@ -95,7 +98,10 @@ export class StudioStage {
       this.orb.tick(tk * 1000);
     }
     this.lastView = project.style.view;
-    if (project.style.view === "2d") {
+    if (project.style.view === "reel") {
+      // Its own tilted board in one 2D layer: no GL pass, no flat canvas.
+      this.reelView = paintReel(this.ctx, frame, project, this.assets);
+    } else if (project.style.view === "2d") {
       if (!this.flat) this.flat = new FlatBoard();
       this.flat.resize(this.out.width, this.out.height);
       this.flat.render(frame, project.style, this.assets.pieces);

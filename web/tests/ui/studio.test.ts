@@ -27,6 +27,7 @@ import { duckedVolume, loopSeconds, synthLoop } from "../../src/ui/studio/music"
 import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
 import { environment } from "../../src/ui/studio/environments";
+import { reelCamera, reelSquareAt, ROLLS } from "../../src/ui/studio/reel";
 import { setLangNow } from "../../src/i18n";
 import { EN } from "../../src/i18n/en";
 import { buildAiPrompt, guessPerspective, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
@@ -737,5 +738,56 @@ describe("studio mp4 writer", () => {
       for (let k = 0; k < n; k++) firsts.push(file[dv.getUint32(i + 12 + k * 4)]);
     }
     expect(firsts).toEqual([1, 4, 6, 7, 8]);
+  });
+});
+
+describe("reel look", () => {
+  const project = TEMPLATES.find((x) => x.id === "reel")!.make();
+  const tl = compile(project);
+
+  it("is a square, silent-looking template in the reel view and survives a stored-project repair", () => {
+    expect(project.style.view).toBe("reel");
+    expect(project.style.theme).toBe("mono");
+    expect(project.video.format).toBe("1:1");
+    expect(normalizeProject(JSON.parse(JSON.stringify(project))).style.view).toBe("reel");
+  });
+
+  it("cuts: each scene leans another way, flashes on entry, and shakes on the mating blow", () => {
+    const starts = tl.scenes.map((c) => c.start);
+    const cams = starts.map((tk) => reelCamera(frameAt(tl, project, tk + 0.01)!, 1080, 1080));
+    // Roll follows the per-scene table (plus the whip that decays within a fraction of a second).
+    expect(Math.sign(cams[1].roll)).toBe(Math.sign(ROLLS[1]));
+    expect(Math.sign(cams[2].roll)).toBe(Math.sign(ROLLS[2]));
+    // A cut strobes white, the very first picture does not.
+    expect(cams[0].flash).toBe(0);
+    expect(cams[2].flash).toBeGreaterThan(0.3);
+    // The mate scene shakes after the moves landed, and no camera ever leaves the board's bounds.
+    const mate = tl.scenes[2];
+    const late = reelCamera(frameAt(tl, project, mate.start + mate.fxAt + 0.05)!, 1080, 1080);
+    expect(Math.abs(late.shakeX) + Math.abs(late.shakeY)).toBeGreaterThan(1);
+    for (const c of [...cams, late]) {
+      expect(c.S).toBeGreaterThan(1080 / 9.3);
+      expect(Math.abs(c.fx)).toBeLessThanOrEqual(3.5);
+      expect(Math.abs(c.fz)).toBeLessThanOrEqual(3.5);
+    }
+  });
+
+  it("pulls the shot back so a long arrow stays in the picture, and maps clicks back to squares", () => {
+    const fork = tl.scenes[3];
+    const frame = frameAt(tl, project, fork.start + fork.annotate + 0.8)!;
+    const cam = reelCamera(frame, 1080, 1080);
+    const [ax, az] = squareXZ("c7");
+    const [bx, bz] = squareXZ("e8");
+    expect(Math.hypot(bx - ax, bz - az) * cam.S).toBeLessThan(0.75 * 1080);
+    // The camera's own centre is a square of the board, and the square it looks at maps to the middle of the picture.
+    const view = { ...cam, W: 1080, H: 1080, dir: 1 as const };
+    expect(reelSquareAt(view, 0.5 - cam.shakeX / 1080, 0.5 - cam.shakeY / 1080)).toBe(xzSquare(Math.max(-3.5, Math.min(3.5, cam.fx)), Math.max(-3.5, Math.min(3.5, cam.fz))));
+  });
+
+  it("is reachable from an AI script", () => {
+    const text = JSON.stringify({ titel: "T", look: "reel", design: { ansicht: "reel" }, szenen: [{ zug: "1. e4", titel: "x", untertitel: "y", dauer: 3 }] });
+    const res = importAiScript(text);
+    expect(res.project?.style.view).toBe("reel");
+    expect(res.project?.style.theme).toBe("mono");
   });
 });
