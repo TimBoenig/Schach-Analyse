@@ -751,6 +751,7 @@ export function RepertoireRunner({ ex, onResult, onNext, nextLabel, learn = fals
               : t("Deine Hauptvariante aus {games} Partien{1}.", { games: ex.games, 1: ex.score_pct !== null ? t(" ({0} % Punkte)", { 0: Math.round(ex.score_pct) }) : "" }) })}
           </p>
           {ex.idea && <p class="note-box small">{t("Idee: {idea}", { idea: ex.idea })}</p>}
+          {ex.plan && <p class="note-box small">{t("Plan dieser Variante: {plan}", { plan: ex.plan })}</p>}
           <div class={`learn-mode${learning ? " on" : ""}`}>
             {learning ? t("Lernmodus: Die Buchzüge werden dir gezeigt. Spiele sie nach.") : t("Abfrage: ohne Hilfe.")}
             {!done && (

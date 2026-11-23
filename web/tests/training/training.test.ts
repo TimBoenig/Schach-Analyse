@@ -325,4 +325,16 @@ describe("opening library", () => {
     const plan = buildDailyPlan({ skills: SKILLS, patterns: [], pool: [...pool(), ...LIBRARY_DRILLS], progress: {}, prefs: { minutes: 60, focus: "auto" }, today: TODAY });
     expect(plan.blocks.flatMap((b) => b.exercise_ids).some((id) => id.startsWith("lib:"))).toBe(false);
   });
+
+  it("teaches deep theory: the 15 core openings have several variations, 8+ moves deep, each with a strategy note", () => {
+    const core = ["italian", "ruy", "scotch", "london", "qgd-white", "english", "sicilian", "french", "caro", "scandi", "e5-black", "kid", "nimzo", "qgd-black", "grunfeld"];
+    for (const key of core) {
+      const o = OPENING_LIBRARY.find((x) => x.key === key)!;
+      expect(o.lines.length, key).toBeGreaterThanOrEqual(2);
+      for (const l of o.lines) {
+        expect(l.moves.split(" ").length, `${key} ${l.name}`).toBeGreaterThanOrEqual(16);
+        expect(l.plan?.length ?? 0, `${key} ${l.name}`).toBeGreaterThan(60);
+      }
+    }
+  });
 });
