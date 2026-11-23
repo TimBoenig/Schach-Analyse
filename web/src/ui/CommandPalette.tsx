@@ -32,6 +32,7 @@ export const PAGES: { view: Route["view"]; label: string; key: string; keywords?
   { view: "openings", label: t("Statistik › Eröffnungen"), key: "6", keywords: t("repertoire eröffnungsbaum") },
   { view: "training", label: "Training", key: "7" },
   { view: "players", label: t("Spieler & Rangliste"), key: "0", keywords: t("freunde gegner vergleich") },
+  { view: "trophies", label: t("Spieler › Trophäen"), key: "", keywords: t("trophäen erfolge pokale sammlung achievements freunde vergleich") },
   { view: "settings", label: t("Einstellungen"), key: "8" },
   { view: "account", label: t("Einstellungen › Konto & Sync"), key: "k" },
 ];

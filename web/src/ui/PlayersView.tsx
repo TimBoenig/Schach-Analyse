@@ -74,7 +74,7 @@ const RADAR_LABELS: Record<string, string> = {
 /** Changes only when a game is added, removed or re-analysed. */
 const gamesSignature = (games: StoredGame[]) => games.map((g) => `${g.id}:${g.updated_at}`).join("|");
 
-function useData() {
+export function useData() {
   const [players, setPlayers] = useState<TrackedPlayer[] | null>(null);
   const [games, setGames] = useState<StoredGame[]>([]);
   const [me, setMe] = useState<string[]>([]);

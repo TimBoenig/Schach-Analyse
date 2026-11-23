@@ -17,6 +17,7 @@ export type Route =
   | { view: "board"; fen?: string }
   | { view: "profile" }
   | { view: "players"; playerId?: string; tab?: "rangliste" }
+  | { view: "trophies"; playerId?: string }
   | { view: "training"; tab?: TrainingTab; category?: string }
   | { view: "settings"; tab?: SettingsTab }
   | { view: "account" }
@@ -41,6 +42,8 @@ export function parseHash(hash: string): Route {
     case "spieler":
       if (parts[1] === RANKING_SLUG) return { view: "players", tab: "rangliste" };
       return parts[1] ? { view: "players", playerId: decodeURIComponent(parts[1]) } : { view: "players" };
+    case "trophaeen":
+      return parts[1] ? { view: "trophies", playerId: decodeURIComponent(parts[1]) } : { view: "trophies" };
     case "eroeffnungen":
       return { view: "openings" };
     case "zuege":
@@ -86,6 +89,8 @@ export function toHash(r: Route): string {
     case "players":
       if (r.tab === "rangliste") return `#/spieler/${RANKING_SLUG}`;
       return r.playerId ? `#/spieler/${encodeURIComponent(r.playerId)}` : "#/spieler";
+    case "trophies":
+      return r.playerId ? `#/trophaeen/${encodeURIComponent(r.playerId)}` : "#/trophaeen";
     case "openings":
       return "#/eroeffnungen";
     case "moves":

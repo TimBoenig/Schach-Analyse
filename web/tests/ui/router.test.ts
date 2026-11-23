@@ -17,6 +17,8 @@ describe("router", () => {
       { view: "players" },
       { view: "moves" },
       { view: "players", tab: "rangliste" },
+      { view: "trophies" },
+      { view: "trophies", playerId: "max-2" },
       { view: "players", playerId: "max-2" },
       // FENs contain slashes and spaces; they must survive the hash round trip.
       { view: "board", fen: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3" },

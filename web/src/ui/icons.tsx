@@ -92,3 +92,11 @@ export const IconRise = () => (
 export const IconSwords = () => (
   <svg {...base}><path d="M4 4l9.5 9.5M4 4v4l9 9M4 4h4l9 9M20 4l-6 6M20 4v4l-3 3M20 4h-4l-3 3M14.5 17.5l3 3M17.5 14.5l3 3M6.5 17.5l-3 3M9.5 17.5l-3-3" /></svg>
 );
+export const IconMoon = () => (<svg {...base}><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" /></svg>);
+export const IconSun = () => (<svg {...base}><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" /></svg>);
+export const IconHourglass = () => (<svg {...base}><path d="M6 3h12M6 21h12M7 3c0 4.5 3 5.5 5 9-2 3.5-5 4.5-5 9M17 3c0 4.5-3 5.5-5 9 2 3.5 5 4.5 5 9" /></svg>);
+export const IconKnight = () => (<svg {...base}><path d="M6.5 20.5h11M8 20.5c0-3 1.2-4.6 3-6.2-2-.6-3.6-2.4-3.6-4.8L11 4.5l1.6 1.4c3.6.4 5.9 3.6 5.9 8v6.6" /><path d="M10.2 8.6h.01" /></svg>);
+export const IconPawn = () => (<svg {...base}><circle cx="12" cy="6.5" r="3" /><path d="M9.5 20.5h5M8.5 20.5c.2-3 1.6-4.2 2.4-6.5h2.2c.8 2.3 2.2 3.5 2.4 6.5M9 12.5h6" /></svg>);
+export const IconSkull = () => (<svg {...base}><path d="M12 3.5c-4.4 0-7.5 3-7.5 7 0 2.4 1.1 4 2.5 5v3.5h10V15.5c1.4-1 2.5-2.6 2.5-5 0-4-3.1-7-7.5-7z" /><path d="M9.5 11h.01M14.5 11h.01M10.5 20v-2M13.5 20v-2" /></svg>);
+export const IconCalendar = () => (<svg {...base}><rect x="3.5" y="5" width="17" height="15.5" rx="2" /><path d="M3.5 10h17M8 3v4M16 3v4" /></svg>);
+export const IconLock = () => (<svg {...base}><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></svg>);
