@@ -20,7 +20,7 @@ export function RecentGames({ profile, limit = 6 }: { profile: PlayerProfile; li
   return (
     <ul class="recent">
       {games.map((g) => {
-        const r = RESULT[String(g.score)] ?? { cls: "open", ch: "·", word: "offen" };
+        const r = RESULT[String(g.score)] ?? { cls: "open", ch: "·", word: t("offen") };
         return (
           <li key={g.game_id}>
             <button class="recent-item" onClick={() => navigate({ view: "analysis", gameId: g.game_id })}>

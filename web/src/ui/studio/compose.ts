@@ -630,9 +630,10 @@ export function compose(
     ctx.shadowBlur = 60 * u;
     ctx.lineWidth = 10 * u;
     ctx.strokeStyle = "rgba(120,0,10,0.85)";
-    ctx.strokeText("SCHACHMATT", 0, 0);
+    const mateWord = t("SCHACHMATT");
+    ctx.strokeText(mateWord, 0, 0);
     ctx.fillStyle = "#ffffff";
-    ctx.fillText("SCHACHMATT", 0, 0);
+    ctx.fillText(mateWord, 0, 0);
     ctx.restore();
   }
 

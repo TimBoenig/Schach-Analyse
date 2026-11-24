@@ -1,7 +1,7 @@
 // The start page on a phone: today's step and the form in two compact cards,
 // the last games, and everything longer behind one-line folds.
 import { trSpeed } from "../../domain/i18n";
-import { t } from "../../i18n";
+import { dec, t } from "../../i18n";
 import { type KpiChange, type PlayerProfile, trendOf } from "../../domain/profile";
 import { Ring } from "../charts";
 import { COACH_NAME, CoachAvatar, type Mood } from "../Coach";
@@ -12,8 +12,8 @@ import { navigate } from "../router";
 import type { TodayTraining } from "../training/useTraining";
 import { Delta } from "../viz/Range";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
-const RESULT_WORD = (score: number | null) => (score === 1 ? "Sieg" : score === 0 ? "Niederlage" : score === null ? "offen" : "Remis");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
+const RESULT_WORD = (score: number | null) => (score === 1 ? t("Sieg") : score === 0 ? t("Niederlage") : score === null ? t("offen") : t("Remis"));
 
 /** Today's training and Lucena's one sentence, on one card. */
 export function PhoneToday({ mood, title, today }: { mood: Mood; title: string; today: TodayTraining | null }) {
@@ -39,7 +39,7 @@ export function PhoneToday({ mood, title, today }: { mood: Mood; title: string; 
           <small>{today?.streak ? t("{0} {1} in Folge", { 0: today.streak, 1: today.streak === 1 ? t("Tag") : t("Tage") }) : t("Starte heute eine Serie")}</small>
         </div>
         <button class="btn primary" onClick={() => navigate({ view: "training" })}>
-          <IconPlay /> {finished ? "Weiter" : "Starten"}
+          <IconPlay /> {finished ? t("Weiter") : t("Starten")}
         </button>
       </div>
     </section>

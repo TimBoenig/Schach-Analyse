@@ -48,7 +48,7 @@ import { useBook } from "./useBook";
 import { activeIn, extendLine, lineMoveNumber, mergeLine, resumeLine, startLine, threatFen, type Explore } from "./sideLines";
 import { ENGINE_NAME } from "../engine/info";
 import { EngineWait } from "./EngineWait";
-import { t, tj, tStored } from "../i18n";
+import { dec, t, tj, tStored } from "../i18n";
 
 const ENGINE_PREF_KEY = "schach.analysis.engine";
 
@@ -969,7 +969,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
                       </ul>
                     )}
                     {move.classification && move.classification !== "Book" && <MoveFacts move={move} />}
-                    {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !reasons.some((r) => r.startsWith("Besser war") || r.startsWith("Du hattest Matt")) && (
+                    {move.best_move && move.best_move !== move.uci && move.multi_pvs[0]?.pv_san && move.classification !== "Book" && !TOP_CLASSES.has(move.classification) && !detail?.betterMove && (
                       <div class="small" style={{ marginTop: "4px" }}>
                         
                         {tj("Besser war: {x}", { x: <strong>{move.multi_pvs[0].pv_san.split(" ").slice(0, 6).join(" ").replace(/\s+\d+\.$/, "")}</strong> })}
@@ -1035,7 +1035,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
         </span>
       </span>
       <span class="player-meta">
-        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", ",")} %</span>}
+        {acc(c) !== undefined && <span class={`pill ${accClass(acc(c))}`}>{acc(c)!.toFixed(1).replace(".", dec())} %</span>}
         {clockAt(game.moves, explore ? explore.base : i, c) !== null && (
           <span class={`clock${(explore ? explore.base : i) % 2 === (c === "white" ? 0 : 1) && !explore ? " running" : ""}`}>
             {formatClock(clockAt(game.moves, explore ? explore.base : i, c))}

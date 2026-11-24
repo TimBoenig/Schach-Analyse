@@ -1,6 +1,6 @@
 import { openingLabel, openingMain } from "../domain/profile/openings";
 import type { Classification, MoveData } from "../domain/types";
-import { t } from "../i18n";
+import { lang, locale, t } from "../i18n";
 
 const BADGE_FILE: Partial<Record<Classification, string>> = {
   Brilliant: "brilliant.svg",
@@ -80,7 +80,10 @@ export function formatEval(cp: number | null, mate: number | null): string {
 
 export function formatDate(date: string): string {
   const m = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(date ?? "");
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : date || "";
+  if (!m) return date || "";
+  // German writes 22.11.2026; English reads "Nov 22, 2026" (UTC, so the day never shifts with the time zone).
+  if (lang() === "en") return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return `${m[3]}.${m[2]}.${m[1]}`;
 }
 
 export const SPEED_DE: Record<string, string> = {

@@ -214,3 +214,10 @@ export function tStored(s: string | null | undefined): string {
     .map((part) => translateStored(part, 0))
     .join(" ");
 }
+
+const p2 = (n: number) => String(n).padStart(2, "0");
+/** Short axis label of a day: "22.11." in German, "11/22" in English. */
+export const dayMonthLabel = (d: Date, pad = true): string =>
+  current === "en" ? `${d.getMonth() + 1}/${pad ? p2(d.getDate()) : d.getDate()}` : `${pad ? p2(d.getDate()) : d.getDate()}.${p2(d.getMonth() + 1)}.`;
+/** Short axis label of a month: "11.26" in German, "11/26" in English. */
+export const monthYearLabel = (d: Date): string => `${p2(d.getMonth() + 1)}${current === "en" ? "/" : "."}${String(d.getFullYear()).slice(2)}`;

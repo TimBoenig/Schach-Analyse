@@ -416,7 +416,7 @@ function Standings({ ranking, tones, types, moves }: { ranking: Ranking; tones: 
                   <span class="faint small">
                     {r.strength === null
                       ? t("zu wenig Partien ({rated_games}/{MIN_RATED_GAMES})", { rated_games: r.rated_games, MIN_RATED_GAMES })
-                      : `${r.odds && r.odds.low !== r.odds.high ? t("Platz {placeRange} möglich", { placeRange: placeRange(r) }) : t("Platz sicher")}${tk && tk.title !== "Noch offen" ? ` · ${tk.title}` : ""}`}
+                      : `${r.odds && r.odds.low !== r.odds.high ? t("Platz {placeRange} möglich", { placeRange: placeRange(r) }) : t("Platz sicher")}${tk && tk.title !== t("Noch offen") ? ` · ${tk.title}` : ""}`}
                   </span>
                 </span>
                 <span class="lg-row-stats">
@@ -717,7 +717,7 @@ function CrosstableCard({
 
 function HighlightsCard({ cross, tones }: { cross: Crosstable; tones: Tones }) {
   const list = crossHighlights(cross);
-  const vsName = (p: { name: string; is_me: boolean }) => (p.is_me ? "dich" : p.name);
+  const vsName = (p: { name: string; is_me: boolean }) => (p.is_me ? t("dich") : p.name);
   const lines = list.map((h) => {
     const c = h.cell;
     const score = t("{half} aus {games}", { half: half(c.points), games: c.games });
@@ -781,7 +781,7 @@ function HighlightsCard({ cross, tones }: { cross: Crosstable; tones: Tones }) {
   );
 }
 
-const MARGIN_TEXT: Record<string, string> = { knapp: "knapp", deutlich: "deutlich", klar: "klar" };
+const MARGIN_TEXT: Record<string, string> = { knapp: t("knapp"), deutlich: t("deutlich"), klar: t("klar") };
 
 function battleValue(key: string, v: number | null): string {
   if (v === null) return "–";
@@ -882,7 +882,7 @@ function BattleArena({
                   <span class="faint small"> · {de(r.weight, 0)} %</span>
                 </span>
                 <span class={`lg-round-chip ${r.winner ?? "none"} ${r.winner === "a" ? tones[a] : r.winner === "b" ? tones[b] : ""}`}>
-                  {r.winner === null ? t("keine Daten") : r.winner === "draw" ? "offen" : `${r.winner === "a" ? an : bn} ${MARGIN_TEXT[r.margin as string]}`}
+                  {r.winner === null ? t("keine Daten") : r.winner === "draw" ? t("offen") : `${r.winner === "a" ? an : bn} ${MARGIN_TEXT[r.margin as string]}`}
                 </span>
               </button>
               {pa !== null && (
@@ -1286,7 +1286,7 @@ function FormTable({ rows, tones, ratings }: { rows: MomentumRow[]; tones: Tones
                 ))}
               </span>
               <span class={`lg-trend ${r.trend ?? "none"}`}>
-                {r.trend === "up" ? `↑ ${signed(r.delta as number)}` : r.trend === "down" ? `↓ ${signed(r.delta as number)}` : r.trend === "flat" ? "stabil" : "offen"}
+                {r.trend === "up" ? `↑ ${signed(r.delta as number)}` : r.trend === "down" ? `↓ ${signed(r.delta as number)}` : r.trend === "flat" ? t("stabil") : t("offen")}
               </span>
               <span class="faint small lg-form-sub">
                 {t("{n}{n2}", { n: r.streak && r.streak.count >= 3

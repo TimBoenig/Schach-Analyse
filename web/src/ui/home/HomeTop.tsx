@@ -147,7 +147,7 @@ export function RatingCard({
   );
 }
 
-const RESULT_WORD = (score: number | null) => (score === 1 ? t("Sieg") : score === 0 ? t("Niederlage") : score === null ? "offen" : t("Remis"));
+const RESULT_WORD = (score: number | null) => (score === 1 ? t("Sieg") : score === 0 ? t("Niederlage") : score === null ? t("offen") : t("Remis"));
 
 function kpiFormat(k: KpiChange): (v: number) => string {
   switch (k.key) {

@@ -1,6 +1,6 @@
 // Axis maths for the charts: round numbers on the value axis, calendar steps
 // on the time axis. Pure, so the choices are testable without a browser.
-import { t } from "../../i18n";
+import { dayMonthLabel, t } from "../../i18n";
 
 
 const DAY = 86400;
@@ -56,7 +56,6 @@ export interface TimeTick {
 }
 
 const MONTHS = [t("Jan"), t("Feb"), t("Mär"), t("Apr"), t("Mai"), t("Jun"), t("Jul"), t("Aug"), t("Sep"), t("Okt"), t("Nov"), t("Dez")];
-const p2 = (n: number) => String(n).padStart(2, "0");
 const epoch = (d: Date) => d.getTime() / 1000;
 
 /** Month steps tried in turn until the labels fit. */
@@ -78,7 +77,7 @@ export function timeTicks(t0: number, t1: number, max: number): TimeTick[] {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate());
       // Weekly steps sit on Mondays, so two charts side by side agree.
       if (step >= 7) d.setDate(d.getDate() + ((8 - d.getDay()) % 7));
-      for (; epoch(d) <= t1; d.setDate(d.getDate() + step)) if (epoch(d) >= t0) ticks.push({ t: epoch(d), label: `${d.getDate()}.${p2(d.getMonth() + 1)}.` });
+      for (; epoch(d) <= t1; d.setDate(d.getDate() + step)) if (epoch(d) >= t0) ticks.push({ t: epoch(d), label: dayMonthLabel(d, false) });
       if (ticks.length <= max) return ticks;
     }
   }

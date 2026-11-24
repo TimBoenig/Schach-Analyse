@@ -40,10 +40,16 @@ const germanWords = new Set(Object.keys(EN).flatMap(words).filter((w) => !englis
 const GERMAN = { test: (s: string) => /[äöüÄÖÜß]/.test(s) || words(s).some((w) => germanWords.has(w)) };
 const CODE = /^[\w.\-/:#?=&%@$*+{}]+$/;
 // Code, not text: identifiers, paths, CSS class lists, shader sources.
-const isCode = (s: string) => CODE.test(s) || /^\s*precision /.test(s) || /^[a-z0-9{}]+(-[a-z0-9{}]+)*( [a-z0-9{}]+(-[a-z0-9{}]+)*)*$/.test(s) && /-/.test(s);
+// A single word that is German ("besser", "heute") is text, not an identifier.
+const isCode = (s: string) => (CODE.test(s) && !(/^\p{L}+$/u.test(s) && GERMAN.test(s))) || /^\s*precision /.test(s) || /^[a-z0-9{}]+(-[a-z0-9{}]+)*( [a-z0-9{}]+(-[a-z0-9{}]+)*)*$/.test(s) && /-/.test(s);
 
 /** JSX words that read the same in both languages. */
 const TECH = /^(MB|Esc|OK|PGN|FEN|Auto|Elo|fps|s|px|Bullet|Blitz|Rapid|Lichess|chess\.com)$/;
+
+/** Files that are made of identifiers (route slugs, import aliases of the video-script format), not of texts. */
+const ID_FILES = ["ui/router.ts", "ui/Layout.tsx", "ui/StatsLayout.tsx", "ui/LandingView.tsx", "ui/stage/script.ts", "ui/studio/aiScript.ts"];
+/** Single German words that are stored ids: they are shown through t() where they are shown at all. */
+const ID_WORDS = /^(pos|ich|lang|hoch|mittel|niedrig|klar|deutlich|knapp|Strategie|Taktik|Psychologie|Zeit|Wertung|Ergebnisse|vereinsniveau|szene|stil|holz|schiefer|entwicklung|blick|ergebnisse|verlauf|gewohnheiten|duelle|liga|rekorde|rangliste|spieler|heute|fortschritt|daten|impressum|der|die)$/;
 
 /** Files whose texts are stored in German on purpose (translated on display via tStored). */
 export const STORED_GERMAN = ["domain/classifier.ts", "domain/termination.ts", "i18n/", "domain/metrics/termination.ts"];
@@ -83,7 +89,7 @@ export function scan(): Scan {
         const tx = textOf(node);
         if (tx !== null) literals.add(tx);
         if (ts.isTemplateExpression(node)) literals.add(templateShape(node));
-        if (!stored && tx !== null && GERMAN.test(tx) && !isCode(tx) && !isIgnoredContext(node)) german.push({ file, line: lineOf(node), text: tx });
+        if (!stored && tx !== null && GERMAN.test(tx) && !isCode(tx) && !isIgnoredContext(node) && !ID_FILES.includes(file) && !ID_WORDS.test(tx)) german.push({ file, line: lineOf(node), text: tx });
         if (!stored && ts.isTemplateExpression(node)) {
           const shape = templateShape(node);
           if (GERMAN.test(shape.replace(/\{\}/g, " ")) && !isCode(shape) && !isIgnoredContext(node)) german.push({ file, line: lineOf(node), text: shape });

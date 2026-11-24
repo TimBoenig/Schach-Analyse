@@ -11,7 +11,7 @@
 
 import { BRAND, BRAND_DOMAIN } from "../brand";
 import { pvToSan } from "./analyzer";
-import { explainMove } from "./explain";
+import { explainMoveDetailed } from "./explain";
 import { gamesInPeriod, type ExportSetting } from "./export";
 import { trClassification, trColor, trFilter, trMotif, trPhase, trPhaseIn, trPiece, trSpeed, trTermination } from "./i18n";
 import { classifyTermination, dateWindow, getUserColor, outcomeFor, parseFinishedAt, parseMoves, parseSummary } from "./metrics";
@@ -152,7 +152,7 @@ const mine = <T,>(it: GameItem, white: T, black: T): T => (it.color === "white" 
 
 function resultWord(it: GameItem): string {
   const o = outcomeFor(it.game.result, it.color);
-  return o === "win" ? t("Sieg") : o === "draw" ? t("Remis") : o === "loss" ? t("Niederlage") : "offen";
+  return o === "win" ? t("Sieg") : o === "draw" ? t("Remis") : o === "loss" ? t("Niederlage") : t("offen");
 }
 
 function sideAccuracy(it: GameItem, side: "white" | "black"): number | null {
@@ -170,7 +170,7 @@ function countsOf(it: GameItem): Record<string, number> {
 
 const opponentOf = (it: GameItem) => mine(it, it.game.black, it.game.white);
 const dateOf = (it: GameItem) => (it.game.date && !it.game.date.includes("?") ? it.game.date : "?");
-const openingOf = (g: StoredGame) => [g.eco, g.opening].filter(Boolean).join(" ") || "unbekannt";
+const openingOf = (g: StoredGame) => [g.eco, g.opening].filter(Boolean).join(" ") || t("unbekannt");
 
 /** How the game ended, as a German word ("Aufgabe", "Zeitüberschreitung", …). */
 function terminationOf(it: GameItem): string {
@@ -592,12 +592,12 @@ function momentLines(it: GameItem, idx: number): string {
   const refutation = replyPv.length && next ? pvToSan(next.fen_before, replyPv.slice(0, 6)) : "";
   let reasons: string[] = [];
   try {
-    reasons = explainMove({ fenBefore: m.fen_before, uci: m.uci, bestPv, replyPv, mateBefore: m.eval_before_mate, mateAfter: m.eval_after_mate, classification: m.classification, winBefore: wpB / 100, winAfter: wpA / 100, previousMove: it.moves[idx - 1] ? { uci: it.moves[idx - 1].uci, san: it.moves[idx - 1].san } : undefined });
+    const ex = explainMoveDetailed({ fenBefore: m.fen_before, uci: m.uci, bestPv, replyPv, mateBefore: m.eval_before_mate, mateAfter: m.eval_after_mate, classification: m.classification, winBefore: wpB / 100, winAfter: wpA / 100, previousMove: it.moves[idx - 1] ? { uci: it.moves[idx - 1].uci, san: it.moves[idx - 1].san } : undefined });
+    reasons = bestLine ? ex.lines.filter((r) => !ex.bareBetter.includes(r)) : ex.lines;
   } catch {
     reasons = [];
   }
-  // A bare "Besser war …" only repeats the line above; one with a reason after the colon stays.
-  if (bestLine) reasons = reasons.filter((r) => !/^Besser war [^:]*\.$/.test(r));
+  // (A bare "Besser war …" only repeats the line above, so it was left out of `reasons`; one with a reason after the colon stays.)
   const phase = phaseOf(m, idx);
   const time = m.time_spent !== null && m.time_spent !== undefined ? t(", {de} s überlegt{1}", { de: de(m.time_spent, 0), 1: m.time_left !== null ? t(", Restzeit {clock}", { clock: clock(m.time_left) }) : "" }) : "";
   return [

@@ -194,7 +194,7 @@ const RANGES: RangeOption[] = [
   { key: "6m", label: "6 M", days: 183, text: t("in den letzten 6 Monaten") },
   { key: "1y", label: "1 J", days: 366, text: t("im letzten Jahr") },
 ];
-const ALL: RangeOption = { key: "all", label: t("Alles"), days: null, text: "insgesamt" };
+const ALL: RangeOption = { key: "all", label: t("Alles"), days: null, text: t("insgesamt") };
 
 /**
  * The spans worth offering for a history of `spanDays`: only those shorter
