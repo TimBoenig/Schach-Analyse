@@ -279,20 +279,109 @@ dialog {
   border-radius: var(--radius);
 }
 
-/* Settings: cards of very different heights flow in two columns like a
-   newspaper, so a short card never leaves a hole beside a tall one. */
+/* Settings: a two-column grid; cards in one row share their height, so the
+   page reads as tidy rows. Cards that need room (names, backup) span both. */
 .settings-cols {
-  display: block;
-  columns: 2;
-  column-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  columns: auto;
+  gap: 16px;
+  align-items: stretch;
 }
 .settings-cols > .card {
-  break-inside: avoid;
-  margin: 0 0 16px;
+  margin: 0;
+  break-inside: auto;
+}
+.settings-cols > .settings-wide,
+.settings-cols > .admin-card {
+  grid-column: 1 / -1;
+}
+.settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 22px;
+}
+.settings-head {
+  padding-bottom: 14px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Labelled rows inside a settings card: small caption above its control. */
+.set-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 14px 0;
+}
+.set-row + .set-row {
+  border-top: 1px solid var(--border);
+}
+.set-label {
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.set-foot {
+  margin-top: auto;
+}
+.settings-card .board-themes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 10px;
+  width: 100%;
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.settings-stack > .card {
+  margin: 0;
+}
+
+/* Names: explanation on the left, the form on the right. */
+.settings-names {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+.settings-names-intro .settings-head {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+.settings-names-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding-left: 28px;
+  border-left: 1px solid var(--border);
+}
+.settings-names-form .field {
+  width: 100%;
 }
 @media (max-width: 899px) {
   .settings-cols {
-    columns: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .settings-names {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .settings-names-form {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .settings-card {
+    padding: 18px;
   }
 }
 

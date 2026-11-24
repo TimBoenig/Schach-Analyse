@@ -358,21 +358,6 @@ export function AnalysisSettingsCards() {
     <>
       <AutomationCard />
       <div class="card settings-card">
-        <SettingsHead icon={<IconGauge />} title={t("Analysetiefe")} sub={t("Wie gründlich {ENGINE_NAME} jede Stellung prüft.", { ENGINE_NAME })} />
-        <div class="segmented full" role="tablist" aria-label={t("Für welche Partien")}>
-          {SCOPES.map(([k, label]) => (
-            <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <DepthPicker scope={scope} engines={perf.engines} />
-      </div>
-      <div class="card settings-card">
-        <SettingsHead icon={<IconCpu />} title={t("Leistung")} sub={t("Wie viel von diesem Gerät die Analyse nutzen darf. Gilt nur hier.")} />
-        <PerformancePicker onChange={setPerf} />
-      </div>
-      <div class="card settings-card">
         <SettingsHead icon={<IconTimer />} title="Bullet" sub={t("Sehr schnelle Partien verzerren oft die Statistik.")} />
         <BulletStats />
         <Toggle
@@ -387,6 +372,21 @@ export function AnalysisSettingsCards() {
           
           {t("Spart Zeit und Akku: „Alle analysieren“ und jede Automatik überspringen Bullet. Eine einzelne Partie kannst du weiter von Hand analysieren.")}
         </Toggle>
+      </div>
+      <div class="card settings-card">
+        <SettingsHead icon={<IconGauge />} title={t("Analysetiefe")} sub={t("Wie gründlich {ENGINE_NAME} jede Stellung prüft.", { ENGINE_NAME })} />
+        <div class="segmented full" role="tablist" aria-label={t("Für welche Partien")}>
+          {SCOPES.map(([k, label]) => (
+            <button key={k} role="tab" aria-selected={scope === k} class={scope === k ? "active" : ""} onClick={() => setScope(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <DepthPicker scope={scope} engines={perf.engines} />
+      </div>
+      <div class="card settings-card">
+        <SettingsHead icon={<IconCpu />} title={t("Leistung")} sub={t("Wie viel von diesem Gerät die Analyse nutzen darf. Gilt nur hier.")} />
+        <PerformancePicker onChange={setPerf} />
       </div>
     </>
   );

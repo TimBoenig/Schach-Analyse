@@ -51,7 +51,7 @@ export function AiExportCard() {
   };
 
   return (
-    <div class="card" id="ki-export">
+    <div class="card settings-card" id="ki-export">
       <h3>{t("Für KI exportieren")}</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
         

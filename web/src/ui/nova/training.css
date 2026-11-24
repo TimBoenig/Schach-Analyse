@@ -1642,3 +1642,144 @@ html.focus-mode .main {
 .op-plans { margin: 0 0 8px; }
 .op-plans summary { cursor: pointer; font-size: 13px; color: var(--muted, inherit); }
 .op-plans p { margin: 6px 0 0; }
+
+
+/* ---------- design pass: Heute, Übungen, Fortschritt ---------- */
+
+/* Today's hero carries the accent: a soft glow in the corner and a stronger ring. */
+.td {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 320px at 100% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    var(--surface);
+}
+.td-empty {
+  background:
+    radial-gradient(700px 260px at 100% -20%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    var(--surface);
+}
+.td-ring {
+  padding: 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+/* The three parts as cards in a row; the current one is lit. */
+.td-steps {
+  gap: 14px;
+  padding-top: 20px;
+}
+.td-step {
+  padding: 16px 16px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+  transition: box-shadow 0.2s;
+}
+.td-step::before {
+  display: none;
+}
+.td-step.cur {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cta) 60%, transparent);
+  background: color-mix(in srgb, var(--cta) 8%, var(--surface-2));
+}
+.td-step.done {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--win) 45%, transparent);
+}
+.td-step.todo {
+  opacity: 0.85;
+}
+.td-step-mark {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+.td-step-body {
+  gap: 4px;
+}
+.td-step-why {
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+/* Week and rhythm: tidy cards, rhythm numbers as tiles. */
+.tw-day {
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+.tw-day.today {
+  box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--cta) 55%, transparent);
+}
+.tn-rhythm .stat-value {
+  font-size: 30px;
+  letter-spacing: -0.03em;
+}
+
+/* Library: sticky area list, stronger selection, calmer rows. */
+@media (min-width: 900px) {
+  .tx-areas {
+    position: sticky;
+    top: 16px;
+  }
+}
+.tx-area {
+  position: relative;
+}
+.tx-area.on {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.tx-area.on::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+.tx-sum .stat {
+  position: relative;
+}
+.tn-row {
+  border-radius: var(--radius-sm);
+}
+.tn-row:hover {
+  background: var(--surface-2);
+}
+
+/* Link cards (Eröffnung lernen): lift on hover. */
+.tl {
+  padding: 18px 22px;
+}
+.tl:hover {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.tl:hover > svg {
+  color: var(--accent);
+  transform: translateX(2px);
+}
+.tl > svg {
+  transition:
+    transform 0.15s,
+    color 0.15s;
+}
+
+@media (max-width: 899px) {
+  .td {
+    padding: 20px 18px 18px;
+  }
+  .td-steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .td-step-mark {
+    top: 12px;
+    right: 12px;
+  }
+  .td-ring {
+    padding: 6px;
+  }
+}
