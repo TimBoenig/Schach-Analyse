@@ -77,10 +77,10 @@ export function buildStyle(feats: GameFeatures[], skills: SkillScore[]): StylePr
   const endgame = scale(endgameRate, 0.2, 0.7);
 
   const axes = [
-    axis("aggression", t("Angriffslust"), aggression, n, "abwartend", "angriffslustig"),
-    axis("tactical", t("Taktik-Orientierung"), tactical, n, "positionell", "taktisch"),
+    axis("aggression", t("Angriffslust"), aggression, n, t("abwartend"), t("angriffslustig")),
+    axis("tactical", t("Taktik-Orientierung"), tactical, n, t("positionell"), t("taktisch")),
     axis("trading", t("Tauschfreude"), trading, n, t("hält Spannung"), t("tauscht gern")),
-    axis("risk", t("Risikobereitschaft"), risk, finished.length, "sicherheitsorientiert", "riskant"),
+    axis("risk", t("Risikobereitschaft"), risk, finished.length, t("sicherheitsorientiert"), t("riskant")),
     axis("endgame", t("Endspielneigung"), endgame, n, t("Entscheidung früh"), t("spielt lange")),
   ];
   if (clockFracs.length >= STYLE_MIN_GAMES) {

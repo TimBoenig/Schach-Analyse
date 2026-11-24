@@ -144,7 +144,7 @@ function verdict(r: MatchupRow, name: string): { text: string; cls: string } {
   if (r.p_me === null) return { text: t("zu wenig Daten"), cls: "" };
   if (r.edge === "me") return { text: r.sure ? t("klar du") : t("eher du"), cls: "me" };
   if (r.edge === "them") return { text: r.sure ? t("klar {name}", { name }) : t("eher {name}", { name }), cls: "them" };
-  return { text: "offen", cls: "" };
+  return { text: t("offen"), cls: "" };
 }
 
 /** Who is better where, row by row, with how sure that is. */

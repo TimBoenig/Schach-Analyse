@@ -315,7 +315,7 @@ export function comparisonPeriod(games: RawGame[], members: string[][], format: 
  * differently, so accuracy and blunders then compare two different rulers.
  */
 function depthGapNote(depths: (number | null)[], inputs: RankInput[]): string | null {
-  const known = depths.map((d, i) => ({ d, name: inputs[i].is_me ? "deine" : t("die von {name}", { name: inputs[i].name }) })).filter((x): x is { d: number; name: string } => x.d !== null);
+  const known = depths.map((d, i) => ({ d, name: inputs[i].is_me ? t("deine") : t("die von {name}", { name: inputs[i].name }) })).filter((x): x is { d: number; name: string } => x.d !== null);
   if (known.length < 2) return null;
   const deep = known.reduce((a, b) => (b.d > a.d ? b : a));
   const flat = known.reduce((a, b) => (b.d < a.d ? b : a));

@@ -5,7 +5,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
-import { t } from "../../i18n";
+import { dec, t } from "../../i18n";
 import { type GameReview, type Standing, winCurve } from "../../domain/profile";
 import type { MoveData } from "../../domain/types";
 import { COACH_NAME, CoachAvatar } from "../Coach";
@@ -16,7 +16,7 @@ import { Level } from "../viz/Bars";
 import { GradeBadge, ownErrors, PhaseRows, practiseGame, StandingLine } from "./ReportPanel";
 import { WinChart } from "./WinChart";
 
-const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", ",");
+const de = (v: number, digits = 1) => v.toFixed(digits).replace(".", dec());
 const pct = (wp: number) => `${Math.round(wp * 100)} %`;
 
 export type SheetPart = "move" | "sum" | "moments" | "list";

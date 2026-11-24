@@ -10,9 +10,9 @@ import { de, plural, rate } from "./shared";
 import { t, locale } from "../../i18n";
 
 const VERDICT: Record<string, { text: string; tone: string }> = {
-  "1": { text: "besser", tone: "good" },
+  "1": { text: t("besser"), tone: "good" },
   "-1": { text: t("schwächer"), tone: "bad" },
-  "0": { text: "gleichauf", tone: "flat" },
+  "0": { text: t("gleichauf"), tone: "flat" },
 };
 
 function Row({ r, games, max, onPick }: { r: KindRow; games: number; max: number; onPick?: () => void }) {

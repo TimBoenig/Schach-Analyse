@@ -3,6 +3,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 
+import { t } from "../i18n";
 import { IconMore } from "./icons";
 
 export interface MenuItem {
@@ -17,7 +18,7 @@ export interface MenuItem {
   onSelect: () => void;
 }
 
-export function MoreMenu({ items = [], label = "Mehr", class: cls = "", children }: { items?: (MenuItem | false | null | undefined)[]; label?: string; class?: string; children?: ComponentChildren }) {
+export function MoreMenu({ items = [], label = t("Mehr"), class: cls = "", children }: { items?: (MenuItem | false | null | undefined)[]; label?: string; class?: string; children?: ComponentChildren }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {

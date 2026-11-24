@@ -76,6 +76,7 @@ const NAMES: Record<PieceType, { nom: string; acc: string; of: string; gen: "m" 
 // i18n: the German words below are grammar, not texts to translate.
 const en = () => lang() === "en";
 const fem = (tk: PieceType) => NAMES[tk].gen === "f";
+// i18n: grammar
 const yourNom = (tk: PieceType) => (en() ? `your ${NAMES[tk].nom}` : `${fem(tk) ? "deine" : "dein"} ${NAMES[tk].nom}`);
 // i18n: grammar
 const yourAcc = (tk: PieceType) => (en() ? `your ${NAMES[tk].acc}` : `${fem(tk) ? "deine" : "deinen"} ${NAMES[tk].acc}`);
@@ -264,8 +265,12 @@ export interface IdeaArrow {
 }
 
 export interface Explanation {
-  /** German sentences, most important first. */
+  /** Sentences in the page's language, most important first. */
   lines: string[];
+  /** True when a sentence names the better move or the mate that was missed (language independent). */
+  betterMove: boolean;
+  /** The sentences that only repeat the better move ("Besser war Sxe5 mit einer Fesselung."), without a reason of their own. */
+  bareBetter: string[];
   /** Arrows that show the moves the sentences talk about. */
   arrows: IdeaArrow[];
   /** Squares the sentences talk about (fork square, attacked pieces). */
@@ -274,12 +279,17 @@ export interface Explanation {
 
 interface Note {
   text: string;
+  /** Names the better move (or the missed mate). */
+  better?: boolean;
+  /** Names the better move and nothing more. */
+  bare?: boolean;
   arrows: IdeaArrow[];
   squares: number[];
 }
 
 const arrowOf = (m: Move, by: IdeaArrow["by"]): IdeaArrow => ({ from: squareName(m.from), to: squareName(m.to), by });
 const note = (text: string, arrows: IdeaArrow[] = [], squares: number[] = []): Note => ({ text, arrows, squares });
+const betterNote = (text: string, bare = false): Note => ({ ...note(text), better: true, bare });
 
 /** Squares of the pieces of `victim` attacked from `sq` (same filter as attackedTargets). */
 function attackedSquares(board: TBoard, sq: number, victim: Color): number[] {
@@ -641,28 +651,28 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
       // The threat the game move ignored and the better move would have stopped.
       const stopped = ignored && preventedBy(before, bm, [ignored]).length ? ignored : null;
       if (mateBefore !== null && sign * mateBefore > 0) {
-        out.push(note(t("Du hattest Matt in {0}: {lineText}.", { 0: Math.abs(mateBefore), lineText: lineText(best.sans, before, Math.abs(mateBefore) * 2 - 1) })));
+        out.push(betterNote(t("Du hattest Matt in {0}: {lineText}.", { 0: Math.abs(mateBefore), lineText: lineText(best.sans, before, Math.abs(mateBefore) * 2 - 1) })));
       } else if (bestMotifs.includes(TacticalTheme.FORK)) {
         const targets = attackedTargets(afterBest, bm.to, !me);
-        out.push(note(t("Besser war {bSan}: Damit greifst du mit einer Gabel {joinPieces} gleichzeitig an.", { bSan, joinPieces: joinPieces(targets, theirAcc) })));
+        out.push(betterNote(t("Besser war {bSan}: Damit greifst du mit einer Gabel {joinPieces} gleichzeitig an.", { bSan, joinPieces: joinPieces(targets, theirAcc) })));
       } else if (target && target.color !== me && target.type !== PAWN && legalDefenders(before, !me, bm.to).length === 0) {
-        out.push(note(t("Besser war {bSan}: {1} gegnerische {nom} auf {squareName} war ungedeckt.", { bSan, 1: art(fem(target.type) ? "Die" : "Der"), nom: NAMES[target.type].nom, squareName: squareName(bm.to) })));
+        out.push(betterNote(t("Besser war {bSan}: {1} gegnerische {nom} auf {squareName} war ungedeckt.", { bSan, 1: art(fem(target.type) ? "Die" : "Der"), nom: NAMES[target.type].nom, squareName: squareName(bm.to) })));
       } else if (stopped) {
         const what = stopped.kind === "mate" ? t("das Matt durch {san}", { san: stopped.san }) : stopped.kind === "fork" ? forkPhrase(stopped) : t("den Verlust {yourOf}", { yourOf: yourOf(stopped.targets[0]) });
-        out.push(note(t("Besser war {bSan}: Damit verhinderst du {what}.", { bSan, what })));
+        out.push(betterNote(t("Besser war {bSan}: Damit verhinderst du {what}.", { bSan, what })));
       } else if (bestMotifs.includes(TacticalTheme.PIN)) {
-        out.push(note(t("Besser war {bSan} mit einer Fesselung.", { bSan })));
+        out.push(betterNote(t("Besser war {bSan} mit einer Fesselung.", { bSan }), true));
       } else if (bestMotifs.includes(TacticalTheme.SKEWER)) {
-        out.push(note(t("Besser war {bSan} mit einem Spieß.", { bSan })));
+        out.push(betterNote(t("Besser war {bSan} mit einem Spieß.", { bSan }), true));
       } else {
-        out.push(note(t("Besser war {bSan}: Damit {clause}.", { bSan, clause: ideaClause(describeIdea(before, bm)) })));
+        out.push(betterNote(t("Besser war {bSan}: Damit {clause}.", { bSan, clause: ideaClause(describeIdea(before, bm)) })));
       }
     }
   }
   return out;
 }
 
-const EMPTY: Explanation = { lines: [], arrows: [], squares: [] };
+const EMPTY: Explanation = { lines: [], betterMove: false, bareBetter: [], arrows: [], squares: [] };
 
 /**
  * Explains a move in German sentences, most important first, with the arrows
@@ -684,6 +694,8 @@ export function explainMoveDetailed(input: ExplainInput): Explanation {
   const notes = (good ? explainGood(before, move, before.san(move), input) : explainError(before, move, input, playedBest)).slice(0, 3);
   return {
     lines: notes.map((n) => n.text),
+    betterMove: notes.some((n) => n.better),
+    bareBetter: notes.filter((n) => n.bare).map((n) => n.text),
     arrows: notes.flatMap((n) => n.arrows),
     squares: [...new Set(notes.flatMap((n) => n.squares))].map(squareName),
   };

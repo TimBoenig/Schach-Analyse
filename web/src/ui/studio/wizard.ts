@@ -25,7 +25,7 @@ import {
   type StudioProject,
   type ThemeId,
 } from "./model";
-import { t } from "../../i18n";
+import { lang, t } from "../../i18n";
 
 // ---------- move tree (main line plus side variations) ----------
 
@@ -266,7 +266,8 @@ function capital(s: string): string {
 
 /** "Spanische Eröffnung" -> "die Spanische Eröffnung" ("der …" with `dative`). Names with their own article stay. */
 function withArticle(name: string, dative = false): string {
-  if (/^(die|der|das|den|dem)\s/i.test(name)) return name;
+  // English has no article before an opening name.
+  if (lang() === "en" || /^(die|der|das|den|dem)\s/i.test(name)) return name;
   const feminine = /(eröffnung|partie|verteidigung|variante|falle)$/i.test(name);
   if (!feminine) return name;
   return `${dative ? "der" : "die"} ${name}`;

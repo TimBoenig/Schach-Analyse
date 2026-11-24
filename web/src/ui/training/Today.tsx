@@ -211,7 +211,7 @@ function WeekCard({ t: tk }: { t: TrainingState }) {
               {d.state === "done" ? "✓" : ""}
             </span>
             <span class="tw-theme">{themeLabel(d.theme)}</span>
-            <span class="tw-n tnum">{d.done ? `${d.correct} / ${d.done}` : d.isToday ? "heute" : d.state === "missed" ? "frei" : ""}</span>
+            <span class="tw-n tnum">{d.done ? `${d.correct} / ${d.done}` : d.isToday ? t("heute") : d.state === "missed" ? t("frei") : ""}</span>
           </li>
         ))}
       </ol>

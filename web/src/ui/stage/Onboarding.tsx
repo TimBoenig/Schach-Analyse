@@ -425,7 +425,7 @@ export function Onboarding({ onClose }: { onClose: () => void }) {
               {t("Namen ändern")}
             </button>
           ) : (
-            nextButton("Weiter", !ok)
+            nextButton(t("Weiter"), !ok)
           )
         }
       >

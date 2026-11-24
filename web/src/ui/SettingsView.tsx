@@ -217,7 +217,7 @@ function BackupCard() {
     setMsg(null);
     try {
       const n = await exportData(kind, period);
-      setMsg({ text: `${n} ${n === 1 ? t("Partie") : t("Partien")} exportiert.` });
+      setMsg({ text: t("{n} {games} exportiert.", { n, games: n === 1 ? t("Partie") : t("Partien") }) });
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : String(e), error: true });
     } finally {

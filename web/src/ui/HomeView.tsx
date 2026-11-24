@@ -142,11 +142,11 @@ export function HomeView() {
         profile ? (
           narrow ? (
             <MoreMenu
-              label="Mehr"
+              label={t("Mehr")}
               items={[
                 profile.recent_games[0] && { label: t("Letzte Partie ansehen"), icon: <IconBoard />, onSelect: () => navigate({ view: "analysis", gameId: profile.recent_games[0].game_id }) },
                 { label: t("Partien importieren"), icon: <IconUpload />, onSelect: () => navigate({ view: "games", import: true }) },
-                { label: "Analysebrett", icon: <IconFreeBoard />, onSelect: () => navigate({ view: "board" }) },
+                { label: t("Analysebrett"), icon: <IconFreeBoard />, onSelect: () => navigate({ view: "board" }) },
                 open.length > 0 && { label: t("{0} {1} analysieren", { 0: open.length, 1: open.length === 1 ? t("Partie") : t("Partien") }), icon: <IconPlay />, divider: true, onSelect: () => void enqueue(open) },
                 { label: t("Seite erklären"), icon: <IconSpark />, divider: true, onSelect: () => openStage({ kind: "page", subject: "home" }) },
               ]}

@@ -43,11 +43,11 @@ export function FormStats({ weekly, period }: { weekly: { week: string; avg_accu
       />
       <Stat
         label={shown ? t("Richtung im Zeitraum") : t("Richtung")}
-        value={trend === null ? "–" : trend >= 1 ? "steigend" : trend <= -1 ? "fallend" : "stabil"}
+        value={trend === null ? "–" : trend >= 1 ? t("steigend") : trend <= -1 ? t("fallend") : t("stabil")}
         tone={trend === null ? undefined : trend >= 1 ? "good" : trend <= -1 ? "bad" : undefined}
         sub={trend !== null ? t("{0}{de1} Punkte pro Monat", { 0: trend >= 0 ? "+" : "−", de1: de1(Math.abs(trend)) }) : undefined}
       />
-      <Stat label={t("Beste Woche")} value={f.best ? `${de1(f.best.accuracy)} %` : "–"} sub={f.best ? `ab ${formatDate(f.best.week.replace(/-/g, "."))}` : undefined} />
+      <Stat label={t("Beste Woche")} value={f.best ? `${de1(f.best.accuracy)} %` : "–"} sub={f.best ? t("ab {date}", { date: formatDate(f.best.week.replace(/-/g, ".")) }) : undefined} />
     </div>
   );
 }

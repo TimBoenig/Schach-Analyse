@@ -134,7 +134,7 @@ function EvolutionTiles({ d }: { d: DeepInsights }) {
                     {fmtChange(c.earlier, c.unit)} → {fmtChange(c.recent, c.unit)}
                   </span>
                 </span>
-                <span class="change-tag small">{c.significant ? (c.improved ? "besser" : "schlechter") : t("im Rauschen")}</span>
+                <span class="change-tag small">{c.significant ? (c.improved ? t("besser") : t("schlechter")) : t("im Rauschen")}</span>
               </li>
             ))}
           </ul>

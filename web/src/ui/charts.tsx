@@ -3,7 +3,7 @@
 // instead of shrinking with a scaled viewBox.
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { t, locale, dec } from "../i18n";
+import { t, locale, dec, dayMonthLabel, monthYearLabel } from "../i18n";
 
 export function useWidth<T extends HTMLElement>(fallback = 320): [preact.RefObject<T>, number] {
   const ref = useRef<T>(null);
@@ -412,7 +412,7 @@ export function ChangeBars({ rows, threshold = 0, unit = "" }: { rows: ChangeRow
               )}
             </span>
             <span class="change-value tnum">
-              {d === null ? "neu" : `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(Math.round(d))}${unit}`}
+              {d === null ? t("neu") : `${d > 0 ? "+" : d < 0 ? "−" : "±"}${Math.abs(Math.round(d))}${unit}`}
               {r.valueText && <span class="faint"> · {r.valueText}</span>}
             </span>
           </div>
@@ -845,14 +845,13 @@ export function monthStart(key: string): number | undefined {
  * once the history spans more than one, otherwise "03.04." from two years
  * looked like the same day.
  */
-const p2 = (n: number) => String(n).padStart(2, "0");
 
 export function ratingSeriesPoints(series: [number, number][]): Point[] {
   const multiYear = series.length > 1 && new Date(series[0][0] * 1000).getFullYear() !== new Date(series[series.length - 1][0] * 1000).getFullYear();
   return series.map(([ts, r]) => {
     const d = new Date(ts * 1000);
     return {
-      label: multiYear ? `${p2(d.getMonth() + 1)}.${String(d.getFullYear()).slice(2)}` : `${p2(d.getDate())}.${p2(d.getMonth() + 1)}.`,
+      label: multiYear ? monthYearLabel(d) : dayMonthLabel(d),
       value: r,
       detail: d.toLocaleDateString(locale()),
       t: ts,

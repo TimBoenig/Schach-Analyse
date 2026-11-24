@@ -5,7 +5,7 @@ import { t } from "../i18n";
 export type PhoneScale = "compact" | "normal" | "large";
 
 export const PHONE_SCALES: Record<PhoneScale, { label: string; scale: number }> = {
-  compact: { label: "Kompakt", scale: 0.86 },
+  compact: { label: t("Kompakt"), scale: 0.86 },
   normal: { label: "Normal", scale: 1 },
   large: { label: t("Groß"), scale: 1.1 },
 };

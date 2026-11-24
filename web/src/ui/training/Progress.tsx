@@ -166,7 +166,7 @@ function RateCard({ t: tk }: { t: TrainingState }) {
           <h3>{t("Lösungsquote")}</h3>
           <p class="card-sub">{t("Anteil auf Anhieb gelöst, je Woche.")}</p>
         </div>
-        {overall.direction !== "unknown" && <span class={`delta ${overall.direction === "up" ? "up" : overall.direction === "down" ? "down" : ""}`}>{overall.direction === "up" ? "steigt" : overall.direction === "down" ? t("fällt") : "stabil"}</span>}
+        {overall.direction !== "unknown" && <span class={`delta ${overall.direction === "up" ? "up" : overall.direction === "down" ? "down" : ""}`}>{overall.direction === "up" ? t("steigt") : overall.direction === "down" ? t("fällt") : t("stabil")}</span>}
       </header>
       <TrendChart points={points} format={(v) => pct(v)} height={200} color="var(--win)" bounds={{ lo: 0, hi: 100, minSpan: 40 }} dots label={t("Lösungsquote je Woche")} />
       <p class={`tp-verdict ${overall.direction}`}>{verdict}</p>
@@ -284,7 +284,7 @@ function TransferCard({ t: tk }: { t: TrainingState }) {
   );
 }
 
-const TREND_TEXT: Record<Direction, string> = { up: "besser", down: "schlechter", flat: "stabil", unknown: "" };
+const TREND_TEXT: Record<Direction, string> = { up: t("besser"), down: t("schlechter"), flat: t("stabil"), unknown: "" };
 
 function AreasCard({ t: tk }: { t: TrainingState }) {
   const rows = categoryOverview(tk.pool, tk.progress, tk.today);
