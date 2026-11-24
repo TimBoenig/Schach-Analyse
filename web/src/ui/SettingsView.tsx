@@ -99,7 +99,9 @@ function AppearanceCard() {
   return (
     <div class="card settings-card">
       <SettingsHead icon={<IconPalette />} title={t("Darstellung")} sub={t("Farben der App und des Bretts.")} />
-      <div class="segmented" style={{ marginBottom: "14px" }}>
+      <div class="set-row">
+        <span class="set-label">{t("Modus")}</span>
+      <div class="segmented">
         {(Object.keys(THEME_LABELS) as ThemeMode[]).map((k) => (
           <button
             key={k}
@@ -113,12 +115,11 @@ function AppearanceCard() {
           </button>
         ))}
       </div>
+      </div>
       {onPhone() && (
-        <>
-          <div class="muted small" style={{ marginBottom: "6px" }}>
-            {t("Größe auf dem Handy")}
-          </div>
-          <div class="segmented" style={{ marginBottom: "14px" }}>
+        <div class="set-row">
+          <span class="set-label">{t("Größe auf dem Handy")}</span>
+          <div class="segmented">
             {(Object.keys(PHONE_SCALES) as PhoneScale[]).map((k) => (
               <button
                 key={k}
@@ -132,12 +133,10 @@ function AppearanceCard() {
               </button>
             ))}
           </div>
-        </>
+        </div>
       )}
-      <div class="muted small" style={{ marginBottom: "6px" }}>
-        
-        {t("Brettfarben")}
-      </div>
+      <div class="set-row">
+      <span class="set-label">{t("Brettfarben")}</span>
       <div class="board-themes">
         {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((k) => {
           const tk = BOARD_THEMES[k];
@@ -162,7 +161,8 @@ function AppearanceCard() {
           );
         })}
       </div>
-      <div class="row" style={{ marginTop: "14px" }}>
+      </div>
+      <div class="set-row set-foot">
         <button
           class="btn small"
           onClick={() => {
@@ -242,7 +242,7 @@ function BackupCard() {
     }
   };
   return (
-    <div class="card" id="export">
+    <div class="card settings-card settings-wide" id="export">
       <h3>{t("Export & Datensicherung")}</h3>
       <p class="muted small" style={{ marginTop: 0 }}>
         
@@ -331,24 +331,29 @@ export function SettingsView({ tab }: { tab?: SettingsTab }) {
     <div>
       <PageHeader />
       <div class="settings-cols">
-        <div class="card settings-card">
-          <SettingsHead icon={<IconProfile />} title={t("Deine Spielernamen")} />
-          <Coach size={44} title={t("Wie heißt du beim Schach?")}>
-            
-            {t("Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du gespielt hast, und baue dein Profil.")}
-          </Coach>
-          <label class="field">
-            <span>{t("Namen, mit Komma getrennt")}</span>
-            <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder={t("z. B. MaxMuster, max_m")} />
-          </label>
-          <button class="btn primary" onClick={saveNames}>
-            {saved ? t("Gespeichert ✓") : t("Speichern")}
-          </button>
+        <div class="card settings-card settings-wide settings-names">
+          <div class="settings-names-intro">
+            <SettingsHead icon={<IconProfile />} title={t("Deine Spielernamen")} />
+            <Coach size={44} title={t("Wie heißt du beim Schach?")}>
+              {t("Trag deine Namen von chess.com, Lichess oder aus deinen PGN-Dateien ein. Daran erkenne ich, welche Seite du gespielt hast, und baue dein Profil.")}
+            </Coach>
+          </div>
+          <div class="settings-names-form">
+            <label class="field">
+              <span>{t("Namen, mit Komma getrennt")}</span>
+              <input type="text" value={names} onInput={(e) => setNames(e.currentTarget.value)} placeholder={t("z. B. MaxMuster, max_m")} />
+            </label>
+            <button class="btn primary" onClick={saveNames}>
+              {saved ? t("Gespeichert ✓") : t("Speichern")}
+            </button>
+          </div>
         </div>
-        <LanguageCard />
         <AppearanceCard />
-        <AccountCard />
-        <AboutCard unlocked={adminShown} setUnlocked={setAdminShown} />
+        <div class="settings-stack">
+          <LanguageCard />
+          <AccountCard />
+          <AboutCard unlocked={adminShown} setUnlocked={setAdminShown} />
+        </div>
         {adminShown && <AdminCard />}
       </div>
     </div>
