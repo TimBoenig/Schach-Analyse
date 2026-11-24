@@ -56,3 +56,12 @@ describe.skipIf(!existsSync(ENGINE_JS))("Caissa WebAssembly build", () => {
     expect(lines).toHaveLength(1);
   }, 20000);
 });
+
+describe("engine net download", () => {
+  it("ENGINE_NET_BYTES matches the shipped network file", async () => {
+    const { existsSync, statSync } = await import("node:fs");
+    const { ENGINE_NET_BYTES } = await import("../../src/engine/info");
+    const file = new URL("../../engine/caissa/dist/caissa.pnn", import.meta.url);
+    if (existsSync(file)) expect(statSync(file).size).toBe(ENGINE_NET_BYTES);
+  });
+});

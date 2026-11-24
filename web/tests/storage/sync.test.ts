@@ -218,6 +218,10 @@ describe("compact cloud games", () => {
     // Tactics are recomputed from the moves on arrival.
     expect(back.summary_json.white?.tactics).toEqual(game.summary_json.white?.tactics);
     expect(back.summary_json.analysis_status).toBe("completed");
+    // Accuracy stays, its per-move inputs do not travel (nothing reads them from a stored game).
+    expect(back.summary_json.white?.accuracy).toBe(game.summary_json.white?.accuracy);
+    expect(cloud.summary_json.white).not.toHaveProperty("accuracies");
+    expect(cloud.summary_json.black).not.toHaveProperty("win_percents");
   });
 
   it("keeps the game but drops analysis that does not fit its PGN", async () => {

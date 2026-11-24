@@ -1,7 +1,7 @@
 // Minimal UCI client over any line-based transport (a Web Worker running the
 // Caissa WASM build in the app, a Node process in tests).
 import type { PvLine } from "../domain/types";
-import { ENGINE_NET } from "./info";
+import { ENGINE_NET, ENGINE_NET_BYTES } from "./info";
 import { t } from "../i18n";
 
 export interface UciTransport {
@@ -230,32 +230,18 @@ let netBlob: Promise<Blob> | null = null;
 function loadEngineNet(): Promise<Blob> {
   netBlob ??= (async () => {
     setEngineLoad({ state: "loading", loaded: 0, total: 0 });
-    const res = await fetch(`${ENGINE_DIR}caissa.pnn?v=${ENGINE_NET}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const total = Number(res.headers.get("content-length")) || 0;
-    const reader = res.body?.getReader();
-    if (!reader) {
-      const blob = await res.blob();
-      setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
-      return blob;
+    // Preferred: the brotli copy (half the bytes). The server marks it with
+    // Content-Encoding: br, so the browser unpacks it while downloading. When the
+    // header is missing (other hosting) or the result does not have the expected
+    // size, the plain file is fetched instead.
+    try {
+      const blob = await downloadNet(`${ENGINE_DIR}caissa.pnn.br?v=${ENGINE_NET}`, true);
+      if (blob.size === ENGINE_NET_BYTES) return blob;
+    } catch {
+      // fall through to the plain file
     }
-    const chunks: BlobPart[] = [];
-    let loaded = 0;
-    let shown = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      loaded += value.length;
-      // One update per megabyte keeps the UI calm.
-      if (loaded - shown >= 1 << 20) {
-        shown = loaded;
-        setEngineLoad({ state: "loading", loaded, total });
-      }
-    }
-    const blob = new Blob(chunks);
-    setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
-    return blob;
+    setEngineLoad({ state: "loading", loaded: 0, total: 0 });
+    return downloadNet(`${ENGINE_DIR}caissa.pnn?v=${ENGINE_NET}`, false);
   })().catch((e: unknown) => {
     // Next engine start tries again (e.g. the connection dropped mid-download).
     netBlob = null;
@@ -263,6 +249,40 @@ function loadEngineNet(): Promise<Blob> {
     throw e;
   });
   return netBlob;
+}
+
+async function downloadNet(url: string, compressed: boolean): Promise<Blob> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (compressed && res.headers.get("content-encoding") !== "br") {
+    void res.body?.cancel();
+    throw new Error("not served as brotli");
+  }
+  // Content-Length of a compressed response is the packed size: use the known real one.
+  const total = compressed ? ENGINE_NET_BYTES : Number(res.headers.get("content-length")) || 0;
+  const reader = res.body?.getReader();
+  if (!reader) {
+    const blob = await res.blob();
+    setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
+    return blob;
+  }
+  const chunks: BlobPart[] = [];
+  let loaded = 0;
+  let shown = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    // One update per megabyte keeps the UI calm.
+    if (loaded - shown >= 1 << 20) {
+      shown = loaded;
+      setEngineLoad({ state: "loading", loaded, total });
+    }
+  }
+  const blob = new Blob(chunks);
+  setEngineLoad({ state: "ready", loaded: blob.size, total: blob.size });
+  return blob;
 }
 
 /** Caissa (single-threaded WASM build, see web/engine/caissa) in a dedicated Web Worker. */
