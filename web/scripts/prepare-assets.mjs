@@ -3,7 +3,8 @@
 //    from engine/caissa/dist (no SharedArrayBuffer, so it runs on iOS Safari
 //    without cross-origin isolation headers)
 //  - public/openings/book.json: opening tree from the desktop app's Lichess ECO TSVs
-import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { brotliCompressSync, constants as zc } from "node:zlib";
+import { copyFileSync, readFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBookData } from "./build-book.mjs";
@@ -21,6 +22,15 @@ function copyEngine() {
   const netOut = join(outDir, "caissa.pnn");
   if (!existsSync(netOut) || statSync(netOut).size !== statSync(net).size || statSync(netOut).mtimeMs < statSync(net).mtimeMs) {
     copyFileSync(net, netOut);
+  }
+  // Brotli copy for the download (76 MB -> ~37 MB; Vercel does not compress unknown
+  // file types by itself). vercel.json marks it Content-Encoding: br.
+  const netBr = `${netOut}.br`;
+  if (!existsSync(netBr) || statSync(netBr).mtimeMs < statSync(net).mtimeMs) {
+    const packed = brotliCompressSync(readFileSync(net), {
+      params: { [zc.BROTLI_PARAM_QUALITY]: 9, [zc.BROTLI_PARAM_LGWIN]: 24, [zc.BROTLI_PARAM_SIZE_HINT]: statSync(net).size },
+    });
+    writeFileSync(netBr, packed);
   }
 }
 

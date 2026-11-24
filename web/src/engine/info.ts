@@ -11,3 +11,10 @@ export const ENGINE_VERSION = "2.0";
  * mistaken for it.
  */
 export const ENGINE_NET = "eval-ml-8-152B-spsa";
+
+/**
+ * Size of the network file in bytes (uncompressed). The download is served
+ * brotli-compressed (about half the size); this number tells the progress bar
+ * the real size and lets us notice a truncated or foreign file.
+ */
+export const ENGINE_NET_BYTES = 75_703_872;

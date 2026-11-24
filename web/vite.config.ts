@@ -42,11 +42,11 @@ export default defineConfig({
         // also offline. Its address carries the network's name (see engine/uci.ts).
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.endsWith("/caissa/caissa.pnn"),
+            urlPattern: ({ url }) => /\/caissa\/caissa\.pnn(\.br)?$/.test(url.pathname),
             handler: "CacheFirst",
             options: {
               cacheName: "engine-net",
-              expiration: { maxEntries: 1 },
+              expiration: { maxEntries: 2 },
               cacheableResponse: { statuses: [200] },
             },
           },

@@ -190,12 +190,17 @@ export async function unpackMoves(p: PackedMoves, pgn: string): Promise<MoveData
   return base.map((m, i) => applyPacked(m, tuples[i]));
 }
 
-/** Summary without the bulky tactics block (recomputed from the moves on arrival). */
+/**
+ * Summary without the bulky parts. Tactics are recomputed from the moves on
+ * arrival. The per-move `accuracies` / `win_percents` arrays were only inputs of
+ * the game accuracy (already stored next to them) and are rebuilt whenever the
+ * game is analysed again; they made up ~80% of the summary (≈1.7 KB per game).
+ */
 function slimSummary(s: GameSummary | undefined): GameSummary {
   const out: GameSummary = { ...(s ?? {}) };
   for (const side of ["white", "black"] as const) {
     if (out[side]) {
-      const { tactics: _t, ...rest } = out[side] as Record<string, unknown>;
+      const { tactics: _t, accuracies: _a, win_percents: _w, ...rest } = out[side] as Record<string, unknown>;
       out[side] = rest as GameSummary["white"];
     }
   }
