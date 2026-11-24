@@ -17,6 +17,8 @@ export default defineConfig({
         short_name: BRAND,
         description: "Partien analysieren, Stärken und Schwächen erkennen, gezielt trainieren – offline auf dem Gerät.",
         lang: "de",
+        id: "/",
+        categories: ["games", "education", "sports"],
         start_url: "/",
         scope: "/",
         display: "standalone",
