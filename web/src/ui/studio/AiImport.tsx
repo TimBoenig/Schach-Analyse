@@ -23,10 +23,11 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [step, setStep] = useState<"prompt" | "answer">("prompt");
   const [topic, setTopic] = useState("");
   const [platform, setPlatform] = useState<Platform>(current.video.platform);
-  const [length, setLength] = useState(current.video.platform === "youtube" ? 240 : 45);
+  // Short vertical clips are mostly edits, so that is the default there (and the AI is told so); a YouTube video is a lesson unless asked otherwise.
+  const [art, setArt] = useState<VideoArt | "auto">(current.style.view === "reel" || current.video.platform !== "youtube" ? "edit" : "auto");
+  const [length, setLength] = useState(current.video.platform === "youtube" ? 240 : art === "edit" ? 30 : 45);
   const [notes, setNotes] = useState("");
   const [side, setSide] = useState<Side | "auto">("auto");
-  const [art, setArt] = useState<VideoArt | "auto">(current.style.view === "reel" ? "edit" : "auto");
   const [copied, setCopied] = useState<"" | "prompt" | "script" | "failed">("");
   const [answer, setAnswer] = useState("");
   const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, type: art }), [topic, platform, length, notes, side, art]);
@@ -66,7 +67,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                 <select class="studio-select" value={platform} onChange={(e) => {
                     const p = e.currentTarget.value as Platform;
                     setPlatform(p);
-                    setLength(p === "youtube" ? 240 : 45);
+                    setLength(p === "youtube" ? 240 : art === "edit" ? 30 : 45);
                   }}>
                   {(Object.keys(PLATFORM_LABEL) as Platform[]).map((p) => (
                     <option key={p} value={p}>
