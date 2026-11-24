@@ -3,7 +3,7 @@
 import { t } from "../../i18n";
 
 
-export type MusicId = "none" | "lofi" | "tension" | "epic" | "beat" | "file";
+export type MusicId = "none" | "lofi" | "tension" | "epic" | "beat" | "generated" | "file";
 
 export const MUSIC_LABEL: Record<MusicId, string> = {
   none: t("Keine"),
@@ -11,6 +11,7 @@ export const MUSIC_LABEL: Record<MusicId, string> = {
   tension: t("Spannung"),
   epic: t("Episch"),
   beat: "Beat 90",
+  generated: t("Passend zum Video"),
   file: t("Eigene Datei"),
 };
 
@@ -27,7 +28,7 @@ interface Groove {
 }
 
 // 16 steps per bar; 1 = hit.
-const GROOVES: Record<Exclude<MusicId, "none" | "file">, Groove> = {
+const GROOVES: Record<Exclude<MusicId, "none" | "file" | "generated">, Groove> = {
   lofi: { bpm: 78, roots: [0, -4, 3, -2], minor: true, wave: "sine", kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1], pad: 0.16, bass: 0.22 },
   tension: { bpm: 112, roots: [0, 0, 1, -1], minor: true, wave: "saw", kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], pad: 0.08, bass: 0.26 },
   // 90 BPM = one beat every 2/3 s, the grid the reel look cuts on (REEL_BEAT in timeline.ts).
@@ -45,12 +46,12 @@ function osc(wave: Groove["wave"], phase: number): number {
 }
 
 /** Length in seconds of one loop (four bars). */
-export function loopSeconds(id: Exclude<MusicId, "none" | "file">): number {
+export function loopSeconds(id: Exclude<MusicId, "none" | "file" | "generated">): number {
   return (4 * 4 * 60) / GROOVES[id].bpm;
 }
 
 /** One seamless four-bar loop as mono samples in -1..1. */
-export function synthLoop(id: Exclude<MusicId, "none" | "file">, rate: number): Float32Array<ArrayBuffer> {
+export function synthLoop(id: Exclude<MusicId, "none" | "file" | "generated">, rate: number): Float32Array<ArrayBuffer> {
   const g = GROOVES[id];
   const n = Math.round(loopSeconds(id) * rate);
   const out = new Float32Array(n);

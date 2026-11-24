@@ -114,7 +114,7 @@ const PIECE_LOOKS: Record<string, Material> = { lack: "porcelain", porzellan: "p
 const CAPTIONS: Record<string, CaptionStyle> = { kasten: "box", box: "box", kontur: "outline", outline: "outline", umriss: "outline", gross: "punch", punch: "punch", fett: "punch", big: "punch" };
 const VIEWS: Record<string, BoardView> = { "2d": "2d", flach: "2d", buch: "2d", klar: "2d", "3d": "3d", show: "3d", plastisch: "3d", aufsteller: "billboard", billboard: "billboard", standees: "billboard", flat: "2d", mix: "billboard", "3d2d": "billboard", reel: "reel", schwarzweiss: "reel", mono: "reel", clip: "reel" };
 const FONTS: Record<string, "sans" | "serif"> = { modern: "sans", sans: "sans", elegant: "serif", serif: "serif", klassisch: "serif" };
-const MUSICS: Record<string, MusicId> = { calm: "lofi", keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic", beat: "beat", phonk: "beat" };
+const MUSICS: Record<string, MusicId> = { calm: "lofi", keine: "none", none: "none", aus: "none", lofi: "lofi", ruhig: "lofi", spannung: "tension", tension: "tension", spannend: "tension", episch: "epic", epic: "epic", beat: "beat", phonk: "generated", generator: "generated", passend: "generated", auto: "generated" };
 /** Looks under their English names (the ids stay German, they are stored in projects). */
 const LOOKS: Record<string, ThemeId> = { nova: "nova", marmor: "marmor", marble: "marmor", holz: "holz", wood: "holz", walnuss: "walnuss", walnut: "walnuss", turnier: "turnier", tournament: "turnier", neon: "neon", mono: "mono", reel: "mono", schwarzweiss: "mono" };
 /** Longest texts that still fit the frame at normal text size. */
@@ -709,7 +709,7 @@ export function importAiScript(input: string): AiImport {
       movePill: setting(!edit, "zuganzeige", "movepill", "movedisplay"),
       progress: setting(true, "fortschritt", "progress"),
       introFly: setting(true, "kameraflug", "introfly", "cameraflight"),
-      ...(edit ? { music: "beat" as const } : {}),
+      ...(edit ? { music: "generated" as const } : {}),
       ...(music ? { music } : {}),
       lesson: platform === "youtube" && setting(true, "lernlayout", "lesson"),
     },

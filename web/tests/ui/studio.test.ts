@@ -861,7 +861,7 @@ describe("reel look", () => {
     const p = res.project!;
     expect(p.style.view).toBe("reel");
     expect(p.style.theme).toBe("mono");
-    expect(p.video.music).toBe("beat");
+    expect(p.video.music).toBe("generated");
     expect(p.video.lucena).toBe(false);
     expect(p.video.tempo).toBeGreaterThan(2);
     // Scenes without a duration default to one beat and are not stretched to the asked length.
@@ -1140,7 +1140,7 @@ describe("side guess and effect names", () => {
 });
 
 describe("sound indicator", () => {
-  const mix = { music: "none" as const, musicVolume: 0.5, musicFile: null, voice: null, voiceVolume: 1, effects: true, master: 1 };
+  const mix = { music: "none" as const, musicVolume: 0.5, musicFile: null, musicGen: null, voice: null, voiceVolume: 1, effects: true, master: 1 };
   it("is on only when something would actually be heard", () => {
     const withMoves = compile(make([scene({ moves: "e4", duration: 1 })]));
     const empty = compile(make([scene({ duration: 1 })]));

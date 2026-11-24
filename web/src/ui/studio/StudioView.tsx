@@ -10,6 +10,7 @@ import { StudioAudio, mixHasSound, type AudioMix } from "./audio";
 import { canExportFast, exportFast } from "./fastExport";
 import { deleteClip, loadClip, saveClip, type ClipKind } from "./audioStore";
 import { MUSIC_LABEL, type MusicId } from "./music";
+import { STYLE_HINT, STYLE_IDS, STYLE_LABEL, generateMusic, planKey, planMusic, type GenSpec, type StyleId } from "./musicGen";
 import {
   BADGE_FILE,
   BADGE_LABEL,
@@ -150,10 +151,74 @@ export function StudioView() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.id]);
-  const mix = (): AudioMix => {
+  // ---- generated soundtrack: rendered for this very video, kept while nothing that matters changes
+  const GEN_RATE = 44100;
+  const plan = useMemo(() => planMusic(project, timeline, GEN_RATE), [project, timeline]);
+  const key = planKey(plan);
+  const [gen, setGen] = useState<{ key: string; buf: AudioBuffer } | null>(null);
+  const [genBusy, setGenBusy] = useState(false);
+  const [previewing, setPreviewing] = useState<StyleId | null>(null);
+  const previewRef = useRef<AudioBufferSourceNode | null>(null);
+  const renderGen = async (spec: GenSpec): Promise<AudioBuffer> => {
+    const g = await generateMusic(spec);
+    const buf = audio().ctx.createBuffer(2, g.left.length, spec.rate);
+    buf.copyToChannel(g.left as Float32Array<ArrayBuffer>, 0);
+    buf.copyToChannel(g.right as Float32Array<ArrayBuffer>, 1);
+    return buf;
+  };
+  useEffect(() => {
+    if (project.video.music !== "generated" || gen?.key === key) return;
+    let live = true;
+    // A short pause, so dragging a slider does not start a render for every step.
+    const timer = setTimeout(() => {
+      setGenBusy(true);
+      renderGen(plan)
+        .then((buf) => live && setGen({ key, buf }))
+        .catch(() => undefined)
+        .finally(() => live && setGenBusy(false));
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, project.video.music]);
+  const stopPreview = () => {
+    try {
+      previewRef.current?.stop();
+    } catch {
+      // already over
+    }
+    previewRef.current = null;
+    setPreviewing(null);
+  };
+  /** Twelve seconds of a style with a drop at 8 s, to hear what it sounds like. */
+  const preview = async (style: StyleId) => {
+    if (previewing === style) return stopPreview();
+    stopPreview();
+    setPreviewing(style);
+    try {
+      const reel = project.style.view === "reel";
+      const spec: GenSpec = { style, seed: project.video.musicSeed, intensity: project.video.musicIntensity, duration: 12, rate: GEN_RATE, bpm: reel ? 90 : undefined, cues: [{ t: 8, kind: "drop" }] };
+      const buf = await renderGen(spec);
+      const ctx = audio().ctx as AudioContext;
+      await ctx.resume();
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = 0.9 * project.video.musicVolume * 1.4;
+      src.connect(g).connect(ctx.destination);
+      src.onended = () => previewRef.current === src && stopPreview();
+      previewRef.current = src;
+      src.start();
+    } catch {
+      setPreviewing(null);
+    }
+  };
+  const mix = (genBuf: AudioBuffer | null = gen?.key === key ? gen.buf : null): AudioMix => {
     const v = project.video;
     const own = clips.id === project.id ? clips : { music: null, voice: null };
-    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound, master: v.volume };
+    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, musicGen: genBuf, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound, master: v.volume };
   };
   const storeClip = async (kind: ClipKind, blob: Blob, name = "") => {
     try {
@@ -405,7 +470,16 @@ export function StudioView() {
     cancelRef.current = false;
     setExp({ phase: "recording", progress: 0 });
     const sounds = audio();
-    const audioMix = mix();
+    // The generated music is rendered for this exact video first (a few seconds), so the file always carries the current track.
+    let genBuf = gen?.key === key ? gen.buf : null;
+    if (project.video.music === "generated" && !genBuf) {
+      try {
+        genBuf = await renderGen(plan);
+      } catch {
+        genBuf = null;
+      }
+    }
+    const audioMix = mix(genBuf);
     let soundResult: ExportState["sound"] = mixHasSound(audioMix, timeline) ? "recorded" : "none";
     const progress = (k: number) => setExp((x) => (x && x.phase === "recording" ? { ...x, progress: k } : x));
     // Fast path: frames as fast as the device renders them, no waiting for the video's length.
@@ -703,6 +777,10 @@ export function StudioView() {
           {tab === "video" && (
             <SoundPanel
               video={project.video}
+              plan={{ style: plan.style, bpm: plan.bpm ?? 0, auto: plan.auto }}
+              busy={genBusy}
+              previewing={previewing}
+              onPreview={(s) => void preview(s)}
               hasVoice={!!(clips.id === project.id && clips.voice)}
               recording={!!voiceRec}
               error={audioError}
@@ -1291,6 +1369,10 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
 
 function SoundPanel(p: {
   video: StudioVideo;
+  plan: { style: StyleId; bpm: number; auto: boolean };
+  busy: boolean;
+  previewing: StyleId | null;
+  onPreview: (style: StyleId) => void;
   hasVoice: boolean;
   recording: boolean;
   error: string;
@@ -1319,8 +1401,36 @@ function SoundPanel(p: {
           <input type="file" accept="audio/*" hidden onChange={(e) => e.currentTarget.files?.[0] && p.onMusicFile(e.currentTarget.files[0])} />
         </label>
       </div>
+      {v.music === "generated" && (
+        <div class="studio-gen">
+          <div class="studio-speed wrap">
+            <button class={v.musicStyle === "auto" ? "on" : ""} onClick={() => p.onVideo({ musicStyle: "auto" })}>
+              {t("Automatisch")}
+            </button>
+          </div>
+          {STYLE_IDS.map((s) => (
+            <div key={s} class={`studio-genstyle ${v.musicStyle === s ? "on" : ""}`}>
+              <button class="studio-genpick" onClick={() => p.onVideo({ musicStyle: s })}>
+                <b>{STYLE_LABEL[s]}</b>
+                <span>{STYLE_HINT[s]}</span>
+              </button>
+              <button class="btn ghost small" onClick={() => p.onPreview(s)} aria-label={t("Vorhören")}>
+                {p.previewing === s ? "■" : "▶"}
+              </button>
+            </div>
+          ))}
+          <p class="studio-hint">
+            {t("Spielt: {style}, {bpm} BPM{auto}. Die Musik passt Tempo, Drops und Länge an dein Video an.", { style: STYLE_LABEL[p.plan.style], bpm: p.plan.bpm, auto: p.plan.auto ? t(" (automatisch gewählt)") : "" })}
+          </p>
+          <Slider label={t("Intensität")} value={v.musicIntensity} min={0} max={1} step={0.05} unit="" onChange={(musicIntensity) => p.onVideo({ musicIntensity })} />
+          <button class="btn ghost" onClick={() => p.onVideo({ musicSeed: 1 + Math.floor(Math.random() * 99999) })}>
+            {t("🎲 Neue Variante")}
+          </button>
+          {p.busy && <p class="studio-hint">{t("Musik wird für dein Video erzeugt …")}</p>}
+        </div>
+      )}
       {v.music !== "none" && <Slider label={t("Lautstärke Musik")} value={v.musicVolume} min={0} max={1} step={0.05} unit="" onChange={(musicVolume) => p.onVideo({ musicVolume })} />}
-      <p class="studio-hint">{t("Lo-fi, Spannung, Episch und Beat macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).")}</p>
+      <p class="studio-hint">{t("Alle Musik macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).")}</p>
 
       <h4 class="studio-sub">{t("Deine Stimme")}</h4>
       <div class="studio-voice">

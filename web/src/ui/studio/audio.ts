@@ -9,6 +9,8 @@ export interface AudioMix {
   music: MusicId;
   musicVolume: number;
   musicFile: AudioBuffer | null;
+  /** The generated soundtrack (music "generated"), as long as the video. */
+  musicGen: AudioBuffer | null;
   voice: AudioBuffer | null;
   voiceVolume: number;
   /** Effect and move sounds (the "sound" switch). */
@@ -23,7 +25,7 @@ export type EffectKind = "boom" | "whoosh" | "sparkle" | "move" | "capture" | "c
 /** True when the mix has anything to play at all (used for the "sound on" indicator). */
 export function mixHasSound(mix: AudioMix, timeline: Timeline): boolean {
   if (mix.master <= 0) return false;
-  const music = mix.music === "file" ? !!mix.musicFile : mix.music !== "none";
+  const music = mix.music === "file" ? !!mix.musicFile : mix.music === "generated" ? !!mix.musicGen : mix.music !== "none";
   return (music && mix.musicVolume > 0) || (!!mix.voice && mix.voiceVolume > 0) || (mix.effects && timeline.sounds.length > 0);
 }
 
@@ -68,7 +70,7 @@ export class StudioAudio {
     return this.ctx.decodeAudioData(data);
   }
 
-  private loop(id: Exclude<MusicId, "none" | "file">): AudioBuffer {
+  private loop(id: Exclude<MusicId, "none" | "file" | "generated">): AudioBuffer {
     let b = this.loops.get(id);
     if (!b) {
       const pcm = synthLoop(id, this.ctx.sampleRate);
@@ -203,8 +205,10 @@ export class StudioAudio {
     if (this.ctx instanceof AudioContext) void this.ctx.resume();
     const now = this.ctx.currentTime + 0.03;
     this.out.gain.value = 0.9 * Math.max(0, mix.master);
-    const music = mix.music === "file" ? mix.musicFile : mix.music === "none" ? null : this.loop(mix.music);
-    if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), true, timeline.total);
+    const gen = mix.music === "generated";
+    const music = mix.music === "file" ? mix.musicFile : mix.music === "generated" ? mix.musicGen : mix.music === "none" ? null : this.loop(mix.music);
+    // The generated track is already as long as the video and ends by itself, so it neither loops nor fades again.
+    if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), !gen, timeline.total);
     if (mix.voice && mix.voiceVolume > 0) this.play(mix.voice, now, from, mix.voiceVolume, false, timeline.total);
     if (!mix.effects) return;
     for (const s of timeline.sounds) {

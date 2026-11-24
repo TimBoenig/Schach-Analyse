@@ -2,6 +2,7 @@
 // camera) plus one look and one set of video options. Pure data and rules, no
 // browser APIs, so templates and validation are tested headless.
 import { MUSIC_LABEL, type MusicId } from "./music";
+import { STYLE_IDS, type StyleId } from "./musicGen";
 import { Chess, type Move } from "chess.js";
 
 import { BRAND_DOMAIN } from "../../brand";
@@ -153,6 +154,10 @@ export interface StudioVideo {
   musicVolume: number;
   /** Name of the own music file kept in the browser's audio store. */
   musicName: string;
+  /** Generator: "auto" picks the style that fits the video. */
+  musicStyle: StyleId | "auto";
+  musicSeed: number;
+  musicIntensity: number;
   /** Whether an own voice recording for this video is kept in the audio store. */
   voice: boolean;
   voiceVolume: number;
@@ -287,9 +292,12 @@ export const DEFAULT_VIDEO: StudioVideo = {
   sound: true,
   volume: 1,
   introFly: true,
-  music: "lofi",
+  music: "generated",
   musicVolume: 0.5,
   musicName: "",
+  musicStyle: "auto",
+  musicSeed: 1,
+  musicIntensity: 0.65,
   voice: false,
   voiceVolume: 1,
   lesson: false,
@@ -487,6 +495,9 @@ export function normalizeProject(raw: unknown): StudioProject {
     introFly: bool(vi.introFly, true),
     music: pick(vi.music, Object.keys(MUSIC_LABEL) as MusicId[], "lofi"),
     musicVolume: num(vi.musicVolume, 0, 1, 0.5),
+    musicStyle: pick(vi.musicStyle, ["auto", ...STYLE_IDS] as (StyleId | "auto")[], "auto"),
+    musicSeed: Math.round(num(vi.musicSeed, 1, 999999, 1)),
+    musicIntensity: num(vi.musicIntensity, 0, 1, 0.65),
     musicName: typeof vi.musicName === "string" ? vi.musicName.slice(0, 120) : "",
     voice: bool(vi.voice, false),
     voiceVolume: num(vi.voiceVolume, 0, 1.5, 1),
@@ -630,7 +641,7 @@ export function reelTemplate(): StudioProject {
   return {
     ...base,
     style: styleFromTheme("mono", { view: "reel", titleFont: "serif", environment: "void" }),
-    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 2.4, lucena: false, movePill: false, music: "beat" },
+    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 2.4, lucena: false, movePill: false, music: "generated" },
   };
 }
 

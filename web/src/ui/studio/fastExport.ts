@@ -4,12 +4,14 @@
 // as AAC. Both go into an MP4 file (mp4.ts). Where the browser lacks any of
 // this, the studio falls back to the real-time recording in record.ts.
 import { StudioAudio, type AudioMix } from "./audio";
+import { normalizeLoudness } from "./loudness";
 import { muxMp4, type Mp4Sample, type Mp4Track } from "./mp4";
 import type { Timeline } from "./timeline";
 import { t } from "../../i18n";
 
 const VIDEO_CODECS = ["avc1.640033", "avc1.4d0033", "avc1.640028", "avc1.42003e", "avc1.42001f"];
 const SAMPLE_RATE = 48000;
+const TARGET_LUFS = -14;
 
 export interface FastJob {
   canvas: HTMLCanvasElement;
@@ -20,7 +22,7 @@ export interface FastJob {
   mix: AudioMix | null;
   onProgress?: (k: number) => void;
   /** Tells what ended up in the file's sound track (so the studio can say "sound on" truthfully). */
-  onAudio?: (info: { codec: "aac" | "opus" | "none"; peak: number }) => void;
+  onAudio?: (info: { codec: "aac" | "opus" | "none"; peak: number; lufs: number | null }) => void;
   isCancelled?: () => boolean;
 }
 
@@ -80,15 +82,17 @@ const descriptionOf = (meta?: EncodedVideoChunkMetadata | EncodedAudioChunkMetad
 };
 
 /** Renders the whole mix faster than real time. `peak` is its loudest sample (0 = silence). */
-async function renderMix(job: FastJob): Promise<{ rendered: AudioBuffer; peak: number } | null> {
+async function renderMix(job: FastJob): Promise<{ rendered: AudioBuffer; peak: number; lufs: number | null } | null> {
   if (!job.mix) return null;
   const frames = Math.ceil(job.duration * SAMPLE_RATE);
   const ctx = new OfflineAudioContext(2, frames, SAMPLE_RATE);
   new StudioAudio(ctx).schedule(job.timeline, 0, job.mix);
   const rendered = await ctx.startRendering();
+  // Even out the whole mix to -14 LUFS (what TikTok, Instagram and YouTube play at), peaks under -1 dB.
+  const loud = normalizeLoudness([rendered.getChannelData(0), rendered.getChannelData(1)], SAMPLE_RATE, TARGET_LUFS, { maxGainDb: 12, ceilingDb: -1 });
   let peak = 0;
   for (let ch = 0; ch < 2; ch++) for (const v of rendered.getChannelData(ch)) peak = Math.max(peak, Math.abs(v));
-  return { rendered, peak };
+  return { rendered, peak, lufs: Number.isFinite(loud.before) ? loud.before + loud.gainDb : null };
 }
 
 async function encodeAudio(rendered: AudioBuffer, config: AudioEncoderConfig): Promise<Mp4Track | null> {
@@ -145,7 +149,7 @@ export async function exportFast(job: FastJob): Promise<Blob | null> {
       if (audio) break;
     }
   }
-  job.onAudio?.({ codec: audio ? (audio.codec ?? "aac") : "none", peak: mixed?.peak ?? 0 });
+  job.onAudio?.({ codec: audio ? (audio.codec ?? "aac") : "none", peak: mixed?.peak ?? 0, lufs: mixed?.lufs ?? null });
   job.onProgress?.(0.05);
 
   const samples: Mp4Sample[] = [];
