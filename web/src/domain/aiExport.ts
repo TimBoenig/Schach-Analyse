@@ -592,7 +592,7 @@ function momentLines(it: GameItem, idx: number): string {
   const refutation = replyPv.length && next ? pvToSan(next.fen_before, replyPv.slice(0, 6)) : "";
   let reasons: string[] = [];
   try {
-    reasons = explainMove({ fenBefore: m.fen_before, uci: m.uci, bestPv, replyPv, mateBefore: m.eval_before_mate, mateAfter: m.eval_after_mate });
+    reasons = explainMove({ fenBefore: m.fen_before, uci: m.uci, bestPv, replyPv, mateBefore: m.eval_before_mate, mateAfter: m.eval_after_mate, classification: m.classification, winBefore: wpB / 100, winAfter: wpA / 100, previousMove: it.moves[idx - 1] ? { uci: it.moves[idx - 1].uci, san: it.moves[idx - 1].san } : undefined });
   } catch {
     reasons = [];
   }

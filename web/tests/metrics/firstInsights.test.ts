@@ -55,7 +55,7 @@ describe("first finding after the engine's first pass", () => {
       blunders: 2,
       mistakes: 1,
       bestGame: { gameId: g.game_id, opponent: "anna", accuracy: 72 },
-      costliest: { gameId: g.game_id, opponent: "anna", ply: 2, moveNumber: 1, white: false, san: "f6", better: "e5", before: 60, after: 10 },
+      costliest: { gameId: g.game_id, opponent: "anna", ply: 2, moveNumber: 1, white: false, san: "f6", better: "e5", why: [], before: 60, after: 10 },
     });
   });
 });

@@ -315,7 +315,7 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         sub={
           <>
             <p>
-              {classLabel(best.classification as never)}. {detail.lines.length ? t("Gewinnchance jetzt {pct}.", { pct: pct(best.wp_after) }) : best.text}
+              {classLabel(best.classification as never)}.{!detail.lines.length && <> {best.text}</>}
             </p>
             <Reasons lines={detail.lines} />
           </>
@@ -343,7 +343,9 @@ export function ReportStory({ gameId, onClose }: { gameId: string; onClose: () =
         sub={
           <>
             <p>
-              {classLabel(costly.classification as never)}. {tj("Deine Gewinnchance fiel von {x} auf {x2}.", { x: <strong>{pct(costly.wp_before)}</strong>, x2: <strong>{pct(costly.wp_after)}</strong> })}
+              {classLabel(costly.classification as never)}.
+              {/* The reasons below say what went wrong; the percentages only when the engine line gives none. */}
+              {!detail.lines.length && <> {tj("Deine Gewinnchance fiel von {x} auf {x2}.", { x: <strong>{pct(costly.wp_before)}</strong>, x2: <strong>{pct(costly.wp_after)}</strong> })}</>}
               {better && <> {better}</>}
             </p>
             <Reasons lines={detail.lines} />

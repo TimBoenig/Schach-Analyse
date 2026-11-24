@@ -5,6 +5,7 @@
 import { trClassification, trPhase, trPhaseIn, trPiece } from "../i18n";
 import { type Outcome, outcomeFor, parseMoves, parseSummary, type RawGame } from "../metrics/models";
 import { UNTIMED } from "../metrics/speed";
+import { explainStored } from "../explainStored";
 import { analyzeGameTactics } from "../tactics";
 import { Board } from "../tactics/board";
 import { classifyGamePhase } from "../tactics/phase";
@@ -228,15 +229,21 @@ function keyMoments(game: ReviewGame, isWhite: boolean): KeyMoment[] {
     let text: string;
     if (byUser && ERROR_CLASSES.has(m.classification)) {
       title = `${label} – ${clsDe}`;
-      text = t("Deine Gewinnchance fiel von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
-      if (bestSan) text += t(" Besser war {bestSan}.", { bestSan });
+      // The concrete reason (lost piece, missed tactic, weakened king …); the percentages only when the engine line gives none.
+      const why = explainStored(m, game.moves[idx + 1], game.moves[idx - 1]).lines;
+      if (why.length) text = why.join(" ");
+      else {
+        text = t("Deine Gewinnchance fiel von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
+        if (bestSan) text += t(" Besser war {bestSan}.", { bestSan });
+      }
     } else if (byUser && brilliant) {
       title = `${label} – ${clsDe}!`;
-      text = tStored(m.explanation) || t("Ein starker Zug, den die Engine besonders hervorhebt.");
-      text += t(" Gewinnchance jetzt {pctText}.", { pctText: pctText(wpA) });
+      const why = explainStored(m, game.moves[idx + 1], game.moves[idx - 1]).lines;
+      text = why.length ? why.join(" ") : tStored(m.explanation) || t("Ein starker Zug, den die Engine besonders hervorhebt.");
     } else if (byUser && wpA >= wpB) {
       title = `${label} – ${clsDe}`;
-      text = t("Du hast die Chance genutzt: Gewinnchance von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
+      const why = explainStored(m, game.moves[idx + 1], game.moves[idx - 1]).lines;
+      text = why.length ? why.join(" ") : t("Du hast die Chance genutzt: Gewinnchance von {pctText} auf {pctText2}.", { pctText: pctText(wpB), pctText2: pctText(wpA) });
     } else if (byUser) {
       // A large drop without an error label: the position was already slipping.
       return;

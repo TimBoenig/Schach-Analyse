@@ -157,7 +157,9 @@ function FindingCard({ f, onOpen }: { f: FirstFinding; onOpen: (gameId: string, 
       {c && (
         <div class="stage-costly">
           <p>
-            {tj("{label} {move} {san} gegen {opponent}. Deine Gewinnchance fiel von {before} auf {after}.{better}", { label: <b>{t("Dein teuerster Zug:")}</b>, move: `${c.moveNumber}${c.white ? "." : "..."}`, san: c.san, opponent: c.opponent, before: pct(c.before), after: pct(c.after), better: c.better ? t(" Besser war {better}.", { better: c.better }) : "" })}
+            {c.why.length
+              ? tj("{label} {move} {san} gegen {opponent}. {why}", { label: <b>{t("Dein teuerster Zug:")}</b>, move: `${c.moveNumber}${c.white ? "." : "..."}`, san: c.san, opponent: c.opponent, why: c.why.join(" ") })
+              : tj("{label} {move} {san} gegen {opponent}. Deine Gewinnchance fiel von {before} auf {after}.{better}", { label: <b>{t("Dein teuerster Zug:")}</b>, move: `${c.moveNumber}${c.white ? "." : "..."}`, san: c.san, opponent: c.opponent, before: pct(c.before), after: pct(c.after), better: c.better ? t(" Besser war {better}.", { better: c.better }) : "" })}
           </p>
           <button class="btn" onClick={() => onOpen(c.gameId, c.ply)}>
             

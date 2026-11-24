@@ -60,6 +60,8 @@ export function judgeTried(fenBefore: string, uci: string, fenAfter: string): Pr
       mateBefore: move.eval_before_mate,
       mateAfter: move.eval_after_mate,
       classification: move.classification,
+      winBefore: fenBefore.split(" ")[1] !== "b" ? move.win_chance_before : 1 - move.win_chance_before,
+      winAfter: fenBefore.split(" ")[1] !== "b" ? move.win_chance_after : 1 - move.win_chance_after,
     });
     if (reasons.length) move.explanation = reasons.join(" ");
     return { ...move, reply_pv: child[0]?.pv ?? [] };

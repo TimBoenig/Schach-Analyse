@@ -25,6 +25,7 @@ import {
   ROOK,
   squareName,
 } from "./tactics/board";
+import { type Cause, describeIdea, detectCauses, type Idea } from "./explainCauses";
 import { findSliderRayTargets, legalDefenders } from "./tactics/board_utils";
 import { PIECE_VALUES, TacticalTheme } from "./tactics/constants";
 import { getHangingPieces } from "./tactics/hanging";
@@ -50,6 +51,9 @@ export interface ExplainInput {
   classification?: string;
   /** The opponent's move just before, to tell a recapture from a free capture. */
   previousMove?: { uci: string; san: string };
+  /** Winning chance (0..1) from the mover's view before and after the move; lets an error without a concrete cause say how the position shifted. */
+  winBefore?: number;
+  winAfter?: number;
 }
 
 const ERROR_CLASSES = new Set(["Inaccuracy", "Mistake", "Miss", "Blunder"]);
@@ -356,6 +360,97 @@ function replyNote(afterMove: TBoard, reply: Move, replySan: string, me: Color, 
   return null;
 }
 
+
+/** How a winning chance (0..1, mover's view) reads in words, for "the position was X, now it is Y". */
+function standingWords(p: number): string {
+  if (p >= 0.9) return t("für dich gewonnen");
+  if (p >= 0.72) return t("für dich klar besser");
+  if (p >= 0.57) return t("für dich etwas besser");
+  if (p > 0.43) return t("ausgeglichen");
+  if (p > 0.28) return t("für dich etwas schlechter");
+  if (p > 0.1) return t("für dich klar schlechter");
+  return t("für dich verloren");
+}
+
+/** The shift of the position in words, when it crossed a threshold; null otherwise. */
+function shiftNote(input: ExplainInput): Note | null {
+  if (input.winBefore === undefined || input.winAfter === undefined) return null;
+  const a = standingWords(input.winBefore);
+  const b = standingWords(input.winAfter);
+  if (a !== b) return note(t("Die Stellung war {a}, jetzt ist sie {b}.", { a, b }));
+  return note(t("Die Stellung bleibt zwar {a}, aber der Zug war nicht der genaueste."));
+}
+
+/** The idea of a move as a clause that follows "Mit Nf3 …" / "Damit …" (verb first, "du" as subject). */
+function ideaClause(idea: Idea): string {
+  const listed = (types: { type: PieceType; square: string }[]) => {
+    const parts = types.map((x) => t("{piece} auf {square}", { piece: theirAcc(x.type), square: x.square }));
+    return parts.length > 1 ? t("{list} und {last}", { list: parts.slice(0, -1).join(", "), last: parts[parts.length - 1] }) : parts[0];
+  };
+  switch (idea.kind) {
+    case "castle":
+      return t("rochierst du: Dein König steht sicherer und dein Turm kommt ins Spiel");
+    case "promote":
+      return t("wandelst du deinen Bauern um");
+    case "check":
+      return t("gibst du Schach und behältst die Initiative");
+    case "capture":
+      return t("schlägst du {theirAcc} auf {square}", { theirAcc: theirAcc(idea.victim), square: idea.square });
+    case "pawn-attack":
+      return t("greifst du den Bauern auf {square} an", { square: idea.square });
+    case "attack":
+      return t("greifst du {listed} an", { listed: listed(idea.targets) });
+    case "develop":
+      return t("entwickelst du {yourAcc} nach {square}", { yourAcc: yourAcc(idea.piece), square: idea.square });
+    case "center-pawn":
+      return t("besetzt du das Zentrum");
+    case "rook-file":
+      return idea.open
+        ? t("stellst du deinen Turm auf die offene {file}-Linie", { file: idea.file })
+        : t("stellst du deinen Turm auf die halboffene {file}-Linie", { file: idea.file });
+    case "central-piece":
+      return t("stellst du {yourAcc} zentral auf {square}, wo {pronoun} mehr Felder kontrolliert", { yourAcc: yourAcc(idea.piece), square: idea.square, pronoun: pronoun(idea.piece) });
+    case "retreat":
+      return t("ziehst du {yourAcc} nach {square} aus dem Angriff", { yourAcc: yourAcc(idea.piece), square: idea.square });
+    case "king":
+      return t("ziehst du deinen König nach {square}", { square: idea.square });
+    default:
+      return t("ziehst du {yourAcc} nach {square}", { yourAcc: yourAcc(idea.piece), square: idea.square });
+  }
+}
+
+/** Sentence for a board-based cause of an error. */
+function causeNote(c: Cause): Note {
+  switch (c.kind) {
+    case "missed-win":
+      return note(t("Du hättest mit {lineText} {materialWords} gewonnen.", { lineText: c.sans.slice(0, 4).join(" "), materialWords: materialWords(c.gain) }));
+    case "missed-promotion":
+      return note(t("Mit {san} hättest du deinen Bauern auf {square} umgewandelt.", { san: c.san, square: c.square }));
+    case "missed-passed-pawn":
+      return note(t("{san} hätte einen Freibauern auf {square} geschaffen, den dein Gegner kaum aufhalten kann.", { san: c.san, square: c.square }));
+    case "allowed-promotion":
+      return note(t("Dein Gegner kommt mit {san} zur Umwandlung auf {square}.", { san: c.san, square: c.square }));
+    case "allowed-passed-pawn":
+      return note(t("Dein Gegner schiebt mit {san} einen Freibauern bis {square}.", { san: c.san, square: c.square }));
+    case "missed-recapture":
+      return note(t("Du hast nicht zurückgeschlagen: {san} auf {square} war nötig.", { san: c.san, square: c.square }));
+    case "king-weakened":
+      return note(t("Mit {san} verlässt ein Schutzbauer deinen König ({square}): Er steht jetzt offener und die gegnerische Dame kann das nutzen.", { san: c.san, square: c.square }));
+    case "castling-lost":
+      return note(t("Du verlierst das Recht zu rochieren, bevor dein König in Sicherheit ist."));
+    case "endgame-trade":
+      return note(c.queens ? t("Der Damentausch führt in ein Endspiel, in dem dein Gegner besser dasteht.") : t("Der Abtausch führt in ein Endspiel, das für dich schlechter steht."));
+    case "bishop-pair":
+      return note(t("Du gibst das Läuferpaar auf, und dein Gegner behält seine beiden Läufer."));
+    case "isolated-pawn":
+      return note(t("Dein Bauer auf {square} hat keine Nachbarbauern mehr und ist leicht anzugreifen.", { square: c.square }));
+    case "doubled-pawns":
+      return note(t("Auf der {file}-Linie stehen jetzt zwei deiner Bauern hintereinander (Doppelbauern).", { file: c.file }));
+    default:
+      return note(t("Dein Springer auf {square} steht am Rand und kontrolliert nur wenige Felder.", { square: c.square }));
+  }
+}
+
 /** The opponent's threats before the move (he would play them if it were his turn). */
 function opponentThreats(before: TBoard): Threat[] {
   const passed = passTurn(before);
@@ -469,6 +564,8 @@ function explainGood(before: TBoard, move: Move, san: string, input: ExplainInpu
   if (!out.length && piece.type === KING && Math.abs(move.to - move.from) === 2) {
     out.push(note(t("Du rochierst: Dein König steht sicherer und dein Turm kommt ins Spiel.")));
   }
+  // A quiet move: still say what it is about instead of staying silent.
+  if (!out.length && !move.promotion) out.push(note(t("Mit {san} {clause}.", { san, clause: ideaClause(describeIdea(before, move)) })));
   if (move.promotion === QUEEN) out.push(note(t("Du wandelst deinen Bauern in eine Dame um.")));
   else if (move.promotion === KNIGHT) out.push(note(t("Du wandelst in einen Springer um – genau das richtige Stück für diese Stellung.")));
   return out;
@@ -521,9 +618,19 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
     if (worst) out.push(note(t("Nach diesem Zug ist {yourNom} auf {square} nicht mehr ausreichend gedeckt.", { yourNom: yourNom(worst.piece_type as PieceType), square: worst.square }), [], [worst.square_index]));
   }
 
+  // Causes that need no tactic: a weakened king, a trade into a bad endgame, a missed passed pawn …
+  const best = playLine(before, input.bestPv, 7);
+  if (out.length < 2) {
+    for (const c of detectCauses({ before, afterMove, move, me, best, reply, previous: input.previousMove }).slice(0, 2 - out.length)) out.push(causeNote(c));
+  }
+  // Nothing concrete found: at least say how the position shifted instead of quoting a percentage.
+  if (!out.length) {
+    const shift = shiftNote(input);
+    if (shift) out.push(shift);
+  }
+
   // What the better move would have done (the board already shows it as an arrow).
   if (!playedBest && input.bestPv.length) {
-    const best = playLine(before, input.bestPv, 6);
     if (best.moves.length) {
       const bm = best.moves[0];
       const bSan = best.sans[0];
@@ -547,8 +654,8 @@ function explainError(before: TBoard, move: Move, input: ExplainInput, playedBes
         out.push(note(t("Besser war {bSan} mit einer Fesselung.", { bSan })));
       } else if (bestMotifs.includes(TacticalTheme.SKEWER)) {
         out.push(note(t("Besser war {bSan} mit einem Spieß.", { bSan })));
-      } else if (out.length < 2) {
-        out.push(note(t("Besser war {lineText}.", { lineText: lineText(best.sans, before, 3) })));
+      } else {
+        out.push(note(t("Besser war {bSan}: Damit {clause}.", { bSan, clause: ideaClause(describeIdea(before, bm)) })));
       }
     }
   }

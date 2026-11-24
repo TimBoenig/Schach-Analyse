@@ -7,17 +7,20 @@ const explanations = new Map<string, Explanation>();
 
 /** Concrete reasons for a stored game move: what it does, stops or allows. */
 export function explainStored(move: MoveData, next: MoveData | undefined, previous: MoveData | undefined): Explanation {
+  const white = move.fen_before.split(" ")[1] !== "b";
   const input = {
     fenBefore: move.fen_before,
     uci: move.uci,
-    bestPv: move.multi_pvs[0]?.pv ?? move.pv,
-    replyPv: next?.multi_pvs[0]?.pv ?? [],
+    bestPv: move.multi_pvs?.[0]?.pv?.length ? move.multi_pvs[0].pv : move.pv?.length ? move.pv : move.best_move ? [move.best_move] : [],
+    replyPv: next?.multi_pvs?.[0]?.pv ?? [],
     mateBefore: move.eval_before_mate,
     mateAfter: move.eval_after_mate,
     classification: move.classification,
     previousMove: previous ? { uci: previous.uci, san: previous.san } : undefined,
+    winBefore: white ? move.win_chance_before : 1 - move.win_chance_before,
+    winAfter: white ? move.win_chance_after : 1 - move.win_chance_after,
   };
-  const key = `${previous?.uci ?? ""}|${input.fenBefore}|${input.uci}|${input.classification}|${input.bestPv.slice(0, 6).join(" ")}|${input.replyPv.slice(0, 8).join(" ")}`;
+  const key = `${previous?.uci ?? ""}|${input.fenBefore}|${input.uci}|${input.classification}|${input.bestPv.slice(0, 6).join(" ")}|${input.replyPv.slice(0, 8).join(" ")}|${input.winBefore.toFixed(2)}|${input.winAfter.toFixed(2)}`;
   let hit = explanations.get(key);
   if (!hit) {
     hit = explainMoveDetailed(input);
