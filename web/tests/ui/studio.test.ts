@@ -871,7 +871,7 @@ describe("reel look", () => {
     // A reel project exports with its type, and the prompt asks for it or sets it.
     expect(toAiScript(p)).toContain("videoart");
     expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "" })).toContain('"videoart"');
-    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" })).toContain("VIDEOART EDIT");
+    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" })).toContain("EDIT-REGELN");
     expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "explain" })).toContain('"videoart": "erklaerung"');
     // The example in an edit prompt imports without a single complaint.
     const example = buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" }).split("```json")[1].split("```")[0];
@@ -1127,6 +1127,49 @@ describe("AI script: game on top, half-move numbers, cuts and strengths", () => 
     expect(tl.scenes.every((c) => !c.error)).toBe(true);
     // The plain (non-edit) prompt knows the new format too, and a spelled-out script keeps working.
     expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 20, notes: "" })).toContain("zugNr");
+  });
+});
+
+describe("the edit prompt", () => {
+  const edit = buildAiPrompt({ topic: "Schäfermatt", platform: "tiktok", length: 30, notes: "Mit Pointe", type: "edit" });
+
+  it("tells the AI it is the editor of a fast reel, with goal, structure, beat, strengths and format, and drops the explainer sections", () => {
+    for (const part of ["DU BIST DER EDITOR", "TikTok", "Phonk", "HOOK", "AUFBAU", "AUFPRALL", "NACHSPIEL", "HÖHEPUNKT", "ABSPANN", "90 BPM", "STÄRKEN", "AUSGABEFORMAT", "PRÜF VOR DEM ANTWORTEN", "Schäfermatt", "Mit Pointe"]) expect(edit).toContain(part);
+    // Nothing that would pull the AI back to a captioned explainer: its rules, layout, design block, polls, orb.
+    for (const part of ["SO WIRD ES FÜR ZUSCHAUER", "SO SIEHT DAS VIDEO AUS (", "DESIGN (\"design\"", "Umfrage (", "Lucena:", "Tempo: \"zugtempo\""]) expect(edit).not.toContain(part);
+    // The auto prompt carries the edit brief too, with the choice up front.
+    const auto = buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" });
+    expect(auto).toContain("DU BIST DER EDITOR");
+    expect(auto.indexOf("VORAB: WAS FÜR EIN VIDEO")).toBeLessThan(auto.indexOf("DU BIST DER EDITOR"));
+  });
+
+  it("asks for durations the studio keeps as written: whole beats, just under the multiple", () => {
+    const scenes = importAiScript(edit.split("```json")[1].split("```")[0]).project!.scenes;
+    // The prompt advises 0.6 / 1.3 / 2 / 2.6 / 4 because the studio rounds up to whole beats of 2/3 s.
+    const compiled = compile(importAiScript(edit.split("```json")[1].split("```")[0]).project!);
+    compiled.scenes.forEach((c, i) => {
+      const beats = c.dur / REEL_BEAT;
+      const wanted = scenes[i].duration;
+      expect(Math.abs(beats - Math.round(beats))).toBeLessThan(1e-6);
+      // The studio keeps every scene as long as asked: none grows by an extra beat (the hit-stop pause is part of its scene).
+      expect(c.dur, `scene ${i + 1}`).toBeLessThan(wanted + 0.1);
+    });
+    for (const d of [0.6, 1.3, 2, 2.6, 4]) expect(Math.ceil(d / REEL_BEAT - 1e-6) * REEL_BEAT - d).toBeLessThan(0.1);
+  });
+
+  it("reads in English too, with the English field names", () => {
+    setLangNow("en", EN);
+    try {
+      const en = buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "", type: "edit" });
+      expect(en).toContain("YOU ARE THE EDITOR");
+      expect(en).not.toContain("DU BIST DER EDITOR");
+      const res = importAiScript(en.split("```json")[1].split("```")[0]);
+      expect(res.errors).toEqual([]);
+      expect(res.warnings).toEqual([]);
+      expect(res.project!.style.view).toBe("reel");
+    } finally {
+      setLangNow("de");
+    }
   });
 });
 
