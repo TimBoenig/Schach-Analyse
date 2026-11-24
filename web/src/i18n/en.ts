@@ -1067,6 +1067,7 @@ export const EN: Record<string, string> = {
   "Brett drehen": "Flip board",
   "Brett drehen (F)": "Flip board (F)",
   "Brettfarben": "Board colours",
+  "Modus": "Mode",
   "Brettfarben {label}": "Board colours {label}",
   "Brillant": "Brilliant",
   "Brillant & bester Zug": "Brilliant & best move",
