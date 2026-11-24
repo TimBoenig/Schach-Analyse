@@ -1,7 +1,7 @@
 // The studio's sound: background music, the creator's own voice and optional
 // effect sounds (mate hit, swoosh, glitter), all made or played with Web Audio.
 // The same mix goes to the speakers in the preview and into the video file.
-// Pieces moving make no sound on purpose.
+// Every piece landing makes a short wooden tock (all made in code, no sound files).
 import { duckedVolume, synthLoop, type MusicId } from "./music";
 import type { Timeline } from "./timeline";
 
@@ -11,7 +11,20 @@ export interface AudioMix {
   musicFile: AudioBuffer | null;
   voice: AudioBuffer | null;
   voiceVolume: number;
+  /** Effect and move sounds (the "sound" switch). */
   effects: boolean;
+  /** Overall level of everything, 1 = as mixed. */
+  master: number;
+}
+
+/** Sound kinds that need no timeline hit: what a landing piece sounds like. */
+export type EffectKind = "boom" | "whoosh" | "sparkle" | "move" | "capture" | "check";
+
+/** True when the mix has anything to play at all (used for the "sound on" indicator). */
+export function mixHasSound(mix: AudioMix, timeline: Timeline): boolean {
+  if (mix.master <= 0) return false;
+  const music = mix.music === "file" ? !!mix.musicFile : mix.music !== "none";
+  return (music && mix.musicVolume > 0) || (!!mix.voice && mix.voiceVolume > 0) || (mix.effects && timeline.sounds.length > 0);
 }
 
 export class StudioAudio {
@@ -88,8 +101,51 @@ export class StudioAudio {
   }
 
   /** Effect sounds: a deep hit for mate, a rising swoosh for zoom and flash, a glitter for confetti. */
-  private effect(at: number, kind: "boom" | "whoosh" | "sparkle"): void {
+  private effect(at: number, kind: EffectKind): void {
     const c = this.ctx;
+    if (kind === "move" || kind === "capture" || kind === "check") {
+      // A wooden tock: a short low sine knock plus a click of filtered noise; captures hit harder, check adds a bell.
+      const heavy = kind === "capture";
+      const o = c.createOscillator();
+      o.type = "sine";
+      o.frequency.setValueAtTime(heavy ? 170 : 220, at);
+      o.frequency.exponentialRampToValueAtTime(heavy ? 70 : 100, at + 0.08);
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, at);
+      g.gain.linearRampToValueAtTime(heavy ? 0.7 : 0.5, at + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.001, at + (heavy ? 0.18 : 0.12));
+      o.connect(g).connect(this.out);
+      o.start(at);
+      o.stop(at + 0.2);
+      this.live.push(o);
+      const src = c.createBufferSource();
+      src.buffer = this.noise;
+      const f = c.createBiquadFilter();
+      f.type = "bandpass";
+      f.frequency.value = heavy ? 1400 : 2200;
+      f.Q.value = 1.2;
+      const ng = c.createGain();
+      ng.gain.setValueAtTime(heavy ? 0.5 : 0.3, at);
+      ng.gain.exponentialRampToValueAtTime(0.001, at + (heavy ? 0.07 : 0.04));
+      src.connect(f).connect(ng).connect(this.out);
+      src.start(at);
+      src.stop(at + 0.1);
+      this.live.push(src);
+      if (kind === "check") {
+        const bell = c.createOscillator();
+        bell.type = "triangle";
+        bell.frequency.value = 1320;
+        const bg = c.createGain();
+        bg.gain.setValueAtTime(0, at + 0.02);
+        bg.gain.linearRampToValueAtTime(0.14, at + 0.03);
+        bg.gain.exponentialRampToValueAtTime(0.001, at + 0.5);
+        bell.connect(bg).connect(this.out);
+        bell.start(at + 0.02);
+        bell.stop(at + 0.55);
+        this.live.push(bell);
+      }
+      return;
+    }
     if (kind === "boom") {
       const o = c.createOscillator();
       o.type = "sine";
@@ -146,13 +202,14 @@ export class StudioAudio {
     this.cancel();
     if (this.ctx instanceof AudioContext) void this.ctx.resume();
     const now = this.ctx.currentTime + 0.03;
+    this.out.gain.value = 0.9 * Math.max(0, mix.master);
     const music = mix.music === "file" ? mix.musicFile : mix.music === "none" ? null : this.loop(mix.music);
     if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), true, timeline.total);
     if (mix.voice && mix.voiceVolume > 0) this.play(mix.voice, now, from, mix.voiceVolume, false, timeline.total);
     if (!mix.effects) return;
     for (const s of timeline.sounds) {
       if (s.t < from) continue;
-      if (s.kind === "boom" || s.kind === "whoosh" || s.kind === "sparkle") this.effect(now + (s.t - from), s.kind);
+      this.effect(now + (s.t - from), s.kind);
     }
   }
 

@@ -23,6 +23,7 @@ import {
 import { pieceMesh, triangulate } from "../../src/ui/studio/pieces";
 import { arrowMesh } from "../../src/ui/studio/renderer";
 import { compile, frameAt, holdSide, MAX_SIDE_TURN, plainMove, squareXZ, xzSquare } from "../../src/ui/studio/timeline";
+import { mixHasSound } from "../../src/ui/studio/audio";
 import { duckedVolume, loopSeconds, synthLoop } from "../../src/ui/studio/music";
 import { Chess } from "chess.js";
 import { parseHash, toHash } from "../../src/ui/router";
@@ -100,8 +101,8 @@ describe("studio timeline", () => {
     expect(c.dur).toBeGreaterThan(c.steps[3].t1);
     expect(c.steps.map((s) => s.label)).toEqual(["1. e4", "1… e5", "2. Sf3", "2… Sc6"]);
     for (let i = 1; i < 4; i++) expect(c.steps[i].t0).toBeGreaterThan(c.steps[i - 1].t1);
-    // Moving pieces make no sound.
-    expect(tl.sounds).toHaveLength(0);
+    // Every landing piece knocks once, at the end of its step.
+    expect(tl.sounds).toEqual(c.steps.map((st) => ({ t: c.start + st.t1, kind: "move" })));
   });
 
   it("marks the checked king and keeps an arrow shown by two scenes on screen", () => {
@@ -486,7 +487,7 @@ describe("studio perspective and sound", () => {
   });
 
   it("makes seamless, clipped music loops and ducks them under the voice", () => {
-    for (const id of ["lofi", "tension", "epic"] as const) {
+    for (const id of ["lofi", "tension", "epic", "beat"] as const) {
       const pcm = synthLoop(id, 8000);
       expect(pcm.length).toBe(Math.round(loopSeconds(id) * 8000));
       expect(Math.max(...pcm.map(Math.abs))).toBeLessThanOrEqual(1);
@@ -860,7 +861,7 @@ describe("reel look", () => {
     const p = res.project!;
     expect(p.style.view).toBe("reel");
     expect(p.style.theme).toBe("mono");
-    expect(p.video.music).toBe("none");
+    expect(p.video.music).toBe("beat");
     expect(p.video.lucena).toBe(false);
     expect(p.video.tempo).toBeGreaterThan(2);
     // Scenes without a duration default to one beat and are not stretched to the asked length.
@@ -1135,5 +1136,18 @@ describe("side guess and effect names", () => {
     expect(res.project!.video.perspective).toBe("white");
     // The texts still decide: a title naming a Black opening shows the video from Black's side.
     expect(importAiScript(JSON.stringify({ titel: "Sizilianisch", szenen: [{ zug: "1. e4" }] })).project!.video.perspective).toBe("black");
+  });
+});
+
+describe("sound indicator", () => {
+  const mix = { music: "none" as const, musicVolume: 0.5, musicFile: null, voice: null, voiceVolume: 1, effects: true, master: 1 };
+  it("is on only when something would actually be heard", () => {
+    const withMoves = compile(make([scene({ moves: "e4", duration: 1 })]));
+    const empty = compile(make([scene({ duration: 1 })]));
+    expect(mixHasSound(mix, withMoves)).toBe(true);
+    expect(mixHasSound({ ...mix, effects: false }, withMoves)).toBe(false);
+    expect(mixHasSound(mix, empty)).toBe(false);
+    expect(mixHasSound({ ...mix, music: "beat" }, empty)).toBe(true);
+    expect(mixHasSound({ ...mix, music: "beat", master: 0 }, empty)).toBe(false);
   });
 });

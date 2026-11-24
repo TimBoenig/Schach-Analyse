@@ -19,6 +19,8 @@ export interface FastJob {
   timeline: Timeline;
   mix: AudioMix | null;
   onProgress?: (k: number) => void;
+  /** Tells what ended up in the file's sound track (so the studio can say "sound on" truthfully). */
+  onAudio?: (info: { codec: "aac" | "opus" | "none"; peak: number }) => void;
   isCancelled?: () => boolean;
 }
 
@@ -44,23 +46,24 @@ async function videoConfig(w: number, h: number, fps: number): Promise<VideoEnco
   return null;
 }
 
-async function audioConfig(): Promise<AudioEncoderConfig | null> {
-  if (typeof AudioEncoder === "undefined" || typeof OfflineAudioContext === "undefined") return null;
-  // AAC plays everywhere; Opus (also valid in MP4) where the browser has no AAC encoder.
+async function audioConfigs(): Promise<AudioEncoderConfig[]> {
+  if (typeof AudioEncoder === "undefined" || typeof OfflineAudioContext === "undefined") return [];
+  // AAC plays everywhere (TikTok, Instagram, YouTube); Opus (also valid in MP4) only where the browser has no AAC encoder.
+  const found: AudioEncoderConfig[] = [];
   for (const codec of ["mp4a.40.2", "opus"]) {
     const config: AudioEncoderConfig = { codec, sampleRate: SAMPLE_RATE, numberOfChannels: 2, bitrate: 160_000 };
     try {
-      if ((await AudioEncoder.isConfigSupported(config)).supported) return config;
+      if ((await AudioEncoder.isConfigSupported(config)).supported) found.push(config);
     } catch {
       // try the next one
     }
   }
-  return null;
+  return found;
 }
 
 /** True when this browser can do the fast export (else the real-time one is used). */
 export async function canExportFast(w: number, h: number, fps: number, withAudio: boolean): Promise<boolean> {
-  return Boolean((await videoConfig(w, h, fps)) && (!withAudio || (await audioConfig())));
+  return Boolean((await videoConfig(w, h, fps)) && (!withAudio || (await audioConfigs()).length > 0));
 }
 
 const copy = (chunk: EncodedVideoChunk | EncodedAudioChunk) => {
@@ -76,12 +79,20 @@ const descriptionOf = (meta?: EncodedVideoChunkMetadata | EncodedAudioChunkMetad
   return new Uint8Array((d as ArrayBuffer).slice(0));
 };
 
-async function encodeAudio(job: FastJob, config: AudioEncoderConfig): Promise<Mp4Track | null> {
+/** Renders the whole mix faster than real time. `peak` is its loudest sample (0 = silence). */
+async function renderMix(job: FastJob): Promise<{ rendered: AudioBuffer; peak: number } | null> {
   if (!job.mix) return null;
   const frames = Math.ceil(job.duration * SAMPLE_RATE);
   const ctx = new OfflineAudioContext(2, frames, SAMPLE_RATE);
   new StudioAudio(ctx).schedule(job.timeline, 0, job.mix);
   const rendered = await ctx.startRendering();
+  let peak = 0;
+  for (let ch = 0; ch < 2; ch++) for (const v of rendered.getChannelData(ch)) peak = Math.max(peak, Math.abs(v));
+  return { rendered, peak };
+}
+
+async function encodeAudio(rendered: AudioBuffer, config: AudioEncoderConfig): Promise<Mp4Track | null> {
+  const frames = rendered.length;
   const samples: Mp4Sample[] = [];
   let desc: Uint8Array | null = null;
   let failed: unknown = null;
@@ -118,9 +129,23 @@ export async function exportFast(job: FastJob): Promise<Blob | null> {
   const { canvas, fps } = job;
   const vConfig = await videoConfig(canvas.width, canvas.height, fps);
   if (!vConfig) throw new Error(t("Schneller Export geht in diesem Browser nicht."));
-  const aConfig = job.mix ? await audioConfig() : null;
+  const aConfigs = job.mix ? await audioConfigs() : [];
   // Sound first: it takes a moment and is shown as the first bit of progress.
-  const audio = aConfig ? await encodeAudio(job, aConfig) : null;
+  const mixed = aConfigs.length ? await renderMix(job) : null;
+  let audio: Mp4Track | null = null;
+  // A silent mix gets no sound track at all, so players never show a mute video as "with sound".
+  if (mixed && mixed.peak > 0.001) {
+    // If AAC gives no decoder description (the file would be unplayable), the next codec is tried instead of dropping the sound.
+    for (const config of aConfigs) {
+      try {
+        audio = await encodeAudio(mixed.rendered, config);
+      } catch {
+        audio = null;
+      }
+      if (audio) break;
+    }
+  }
+  job.onAudio?.({ codec: audio ? (audio.codec ?? "aac") : "none", peak: mixed?.peak ?? 0 });
   job.onProgress?.(0.05);
 
   const samples: Mp4Sample[] = [];

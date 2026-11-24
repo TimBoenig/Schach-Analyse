@@ -3,13 +3,14 @@
 import { t } from "../../i18n";
 
 
-export type MusicId = "none" | "lofi" | "tension" | "epic" | "file";
+export type MusicId = "none" | "lofi" | "tension" | "epic" | "beat" | "file";
 
 export const MUSIC_LABEL: Record<MusicId, string> = {
   none: t("Keine"),
   lofi: "Lo-fi",
   tension: t("Spannung"),
   epic: t("Episch"),
+  beat: "Beat 90",
   file: t("Eigene Datei"),
 };
 
@@ -29,6 +30,8 @@ interface Groove {
 const GROOVES: Record<Exclude<MusicId, "none" | "file">, Groove> = {
   lofi: { bpm: 78, roots: [0, -4, 3, -2], minor: true, wave: "sine", kick: [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0], hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1], pad: 0.16, bass: 0.22 },
   tension: { bpm: 112, roots: [0, 0, 1, -1], minor: true, wave: "saw", kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], hat: [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1], pad: 0.08, bass: 0.26 },
+  // 90 BPM = one beat every 2/3 s, the grid the reel look cuts on (REEL_BEAT in timeline.ts).
+  beat: { bpm: 90, roots: [0, 0, -2, -4], minor: true, wave: "saw", kick: [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1], hat: [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0], pad: 0.07, bass: 0.3 },
   epic: { bpm: 92, roots: [0, -4, -9, -2], minor: true, wave: "triangle", kick: [1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0], hat: [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0], pad: 0.2, bass: 0.24 },
 };
 
