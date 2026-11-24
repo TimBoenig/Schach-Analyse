@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 
 import { BRAND, FILE_PREFIX } from "../../brand";
 import { navigate } from "../router";
-import { StudioAudio, type AudioMix } from "./audio";
+import { StudioAudio, mixHasSound, type AudioMix } from "./audio";
 import { canExportFast, exportFast } from "./fastExport";
 import { deleteClip, loadClip, saveClip, type ClipKind } from "./audioStore";
 import { MUSIC_LABEL, type MusicId } from "./music";
@@ -79,6 +79,8 @@ interface ExportState {
   blob?: Blob;
   ext?: string;
   error?: string;
+  /** What the finished file carries: AAC/Opus sound track, "recorded" (real-time capture), nothing (silent mix) or lost (sound was wanted but could not be encoded). */
+  sound?: "aac" | "opus" | "recorded" | "none" | "lost";
 }
 
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -151,7 +153,7 @@ export function StudioView() {
   const mix = (): AudioMix => {
     const v = project.video;
     const own = clips.id === project.id ? clips : { music: null, voice: null };
-    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound };
+    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound, master: v.volume };
   };
   const storeClip = async (kind: ClipKind, blob: Blob, name = "") => {
     try {
@@ -404,6 +406,7 @@ export function StudioView() {
     setExp({ phase: "recording", progress: 0 });
     const sounds = audio();
     const audioMix = mix();
+    let soundResult: ExportState["sound"] = mixHasSound(audioMix, timeline) ? "recorded" : "none";
     const progress = (k: number) => setExp((x) => (x && x.phase === "recording" ? { ...x, progress: k } : x));
     // Fast path: frames as fast as the device renders them, no waiting for the video's length.
     if (await canExportFast(W, H, project.video.fps, true)) {
@@ -416,11 +419,12 @@ export function StudioView() {
           timeline,
           mix: audioMix,
           onProgress: progress,
+          onAudio: ({ codec }) => (soundResult = codec !== "none" ? codec : mixHasSound(audioMix, timeline) ? "lost" : "none"),
           isCancelled: () => cancelRef.current,
         });
         stage.destroy();
         if (!blob) return setExp(null);
-        setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: "mp4" });
+        setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: "mp4", sound: soundResult });
         return;
       } catch {
         // Some encoder setups fail late; the real-time recording below still works there.
@@ -444,7 +448,7 @@ export function StudioView() {
       stage.destroy();
       sounds.speakers(true);
       if (cancelRef.current) return setExp(null);
-      setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: type.ext });
+      setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: type.ext, sound: soundResult });
     } catch (e) {
       sounds.speakers(true);
       setExp({ phase: "error", progress: 0, error: e instanceof Error ? e.message : String(e) });
@@ -456,6 +460,7 @@ export function StudioView() {
   };
 
   const type = useMemo(() => videoType(), []);
+  const hasSound = mixHasSound(mix(), timeline);
   const current = timeline.scenes[sel];
   const sceneError = positions[sel]?.parsed.error;
 
@@ -512,6 +517,9 @@ export function StudioView() {
               </button>
             </div>
           </details>
+          <span class={`studio-soundbadge ${hasSound ? "on" : "off"}`} title={hasSound ? t("Dieses Video wird mit Ton exportiert (Musik, Stimme, Zug- und Effekt-Töne).") : t("Dieses Video hätte keinen Ton: Musik, Stimme und Töne sind aus oder ganz leise.")}>
+            {hasSound ? t("🔊 Ton an") : t("🔇 Kein Ton")}
+          </span>
           <button class="btn primary studio-export" onClick={() => void startExport()} disabled={!type || !ready}>
             
             {t("Video exportieren")}
@@ -784,6 +792,13 @@ export function StudioView() {
                 <video src={exp.url} controls autoplay loop playsInline class={`studio-result f${project.video.format.replace(":", "x")}`} />
                 <p class="small muted">
                   {t("{W}×{H}, {fps} fps, {n}, {n2} MB{n3}", { W, H, fps: project.video.fps, n: exp.ext?.toUpperCase(), n2: ((exp.blob?.size ?? 0) / 1e6).toFixed(1), n3: exp.ext === "webm" ? t(" · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren.") : "" })}
+                </p>
+                <p class={`small ${exp.sound === "lost" || exp.sound === "none" ? "studio-warn" : "muted"}`}>
+                  {exp.sound === "aac" || exp.sound === "opus" || exp.sound === "recorded"
+                    ? t("🔊 Mit Ton ({n}). Zum Prüfen oben im Video den Lautsprecher aufdrehen.", { n: exp.sound === "aac" ? "AAC" : exp.sound === "opus" ? "Opus" : "AAC/Opus" }) + (exp.sound === "opus" ? " " + t("TikTok und Instagram mögen Opus im MP4 nicht immer: am besten in Chrome auf Windows, Mac oder Android exportieren (dort gibt es AAC).") : "")
+                    : exp.sound === "lost"
+                      ? t("⚠ Der Ton ließ sich in diesem Browser nicht in die Datei schreiben. Probier Chrome oder Edge.")
+                      : t("🔇 Dieses Video hat keinen Ton: Musik, Stimme und Töne sind aus. Schalte sie im Tab Video unter Ton ein und exportier neu.")}
                 </p>
                 <div class="studio-modal-actions">
                   <button class="btn primary" onClick={() => exp.blob && download(exp.blob, `${FILE_PREFIX}-${slug(project.name)}.${exp.ext}`)}>
@@ -1288,6 +1303,7 @@ function SoundPanel(p: {
   const v = p.video;
   return (
     <div class="studio-form studio-sound">
+      <Slider label={t("Gesamtlautstärke")} value={v.volume} min={0} max={1.5} step={0.05} unit="" onChange={(volume) => p.onVideo({ volume })} />
       <h4 class="studio-sub">{t("Musik")}</h4>
       <div class="studio-speed wrap">
         {(Object.keys(MUSIC_LABEL) as MusicId[])
@@ -1304,7 +1320,7 @@ function SoundPanel(p: {
         </label>
       </div>
       {v.music !== "none" && <Slider label={t("Lautstärke Musik")} value={v.musicVolume} min={0} max={1} step={0.05} unit="" onChange={(musicVolume) => p.onVideo({ musicVolume })} />}
-      <p class="studio-hint">{t("Lo-fi, Spannung und Episch macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).")}</p>
+      <p class="studio-hint">{t("Lo-fi, Spannung, Episch und Beat macht das Studio selbst, die darfst du überall frei nutzen. Bei eigener Musik brauchst du die Rechte (auf TikTok am besten den Sound dort in der App drüberlegen).")}</p>
 
       <h4 class="studio-sub">{t("Deine Stimme")}</h4>
       <div class="studio-voice">
@@ -1330,7 +1346,7 @@ function SoundPanel(p: {
         </>
       )}
       <p class="studio-hint">{t("Das Video läuft von vorn, über dem Bild steht dein Sprechtext. Kopfhörer helfen. Die Musik wird leiser, solange deine Stimme läuft.")}</p>
-      <Toggle label={t("Effekt-Töne (Matt, Zoom, Konfetti)")} checked={v.sound} onChange={(sound) => p.onVideo({ sound })} />
+      <Toggle label={t("Töne (Züge, Matt, Zoom, Konfetti)")} checked={v.sound} onChange={(sound) => p.onVideo({ sound })} />
       {p.error && <p class="studio-warn">{p.error}</p>}
     </div>
   );

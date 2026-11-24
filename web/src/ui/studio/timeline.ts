@@ -88,8 +88,8 @@ export interface Timeline {
   total: number;
   /** The board is seen from Black's side in every scene. */
   flip: boolean;
-  /** Seconds of the effect sounds (moves themselves stay silent). */
-  sounds: { t: number; kind: "boom" | "whoosh" | "sparkle" }[];
+  /** Seconds of the sounds: pieces landing (move, capture, check) and the effect sounds. */
+  sounds: { t: number; kind: "boom" | "whoosh" | "sparkle" | "move" | "capture" | "check" }[];
 }
 
 export interface CameraState {
@@ -451,6 +451,8 @@ export function compile(project: StudioProject): Timeline {
       }
       threats = [...new Set(threats)].slice(0, 6);
     }
+    // Every move lands with a wooden tock (heavier for captures, a bell on top for check).
+    for (const st of steps) sounds.push({ t: tk + st.t1, kind: st.check ? "check" : st.capture ? "capture" : "move" });
     if (mate) sounds.push({ t: tk + fxAt + 0.85, kind: "boom" });
     if (s.effects.includes("zoom") || s.effects.includes("flash")) sounds.push({ t: tk + Math.max(0, fxAt - 0.15), kind: "whoosh" });
     if (s.effects.includes("confetti")) sounds.push({ t: tk + fxAt, kind: "sparkle" });

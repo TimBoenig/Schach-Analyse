@@ -1392,3 +1392,25 @@
   background: var(--loss);
   color: #fff;
 }
+
+.studio-soundbadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+.studio-soundbadge.on {
+  color: #3ecf8e;
+}
+.studio-soundbadge.off {
+  color: #ff6b6b;
+}
+@media (max-width: 700px) {
+  .studio-soundbadge {
+    padding: 4px 8px;
+  }
+}

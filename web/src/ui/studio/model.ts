@@ -144,8 +144,10 @@ export interface StudioVideo {
   movePill: boolean;
   lastMove: boolean;
   lucena: boolean;
-  /** Effect sounds (mate hit, swoosh, glitter). Moving pieces make no sound. */
+  /** Move sounds (wooden tock per move) and effect sounds (mate hit, swoosh, glitter). */
   sound: boolean;
+  /** Overall volume of the whole mix. */
+  volume: number;
   introFly: boolean;
   music: MusicId;
   musicVolume: number;
@@ -283,6 +285,7 @@ export const DEFAULT_VIDEO: StudioVideo = {
   lastMove: true,
   lucena: true,
   sound: true,
+  volume: 1,
   introFly: true,
   music: "lofi",
   musicVolume: 0.5,
@@ -480,6 +483,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     lastMove: bool(vi.lastMove, true),
     lucena: bool(vi.lucena, true),
     sound: bool(vi.sound, true),
+    volume: num(vi.volume, 0, 1.5, 1),
     introFly: bool(vi.introFly, true),
     music: pick(vi.music, Object.keys(MUSIC_LABEL) as MusicId[], "lofi"),
     musicVolume: num(vi.musicVolume, 0, 1, 0.5),
@@ -626,7 +630,7 @@ export function reelTemplate(): StudioProject {
   return {
     ...base,
     style: styleFromTheme("mono", { view: "reel", titleFont: "serif", environment: "void" }),
-    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 2.4, lucena: false, movePill: false, music: "none" },
+    video: { ...DEFAULT_VIDEO, format: "1:1", platform: "reels", tempo: 2.4, lucena: false, movePill: false, music: "beat" },
   };
 }
 
