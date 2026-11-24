@@ -6,6 +6,7 @@
 import { Chess } from "chess.js";
 import { locale, t } from "../i18n";
 
+import { explainStored } from "./explainStored";
 import { getUserColor, isBulletGame } from "./metrics";
 import type { GameAnalysis, MoveData } from "./types";
 
@@ -109,6 +110,8 @@ export interface CostlyMove {
   san: string;
   /** The engine's move instead, in SAN; null when it cannot be read. */
   better: string | null;
+  /** Concrete reasons (what the move lost or missed), empty when the engine line shows none. */
+  why: string[];
   /** The user's winning chances before and after, in percent. */
   before: number;
   after: number;
@@ -173,6 +176,7 @@ export function firstFinding(games: GameAnalysis[], name: string): FirstFinding 
         white: color === "white",
         san: m.san,
         better: sanOf(m),
+        why: explainStored(m, g.moves[i + 1], g.moves[i - 1]).lines,
         before: Math.round(mine(m.win_chance_before) * 100),
         after: Math.round(mine(m.win_chance_after) * 100),
       };

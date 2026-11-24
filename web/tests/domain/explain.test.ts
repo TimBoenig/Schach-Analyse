@@ -2,6 +2,8 @@
 import { describe, expect, it } from "vitest";
 
 import { explainMove, explainMoveDetailed } from "../../src/domain/explain";
+import { setLangNow } from "../../src/i18n";
+import { EN } from "../../src/i18n/en";
 
 describe("explainMove", () => {
   it("names the fork the opponent's reply sets up", () => {
@@ -40,8 +42,8 @@ describe("explainMove", () => {
     expect(text[0]).toBe("Danach kann dein Gegner in 1 Zug mattsetzen: 2. Rd8#.");
   });
 
-  it("stays silent for the engine's own move", () => {
-    expect(explainMove({ fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", uci: "e2e4", bestPv: ["e2e4"], replyPv: ["e7e5"] })).toEqual([]);
+  it("says what a quiet engine move is about", () => {
+    expect(explainMove({ fenBefore: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", uci: "e2e4", bestPv: ["e2e4"], replyPv: ["e7e5"] })).toEqual(["Mit e4 besetzt du das Zentrum."]);
   });
 
   // Black's knight on g4 threatens Ne3, forking queen d1 and rook f1.
@@ -78,3 +80,36 @@ describe("explainMove", () => {
   });
 });
 
+describe("explainMove: causes without a tactic", () => {
+  const err = (fenBefore: string, uci: string, extra: Partial<Parameters<typeof explainMove>[0]> = {}) =>
+    explainMove({ fenBefore, uci, bestPv: [], replyPv: [], classification: "Mistake", ...extra }).join(" ");
+
+  it.each([
+    ["king shield pawn leaves", "r2q1rk1/ppp2ppp/2n5/8/8/2N5/PPP2PPP/R2Q1RK1 w - - 0 1", "g2g4", /Schutzbauer deinen König \(g2\)/],
+    ["queen trade into an endgame", "r2q2k1/ppp2ppp/8/8/8/8/PPP2PPP/R2Q2K1 w - - 0 1", "d1d8", /Damentausch führt in ein Endspiel/],
+    ["new isolated pawns", "4k3/8/8/8/1p6/2P5/3P4/4K3 w - - 0 1", "c3b4", /Dein Bauer auf (b4|d2) hat keine Nachbarbauern mehr/],
+    ["castling right lost", "r1bqk2r/pppp1ppp/2n2n2/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", "e1e2", /Recht zu rochieren/],
+  ])("%s", (_name, fen, uci, expected) => {
+    expect(err(fen, uci, uci === "d1d8" ? { replyPv: ["a8d8"] } : {})).toMatch(expected);
+  });
+
+  it("names the missed promotion", () => {
+    const text = err("8/4P3/8/8/8/8/k7/4K3 w - - 0 1", "e1d1", { bestPv: ["e7e8q"], replyPv: ["a2b3"] });
+    expect(text).toContain("umgewandelt");
+  });
+
+  it("describes how the position shifted and what the better move does when nothing concrete is found", () => {
+    const start = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    const lines = explainMove({ fenBefore: start, uci: "a2a3", bestPv: ["e2e4"], replyPv: [], classification: "Inaccuracy", winBefore: 0.75, winAfter: 0.5 });
+    expect(lines).toEqual(["Die Stellung war für dich klar besser, jetzt ist sie ausgeglichen.", "Besser war e4: Damit besetzt du das Zentrum."]);
+    setLangNow("en", EN);
+    try {
+      expect(explainMove({ fenBefore: start, uci: "a2a3", bestPv: ["e2e4"], replyPv: [], classification: "Inaccuracy", winBefore: 0.75, winAfter: 0.5 })).toEqual([
+        "The position was clearly better for you, now it is even.",
+        "Better was e4: with it you take the centre.",
+      ]);
+    } finally {
+      setLangNow("de");
+    }
+  });
+});
