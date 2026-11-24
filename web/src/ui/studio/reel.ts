@@ -52,10 +52,13 @@ const easeInOut = (k: number) => {
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 };
 /** Seconds a flight into the next framing takes at most. */
-const FLOW = 0.9;
+const FLOW = 0.6;
 
-/** How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board. */
-export const SHOT_SIZES = [0.3, 0.65, 0.4, 0.75];
+/**
+ * How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board.
+ * Even the closest of these still shows about five and a half squares across; the old cycle went down to three and cut the pieces off.
+ */
+export const SHOT_SIZES = [0.12, 0.34, 0.2, 0.4];
 /** Which pieces grow and flip when they move: the heavy ones, never pawns. */
 const WEIGHT: Record<PieceSymbol, number> = { p: 0.25, n: 0.8, b: 0.6, r: 0.6, q: 1, k: 0.4 };
 
@@ -114,7 +117,8 @@ function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.
   // The mating blow ends with the whole board in view, so the next scene flies on from there.
   if (shot.effects.includes("mate")) return { S: wide * 1.12, x: 0, z: 0, roll: 0 };
   let cl = (preset ? PRESET_LOOK[preset].cl : SHOT_SIZES[shot.index % SHOT_SIZES.length]) + (1 - shot.zoom) * 0.5;
-  if (preset) cl = Math.min(0.8, cl);
+  // The tilted board has to stay readable: a preset never closes in beyond about four and a half squares.
+  if (preset) cl = Math.min(0.55, cl);
   if (shot.effects.includes("spotlight")) cl += 0.05;
   if (shot.card !== "none") cl = 0.08;
   let S = Math.exp(lerp(Math.log(wide), Math.log(close), clamp01(cl)));
@@ -137,7 +141,7 @@ function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.
 }
 
 /** How close the camera gets on the showcase move: the picture is this many squares across. */
-const HERO_CLOSE = 3.3;
+const HERO_CLOSE = 4.2;
 
 /** 0..1: how much the camera is on the showcase piece right now (in shortly before take-off, out half a second after the landing). */
 export function heroFocus(frame: Frame): number {
@@ -182,7 +186,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const sc = frame.scene;
   const to = shotPose(frame.shot, m);
   // The very first picture is already moving: it starts close and pulls out, so the clip has motion from frame one.
-  const from = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset) : { ...to, S: to.S * 1.45 };
+  const from = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset) : { ...to, S: to.S * 1.3 };
   // A scene that cuts between angles (or whips) is entered quickly, any other by a slow flight.
   const k = easeInOut(age / Math.min(frame.dur, frame.shot.fastEntry ? WHIP_T : FLOW));
   let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
@@ -207,7 +211,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   // Punch-in and riser push the picture in.
   S /= frame.push;
   // The showcase move: the camera goes in on the spinning piece, follows it through the air in slow motion,
-  // takes the landing and then backs out to where the scene was. Close, but still about three squares across.
+  // takes the landing and then backs out to where the scene was. Close, but still about four squares across.
   const heroK = heroFocus(frame);
   const hero = frame.shot.hero;
   if (hero && heroK > 0) {

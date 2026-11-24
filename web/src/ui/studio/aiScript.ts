@@ -40,6 +40,7 @@ import {
 } from "./model";
 import { compile, LESSON_CHUNK, SHORT_CHUNK } from "./timeline";
 import type { MusicId } from "./music";
+import { STYLE_LABEL, type StyleId } from "./musicGen";
 import { fitLength, movesLabel } from "./wizard";
 import { lang, t } from "../../i18n";
 
@@ -154,6 +155,48 @@ export interface PromptOptions {
   side?: Side | "auto";
   /** The kind of video; "auto" (the default) lets the AI decide from the topic and notes. */
   type?: VideoArt | "auto";
+  /** The scenario asked for in the questions step; it decides the kind of video and adds its own brief. Wins over `type`. */
+  scenario?: Scenario;
+  /** The answers of the questions step. A missing answer adds nothing to the prompt. */
+  answers?: PromptAnswers;
+}
+
+/** What the video is for. Edit and explainer map onto the two kinds of video; the others are explainers with their own brief. */
+export type Scenario = "auto" | "edit" | "explain" | "lesson" | "opening" | "puzzle";
+export const SCENARIOS: Scenario[] = ["edit", "explain", "lesson", "opening", "puzzle", "auto"];
+export const scenarioArt = (s: Scenario): VideoArt | "auto" => (s === "edit" ? "edit" : s === "auto" ? "auto" : "explain");
+
+export type Level = "beginner" | "club" | "strong";
+export type Pace = "calm" | "normal" | "fast";
+export type Hook = "auto" | "question" | "bold" | "result";
+export type Ending = "auto" | "follow" | "question" | "part2" | "none";
+export type Point = "auto" | "mate" | "sacrifice" | "blunder" | "turn";
+
+/** The questions asked before the prompt is copied. Everything is optional; "auto" or an empty text means: the AI decides. */
+export interface PromptAnswers {
+  /** The user's own game (PGN) or position (FEN) the video is about. */
+  game?: string;
+  level?: Level;
+  pace?: Pace;
+  hook?: Hook;
+  ending?: Ending;
+  /** Edit only: the punch line. */
+  point?: Point;
+  /** Language of the texts in the video. */
+  language?: "de" | "en";
+  /** Music style the studio generates (told to the AI for pacing and mood only). */
+  music?: StyleId | "auto";
+  /** Explainers: write a voice-over / end with a poll. */
+  voice?: boolean;
+  poll?: boolean;
+}
+
+/** What the import takes from the questions when the script itself does not say. */
+export interface ImportDefaults {
+  /** The asked kind of video: an explicit choice wins over what the AI wrote, "auto" leaves it to the script. */
+  art?: VideoArt | "auto";
+  platform?: Platform;
+  musicStyle?: StyleId | "auto";
 }
 
 const list = (o: Record<string, unknown>) => Object.keys(o).join(", ");
@@ -190,6 +233,45 @@ const EDIT_RULES = () => t("EDIT-REGELN (diese Regeln gehen allen anderen Regeln
 const EDIT_FORMAT = () => t("AUSGABEFORMAT (der Import liest genau dieses JSON)\n- Antworte NUR mit einem JSON-Codeblock, ohne Text davor oder danach und ohne Kommentare im JSON.\n- Oben im JSON: \"videoart\": \"edit\", \"titel\" (nur intern, höchstens {title} Zeichen), \"plattform\" ({list}), \"laenge\" (Sekunden), \"perspektive\" (weiss oder schwarz, die Seite, um die es geht), \"pgn\" (die ganze Partie einmal, Zugliste, Kopfzeilen erlaubt), danach \"szenen\".\n- Jede Szene ist ein Objekt mit diesen Feldern (alle optional): zugNr, dauer, effekte, intensitaet, stempel, kameras, pfeile (z. B. \"f3-e5 gefahr\"), markierungen (z. B. \"e5 gut\"), bewertung, karte (nur \"abspann\"), titel (nur im Abspann).\n- Züge schreibst du nie in die Szenen, nur \"zugNr\": Halbzüge ab 1, 1 ist 1. e4, 2 ist 1... e5, 3 ist 2. Sf3, 14 ist 7... (Zug von Schwarz). \"zugNr\": 14 zeigt diesen Zug, \"zugNr\": \"14-16\" drei Züge hintereinander. Eine Szene ohne zugNr zeigt dieselbe Stellung noch einmal, z. B. aus einem neuen Winkel. Springt zugNr nach vorn oder zurück, blendet das Studio zur Stellung vor diesem Zug über. So stimmen die Züge garantiert und du konzentrierst dich auf Schnitt, Pfeile und Drama.\n- Für ein Rätsel ohne ganze Partie: oben \"startstellung\" (FEN) statt \"pgn\", und in den Szenen \"zug\" (z. B. \"1. Dh5\").\n- Bewertungen (\"bewertung\"): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.");
 const EDIT_CHECK = () => t("PRÜF VOR DEM ANTWORTEN\n- Gibt es einen Hook in den ersten 2 Sekunden und genau einen Höhepunkt gegen Ende?\n- Wechseln sich Ruhe, Stillstand und schnelle Schnitte ab? Sind die Stärken gestaffelt (normal schwach, Höhepunkt voll)?\n- Alle \"dauer\"-Werte sind 0.6, 1.3, 2, 2.6 oder 4, und die Summe liegt bei 15 bis 25 Sekunden (höchstens die Ziellänge).\n- Alle Züge sind legal und in der richtigen Reihenfolge, \"zugNr\" passt zur \"pgn\" (Halbzüge ab 1, die richtige Seite am Zug).\n- Kein \"untertitel\", kein \"sprechtext\", keine Umfrage, keine Musik im JSON. Stempel höchstens 14 Zeichen, nur an den 3 bis 4 stärksten Aufprallen.\n- Nur der JSON-Codeblock als Antwort.");
 const ART_AUTO = () => t("VORAB: WAS FÜR EIN VIDEO IST DAS?\nEntscheide zuerst, welche Art Video zu Thema und Wunsch passt, und schreib sie als \"videoart\" ganz oben ins JSON:\n- \"erklaerung\": ruhiges Erklärvideo mit Untertiteln und Sprechtext (Eröffnung oder Plan erklären, etwas lernen).\n- \"edit\": schneller Edit im TikTok-/Reel-Stil mit Beat-Musik, Hitstop, Glitches, Kamera-Schnitten und kaum Text (Matt-Rätsel, Falle, Opfer, Highlight, \"Siehst du das Matt?\").\nWenn Thema oder Wunsch nach kurz, knackig, viral, Edit, Reel, Shorts oder TikTok klingen, nimm \"edit\", sonst \"erklaerung\".\nBei \"edit\" gilt NUR der Block \"DEIN AUFTRAG: DU BIST DER EDITOR\" bis \"EDIT-REGELN\" direkt unten. Alles weiter unten zu Untertiteln, Sprechtext, Umfragen, Fragen, Design und Lucena ignorierst du dann.\n\n") + EDIT_INTRO() + "\n\n" + EDIT_RULES() + "\n\n";
+
+// ---------- scenario briefs and the answers of the questions step ----------
+
+const EDIT_EFFECTS = () => t("EFFEKTE IM EDIT (\"effekte\", als Liste oder als Objekt mit Stärke 0 bis 1)\n- matt: Der König kippt um, die Figuren des Mattgesetzten zerbrechen, großer Schriftzug SCHACHMATT. Nur in der Szene mit dem Mattzug.\n- hitstop: Das ganze Bild friert 0,25 Sekunden ein, genau im Moment des Aufpralls (Figur landet, Opfer, Patzer).\n- wackeln: Die Kamera bebt, wenn die Figur aufsetzt.\n- zeitlupe: Der letzte Zug der Szene läuft langsam. Für den Schlüsselzug, höchstens 1- bis 2-mal.\n- invert: Die Farben kehren sich kurz um. Für einen Patzer oder einen brillanten Zug, höchstens 2-mal.\n- glitch: Kurze RGB-Verschiebung an den Rändern beim Aufprall.\n- schraeglage: Die Kamera kippt schräg. Für Drohungen.\n- punch: schneller Punch-In am Anfang der Szene.\n- riser: immer schnelleres Heranzoomen bis zum Aufprall. Für den Spannungsaufbau.\n- whip: schneller Schwenk mit Bewegungsunschärfe zum nächsten Winkel.\n- drohung: Die bedrohten Felder pulsieren rot.\n- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel.\nStempel (\"stempel\"): ein Wort, riesig über dem Brett, 0,4 Sekunden lang im Moment des Aufpralls, z. B. \"BLUNDER\", \"SACRIFICE\", \"??\", \"MATT\" (höchstens 14 Zeichen). Sparsam einsetzen.\nBewertung des Zugs (\"bewertung\"): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.");
+const EDIT_CAMERA = () => t("KAMERA IM EDIT\nDas Studio fährt die Kamera selbst: weich von Szene zu Szene, und es rahmt jede Szene passend zu Zug, Pfeil und Markierung. Schreib deshalb NIE \"kamera\", \"zoom\", \"drehung\" oder \"fokus\" in eine Szene und nimm den Effekt \"zoom\" nicht. Die einzige Kamerasteuerung von dir ist \"kameras\" (Winkel, die im Takt durchschalten) und die Effekte punch, riser, schraeglage und whip.\nWinkel für \"kameras\": oben (das ganze Brett), seitlich, schraeg, nah (näher dran), tief (dramatisch, von unten). Nutze höchstens 3 Winkel pro Szene.");
+const SCENARIO_EXPLAIN = () => t("SZENARIO: KURZES ERKLÄRVIDEO (TikTok, Reels, Shorts)\n- EINE Idee pro Video (eine Falle, ein Plan, ein Prinzip), nicht mehr.\n- Aufbau: Hook in 2 Sekunden (Frage, Behauptung oder Ergebnis), dann 3 bis 5 Schritte mit je einem Zug und einem Satz Erklärung (4 bis 8 Sekunden pro Szene), dann die Pointe oder Auflösung, dann ein kurzer Abspann.\n- Kein Fachchinesisch: nenn Figur und Feld beim Namen, erkläre das Warum in einem Satz.\n- Pfeile für Drohungen und Pläne, Markierungen für wichtige Felder, Effekte nur an den ein, zwei Schlüsselmomenten.\n- Die ersten 2 Sekunden entscheiden: keine lange Einleitung und kein langes Titelbild, sondern sofort ein Bild und ein Satz, der neugierig macht.");
+const SCENARIO_OPENING = () => t("SZENARIO: ERÖFFNUNG VORSTELLEN\n- Aufbau: Hook mit dem Namen und dem Versprechen (\"Das ist die Eröffnung, mit der du in 10 Zügen gut dastehst\"), dann die Hauptzüge Zug für Zug mit der IDEE hinter jedem Zug (Zentrum, Entwicklung, Rochade, Druck auf einen Punkt), dann 2 bis 3 typische Pläne für beide Seiten (mit Pfeilen), dann EINE bekannte Falle oder einen häufigen Fehler (als Variante mit \"variante\": { \"zurueck\": n }), am Ende eine Zusammenfassung mit den 3 wichtigsten Merksätzen.\n- Zeig nur Theoriezüge, die du sicher kennst. Wenn du dir bei einer Variante nicht sicher bist, lass sie weg, statt zu raten. Keine erfundenen Namen, Zahlen oder Statistiken (kein \"meistgespielt\" oder \"80 Prozent\").\n- Setz \"perspektive\" auf die Seite, für die die Eröffnung gedacht ist (Eröffnung für Schwarz: \"schwarz\").\n- Gib die Hauptlinie oben einmal als \"pgn\" an und nutze in den Szenen \"zugNr\".\n- Nenn den Namen der Eröffnung und der Variante im Titel der ersten Szene und in den Kapitel-Zeilen (\"kleineZeile\").");
+const SCENARIO_PUZZLE = () => t("SZENARIO: RÄTSEL / TAKTIK\n- Genau ein Rätsel mit eindeutiger Lösung (Matt in 2, Gabel, Fesselung, Opfer). Prüfe die Lösung Zug für Zug, bevor du sie schreibst: jeder Zug legal, ein Matt muss wirklich Matt sein.\n- Die Stellung kommt als \"startstellung\" (FEN) oder als \"pgn\" mit \"zugNr\" vor dem Schlüsselzug.\n- Aufbau: Hook mit der Frage (\"Weiß zieht und gewinnt. Findest du es?\"), dann eine Szene mit \"karte\": \"frage\" und Countdown von 3 bis 5 Sekunden zum Mitdenken, danach die Auflösung: der Schlüsselzug mit \"bewertung\": \"brillant\", Pfeile auf die Idee, ein Satz zum Warum, dann die Folgezüge bis zum Ergebnis, dann der Abspann.\n- Falsche Alternativen darfst du als Variante zeigen (\"variante\": { \"zurueck\": n }), aber nur kurz.\n- Verrate die Lösung nicht vor der Auflösung: kein Pfeil auf den Schlüsselzug in den Szenen davor.");
+const SCENARIO_LESSON = () => t("SZENARIO: YOUTUBE-LEKTION\nDas ist eine längere, ruhige Lektion. Halte dich besonders an die Lernvideo-Regeln unten: Kapitel mit gleichbleibender \"kleineZeile\", Erklärung in ganzen Sätzen rechts neben dem Brett, nach jedem Kapitel ein Merksatz, am Ende die Zusammenfassung.");
+
+const LEVEL_TEXT = (l: Level) => l === "beginner" ? t("Anfänger (keine Notation voraussetzen, alles beim Namen nennen, Begriffe beim ersten Mal erklären)") : l === "club" ? t("Vereinsspieler (Grundlagen sind bekannt, Ideen und Pläne zählen)") : t("Fortgeschrittene (Theorie, Varianten und Feinheiten dürfen vorkommen)");
+const HOOK_TEXT = (h: Exclude<Hook, "auto">) => h === "question" ? t("eine Frage an den Zuschauer (z. B. \"Siehst du das Matt?\")") : h === "bold" ? t("eine mutige Behauptung oder ein Fehler, den fast jeder macht") : t("das Ergebnis zuerst: die Pointe in den ersten Sekunden zeigen, danach erklären");
+const ENDING_TEXT = (e: Exclude<Ending, "auto">) => e === "follow" ? t("Aufforderung zu folgen") : e === "question" ? t("eine Frage an die Zuschauer, die zu Kommentaren einlädt") : e === "part2" ? t("Teil 2 ankündigen") : t("kein Aufruf, das Video endet mit der Pointe");
+const POINT_TEXT = (p: Exclude<Point, "auto">) => p === "mate" ? t("ein Mattzug") : p === "sacrifice" ? t("ein Opfer") : p === "blunder" ? t("ein Patzer") : t("ein Wendepunkt der Partie");
+const PACE_TEXT = (p: Pace, edit: boolean) => (edit ? (p === "calm" ? t("etwas ruhiger: ruhige Szenen 2 bis 2.6 Sekunden, nur wenige schnelle Schnitte") : p === "fast" ? t("so schnell wie möglich: fast nur 0.6 und 1.3 Sekunden, viele schnelle Schnitte, kurzer Aufbau") : t("normal: der Takt aus den Edit-Regeln")) : p === "calm" ? t("ruhig, mit Zeit zum Lesen und Nachdenken") : p === "fast" ? t("flott, kurze Szenen, kein Leerlauf") : t("normal"));
+const LANG_TEXT = (l: "de" | "en") => (l === "en" ? t("Englisch") : t("Deutsch"));
+
+/** The answers of the questions step as lines for "MEIN VIDEO"; nothing when nothing was answered. */
+function answerLines(a: PromptAnswers | undefined, edit: boolean): string {
+  if (!a) return "";
+  const lines: string[] = [];
+  const game = (a.game ?? "").trim().slice(0, 4000);
+  if (game) lines.push(t("- Das Video handelt von dieser Partie oder Stellung (PGN oder FEN). Nimm genau diese Züge und erfinde keine dazu:\n{x}", { x: game }));
+  if (a.level) lines.push(t("- Zielgruppe: {x}", { x: LEVEL_TEXT(a.level) }));
+  if (a.pace) lines.push(t("- Tempo: {x}", { x: PACE_TEXT(a.pace, edit) }));
+  if (a.hook && a.hook !== "auto") lines.push(t("- Hook: {x}", { x: HOOK_TEXT(a.hook) }));
+  if (edit && a.point && a.point !== "auto") lines.push(t("- Die Pointe des Edits ist {x}.", { x: POINT_TEXT(a.point) }));
+  if (a.ending && a.ending !== "auto") lines.push(t("- Schluss: {x}", { x: ENDING_TEXT(a.ending) }));
+  if (a.music && a.music !== "auto") lines.push(t("- Musikstil: {x} (das Studio erzeugt die Musik, schreib sie nicht ins JSON, aber richte Tempo und Stimmung der Szenen danach aus)", { x: STYLE_LABEL[a.music] }));
+  if (a.language) lines.push(t("- Sprache der Texte im Video (Titel, Stempel, Abspann, Untertitel, Sprechtext): {x}. Die Feldnamen im JSON bleiben wie im Format unten.", { x: LANG_TEXT(a.language) }));
+  if (!edit && a.voice !== undefined) lines.push(a.voice ? t("- Schreib zu jeder Szene einen Sprechtext.") : t("- Kein Sprechtext, nur Untertitel."));
+  if (!edit && a.poll !== undefined) lines.push(a.poll ? t("- Ende das Video mit einer Umfrage.") : t("- Keine Umfrage."));
+  return lines.length ? lines.join("\n") + "\n" : "";
+}
+
+/** The brief of a scenario that is an explainer with its own focus. */
+function scenarioBrief(sc: Scenario | undefined): string {
+  return sc === "explain" ? SCENARIO_EXPLAIN() : sc === "opening" ? SCENARIO_OPENING() : sc === "puzzle" ? SCENARIO_PUZZLE() : sc === "lesson" ? SCENARIO_LESSON() : "";
+}
 
 function EDIT_EXAMPLE(platform: Platform) {
   // The whole game once on top; the scenes only name half-moves. Hook in the critical position, build-up, impact with hit-stop, quick cuts on the same position, mate as the climax, outro.
@@ -286,7 +368,7 @@ function inFormatLanguage(v: unknown, key = ""): unknown {
 
 export function buildAiPrompt(o: PromptOptions): string {
   const long = o.platform === "youtube";
-  const type = o.type ?? "auto";
+  const type = o.scenario ? scenarioArt(o.scenario) : (o.type ?? "auto");
   const example = type === "edit" ? EDIT_EXAMPLE(o.platform) : long ? LONG_EXAMPLE(o.platform) : {
     titel: t("Matt in 4 Zügen"),
     plattform: o.platform,
@@ -314,12 +396,12 @@ export function buildAiPrompt(o: PromptOptions): string {
   const limits = { title: FIT.title, list: list(PLATFORMS) };
   // An edit gets its own prompt: the explainer sections (captions, voice-over, polls, design) would pull the AI away from the edit.
   if (type === "edit") {
-    return [EDIT_INTRO(), myVideo.trimEnd(), EDIT_RULES(), EFFECT_GLOSSARY() + "\n" + CAMERA_GLOSSARY(), CHESS_HEAD(), sub(EDIT_FORMAT(), limits), EDIT_CHECK(), exampleBlock].join("\n\n");
+    return [EDIT_INTRO(), (myVideo + answerLines(o.answers, true)).trimEnd(), EDIT_RULES(), EDIT_EFFECTS() + "\n\n" + EDIT_CAMERA(), CHESS_HEAD(), sub(EDIT_FORMAT(), limits), EDIT_CHECK(), exampleBlock].join("\n\n");
   }
   const prefix = type === "explain" ? ART_EXPLAIN() : ART_AUTO();
   const rules = long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK });
   const layout = long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option });
-  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + "\n" + rules + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n\n" + exampleBlock;
+  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n\n" + exampleBlock;
 }
 
 // ---------- reading the answer ----------
@@ -508,7 +590,7 @@ function storyText(scenes: unknown[]): string {
     .slice(0, 4000);
 }
 
-export function importAiScript(input: string): AiImport {
+export function importAiScript(input: string, defaults: ImportDefaults = {}): AiImport {
   const errors: string[] = [];
   const warnings: string[] = [];
   let raw: unknown;
@@ -542,7 +624,9 @@ export function importAiScript(input: string): AiImport {
   if (artWord && !ARTS[artWord]) warnings.push(t("Videoart „{String}“ kenne ich nicht, ich nehme ein Erklärvideo.", { String: String(field(root, "videoart", "videotype", "art", "videokind", "kind")) }));
   const lookWord = word(field(root, "look", "theme", "stil"));
   // An edit is the fast black-and-white reel; so is a script that asks for the reel board without saying so.
-  const edit = ARTS[artWord] === "edit" || (!artWord && (word(field((field(root, "design", "aussehen") ?? {}) as Obj, "ansicht", "brett", "view")) === "reel" || lookWord === "reel"));
+  // What was asked for in the questions step wins over what the AI wrote (an AI that forgets "videoart" must not turn an edit into a slow explainer).
+  const asked = defaults.art && defaults.art !== "auto" ? defaults.art : null;
+  const edit = asked ? asked === "edit" : ARTS[artWord] === "edit" || (!artWord && (word(field((field(root, "design", "aussehen") ?? {}) as Obj, "ansicht", "brett", "view")) === "reel" || lookWord === "reel"));
   // The positions along the line being shown; variations cut it back, the main line is kept aside.
   let line: string[] = [startFen];
   let mainLine: string[] | null = null;
@@ -651,7 +735,8 @@ export function importAiScript(input: string): AiImport {
       scene({
         moves: label,
         fen: jump && jump !== here ? jump : "",
-        title: text(field(o, "titel", "title", "ueberschrift"), 120) || label,
+        // An edit shows no text but its stamps and the outro: a scene without a title does not fall back to the move's name.
+        title: text(field(o, "titel", "title", "ueberschrift"), 120) || (edit ? "" : label),
         text: text(field(o, "untertitel", "text", "subtitle", "untertext"), 900),
         speech: text(field(o, "sprechtext", "sprecher", "voiceover", "sagen", "speech"), 1200),
         label: text(field(o, "kleinezeile", "label", "kicker", "zeile"), 40) || (back ? t("Variante {variations}", { variations }) : toMain && jump ? t("Zurück zur Hauptvariante") : ""),
@@ -661,9 +746,10 @@ export function importAiScript(input: string): AiImport {
         cameras,
         stamp: text(field(o, "stempel", "stamp", "impacttext"), 14).toUpperCase(),
         power,
-        zoom: Math.min(1.6, Math.max(0.45, number(field(o, "zoom")) ?? 1)),
-        orbit: Math.min(30, Math.max(-30, number(field(o, "drehung", "orbit", "kamerafahrt", "rotation", "rotate")) ?? 0)),
-        focus: bool(field(o, "fokus", "focus")) === true,
+        // The edit's camera flies by itself: an own zoom, turn or focus of the AI only made the framing worse.
+        zoom: edit ? 1 : Math.min(1.6, Math.max(0.45, number(field(o, "zoom")) ?? 1)),
+        orbit: edit ? 0 : Math.min(30, Math.max(-30, number(field(o, "drehung", "orbit", "kamerafahrt", "rotation", "rotate")) ?? 0)),
+        focus: edit ? false : bool(field(o, "fokus", "focus")) === true,
         arrows: arrows.filter((a): a is StudioArrow => !!a).slice(0, 12),
         marks: marks.filter((m): m is StudioMark => !!m).slice(0, 16),
         card: card ?? "none",
@@ -703,7 +789,7 @@ export function importAiScript(input: string): AiImport {
   const rim = bool(dfield("figurenrand", "piecerim", "rand"));
   const settings = (field(root, "einstellungen", "settings", "optionen") ?? {}) as Obj;
   const setting = (fallback: boolean, ...names: string[]) => bool(field(settings, ...names)) ?? fallback;
-  const platform = PLATFORMS[word(field(root, "plattform", "platform"))] ?? "tiktok";
+  const platform = PLATFORMS[word(field(root, "plattform", "platform"))] ?? defaults.platform ?? "tiktok";
   const speed = number(field(root, "geschwindigkeit", "speed", "gesamttempo"));
   const tempo = number(field(root, "zugtempo", "tempo", "movespeed"));
   let project: StudioProject = normalizeProject({
@@ -738,8 +824,10 @@ export function importAiScript(input: string): AiImport {
       sound: setting(true, "effektTon", "ton", "sound", "sounds", "effectsound"),
       movePill: setting(!edit, "zuganzeige", "movepill", "movedisplay"),
       progress: setting(true, "fortschritt", "progress"),
-      introFly: setting(true, "kameraflug", "introfly", "cameraflight"),
+      // The opening flight from above takes seconds; it stays a choice for lessons only, a short clip starts on the board.
+      introFly: setting(platform === "youtube" && !edit, "kameraflug", "introfly", "cameraflight"),
       ...(edit ? { music: "generated" as const } : {}),
+      ...(defaults.musicStyle && defaults.musicStyle !== "auto" ? { musicStyle: defaults.musicStyle } : {}),
       ...(music ? { music } : {}),
       lesson: platform === "youtube" && setting(true, "lernlayout", "lesson"),
     },
