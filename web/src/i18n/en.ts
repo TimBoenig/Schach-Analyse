@@ -3162,7 +3162,7 @@ export const EN: Record<string, string> = {
   "Schachmatt gesetzt!": "Checkmate!",
   "Schachmatt!": "Checkmate!",
   "Schachmatt! Damit ist die Partie entschieden.": "Checkmate! That decides the game.",
-  "Schachpartien offline analysieren, Stärken und Schwächen erkennen und gezielt trainieren.": "Analyse chess games offline, spot strengths and weaknesses and train with focus.",
+  "Schachpartien von chess.com und Lichess kostenlos analysieren, Fehlermuster erkennen und gezielt trainieren. Läuft auf deinem Gerät.": "Analyse your chess.com and Lichess games for free, spot recurring mistakes and train with focus. Runs on your device.",
   "Schachvarianten (z. B. Crazyhouse, Atomic) können nicht analysiert werden.": "Chess variants (e.g. Crazyhouse, Atomic) cannot be analysed.",
   "Schaffst du das in 5 Sekunden?": "Can you do it in 5 seconds?",
   "Scharf spielen": "Play sharp",

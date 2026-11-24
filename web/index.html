@@ -8,7 +8,9 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="EndGameKing" />
-    <meta name="description" content="Schachpartien offline analysieren, Stärken und Schwächen erkennen und gezielt trainieren." />
+    <meta name="description" content="Schachpartien von chess.com und Lichess kostenlos analysieren, Fehlermuster erkennen und gezielt trainieren. Läuft auf deinem Gerät." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta name="author" content="Tim Bönig" />
     <link rel="icon" type="image/svg+xml" href="/icons/logo.svg" />
     <link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
@@ -17,12 +19,78 @@
     <meta property="og:url" content="https://endgameking.com/" />
     <meta property="og:title" content="EndGameKing – dein persönlicher Schachtrainer" />
     <meta property="og:description" content="Partien von chess.com und Lichess analysieren, Stärken und Schwächen erkennen, gezielt trainieren. Kostenlos, ohne Werbung." />
-    <meta property="og:image" content="https://endgameking.com/icons/icon-512.png" />
+    <meta property="og:image" content="https://endgameking.com/icons/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="EndGameKing: Dein Schach hat ein Muster." />
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="de_DE" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="EndGameKing – dein persönlicher Schachtrainer" />
+    <meta name="twitter:description" content="Partien von chess.com und Lichess analysieren, Fehlermuster erkennen, gezielt trainieren. Kostenlos, ohne Werbung." />
+    <meta name="twitter:image" content="https://endgameking.com/icons/og-image.png" />
+    <link rel="preload" href="/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://endgameking.com/#website",
+            "url": "https://endgameking.com/",
+            "name": "EndGameKing",
+            "inLanguage": "de"
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://endgameking.com/#app",
+            "name": "EndGameKing",
+            "url": "https://endgameking.com/",
+            "description": "Schachpartien von chess.com und Lichess analysieren, Fehlermuster erkennen und gezielt trainieren. Die Engine läuft auf dem Gerät.",
+            "applicationCategory": "GameApplication",
+            "operatingSystem": "Web, iOS, Android, Windows, macOS, Linux",
+            "browserRequirements": "Requires JavaScript and WebAssembly",
+            "inLanguage": ["de", "en"],
+            "isAccessibleForFree": true,
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+            "image": "https://endgameking.com/icons/og-image.png",
+            "author": { "@type": "Person", "name": "Tim Bönig", "address": { "@type": "PostalAddress", "addressLocality": "Hamburg", "addressCountry": "DE" } }
+          }
+        ]
+      }
+    </script>
+    <style>
+      /* Crawlable fallback shown until the app takes over; same dark base as the app. */
+      #app>.seo-static{max-width:720px;margin:0 auto;padding:48px 20px;color:#e8eaf2;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.55}
+      #app>.seo-static a{color:#8d9aff}
+      html,body{background:#0a0c11}
+    </style>
     <title>EndGameKing – Schachanalyse und Training</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main class="seo-static">
+        <h1>EndGameKing: Schachpartien analysieren und gezielt trainieren</h1>
+        <p>EndGameKing liest alle deine Partien von chess.com und Lichess, findet die Fehler, die sich bei dir wiederholen, und macht daraus dein Training. Mit deinen eigenen Stellungen statt zufälliger Rätsel.</p>
+        <p>Komplett kostenlos: kein Abo, keine Werbung, keine Kreditkarte, unbegrenzt viele Partien. Ein Konto brauchst du nicht, die Schach-Engine rechnet in deinem Browser.</p>
+        <h2>So funktioniert es</h2>
+        <ol>
+          <li>Benutzernamen bei chess.com oder Lichess eingeben. Kein Passwort, keine Anmeldung.</li>
+          <li>Die Partien werden gelesen und Zug für Zug geprüft, erst schnell, dann gründlich.</li>
+          <li>Nach wenigen Minuten siehst du deinen teuersten Fehler und was sich wiederholt.</li>
+          <li>Aus deinen Fehlstellungen werden Aufgaben, ein paar Minuten am Tag.</li>
+        </ol>
+        <h2>Was du bekommst</h2>
+        <ul>
+          <li>Profil mit Stärken und Schwächen je Spielphase, Eröffnung und Zugtyp</li>
+          <li>Eröffnungs-Analyse mit eigenem Eröffnungsbaum</li>
+          <li>Liga mit Freunden, fair gerechnet über Zeitkontrollen hinweg</li>
+          <li>Trainingsplan aus deinen eigenen Partien</li>
+        </ul>
+        <p><a href="#/rechtliches">Impressum</a> · <a href="#/rechtliches/datenschutz">Datenschutz</a></p>
+        <noscript><p>Für EndGameKing wird JavaScript benötigt.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

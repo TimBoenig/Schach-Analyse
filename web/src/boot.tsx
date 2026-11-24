@@ -30,6 +30,8 @@ try {
 initInstallPrompt();
 initMotion();
 registerSW({ immediate: true });
+// index.html carries a crawlable text version of the landing page; the app replaces it.
+document.getElementById("app")!.replaceChildren();
 // Outer boundary: an error in the app shell itself shows a message with a
 // reload button instead of an empty page.
 render(
