@@ -1369,4 +1369,18 @@ describe("scene length", () => {
       }
     }
   });
+
+  it("squeezes a scene to a length below its natural one when asked to, and still plays all moves in it", () => {
+    for (const view of ["3d", "reel"] as const) {
+      const p = base(view);
+      const natural = lengthOf(p, 0.5).minDur;
+      const target = view === "reel" ? REEL_BEAT * 2 : 1;
+      expect(target).toBeLessThan(natural);
+      const squeezed = compile({ ...p, scenes: p.scenes.map((s, i) => (i === 0 ? { ...s, duration: target, squeeze: true } : s)) }).scenes[0];
+      expect(squeezed.dur).toBeCloseTo(target, 6);
+      expect(squeezed.steps).toHaveLength(2);
+      expect(squeezed.steps[1].t1).toBeLessThanOrEqual(squeezed.dur);
+      expect(squeezed.minDur).toBeCloseTo(natural, 6);
+    }
+  });
 });

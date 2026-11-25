@@ -1155,17 +1155,17 @@ function SceneEditor({
       <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
-      {/* The slider shows the length the scene really plays (real seconds, tempo included) and cannot go below what its moves, effects and speech need. */}
+      {/* The slider shows the length the scene really plays (real seconds, tempo included). Below the scene's natural length it plays moves and effects faster. */}
       <Slider
         label={t("Dauer")}
-        value={Math.max(effective, minimum)}
-        min={beat ? minimum : Math.ceil(minimum * 10 - 1e-6) / 10}
+        value={effective}
+        min={beat || 0.5}
         max={Math.max(15, Math.ceil(effective))}
         step={beat || 0.1}
         unit=" s"
-        onChange={(real) => onChange({ duration: real * speed })}
+        onChange={(real) => onChange({ duration: real * speed, squeeze: real < minimum - 1e-6 })}
       />
-      {effective <= minimum + 0.05 && <p class="studio-hint">{t("Kürzer als {n} s geht nicht: so lange brauchen Züge, Effekte und Sprechtext.", { n: minimum.toFixed(1) })}</p>}
+      {scene.squeeze && effective < minimum - 1e-6 && <p class="studio-hint">{t("Gestaucht: Züge und Effekte laufen schneller, damit die Szene {n} s dauert (natürlich {m} s).", { n: effective.toFixed(1), m: minimum.toFixed(1) })}</p>}
       <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
         <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
       </Field>
