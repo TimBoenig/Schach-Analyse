@@ -57,7 +57,7 @@ export interface CompiledScene {
   scene: Scene;
   start: number;
   dur: number;
-  /** Shortest time the scene can run (its moves, effects, speech), in real seconds; a shorter "Dauer" is ignored. */
+  /** Natural length of the scene's moves and effects in real seconds; a shorter "Dauer" squeezes the scene (when `squeeze` is set), otherwise it is ignored. */
   minDur: number;
   before: PieceState[];
   /** Pieces that fade out / in when the scene jumps to another position. */
@@ -414,29 +414,45 @@ export function compile(project: StudioProject): Timeline {
       if (promo) board = board.filter((p) => p.id !== promo.pawn).concat(promo.piece);
       at += dur + GAP / tempo;
     });
-    const annotate = steps.length ? steps[steps.length - 1].t1 + 0.15 : lead;
+    let annotate = steps.length ? steps[steps.length - 1].t1 + 0.15 : lead;
     const lastStep = steps[steps.length - 1];
-    const fxAt = lastStep ? lastStep.t1 : lead;
+    let fxAt = lastStep ? lastStep.t1 : lead;
     // Effects need their moment on screen; the speaker's text needs time to be said.
     // The reel look cuts on the beat: nothing stays on screen longer than it needs.
     const fxTime = s.effects.includes("mate") ? (reel ? 1.6 : 2.2) : hero && steps.length ? HERO_AFTER : s.effects.includes("confetti") ? 1.4 : s.effects.length ? (reel ? 0.25 : 0.8) : 0;
     const spoken = s.speech.trim() ? s.speech.trim().split(/\s+/).length / 2.6 + 0.6 : 0;
     // Hit-stop: the picture stands still for a moment at the impact, so the scene is that much longer.
-    const hit = s.effects.includes("hitstop") ? fxAt : null;
+    let hit = s.effects.includes("hitstop") ? fxAt : null;
     const freeze = hit !== null ? HITSTOP : 0;
     // Every camera angle of a cutting scene needs a moment on screen, after the hit-stop when there is one.
     const cutsNeed = s.cameras.length ? (hit ?? 0) + freeze + s.cameras.length * 0.25 : 0;
-    const minimum = Math.max(
+    const visual = Math.max(
       annotate + (s.arrows.length || s.marks.length ? (reel ? 0.4 : 1.4) : reel ? 0.12 : 0.9) + (s.card === "question" || s.card === "poll" ? s.countdown : 0) + freeze,
       fxAt + fxTime + freeze,
       cutsNeed,
-      spoken,
     );
-    const wanted = Math.max(s.duration / speed, minimum);
+    const minimum = Math.max(visual, spoken);
+    // A scene whose length the user set below its natural minimum is squeezed: moves, pauses and effect
+    // times shrink by one factor (the hit-stop freeze keeps its length), so the chosen length really holds.
+    // Speech is not in the picture, so it never forces a longer scene here.
+    const asked = s.duration / speed;
+    let squeezed = false;
+    if (s.squeeze && asked < visual - 1e-6 && visual - freeze > 0.05) {
+      const k = Math.max(0.2, Math.max(0.05, asked - freeze) / (visual - freeze));
+      for (const st of steps) {
+        st.t0 *= k;
+        st.t1 *= k;
+      }
+      annotate *= k;
+      fxAt *= k;
+      if (hit !== null) hit = fxAt;
+      squeezed = true;
+    }
+    const wanted = squeezed ? asked : Math.max(asked, minimum);
     // Reel: round up to whole beats so every cut lands on the beat.
     const beats = (x: number) => Math.max(1, Math.ceil(x / REEL_BEAT - 1e-6)) * REEL_BEAT;
     const dur = reel ? beats(wanted) : wanted;
-    const minDur = reel ? beats(minimum) : minimum;
+    const minDur = reel ? beats(visual) : visual;
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
     let mate: CompiledScene["mate"] = null;
     if (s.effects.includes("mate")) {

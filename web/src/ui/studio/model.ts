@@ -62,6 +62,8 @@ export interface Scene {
   options: string[];
   /** Seconds of a visible countdown (question and poll cards). */
   countdown: number;
+  /** The length was set below what the scene naturally needs: moves and effects are played faster to fit it. */
+  squeeze: boolean;
   mood: Mood;
   effects: Effect[];
   badge: Badge;
@@ -327,6 +329,7 @@ export function scene(over: Partial<Scene> = {}): Scene {
     label: "",
     options: [],
     countdown: 0,
+    squeeze: false,
     mood: "happy",
     effects: [],
     badge: "",
@@ -532,6 +535,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       label: str(s.label, "", 40),
       options: (Array.isArray(s.options) ? s.options : []).filter((o): o is string => typeof o === "string").slice(0, 3).map((o) => o.slice(0, 40)),
       countdown: num(s.countdown, 0, 10, 0),
+      squeeze: s.squeeze === true,
       mood: pick(s.mood, ["happy", "think", "wow", "sad"] as const, "happy"),
       effects: [...new Set((Array.isArray(s.effects) ? s.effects : []).filter((e): e is Effect => typeof e === "string" && e in EFFECT_LABEL))],
       badge: BADGE_FROM_SYMBOL[String(s.badge)] ?? pick(s.badge, Object.keys(BADGE_LABEL) as Badge[], ""),

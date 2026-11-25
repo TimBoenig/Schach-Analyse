@@ -1430,7 +1430,7 @@ export const EN: Record<string, string> = {
   "Die Startstellung (FEN) ist ungültig, ich nehme die Grundstellung.": "The starting position (FEN) is invalid, I'll use the initial position.",
   "Die Statistik zeigt, wer du am Brett bist.": "The statistics show who you are at the board.",
   "Die Stellung ist jetzt verloren (Bewertung {pawns}).": "The position is now lost (evaluation {pawns}).",
-  "Kürzer als {n} s geht nicht: so lange brauchen Züge, Effekte und Sprechtext.": "Shorter than {n} s is not possible: that is how long the moves, effects and voiceover need.",
+  "Gestaucht: Züge und Effekte laufen schneller, damit die Szene {n} s dauert (natürlich {m} s).": "Squeezed: moves and effects play faster so the scene lasts {n} s (naturally {m} s).",
   "Die Texte der MIT-, BSD- und OFL-Lizenzen gewähren die Nutzung ohne Gewähr und verlangen, dass der Urheberhinweis erhalten bleibt. {BRAND} ist kein Angebot von chess.com oder Lichess und steht mit ihnen nicht in Verbindung.": "The MIT, BSD and OFL licence texts grant use without warranty and require that the copyright notice be kept. {BRAND} is not a service of chess.com or Lichess and is not affiliated with them.",
   "Die Türme drängen den König abwechselnd Reihe für Reihe an den Rand. Matt in höchstens 15 Zügen.": "The rooks take turns pushing the king to the edge rank by rank. Mate in at most 15 moves.",
   "die ungedeckte": "the undefended",
