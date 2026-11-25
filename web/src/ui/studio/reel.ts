@@ -352,6 +352,27 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
   ctx.save();
   ctx.globalAlpha = clamp01(alpha);
   ctx.lineJoin = "round";
+  // A thin rim in the glow colour under the arrow: a black arrow gets a white edge, so it still reads on the dark squares.
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = glow;
+  ctx.fillStyle = glow;
+  ctx.lineWidth = 0.36;
+  ctx.beginPath();
+  for (let i = 0; i <= 22; i++) {
+    const p = at((end * i) / 22);
+    if (i === 0) ctx.moveTo(p[0], p[1]);
+    else ctx.lineTo(p[0], p[1]);
+  }
+  ctx.lineTo(baseC[0], baseC[1]);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(tip[0], tip[1]);
+  ctx.lineTo(baseC[0] - tz * 0.5, baseC[1] + tx * 0.5);
+  ctx.lineTo(baseC[0] + tz * 0.5, baseC[1] - tx * 0.5);
+  ctx.closePath();
+  ctx.lineWidth = 0.16;
+  ctx.stroke();
+  ctx.fill();
   // The reference's arrow sits in a thick cloud of light: three passes of a wide blur build it up, the last one stays tight so the edge reads.
   for (const pass of [0, 1, 2]) {
     ctx.shadowColor = glow;
@@ -372,8 +393,8 @@ function drawArrow(ctx: CanvasRenderingContext2D, S: number, a: [number, number]
     ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(tip[0], tip[1]);
-    ctx.lineTo(baseC[0] - tz * 0.36, baseC[1] + tx * 0.36);
-    ctx.lineTo(baseC[0] + tz * 0.36, baseC[1] - tx * 0.36);
+    ctx.lineTo(baseC[0] - tz * 0.44, baseC[1] + tx * 0.44);
+    ctx.lineTo(baseC[0] + tz * 0.44, baseC[1] - tx * 0.44);
     ctx.closePath();
     ctx.fill();
   }
