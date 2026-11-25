@@ -68,7 +68,7 @@ import { autoScene, distributeScript, fitLength, movesLabel, variationScene, typ
 import { Chess } from "chess.js";
 import { StudioStage } from "./stage";
 import { currentId, loadProjects, saveProjects, setCurrentId } from "./store";
-import { compile, type Timeline } from "./timeline";
+import { compile, REEL_BEAT, type Timeline } from "./timeline";
 import { t, dec, changeStudioLang, LANG_NAMES, LANGS, siteLang, studioSetting, type StudioLang } from "../../i18n";
 
 type Tab = "szene" | "stil" | "video" | "edit";
@@ -101,7 +101,7 @@ export function StudioView() {
     return projects.find((p) => p.id === id)?.id ?? projects[0].id;
   });
   const project = projects.find((p) => p.id === projectId) ?? projects[0];
-  const [sel, setSel] = useState(0);
+  const [selRaw, setSel] = useState(0);
   const [tab, setTab] = useState<Tab>("szene");
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -122,7 +122,9 @@ export function StudioView() {
   const [ready, setReady] = useState(false);
   const timeline = useMemo(() => compile(project), [project]);
   const positions = useMemo(() => scenePositions(project), [project]);
-  const scene = project.scenes[Math.min(sel, project.scenes.length - 1)];
+  // The index can be stale for a moment (another project with fewer scenes): always edit the scene that is shown.
+  const sel = Math.min(selRaw, project.scenes.length - 1);
+  const scene = project.scenes[sel];
   const playRef = useRef({ start: 0, from: 0 });
   const cancelRef = useRef(false);
 
@@ -263,7 +265,22 @@ export function StudioView() {
     const id = window.setTimeout(() => setSaveError(!saveProjects(projects)), 400);
     return () => window.clearTimeout(id);
   }, [projects]);
-  useEffect(() => setCurrentId(project.id), [project.id]);
+  const firstProject = useRef(true);
+  useEffect(() => {
+    setCurrentId(project.id);
+    // Another project: start at its first scene instead of the old position.
+    if (firstProject.current) firstProject.current = false;
+    else {
+      setPlaying(false);
+      setSel(0);
+      setTime(0);
+      setPending(null);
+    }
+  }, [project.id]);
+  // A shorter video must not leave the playhead beyond its end.
+  useEffect(() => {
+    if (time > timeline.total) setTime(timeline.total);
+  }, [timeline.total]);
 
   // Undo and redo: a snapshot of the project before each burst of changes (typing in a field is one burst).
   const history = useRef<{ id: string; past: StudioProject[]; future: StudioProject[]; at: number }>({ id: project.id, past: [], future: [], at: 0 });
@@ -457,7 +474,8 @@ export function StudioView() {
   const removeScene = (i: number) => {
     if (project.scenes.length <= 1) return;
     update((p) => ({ ...p, scenes: p.scenes.filter((_, k) => k !== i) }));
-    setSel(Math.max(0, Math.min(sel, project.scenes.length - 2)));
+    // Removing a scene above the selected one keeps the same scene selected.
+    setSel(Math.max(0, Math.min(i < sel ? sel - 1 : sel, project.scenes.length - 2)));
   };
 
   // ---- projects
@@ -803,6 +821,9 @@ export function StudioView() {
               lucena={project.video.lucena}
               perspective={project.video.perspective}
               effective={current?.dur ?? scene.duration}
+              minimum={current?.minDur ?? 1}
+              speed={Math.max(0.3, project.video.speed || 1)}
+              beat={project.style.view === "reel" ? REEL_BEAT : 0}
               tool={tool}
               tone={tone}
               style={project.style}
@@ -1050,6 +1071,9 @@ function SceneEditor({
   lucena,
   perspective,
   effective,
+  minimum,
+  speed,
+  beat,
   tool,
   tone,
   style,
@@ -1066,6 +1090,9 @@ function SceneEditor({
   lucena: boolean;
   perspective: Side;
   effective: number;
+  minimum: number;
+  speed: number;
+  beat: number;
   tool: Tool;
   tone: Tone;
   style: StudioStyle;
@@ -1128,8 +1155,17 @@ function SceneEditor({
       <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
-      <Slider label={t("Dauer")} value={scene.duration} min={1} max={15} step={0.1} unit=" s" onChange={(duration) => onChange({ duration })} />
-      {effective > scene.duration + 0.05 && <p class="studio-hint">{t("Die Szene braucht {n} s (Züge, Effekte oder Sprechtext), so lange läuft sie.", { n: effective.toFixed(1) })}</p>}
+      {/* The slider shows the length the scene really plays (real seconds, tempo included) and cannot go below what its moves, effects and speech need. */}
+      <Slider
+        label={t("Dauer")}
+        value={Math.max(effective, minimum)}
+        min={beat ? minimum : Math.ceil(minimum * 10 - 1e-6) / 10}
+        max={Math.max(15, Math.ceil(effective))}
+        step={beat || 0.1}
+        unit=" s"
+        onChange={(real) => onChange({ duration: real * speed })}
+      />
+      {effective <= minimum + 0.05 && <p class="studio-hint">{t("Kürzer als {n} s geht nicht: so lange brauchen Züge, Effekte und Sprechtext.", { n: minimum.toFixed(1) })}</p>}
       <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
         <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
       </Field>
