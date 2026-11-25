@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { measureLufs, normalizeLoudness } from "../../src/ui/studio/loudness";
-import { autoStyle, fitBpm, generateMusic, STYLE_IDS, tempoFor, type StyleId } from "../../src/ui/studio/musicGen";
+import { autoStyle, fitBpm, generateMusic, LOOP_FROM, LOOP_LEN, planKey, planMusic, STYLE_IDS, tempoFor, type StyleId } from "../../src/ui/studio/musicGen";
+import { fromMoves } from "../../src/ui/studio/model";
+import { compile } from "../../src/ui/studio/timeline";
 
 const RATE = 16000;
 const spec = (style: StyleId, over = {}) => ({ style, seed: 3, intensity: 0.8, duration: 14, rate: RATE, bpm: 90, cues: [], ...over });
@@ -51,6 +53,37 @@ describe("music generator", () => {
     expect(autoStyle({ reel: false, lesson: false, hasMate: true })).toBe("epic");
     expect(autoStyle({ reel: false, lesson: false, hasMate: false })).toBe("chill");
   });
+});
+
+describe("long videos", () => {
+  // 40 one-move scenes of 3 s: a lesson of two minutes, over LOOP_FROM.
+  const long = () => {
+    const { project } = fromMoves("l", "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7", undefined, false);
+    project.scenes = project.scenes.map((s) => ({ ...s, duration: 6 }));
+    return project;
+  };
+
+  it("get a short repeating bed instead of a track as long as the video, and editing a scene does not change it", () => {
+    const project = long();
+    const timeline = compile(project);
+    expect(timeline.total).toBeGreaterThan(LOOP_FROM);
+    const plan = planMusic(project, timeline, 44100);
+    expect(plan.loop).toBe(true);
+    expect(plan.duration).toBe(LOOP_LEN);
+    expect(plan.cues).toEqual([]);
+    // Another text in one scene: same key, so the player keeps the rendered bed instead of rendering minutes of audio again.
+    const edited = { ...project, scenes: project.scenes.map((s, i) => (i === 3 ? { ...s, text: "ganz anderer Text", duration: 7 } : s)) };
+    expect(planKey(planMusic(edited, compile(edited), 44100))).toBe(planKey(plan));
+  });
+
+  it("render a seamless loop of whole bars: finite, the tail of the last bar folded onto the start, no final fade-out", async () => {
+    const g = await generateMusic({ ...spec("ambient"), duration: 20, loop: true, bpm: 100 });
+    const bar = (60 / 100) * 4;
+    expect(g.left.length).toBe(Math.round(Math.round(20 / bar) * bar * RATE));
+    expect([...g.left, ...g.right].every(Number.isFinite)).toBe(true);
+    // A track would fade out at its end; a loop must keep its level up to the join.
+    expect(rms(g.left, 18.2, 19.2)).toBeGreaterThan(rms(g.left, 6, 7) * 0.5);
+  }, 60000);
 });
 
 describe("loudness", () => {

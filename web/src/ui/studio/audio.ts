@@ -11,6 +11,8 @@ export interface AudioMix {
   musicFile: AudioBuffer | null;
   /** The generated soundtrack (music "generated"), as long as the video. */
   musicGen: AudioBuffer | null;
+  /** The generated track is a short bed that repeats under a long video. */
+  musicGenLoop?: boolean;
   voice: AudioBuffer | null;
   voiceVolume: number;
   /** Effect and move sounds (the "sound" switch). */
@@ -207,8 +209,8 @@ export class StudioAudio {
     this.out.gain.value = 0.9 * Math.max(0, mix.master);
     const gen = mix.music === "generated";
     const music = mix.music === "file" ? mix.musicFile : mix.music === "generated" ? mix.musicGen : mix.music === "none" ? null : this.loop(mix.music);
-    // The generated track is already as long as the video and ends by itself, so it neither loops nor fades again.
-    if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), !gen, timeline.total);
+    // A generated track is already as long as the video and ends by itself, so it neither loops nor fades again (unless it is a loop bed).
+    if (music && mix.musicVolume > 0) this.play(music, now, from, duckedVolume(mix.musicVolume, !!mix.voice), !gen || !!mix.musicGenLoop, timeline.total);
     if (mix.voice && mix.voiceVolume > 0) this.play(mix.voice, now, from, mix.voiceVolume, false, timeline.total);
     if (!mix.effects) return;
     for (const s of timeline.sounds) {

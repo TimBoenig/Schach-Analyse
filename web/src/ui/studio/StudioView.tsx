@@ -85,6 +85,8 @@ interface ExportState {
   sound?: "aac" | "opus" | "recorded" | "none" | "lost";
 }
 
+/** Long side of the editor preview in pixels (the export always renders at full size). */
+const PREVIEW_MAX = 1280;
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /** Moment of a scene that shows its finished state (moves done, arrows drawn). */
@@ -126,6 +128,9 @@ export function StudioView() {
   const sel = Math.min(selRaw, project.scenes.length - 1);
   const scene = project.scenes[sel];
   const playRef = useRef({ start: 0, from: 0 });
+  const resumeRef = useRef<number | null>(null);
+  const scrubRef = useRef<HTMLInputElement>(null);
+  const clockRef = useRef<HTMLSpanElement>(null);
   const cancelRef = useRef(false);
 
   // ---- music and own voice (kept in IndexedDB, decoded once per project)
@@ -179,7 +184,7 @@ export function StudioView() {
         .then((buf) => live && setGen({ key, buf }))
         .catch(() => undefined)
         .finally(() => live && setGenBusy(false));
-    }, 400);
+    }, 1200);
     return () => {
       live = false;
       clearTimeout(timer);
@@ -221,7 +226,7 @@ export function StudioView() {
   const mix = (genBuf: AudioBuffer | null = gen?.key === key ? gen.buf : null): AudioMix => {
     const v = project.video;
     const own = clips.id === project.id ? clips : { music: null, voice: null };
-    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, musicGen: genBuf, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound, master: v.volume };
+    return { music: v.music, musicVolume: v.musicVolume, musicFile: own.music, musicGen: genBuf, musicGenLoop: plan.loop, voice: v.voice ? own.voice : null, voiceVolume: v.voiceVolume, effects: v.sound, master: v.volume };
   };
   const storeClip = async (kind: ClipKind, blob: Blob, name = "") => {
     try {
@@ -340,12 +345,13 @@ export function StudioView() {
   }, []);
   const fit = Math.min(box.w / W, box.h / H);
   const view = { w: Math.max(50, Math.floor(W * fit)), h: Math.max(50, Math.floor(H * fit)) };
-  const previewScale = Math.min(1, (Math.min(window.devicePixelRatio || 1, 2) * view.w) / W);
+  // Sharp at the size it is shown, but never more than PREVIEW_MAX pixels on the long side: a 1080p canvas redrawn 30 times a second is what stalls a tablet.
+  const previewScale = Math.min(1, (Math.min(window.devicePixelRatio || 1, 2) * view.w) / W, PREVIEW_MAX / Math.max(W, H));
 
-  const paint = (tk: number) => {
+  const paint = (tk: number, quality = 1) => {
     const stage = stageRef.current;
     if (!stage || exp?.phase === "recording") return;
-    stage.setSize(Math.round(W * previewScale), Math.round(H * previewScale));
+    stage.setSize(Math.round(W * previewScale * quality), Math.round(H * previewScale * quality));
     stage.paint(timeline, project, tk, { safeZones: safe, hover: tool !== "none" && hover ? { square: hover, from: pending ?? undefined } : null });
   };
 
@@ -357,40 +363,70 @@ export function StudioView() {
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
-    playRef.current = { start: performance.now(), from: time >= timeline.total - 0.05 ? 0 : time };
+    // After an edit that rebuilt the timeline the new loop carries on from where the old one stopped (the state is not updated per frame).
+    const at = resumeRef.current ?? time;
+    resumeRef.current = null;
+    playRef.current = { start: performance.now(), from: at >= timeline.total - 0.05 ? 0 : at };
     // While the voice is being recorded the speakers stay quiet, so the microphone hears only the voice.
     if (!voiceRec) {
       audio().speakers(true);
       audio().schedule(timeline, playRef.current.from, mix());
     }
-    const loop = () => {
+    // The playhead lives in refs and straight in the DOM while playing: a state update per frame would redraw the whole editor (scene list, panels) 60 times a second.
+    const frameMs = 1000 / Math.max(24, Math.min(project.video.fps || 30, 30));
+    let last = 0;
+    let quality = 1;
+    let cost = 0;
+    let frames = 0;
+    let shown = playRef.current.from;
+    let scene = sel;
+    const loop = (now: number) => {
+      raf = requestAnimationFrame(loop);
+      // A 120 Hz screen would paint four videos' worth of frames; the video has 30.
+      if (now - last < frameMs - 2) return;
+      last = now;
       const tk = playRef.current.from + (performance.now() - playRef.current.start) / 1000;
+      shown = tk;
       if (tk >= timeline.total) {
+        cancelAnimationFrame(raf);
         setTime(timeline.total);
         setPlaying(false);
         voiceRec?.stop();
         paint(timeline.total);
         return;
       }
-      paint(tk);
-      setTime(tk);
-      raf = requestAnimationFrame(loop);
+      const t0 = performance.now();
+      paint(tk, quality);
+      // A device that cannot keep up gets a smaller (still smooth) picture while playing; paused, it is sharp again.
+      cost = cost * 0.8 + (performance.now() - t0) * 0.2;
+      if (++frames % 12 === 0) {
+        if (cost > frameMs * 0.8 && quality > 0.45) quality = Math.max(0.45, quality * 0.8);
+        else if (cost < frameMs * 0.3 && quality < 1) quality = Math.min(1, quality * 1.15);
+      }
+      if (scrubRef.current) scrubRef.current.value = String(tk);
+      if (clockRef.current) clockRef.current.textContent = fmtTime(tk);
+      // The scene list follows the playhead; the editor redraws only when the scene changes.
+      const i = timeline.scenes.findIndex((c) => tk >= c.start && tk < c.start + c.dur);
+      if (i >= 0 && i !== scene) {
+        scene = i;
+        setSel(i);
+        setTime(tk);
+      }
     };
     raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
+      resumeRef.current = Math.min(shown, timeline.total);
+      setTime(resumeRef.current);
       soundsRef.current?.cancel();
       voiceRec?.stop();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, timeline]);
 
-  // Selected scene follows the playhead while playing.
   useEffect(() => {
-    if (!playing) return;
-    const i = timeline.scenes.findIndex((c) => time >= c.start && time < c.start + c.dur);
-    if (i >= 0 && i !== sel) setSel(i);
-  }, [time, playing]);
+    if (!playing) resumeRef.current = null;
+  }, [playing]);
 
   const selectScene = (i: number) => {
     setPlaying(false);
@@ -584,6 +620,68 @@ export function StudioView() {
   };
 
   const type = useMemo(() => videoType(), []);
+  // Cached while only the playhead moves: 100+ scenes are 100+ rows to diff, and a row cannot change without the project, the timeline or the selection changing.
+  const sceneList = useMemo(
+    () => (
+        <ol>
+          {project.scenes.map((s, i) => {
+            const c = timeline.scenes[i];
+            const err = positions[i]?.parsed.error;
+            return (
+              <li key={s.id} class={`studio-scene ${i === sel ? "on" : ""} ${err ? "bad" : ""}`}>
+                <button class="studio-scene-main" onClick={() => selectScene(i)}>
+                  <span class="studio-scene-no">{i + 1}</span>
+                  <span class="studio-scene-body">
+                    <span class="studio-scene-title">{s.title || (s.card !== "none" ? CARD_LABEL[s.card] : t("Ohne Titel"))}</span>
+                    <span class="studio-scene-meta">
+                      {s.card !== "none" && <em>{CARD_LABEL[s.card]}</em>}
+                      {s.moves.trim() ? <code>{s.moves.trim()}</code> : null}
+                      <span>{c ? `${c.dur.toFixed(1)} s` : ""}</span>
+                    </span>
+                  </span>
+                </button>
+                {i === sel && (
+                  <span class="studio-scene-tools">
+                    <button onClick={() => moveScene(i, -1)} disabled={i === 0} title={t("Nach oben")}>
+                      ↑
+                    </button>
+                    <button onClick={() => moveScene(i, 1)} disabled={i === project.scenes.length - 1} title={t("Nach unten")}>
+                      ↓
+                    </button>
+                    <button onClick={() => duplicateScene(i)} title={t("Duplizieren")}>
+                      ⧉
+                    </button>
+                    <button onClick={() => removeScene(i)} disabled={project.scenes.length <= 1} title={t("Löschen")}>
+                      ✕
+                    </button>
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [project, timeline, positions, sel],
+  );
+  const segments = useMemo(
+    () => (
+            <div class="studio-segments">
+              {timeline.scenes.map((c, i) => (
+                <button
+                  key={c.scene.id}
+                  class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""} ${c.mate ? "mate" : ""} ${c.hit !== null ? "hit" : ""}`}
+                  style={{ flexGrow: c.dur }}
+                  onClick={() => selectScene(i)}
+                  title={t("Szene {0}", { 0: i + 1 })}
+                />
+              ))}
+            </div>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [timeline, sel],
+  );
+
   const hasSound = mixHasSound(mix(), timeline);
   const current = timeline.scenes[sel];
   const sceneError = positions[sel]?.parsed.error;
@@ -663,43 +761,7 @@ export function StudioView() {
           <span>{t("Szenen")}</span>
           <span class="faint">{fmtTime(timeline.total)}</span>
         </div>
-        <ol>
-          {project.scenes.map((s, i) => {
-            const c = timeline.scenes[i];
-            const err = positions[i]?.parsed.error;
-            return (
-              <li key={s.id} class={`studio-scene ${i === sel ? "on" : ""} ${err ? "bad" : ""}`}>
-                <button class="studio-scene-main" onClick={() => selectScene(i)}>
-                  <span class="studio-scene-no">{i + 1}</span>
-                  <span class="studio-scene-body">
-                    <span class="studio-scene-title">{s.title || (s.card !== "none" ? CARD_LABEL[s.card] : t("Ohne Titel"))}</span>
-                    <span class="studio-scene-meta">
-                      {s.card !== "none" && <em>{CARD_LABEL[s.card]}</em>}
-                      {s.moves.trim() ? <code>{s.moves.trim()}</code> : null}
-                      <span>{c ? `${c.dur.toFixed(1)} s` : ""}</span>
-                    </span>
-                  </span>
-                </button>
-                {i === sel && (
-                  <span class="studio-scene-tools">
-                    <button onClick={() => moveScene(i, -1)} disabled={i === 0} title={t("Nach oben")}>
-                      ↑
-                    </button>
-                    <button onClick={() => moveScene(i, 1)} disabled={i === project.scenes.length - 1} title={t("Nach unten")}>
-                      ↓
-                    </button>
-                    <button onClick={() => duplicateScene(i)} title={t("Duplizieren")}>
-                      ⧉
-                    </button>
-                    <button onClick={() => removeScene(i)} disabled={project.scenes.length <= 1} title={t("Löschen")}>
-                      ✕
-                    </button>
-                  </span>
-                )}
-              </li>
-            );
-          })}
-        </ol>
+        {sceneList}
         <button class="btn studio-add" onClick={addScene}>
           
           {t("+ Szene")}
@@ -737,18 +799,9 @@ export function StudioView() {
         </div>
         <div class="studio-transport">
           <div class="studio-scrub">
-            <div class="studio-segments">
-              {timeline.scenes.map((c, i) => (
-                <button
-                  key={c.scene.id}
-                  class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""} ${c.mate ? "mate" : ""} ${c.hit !== null ? "hit" : ""}`}
-                  style={{ flexGrow: c.dur }}
-                  onClick={() => selectScene(i)}
-                  title={t("Szene {0}", { 0: i + 1 })}
-                />
-              ))}
-            </div>
+            {segments}
             <input
+              ref={scrubRef}
               type="range"
               min={0}
               max={timeline.total}
@@ -766,7 +819,7 @@ export function StudioView() {
               {playing ? "❚❚" : "▶"}
             </button>
             <span class="studio-time">
-              {fmtTime(time)} / {fmtTime(timeline.total)}
+              <span ref={clockRef}>{fmtTime(time)}</span> / {fmtTime(timeline.total)}
             </span>
             {project.style.view === "reel" && (
               <span class={`studio-len ${timeline.total <= 18.5 ? "ok" : timeline.total <= 22 ? "warn" : "long"}`} title={t("Kurze, dichte Edits werden häufiger bis zum Ende geschaut und geloopt. Der Tab „Edit“ kürzt automatisch.")}>

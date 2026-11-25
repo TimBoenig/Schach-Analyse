@@ -50,7 +50,13 @@ export interface GenSpec {
   bpm?: number;
   sceneStarts?: number[];
   cues: Cue[];
+  /** A seamless bed of about `duration` seconds that the player repeats, for videos too long to render whole. */
+  loop?: boolean;
 }
+
+/** Above this length the music is a repeating bed: rendering minutes of stereo audio in JS costs seconds of CPU and hundreds of MB, which a tablet does not have. */
+export const LOOP_FROM = 100;
+export const LOOP_LEN = 48;
 
 interface Look {
   bpm: [number, number];
@@ -161,11 +167,24 @@ export function planMusic(project: StudioProject, timeline: Timeline, rate: numb
   const auto = chosen === "auto";
   const style = chosen === "auto" ? autoStyle({ reel, lesson: v.lesson, hasMate: timeline.scenes.some((c) => c.mate) }) : chosen;
   const sceneStarts = timeline.scenes.map((c) => c.start);
-  return { style, seed: v.musicSeed, intensity: v.musicIntensity, duration: timeline.total, rate, bpm: tempoFor(style, reel, sceneStarts), sceneStarts, cues: musicCues(timeline), auto };
+  // Long videos get a repeating bed that does not depend on the scenes, so editing never re-renders it.
+  const loop = timeline.total > LOOP_FROM;
+  return {
+    style,
+    seed: v.musicSeed,
+    intensity: v.musicIntensity,
+    duration: loop ? LOOP_LEN : timeline.total,
+    rate,
+    bpm: tempoFor(style, reel, loop ? [] : sceneStarts),
+    sceneStarts: loop ? [] : sceneStarts,
+    cues: loop ? [] : musicCues(timeline),
+    loop,
+    auto,
+  };
 }
 
 /** Same plan, same music: the key under which a rendered track is kept. */
-export const planKey = (s: GenSpec): string => JSON.stringify([s.style, s.seed, s.intensity, Math.round(s.duration * 100), s.bpm, s.cues.map((c) => [Math.round(c.t * 100), c.kind])]);
+export const planKey = (s: GenSpec): string => JSON.stringify([s.style, s.seed, s.intensity, Math.round(s.duration * 100), s.bpm, s.loop ?? false, s.cues.map((c) => [Math.round(c.t * 100), c.kind])]);
 
 export function tempoFor(style: StyleId, reel: boolean, sceneStarts: number[]): number {
   return reel ? 90 : fitBpm(LOOKS[style].bpm, sceneStarts);
@@ -438,13 +457,16 @@ export interface Generated {
 }
 
 export async function generateMusic(spec: GenSpec): Promise<Generated> {
-  const { style, rate, duration } = spec;
+  const { style, rate } = spec;
+  const loop = !!spec.loop;
   const look = LOOKS[style];
   const rand = rng(spec.seed * 7919 + STYLE_IDS.indexOf(style) * 104729 + 17);
   const bpm = spec.bpm ?? fitBpm(look.bpm, spec.sceneStarts ?? []);
   const beat = 60 / bpm;
   const step = beat / 4;
   const bar = beat * 4;
+  // A loop is a whole number of bars, so its end meets its start on the beat.
+  const duration = loop ? Math.max(2, Math.round(spec.duration / bar)) * bar : spec.duration;
   const intensity = Math.max(0, Math.min(1, spec.intensity));
   const key = Math.floor(rand() * 8) - 3;
   const prog = look.progressions[Math.floor(rand() * look.progressions.length)];
@@ -553,26 +575,34 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
 
   const wet = reverb(mx.send, rate, 0.6 + look.reverb * 0.35);
   const n = Math.round(duration * rate);
-  const outL = new Float32Array(n);
-  const outR = new Float32Array(n);
+  // A loop keeps the tail of its last bar (the mixer's extra seconds) and folds it onto the start below.
+  const len = loop ? mx.n : n;
+  const outL = new Float32Array(len);
+  const outR = new Float32Array(len);
   // Sidechain: pads and keys dip for a moment at every kick.
-  const duck = new Float32Array(n).fill(1);
+  const duck = new Float32Array(len).fill(1);
   const depth = style === "ambient" ? 0.1 : style === "phonk" ? 0.7 : 0.45;
   for (const k of mx.kicks) {
     const s0 = Math.round(k * rate);
-    for (let i = 0; i < 0.3 * rate && s0 + i < n; i++) {
+    for (let i = 0; i < 0.3 * rate && s0 + i < len; i++) {
       const d = 1 - depth * Math.exp(-i / (0.09 * rate));
       if (d < duck[s0 + i]) duck[s0 + i] = d;
     }
   }
   const fadeStart = duration - (cues.some((c) => c.kind === "mate" && c.t > duration - 3) ? 1.6 : 1.2);
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < len; i++) {
     const tk = i / rate;
-    const fade = tk > fadeStart ? Math.cos(((tk - fadeStart) / (duration - fadeStart)) * (Math.PI / 2)) ** 2 : 1;
+    const fade = !loop && tk > fadeStart ? Math.cos(((tk - fadeStart) / (duration - fadeStart)) * (Math.PI / 2)) ** 2 : 1;
     const g = duck[i] * fade;
     const fadeOnly = fade;
     outL[i] = Math.tanh((mx.drums.l[i] * fadeOnly + mx.bed.l[i] * g) * 1.1 + wet.l[i] * look.reverb * fade);
     outR[i] = Math.tanh((mx.drums.r[i] * fadeOnly + mx.bed.r[i] * g) * 1.1 + wet.r[i] * look.reverb * fade);
+  }
+  if (loop) {
+    for (let i = 0; i < len - n; i++) {
+      outL[i] += outL[n + i];
+      outR[i] += outR[n + i];
+    }
   }
   if (style === "chill") {
     const dust = new Mixer(rate, duration);
@@ -582,10 +612,12 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
       outR[i] += dust.bed.r[i];
     }
   }
+  const left = len === n ? outL : outL.slice(0, n);
+  const right = len === n ? outR : outR.slice(0, n);
   // Tame the top end: noise hats and square cowbells are very bright (lo-fi is darkest, as it should be).
   const cutoff = style === "chill" ? 5500 : style === "ambient" ? 9000 : 13000;
   const lpA = 1 - Math.exp((-TAU * cutoff) / rate);
-  for (const ch of [outL, outR]) {
+  for (const ch of [left, right]) {
     let y = 0;
     for (let i = 0; i < n; i++) {
       y += (ch[i] - y) * lpA;
@@ -593,14 +625,14 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
     }
   }
   // Music-bed level: -16 LUFS before the volume slider, peaks under -1 dB.
-  const lufs = measureLufs([outL, outR], rate);
+  const lufs = measureLufs([left, right], rate);
   if (Number.isFinite(lufs)) {
     const gain = 10 ** ((-16 - lufs) / 20);
     for (let i = 0; i < n; i++) {
-      outL[i] *= gain;
-      outR[i] *= gain;
+      left[i] *= gain;
+      right[i] *= gain;
     }
   }
-  limit([outL, outR], rate, -1);
-  return { left: outL, right: outR, bpm };
+  limit([left, right], rate, -1);
+  return { left, right, bpm };
 }

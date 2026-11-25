@@ -401,7 +401,21 @@ export interface ParsedMoves {
   error?: string;
 }
 
+/** Parsing a scene's moves replays them in chess.js; an edit to one scene must not replay the other hundred. Results are never changed by callers. */
+const parsedCache = new Map<string, ParsedMoves>();
+const PARSED_MAX = 1500;
+
 export function parseMoves(fen: string, text: string): ParsedMoves {
+  const key = `${fen}|${text}`;
+  const hit = parsedCache.get(key);
+  if (hit) return hit;
+  const parsed = parseMovesUncached(fen, text);
+  if (parsedCache.size >= PARSED_MAX) parsedCache.clear();
+  parsedCache.set(key, parsed);
+  return parsed;
+}
+
+function parseMovesUncached(fen: string, text: string): ParsedMoves {
   let chess: Chess;
   try {
     chess = new Chess(fen);
@@ -419,13 +433,20 @@ export function parseMoves(fen: string, text: string): ParsedMoves {
   return { moves, fen: chess.fen() };
 }
 
+const fenCache = new Map<string, boolean>();
+
 export function validFen(fen: string): boolean {
+  const known = fenCache.get(fen);
+  if (known !== undefined) return known;
+  let ok = true;
   try {
     new Chess(fen);
-    return true;
   } catch {
-    return false;
+    ok = false;
   }
+  if (fenCache.size >= PARSED_MAX) fenCache.clear();
+  fenCache.set(fen, ok);
+  return ok;
 }
 
 /** Position at the start of each scene and after it, following moves and jumps. Errors per scene. */
