@@ -745,7 +745,7 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     ctx.font = `400 ${fit.size}px ${SERIF}`;
     ctx.fillStyle = "#ffffff";
     ctx.textBaseline = "alphabetic";
-    fit.lines.forEach((line, i) => ctx.fillText(line.map((tk) => tk.word).join(" "), W / 2, L.titleTop - 10 * u + i * fit.size * 1.05));
+    fit.lines.forEach((line, i) => ctx.fillText(line.map((tk) => tk.word).join(" "), W / 2, L.titleTop + (L.portrait ? -10 : 28) * u + i * fit.size * 1.05));
   }
   if (!frame.lesson && frame.text.text.trim() && quiet > 0.01) {
     ctx.globalAlpha = frame.text.alpha * quiet * easeOut(frame.text.age / 0.3);
@@ -787,8 +787,9 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
 
   // ---- branding stays small and quiet: the name at the bottom, the address under it
   if (v.brand && !(card.kind === "outro" && card.alpha > 0.5)) {
-    const size = 30 * u;
-    const y = H - (L.portrait ? 250 * u : 54 * u);
+    // Square and wide pictures fill the frame with the board: the name sits at the top edge, not on the white king (e1) at the bottom.
+    const size = (L.portrait ? 30 : 24) * u;
+    const y = L.portrait ? H - 250 * u : 36 * u;
     ctx.save();
     ctx.globalAlpha = 0.72 * Math.max(quiet, 0.5);
     ctx.font = `400 ${size}px ${SERIF}`;
@@ -821,17 +822,23 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
  * The last picture: black, a knight that sweeps through the frame with a long
  * white smear behind it, then name, message and address.
  */
+/** An outro up to this long (seconds) is an overlay on the board, not a black end screen: the video loops straight into its start. */
+export const OUTRO_OVERLAY_MAX = 2.1;
+
 function drawOutro(ctx: CanvasRenderingContext2D, frame: Frame, assets: Assets, L: ReturnType<typeof layout>, W: number, H: number, textScale: number): void {
   const { u } = L;
   const a = frame.card.alpha;
   const age = frame.card.age;
+  // Short outro: everything twice as fast, the shattered board stays visible behind a dark veil.
+  const over = frame.dur <= OUTRO_OVERLAY_MAX;
+  const pace = over ? 2.4 : 1;
   ctx.save();
   ctx.globalAlpha = a;
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle = over ? "rgba(0,0,0,0.62)" : "#000000";
   ctx.fillRect(0, 0, W, H);
 
   // The sweep: from the lower left to the upper right, fast first, then it hangs there.
-  const k = easeOut(age / 1.3);
+  const k = easeOut((age * pace) / 1.3);
   const from: [number, number] = [-0.1 * W, H * 0.62];
   const to: [number, number] = [W * 0.8, H * 0.2];
   const x = lerp(from[0], to[0], k);
@@ -879,7 +886,7 @@ function drawOutro(ctx: CanvasRenderingContext2D, frame: Frame, assets: Assets, 
   // Name, message, address.
   const cx = W / 2;
   const base = H * (L.portrait ? 0.62 : 0.66);
-  const show = clamp01((age - 0.45) / 0.5);
+  const show = clamp01((age * pace - 0.45) / 0.5);
   ctx.globalAlpha = a * show;
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";

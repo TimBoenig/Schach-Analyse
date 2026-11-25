@@ -124,6 +124,7 @@ export function autoStyle(v: { reel: boolean; lesson: boolean; hasMate: boolean 
 export function musicCues(timeline: Timeline): Cue[] {
   const cues: Cue[] = [];
   for (const c of timeline.scenes) {
+    if (c.mateCarried) continue;
     if (c.mate) cues.push({ t: c.start + c.fxAt + 0.85, kind: "mate" });
     else if (c.hit !== null || c.scene.effects.includes("invert")) cues.push({ t: c.start + c.fxAt, kind: "drop" });
   }
@@ -234,13 +235,14 @@ class Mixer {
   }
 
   /** Long sine bass with a slide, driven into soft clipping (the 808). */
-  sub(t0: number, len: number, f0: number, vel: number, slide = 1): void {
+  sub(t0: number, len: number, f0: number, vel: number, slide = 1, drive = 2.4): void {
     let ph = 0;
     this.put(this.drums, t0, len + 0.05, 0, 0, (tt) => {
       const f = f0 * (1 + (slide - 1) * Math.exp(-tt * 9));
       ph += (TAU * f) / this.rate;
       const env = Math.min(1, tt / 0.004) * Math.exp(-tt * (2.4 / Math.max(0.3, len))) * Math.min(1, (len - tt) / 0.05 + 0.0001);
-      return Math.tanh(2.4 * Math.sin(ph)) * env * vel * 0.55;
+      // The harder the drive, the more overtones: small phone speakers cannot play 55 Hz, but they play its harmonics.
+      return Math.tanh(drive * Math.sin(ph)) * env * vel * 0.55;
     });
   }
 
@@ -475,7 +477,7 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
     const e0 = energyAt(t0);
     const long = style === "ambient" || style === "epic";
     // Harmony: held pad every bar (ambient and epic hold it two bars), keys comp for chill.
-    if (long ? b % 2 === 0 : true) mx.pad(t0, long ? 2 * bar : bar, tones, (style === "ambient" ? 1.1 : 0.8) * (0.55 + 0.45 * e0), style === "epic" ? 0.9 : style === "phonk" ? 0.25 : 0.5, style === "ambient" ? 1.4 : style === "epic" ? 0.7 : 0.25);
+    if (long ? b % 2 === 0 : true) mx.pad(t0, long ? 2 * bar : bar, tones, (style === "ambient" ? 1.1 : style === "phonk" ? 0.35 : 0.8) * (0.55 + 0.45 * e0), style === "epic" ? 0.9 : style === "phonk" ? 0.25 : 0.5, style === "ambient" ? 1.4 : style === "epic" ? 0.7 : 0.25);
     if (style === "chill") {
       const hits = [0, 6, 10, 13];
       hits.forEach((st, hi) => {
@@ -507,12 +509,15 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
         if (!gap && s % 2 === 0 && e > 0.4) mx.hat(tk, (s % 4 === 2 ? 0.7 : 0.45) * vel, false, 0.2);
         if (s === 0 && e > 0.5) mx.sub(tk, beat * 1.6, hz(root + 12), 0.5 * vel, 1);
       } else if (style === "phonk") {
-        const kickSteps = b % 2 === 0 ? [0, 6, 10] : [0, 3, 6, 11];
-        if (!gap && e > 0.3 && kickSteps.includes(s)) {
-          mx.kick(tk, vel);
-          if (e > 0.4) mx.sub(tk, step * (s === 10 || s === 11 ? 5 : 3), hz(root + 12) * (s === 6 ? 1.5 : 1), vel, slideOf(b));
+        // Pressure: a kick on every beat of the bar's first half, a fat driven 808 under every kick, the pad stays in the background.
+        const kickSteps = b % 2 === 0 ? [0, 4, 6, 10, 12] : [0, 3, 6, 8, 11, 14];
+        if (!gap && e > 0.25 && kickSteps.includes(s)) {
+          mx.kick(tk, Math.min(1.2, vel * 1.15));
+          const long808 = s === 0 || s === 10 || s === 11;
+          mx.sub(tk, step * (long808 ? 6 : 3), hz(root) * (s === 6 ? 1.5 : 1), Math.min(1.3, vel * 1.35), slideOf(b), 5.5);
         }
-        if (!gap && e > 0.35 && s === 8) mx.clap(tk, vel);
+        if (!gap && e > 0.3 && s === 8) mx.clap(tk, vel);
+        if (!gap && e > 0.3 && s === 8) mx.snare(tk, vel * 0.55, 0);
         if (!gap && e > 0.45) {
           mx.hat(tk, (s % 2 === 0 ? 0.75 : 0.4) * vel, false, s % 4 < 2 ? -0.2 : 0.2);
           // Hi-hat roll on the last beat of every second bar when it is loud enough.
@@ -541,7 +546,7 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
     if (hasLead(c, prev)) mx.riser(Math.max(prev + 0.1, c.t - Math.min(4 * beat, c.t - prev - 0.1)), c.t, 0.5 + 0.5 * intensity);
     mx.impact(c.t, c.kind === "mate" ? 1 : 0.8);
     mx.kick(c.t, 1);
-    mx.sub(c.t, beat * (c.kind === "mate" ? 3 : 1.5), hz(key + 12), 0.9, 1.4);
+    mx.sub(c.t, beat * (c.kind === "mate" ? 3 : 1.5), hz(key + (style === "phonk" ? 0 : 12)), 0.9, 1.4, style === "phonk" ? 5.5 : 2.4);
     if (style !== "chill" && style !== "ambient") mx.snare(c.t, 0.7);
     prev = c.t;
   }
@@ -552,7 +557,7 @@ export async function generateMusic(spec: GenSpec): Promise<Generated> {
   const outR = new Float32Array(n);
   // Sidechain: pads and keys dip for a moment at every kick.
   const duck = new Float32Array(n).fill(1);
-  const depth = style === "ambient" ? 0.1 : 0.45;
+  const depth = style === "ambient" ? 0.1 : style === "phonk" ? 0.7 : 0.45;
   for (const k of mx.kicks) {
     const s0 = Math.round(k * rate);
     for (let i = 0; i < 0.3 * rate && s0 + i < n; i++) {

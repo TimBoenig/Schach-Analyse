@@ -71,6 +71,8 @@ export interface CompiledScene {
   fxSquare: string | null;
   /** The mated (or checked) king for the mate effect, and the piece that gives mate. */
   mate: { king: string; by: string } | null;
+  /** The mate is the one of the scene before, continued under a short outro (no new impact, no new sound). */
+  mateCarried?: boolean;
   /** Squares the threat effect pulses on. */
   threats: string[];
   /** Poll answers drawn as coloured arrows on the board. */
@@ -470,7 +472,32 @@ export function compile(project: StudioProject): Timeline {
     const cutIv = s.cameras.length ? Math.max(0.2, (dur - freeze - cutFrom) / s.cameras.length) : 1;
     if (s.effects.includes("punch") || s.effects.includes("whip")) sounds.push({ t: tk, kind: "whoosh" });
     if (hit !== null || s.effects.includes("invert")) sounds.push({ t: tk + fxAt, kind: "boom" });
-    scenes.push({ scene: s, start: tk, dur, before, jumpOut, jumpIn, steps, annotate, focus, fxAt, fxSquare: focus, mate, threats, poll, hit, cutFrom, cutIv, error: pos.parsed.error });
+    // A short outro right after the mating scene (no new position, no moves) is laid over the shattered board:
+    // the mate carries on from where the scene before ended, so the broken side stays gone under the outro.
+    const last = scenes[scenes.length - 1];
+    const carry = reel && s.card === "outro" && !steps.length && !jumpOut.length && !jumpIn.size && !mate && last?.mate && !s.effects.includes("mate");
+    const shown: Scene = carry ? { ...s, effects: [...s.effects, "mate"], power: { ...s.power, mate: 0 } } : s;
+    scenes.push({
+      scene: shown,
+      start: tk,
+      dur,
+      before,
+      jumpOut,
+      jumpIn,
+      steps,
+      annotate,
+      focus,
+      fxAt: carry ? -(animDur(last) - last.fxAt) : fxAt,
+      fxSquare: focus,
+      mate: carry ? last.mate : mate,
+      mateCarried: carry || undefined,
+      threats,
+      poll,
+      hit,
+      cutFrom,
+      cutIv,
+      error: pos.parsed.error,
+    });
     tk += dur;
     prevFen = pos.after;
   });
@@ -757,12 +784,17 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   const prevArrows = new Set((prev?.scene.arrows ?? []).map(arrowKey));
   const nextArrows = new Set((nextScene?.scene.arrows ?? []).map(arrowKey));
   const tail = stillDur - local;
+  // An arrow never shows before its piece stands on the start square (or the move it shows has been played):
+  // an arrow of the next move drawn while the piece is still elsewhere points at nothing.
+  const standing = new Set(pieces.filter((p) => !p.flight && p.alpha > 0.9 && !p.tilt).map((p) => xzSquare(p.x, p.z)));
+  const played = [...c.steps.filter((st) => local >= st.t1), ...(prev?.steps.length ? [prev.steps[prev.steps.length - 1]] : [])];
+  const ready = (a: { from: string; to: string }) => standing.has(a.from) || played.some((st) => st.from === a.from && st.to === a.to);
   const arrows: FrameArrow[] = s.arrows.map((a, i) => {
     const carried = prevArrows.has(arrowKey(a));
     const start = c.annotate + i * 0.14;
     const progress = carried ? 1 : ease(clamp01((local - start) / 0.45));
     const outA = nextArrows.has(arrowKey(a)) ? 1 : clamp01(tail / 0.3);
-    return { ...a, progress, alpha: (carried ? 1 : clamp01((local - start) / 0.2)) * outA };
+    return { ...a, progress, alpha: (carried ? 1 : clamp01((local - start) / 0.2)) * outA * (ready(a) ? 1 : 0) };
   });
   // The piece in flight draws a faint path, so it is clear which piece goes where.
   if (moving) {

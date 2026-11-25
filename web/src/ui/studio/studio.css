@@ -1445,3 +1445,44 @@
   border-color: currentColor;
   background: rgba(128, 128, 128, 0.12);
 }
+
+/* ---- Edit tab (EditHelp.tsx) */
+.edit-help {
+  gap: 18px;
+}
+.edit-help-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.edit-help-block h4 {
+  margin: 0;
+  font-size: 13px;
+}
+.edit-help-list,
+.edit-help-tips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.edit-help-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+.edit-help-tips li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.edit-help-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

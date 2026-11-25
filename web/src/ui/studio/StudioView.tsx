@@ -61,6 +61,7 @@ import {
 } from "./model";
 import { Assistant, MoveRecorder } from "./Assistant";
 import { AiImport } from "./AiImport";
+import { EditHelp } from "./EditHelp";
 import { speechSheet } from "./aiScript";
 import { download, recordVideo, videoType } from "./record";
 import { autoScene, distributeScript, fitLength, movesLabel, variationScene, type Cursor, type GameTree } from "./wizard";
@@ -70,7 +71,7 @@ import { currentId, loadProjects, saveProjects, setCurrentId } from "./store";
 import { compile, type Timeline } from "./timeline";
 import { t, dec, changeStudioLang, LANG_NAMES, LANGS, siteLang, studioSetting, type StudioLang } from "../../i18n";
 
-type Tab = "szene" | "stil" | "video";
+type Tab = "szene" | "stil" | "video" | "edit";
 type Tool = "none" | "arrow" | "mark";
 
 interface ExportState {
@@ -741,9 +742,9 @@ export function StudioView() {
 
       <aside class="studio-panel">
         <div class="studio-tabs" role="tablist">
-          {(["szene", "stil", "video"] as Tab[]).map((tk) => (
+          {(["szene", "stil", "video", "edit"] as Tab[]).map((tk) => (
             <button key={tk} role="tab" aria-selected={tab === tk} class={tab === tk ? "on" : ""} onClick={() => setTab(tk)}>
-              {tk === "szene" ? t("Szene {0}", { 0: sel + 1 }) : tk === "stil" ? t("Stil") : t("Video")}
+              {tk === "szene" ? t("Szene {0}", { 0: sel + 1 }) : tk === "stil" ? t("Stil") : tk === "edit" ? t("Edit") : t("Video")}
             </button>
           ))}
         </div>
@@ -774,6 +775,16 @@ export function StudioView() {
             />
           )}
           {tab === "stil" && <StyleEditor style={project.style} onChange={setStyle} />}
+          {tab === "edit" && (
+            <EditHelp
+              project={project}
+              onProject={(next) => {
+                update(() => next);
+                setSel(0);
+              }}
+              onFirstTitle={(title) => updateScene({ title }, 0)}
+            />
+          )}
           {tab === "video" && (
             <SoundPanel
               video={project.video}
