@@ -159,7 +159,7 @@ describe("the edit tools work without an extra click", () => {
     const made = importAiScript(script, { art: "edit", tighten: true });
     expect(raw.errors).toEqual([]);
     expect(made.errors).toEqual([]);
-    expect(made.stats.seconds).toBeLessThan(raw.stats.seconds / 1.8);
+    expect(made.stats!.seconds).toBeLessThan(raw.stats!.seconds / 1.8);
     expect(made.project!.scenes[0].title).not.toBe("");
     expect(made.project!.scenes[made.project!.scenes.length - 1].duration).toBeLessThanOrEqual(OUTRO_SECONDS);
     expect(raw.project!.scenes[0].title).toBe("");
