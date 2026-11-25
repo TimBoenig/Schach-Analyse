@@ -11,6 +11,7 @@
 // preview and export are identical.
 import type { PieceSymbol } from "chess.js";
 
+import { softBlob } from "./shadow";
 import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { t } from "../../i18n";
 import { drawCard, fitText, layout, tokens, type Assets } from "./compose";
@@ -408,7 +409,7 @@ function rnd(seed: number): number {
 }
 
 /** The pieces of the mated side break like glass: a crack runs through them, then the shards fly apart and fall. */
-function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Assets, S: number, dir: number, local: number, blast: [number, number]): void {
+function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Assets, dir: number, local: number, blast: [number, number]): void {
   const img = assets.pieces[pieceKey(p.color, p.type)];
   if (!img) return;
   const size = 0.96 * p.scale;
@@ -429,10 +430,8 @@ function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Ass
     ctx.translate(x + 0.03 * Math.sin(local * 160), z);
     // It swells a little under the pressure and glows white before it goes.
     const swell = 1 + 0.12 * k;
-    ctx.shadowColor = "#ffffff";
-    ctx.shadowBlur = 0.5 * k * S;
+    softBlob(ctx, 0, 0, size * 0.9 * swell, size * 0.9 * swell, 0.8 * k, "255,255,255");
     ctx.drawImage(img, (-size * swell) / 2, (-size * swell) / 2, size * swell, size * swell);
-    ctx.shadowBlur = 0;
     ctx.strokeStyle = "rgba(255,255,255,0.95)";
     ctx.lineWidth = 0.035;
     ctx.lineCap = "round";
@@ -508,7 +507,7 @@ function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Ass
   }
 }
 
-function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, S: number, dir: number): void {
+function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, dir: number): void {
   const img = assets.pieces[pieceKey(p.color, p.type)];
   if (!img) return;
   const x = dir * p.x;
@@ -547,8 +546,8 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
         ctx.restore();
       }
     }
-    ctx.shadowColor = "rgba(255,255,255,0.85)";
-    ctx.shadowBlur = (hero ? 0.9 : 0.5) * S;
+    // A flying piece sits in a halo of light.
+    softBlob(ctx, x, z, size * (hero ? 1.1 : 0.8), size * (hero ? 1.1 : 0.8), hero ? 0.75 : 0.6, "255,255,255");
   } else {
     const landed = frame.landing && xzSquare(p.x, p.z) === frame.landing.square;
     const heroLanded = landed && frame.shot.hero && frame.shot.hero.to === frame.landing!.square && frame.local >= frame.shot.hero.t1;
@@ -557,9 +556,7 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
       const tk = frame.landing!.k * 0.7;
       squash = 0.34 * Math.exp(-tk * 7) * Math.cos(tk * 26);
     } else if (landed) size *= 1 + 0.14 * Math.sin(Math.min(1, frame.landing!.k / 0.3) * Math.PI);
-    ctx.shadowColor = "rgba(0,0,0,0.55)";
-    ctx.shadowBlur = 0.22 * S;
-    ctx.shadowOffsetY = 0.07 * S;
+    softBlob(ctx, x, z + 0.3 * size, 0.5 * size, 0.2 * size, 0.6);
   }
   ctx.translate(x, z - 0.04);
   if (p.tilt) {
@@ -665,9 +662,9 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     if (matedColour && p.color === matedColour && mateAge !== undefined) {
       const dist = Math.hypot(p.x - matedKing[0], p.z - matedKing[1]);
       const local = mateAge - (0.25 + dist * 0.05);
-      if (local >= 0) drawShattered(ctx, p, assets, S, dir, local, matedKing as [number, number]);
-      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, S, dir);
-    } else drawPiece(ctx, p, frame, assets, S, dir);
+      if (local >= 0) drawShattered(ctx, p, assets, dir, local, matedKing as [number, number]);
+      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, dir);
+    } else drawPiece(ctx, p, frame, assets, dir);
   }
 
   // ---- the showcase landing: a white shock ring, a second fainter one and dust flying off the square

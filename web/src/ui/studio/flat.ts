@@ -6,6 +6,7 @@
 // lands on the right square.
 import type { PieceSymbol } from "chess.js";
 
+import { softBlob } from "./shadow";
 import { layout } from "./compose";
 import { screenToBoard, toScreen, type Mat4 } from "./math3d";
 import { toneColor, type StudioStyle } from "./model";
@@ -213,12 +214,10 @@ export class FlatBoard {
       const lift = p.tilt ? 0 : Math.max(0, p.y);
       const size = S * p.scale * (1 + 0.14 * lift);
       if (lift > 0.02) {
+        // The hop's shadow stays on the ground and shrinks as the piece rises.
         ctx.save();
-        ctx.globalAlpha = 0.35 * p.alpha;
-        ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.ellipse(x, y + S * 0.3, S * 0.34, S * 0.12, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.globalAlpha = p.alpha;
+        softBlob(ctx, x, y + S * 0.3, S * 0.5 * (1 - 0.25 * lift), S * 0.2 * (1 - 0.25 * lift), 0.55);
         ctx.restore();
       }
       ctx.save();
@@ -230,11 +229,6 @@ export class FlatBoard {
         ctx.translate(0, size * 0.42);
         ctx.rotate((side >= 0 ? 1 : -1) * p.tilt);
         ctx.translate(0, -size * 0.42);
-      }
-      if (lift > 0.02) {
-        ctx.shadowColor = "rgba(0,0,0,0.35)";
-        ctx.shadowBlur = 14 * u;
-        ctx.shadowOffsetY = 8 * u;
       }
       ctx.drawImage(img, -size / 2, -size / 2, size, size);
       ctx.restore();
@@ -290,7 +284,6 @@ export function drawStandees(ctx: CanvasRenderingContext2D, frame: Frame, viewPr
   // Distance along the view (clip w): far pieces first, so near ones overlap them.
   const depth = (p: Frame["pieces"][number]) => viewProj[3] * p.x + viewProj[7] * p.y + viewProj[11] * p.z + viewProj[15];
   const list = frame.pieces.filter((p) => p.alpha > 0.01).sort((a, b) => depth(b) - depth(a));
-  const u = Math.min(W, H) / 1080;
   for (const p of list) {
     const img = pieces[pieceKey(p.color, p.type)];
     if (!img) continue;
@@ -315,9 +308,7 @@ export function drawStandees(ctx: CanvasRenderingContext2D, frame: Frame, viewPr
       const sx = Math.sin((p.tiltYaw ?? 0) - yaw);
       ctx.rotate((sx >= 0 ? 1 : -1) * p.tilt);
     }
-    ctx.shadowColor = "rgba(0,0,0,0.45)";
-    ctx.shadowBlur = 10 * u;
-    ctx.shadowOffsetY = 4 * u;
+    // The contact shadow on the board comes from the GL pass; a blurred copy of the picture here only costs time.
     ctx.drawImage(img, -size / 2, -size, size, size);
     ctx.restore();
   }
