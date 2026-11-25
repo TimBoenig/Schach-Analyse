@@ -363,7 +363,7 @@ export function compile(project: StudioProject): Timeline {
     const hero = reel && isHero(s);
     // Reel: the move starts right after the cut, no waiting for the camera.
     // A showcase move waits a moment, so the camera is already in on the piece when it takes off.
-    const lead = reel ? (hero ? HERO_LEAD : jumpOut.length || jumpIn.size ? 0.25 : 0.08) : index === 0 && project.video.introFly ? 1.2 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
+    const lead = reel ? (hero ? HERO_LEAD : jumpOut.length || jumpIn.size ? 0.25 : 0.08) : index === 0 && project.video.introFly ? 0.6 : jumpOut.length || jumpIn.size ? 0.7 : 0.35;
     const steps: Step[] = [];
     let at = lead;
     const chess = new Chess(pos.before);
@@ -644,7 +644,7 @@ export function cameraAt(timeline: Timeline, index: number, local: number, intro
     if (!introFly) return target;
     // Opening shot: the camera sweeps in from high above and to the side.
     const from: CameraState = { yaw: target.yaw - 30, pitch: 80, zoom: target.zoom * 1.9, tx: target.tx, tz: target.tz };
-    return lerpCamera(from, target, ease(local / 2.2));
+    return lerpCamera(from, target, ease(local / 1.4));
   }
   // A scene with cuts or a whip is entered by a quick whip, any other by a slow flight.
   const span = fastEntry(c.scene) ? WHIP_T : 1.15;

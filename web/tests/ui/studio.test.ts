@@ -804,7 +804,7 @@ describe("reel look", () => {
 
   it("pulls the shot back so a long arrow stays in the picture, and maps clicks back to squares", () => {
     const fork = tl.scenes.find((c) => c.scene.moves === "Nc7+")!;
-    const frame = frameAt(tl, project, fork.start + fork.annotate + 0.8)!;
+    const frame = frameAt(tl, project, fork.start + fork.annotate + 0.6)!;
     const cam = reelCamera(frame, 1080, 1080);
     const [ax, az] = squareXZ("c7");
     const [bx, bz] = squareXZ("e8");
@@ -852,7 +852,7 @@ describe("reel look", () => {
     expect(project.scenes[0].card).toBe("none");
     expect(project.scenes[0].title).toBe("");
     const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
-    expect(cam(0.01).S).toBeGreaterThan(cam(0.6).S * 1.2);
+    expect(cam(0.01).S).toBeGreaterThan(cam(0.5).S * 1.15);
   });
 
   it("an AI script of type edit becomes a quiet, fast reel, and the prompt asks for the type", () => {
@@ -1192,5 +1192,78 @@ describe("sound indicator", () => {
     expect(mixHasSound(mix, empty)).toBe(false);
     expect(mixHasSound({ ...mix, music: "beat" }, empty)).toBe(true);
     expect(mixHasSound({ ...mix, music: "beat", master: 0 }, empty)).toBe(false);
+  });
+});
+
+describe("edit defaults, calm camera and scenario prompts", () => {
+  const body = (o: Partial<Parameters<typeof buildAiPrompt>[0]>) => buildAiPrompt({ topic: "Schäfermatt", platform: "tiktok", length: 30, notes: "", ...o });
+  const exampleOf = (prompt: string) => importAiScript(prompt.split("```json")[1].split("```")[0]);
+
+  it("makes an edit of a script that forgot its type, when an edit was asked for, and keeps the edit free of captions and own zooms", () => {
+    const script = JSON.stringify({ titel: "T", szenen: [{ zug: "1. e4", zoom: 0.5, drehung: 20, fokus: true }, { zug: "1... e5", titel: "Stempel?" }] });
+    // Without the question the script is a slow 3D explainer, with it a reel.
+    expect(importAiScript(script).project!.style.view).not.toBe("reel");
+    const p = importAiScript(script, { art: "edit" }).project!;
+    expect(p.style.view).toBe("reel");
+    expect(p.video.tempo).toBeGreaterThan(2);
+    expect(p.video.introFly).toBe(false);
+    // The camera flies by itself: the AI's own zoom, turn and focus are dropped, and a scene without a title shows no move caption.
+    expect(p.scenes.map((s) => [s.zoom, s.orbit, s.focus, s.title])).toEqual([[1, 0, false, ""], [1, 0, false, "Stempel?"]]);
+    // An explainer asked for stays one, even when the AI wrote "edit".
+    expect(importAiScript(JSON.stringify({ videoart: "edit", szenen: [{ zug: "1. e4" }] }), { art: "explain" }).project!.style.view).not.toBe("reel");
+    // The music style from the questions is kept; "auto" leaves the automatic choice.
+    expect(importAiScript(script, { art: "edit", musicStyle: "phonk" }).project!.video.musicStyle).toBe("phonk");
+    expect(importAiScript(script, { art: "edit", musicStyle: "auto" }).project!.video.musicStyle).toBe("auto");
+    // The platform of the questions is the fallback when the script names none; a short clip starts on the board instead of flying in.
+    expect(importAiScript(script, { platform: "shorts" }).project!.video.platform).toBe("shorts");
+    expect(importAiScript(script, { platform: "shorts" }).project!.video.introFly).toBe(false);
+  });
+
+  it("never closes in past about four squares on the reel's tilted board, and settles within a beat", () => {
+    const project = exampleOf(body({ scenario: "edit" })).project!;
+    const tl = compile(project);
+    let tightest = 0;
+    for (let tk = 0.01; tk < tl.total - 0.1; tk += 0.05) tightest = Math.max(tightest, reelCamera(frameAt(tl, project, tk)!, 1080, 1080).S);
+    expect(tightest).toBeLessThan(1080 / 3.6);
+  });
+
+  it("builds a prompt per scenario, with the answers in it, and leaves the prompt of the plain options as it was", () => {
+    const plain = body({});
+    expect(body({ answers: {} })).toBe(plain);
+    const edit = body({ scenario: "edit", answers: { pace: "fast", hook: "question", point: "mate", ending: "part2", level: "club", music: "phonk", language: "en" } });
+    for (const part of ["KAMERA IM EDIT", "EFFEKTE IM EDIT", "Zielgruppe: Vereinsspieler", "so schnell wie möglich", "Siehst du das Matt", "Mattzug", "Teil 2", "Phonk", "Englisch"]) expect(edit).toContain(part);
+    // The edit hands the camera to the studio: no zoom, no turn, no focus, no zoom or confetti effect.
+    for (const part of ["zoom: Schneller Zoom", "konfetti: Konfetti", "Kameras (\"kamera\")"]) expect(edit).not.toContain(part);
+    const opening = body({ scenario: "opening", answers: { voice: false, poll: true, game: "1. e4 e5 2. Nf3" } });
+    for (const part of ["SZENARIO: ERÖFFNUNG VORSTELLEN", "1. e4 e5 2. Nf3", "Kein Sprechtext", "Ende das Video mit einer Umfrage", "VORAB: VIDEOART"]) expect(opening).toContain(part);
+    expect(opening).toContain('"videoart": "erklaerung"');
+    expect(body({ scenario: "puzzle" })).toContain("SZENARIO: RÄTSEL / TAKTIK");
+    expect(body({ scenario: "explain" })).toContain("SZENARIO: KURZES ERKLÄRVIDEO");
+    expect(body({ scenario: "lesson", platform: "youtube", length: 240 })).toContain("SZENARIO: YOUTUBE-LEKTION");
+    // The scenarios differ from each other, and the edit stays free of the explainer sections.
+    expect(new Set(["edit", "explain", "opening", "puzzle", "lesson", "auto"].map((s) => body({ scenario: s as "edit" })))).toHaveLength(6);
+    expect(edit).not.toContain("SZENARIO:");
+    // An own game is quoted at most once, cut at a sane length.
+    expect(body({ answers: { game: "x".repeat(9000) } }).match(/x{4000}/g)).toHaveLength(1);
+    // Every scenario's example imports without a problem.
+    for (const s of ["edit", "explain", "opening", "puzzle"] as const) {
+      const res = exampleOf(body({ scenario: s }));
+      expect(res.errors, s).toEqual([]);
+      expect(res.warnings, s).toEqual([]);
+    }
+  });
+
+  it("writes the scenario prompts in English with the English field names", () => {
+    setLangNow("en", EN);
+    try {
+      const en = body({ scenario: "puzzle", answers: { hook: "bold", language: "de", level: "strong" } });
+      for (const part of ["SCENARIO: PUZZLE / TACTIC", "advanced players", "bold claim", "German"]) expect(en).toContain(part);
+      expect(en).not.toContain("SZENARIO");
+      const edit = body({ scenario: "edit", answers: { pace: "calm" } });
+      expect(edit).toContain("CAMERA IN THE EDIT");
+      expect(edit).not.toContain("KAMERA IM EDIT");
+    } finally {
+      setLangNow("de");
+    }
   });
 });
