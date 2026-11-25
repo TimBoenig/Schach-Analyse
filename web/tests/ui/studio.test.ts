@@ -1253,6 +1253,77 @@ describe("edit defaults, calm camera and scenario prompts", () => {
     }
   });
 
+  it("states durations the studio really keeps: the minimums of the prompt are the minimums of the timeline", () => {
+    const pgn = "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#";
+    const lengthOf = (scene: object) => {
+      const res = importAiScript(JSON.stringify({ videoart: "edit", pgn, szenen: [{ zugNr: 2, dauer: 1.3 }, scene] }), { art: "edit" });
+      return compile(res.project!).scenes[1].dur;
+    };
+    // [scene, what the prompt tells the AI to write, what the studio makes of it]: a move needs 1.3, the show or a mate 2.6, mate + slow motion + hit-stop 4.
+    const table: [object, number, number][] = [
+      [{ zugNr: 3, dauer: 0.6 }, 1.3, 1.33],
+      [{ dauer: 0.6, pfeile: ["h5-f7 gefahr"] }, 0.6, 0.67],
+      [{ zugNr: 6, dauer: 1.3, effekte: { hitstop: 1, wackeln: 0.4 }, stempel: "X" }, 1.3, 1.33],
+      [{ zugNr: 6, dauer: 1.3, bewertung: "brillant" }, 2.6, 2.67],
+      [{ zugNr: 6, dauer: 2, effekte: ["zeitlupe"] }, 2.6, 2.67],
+      [{ zugNr: 7, dauer: 2.6, effekte: ["matt"] }, 2.6, 2.67],
+      [{ zugNr: 7, dauer: 2.6, effekte: { matt: 1, zeitlupe: 1, hitstop: 1 } }, 4, 4],
+      [{ dauer: 1.3, kameras: ["nah", "tief", "oben"], effekte: ["whip"] }, 1.3, 1.33],
+      [{ zugNr: 6, dauer: 1.3, kameras: ["nah", "tief"], effekte: ["hitstop"] }, 2, 2],
+    ];
+    for (const [scene, , studio] of table) expect(lengthOf(scene), JSON.stringify(scene)).toBeCloseTo(studio, 1);
+    const prompt = body({ scenario: "edit" });
+    for (const part of ["Eine Szene MIT Zug ist mindestens 1.3 lang", "mit Show (brillant, grossartig, bester, zeitlupe) oder Matt 2.6", "mit Matt, Zeitlupe und \"hitstop\" 4"]) expect(prompt).toContain(part);
+    // The example the AI copies is as long as the prompt asks for (15 to 25 s, 8 to 14 scenes).
+    const example = exampleOf(prompt).project!;
+    expect(example.scenes.length).toBeGreaterThanOrEqual(8);
+    expect(compile(example).total).toBeGreaterThan(15);
+    expect(compile(example).total).toBeLessThan(25);
+  });
+
+  it("turns the answers of an edit into edit instructions instead of explainer ones", () => {
+    const answers = { game: "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#", level: "beginner" as const, hook: "bold" as const, ending: "none" as const, music: "epic" as const, language: "de" as const, pace: "fast" as const };
+    const edit = body({ scenario: "edit", answers });
+    for (const part of ["Schreib die Züge unverändert in \"pgn\"", "Pointe muss ohne Schachwissen sofort klar sein", "kurzer \"titel\" in der Hook-Szene", "kein Abspann: lass die Szene \"abspann\" weg", "Der Takt bleibt 90 BPM", "Pauken und Streicher", "Szenen ohne Zug 0.6", "(Hook-Titel, Stempel, Abspann)"]) expect(edit).toContain(part);
+    // Nothing that belongs to explanations: teaching beginners, captions, voice-over.
+    for (const part of ["Begriffe beim ersten Mal erklären", "Nimm genau diese Züge", "Untertitel, Sprechtext"]) expect(edit).not.toContain(part);
+    // The same answers in an explainer keep the explainer wording.
+    const explain = body({ scenario: "explain", answers: { ...answers, music: undefined } });
+    for (const part of ["Nimm genau diese Züge", "Begriffe beim ersten Mal erklären", "kein Aufruf, das Video endet mit der Pointe"]) expect(explain).toContain(part);
+    // Every music style hands the AI its own advice, and the prompt still imports.
+    const hints = (["chill", "ambient", "phonk", "epic", "thriller"] as const).map((m) => body({ scenario: "edit", answers: { music: m } }));
+    expect(new Set(hints.map((h) => h.split("Der Takt bleibt 90 BPM")[1].split("\n")[0])).size).toBe(5);
+    // A result-first hook tells the AI how to use the jump back in time.
+    expect(body({ scenario: "edit", answers: { hook: "result" } })).toContain("springt \"zugNr\" zurück");
+  });
+
+  it("imports a realistic AI answer of a result-first edit without a complaint, with hook title, jumps back and no outro", () => {
+    const pgn = "1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7#";
+    const reply = "Klar, hier ist dein Edit:\n\n```json\n" + JSON.stringify({
+      videoart: "edit", titel: "Matt in 4", plattform: "tiktok", laenge: 12, perspektive: "weiss", pgn,
+      szenen: [
+        { zugNr: 7, dauer: 1.3, titel: "Siehst du das Matt?", effekte: { punch: 0.5 }, pfeile: ["h5-f7 akzent"] },
+        { zugNr: "2.", dauer: 1.3, effekte: ["riser"], markierungen: ["f7 gefahr"] },
+        { zugNr: "3...", dauer: 1.3, bewertung: "patzer", stempel: "PATZER", effekte: { hitstop: 1, invert: 1, glitch: 0.6, wackeln: 0.4 } },
+        { dauer: 1.3, kameras: ["nah", "tief", "oben"], effekte: { whip: 1, wackeln: 0.2 } },
+        { zugNr: 7, dauer: 4, stempel: "MATT", effekte: { matt: 1, zeitlupe: 1, hitstop: 1, wackeln: 1 } },
+      ],
+    }) + "\n```\nViel Erfolg!";
+    const res = importAiScript(reply, { art: "edit", platform: "tiktok", musicStyle: "epic" });
+    expect(res.errors).toEqual([]);
+    expect(res.warnings).toEqual([]);
+    const p = res.project!;
+    expect(p.scenes.map((sc) => sc.title)).toEqual(["Siehst du das Matt?", "", "", "", ""]);
+    expect(p.scenes.some((sc) => sc.card === "outro")).toBe(false);
+    expect(p.video.musicStyle).toBe("epic");
+    // The jumps back (ply 7, then White's 2nd, then Black's 3rd move) show the right moves, and none of the scenes is cut short.
+    const tl = compile(p);
+    expect(tl.scenes.every((c) => !c.error)).toBe(true);
+    expect(tl.scenes[0].scene.moves).toBe("4. Dxf7#");
+    expect(tl.scenes[1].scene.moves).toContain("Dh5");
+    expect(tl.scenes[2].scene.moves).toContain("Sf6");
+  });
+
   it("writes the scenario prompts in English with the English field names", () => {
     setLangNow("en", EN);
     try {
