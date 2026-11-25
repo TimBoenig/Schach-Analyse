@@ -190,7 +190,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
               <span>{status}</span>
             </span>
           </div>
-          <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
+          <EvalBar wc={wc} flipped={flipped} label={evalLabel} hold={wc === null} />
           <div style={{ gridRow: 2, gridColumn: 2 }}>
             <Board
               fen={fen}

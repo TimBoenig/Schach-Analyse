@@ -2,6 +2,8 @@
 // to the server; this device keeps just the signed token it gets back, valid
 // for about 30 days ("quick login"). Whether data may be shown is always
 // decided by the server: a token edited here is simply refused there.
+import { BRAND_DOMAIN } from "../brand";
+
 const TOKEN_KEY = "schach.admin.token";
 const ENDPOINT = "/api/admin";
 
@@ -121,7 +123,7 @@ export interface AdminStats {
   storage: { records: number; tableBytes: number; deletedGames: number };
 }
 
-export type StatsResult = { ok: true; stats: AdminStats } | { ok: false; reason: "unauthorized" | "unconfigured" | "migration" | "failed" };
+export type StatsResult = { ok: true; stats: AdminStats } | { ok: false; reason: "unauthorized" | "unconfigured" | "migration" | "failed"; detail?: string };
 
 export async function adminStats(): Promise<StatsResult> {
   const s = stored();
@@ -135,8 +137,12 @@ export async function adminStats(): Promise<StatsResult> {
     }
     if (r.status === 503) return { ok: false, reason: "unconfigured" };
     if (r.status === 501) return { ok: false, reason: "migration" };
-    return { ok: false, reason: "failed" };
-  } catch {
-    return { ok: false, reason: "failed" };
+    const body = (await r.json().catch(() => ({}))) as { detail?: string };
+    return { ok: false, reason: "failed", detail: body.detail ?? `HTTP ${r.status}` };
+  } catch (e) {
+    // fetch itself failed: offline, or the request left the app's own address
+    // (an old bookmark/installed app on a redirected domain is blocked by CORS).
+    const where = location.host === BRAND_DOMAIN ? "" : ` (${location.host})`;
+    return { ok: false, reason: "failed", detail: `${e instanceof Error ? e.message : "network"}${where}` };
   }
 }

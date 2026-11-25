@@ -103,8 +103,16 @@ export function shortEval(label: string): string {
   return Number.isFinite(n) && Math.abs(n) >= 10 ? String(Math.round(n)) : s;
 }
 
-export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: boolean; label: string }) {
-  const pct = Math.round((wc ?? 0.5) * 100);
+/**
+ * `hold`: the engine is still scoring the new position. The bar then keeps the
+ * last known value instead of dropping to the middle (or to a stale game value)
+ * and jumping again a moment later.
+ */
+export function EvalBar({ wc, flipped, label, hold = false }: { wc: number | null; flipped: boolean; label: string; hold?: boolean }) {
+  const last = useRef(0.5);
+  if (!hold && wc !== null) last.current = wc;
+  const shown = hold ? last.current : (wc ?? 0.5);
+  const pct = Math.round(shown * 100);
   const whiteAhead = pct >= 50;
   return (
     <div class={`evalbar${flipped ? " flipped" : ""}`} style={{ gridRow: "2" }} aria-label={t("Bewertung {label}", { label })}>
@@ -1133,7 +1141,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       <div class="analysis">
         <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
-          <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
+          <EvalBar wc={wc} flipped={flipped} label={evalLabel} hold={Boolean(explore && exploreFen && !live.lines[0])} />
           <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
             <Board
               fen={fen}
