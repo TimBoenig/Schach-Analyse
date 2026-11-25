@@ -95,7 +95,7 @@ export class LoginThrottle {
   }
 }
 
-export type StatsResult = { ok: true; stats: unknown } | { ok: false; status: number; error: "not-configured" | "missing-migration" | "failed" };
+export type StatsResult = { ok: true; stats: unknown } | { ok: false; status: number; error: "not-configured" | "missing-migration" | "failed"; detail?: string };
 
 /** Calls the SQL function admin_stats() with the service-role key (server only). */
 export async function fetchStats(env: AdminEnv, fetchImpl: typeof fetch = fetch): Promise<StatsResult> {
@@ -110,9 +110,10 @@ export async function fetchStats(env: AdminEnv, fetchImpl: typeof fetch = fetch)
     });
     // 404 = the function does not exist yet: the migration has not been applied.
     if (r.status === 404) return { ok: false, status: 501, error: "missing-migration" };
-    if (!r.ok) return { ok: false, status: 502, error: "failed" };
+    // detail tells the dashboard (and Tim) which hop failed; it never contains the key.
+    if (!r.ok) return { ok: false, status: 502, error: "failed", detail: `database ${r.status}` };
     return { ok: true, stats: await r.json() };
-  } catch {
-    return { ok: false, status: 502, error: "failed" };
+  } catch (e) {
+    return { ok: false, status: 502, error: "failed", detail: `database unreachable: ${e instanceof Error ? e.name : "error"}` };
   }
 }

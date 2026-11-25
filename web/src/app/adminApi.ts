@@ -121,7 +121,7 @@ export interface AdminStats {
   storage: { records: number; tableBytes: number; deletedGames: number };
 }
 
-export type StatsResult = { ok: true; stats: AdminStats } | { ok: false; reason: "unauthorized" | "unconfigured" | "migration" | "failed" };
+export type StatsResult = { ok: true; stats: AdminStats } | { ok: false; reason: "unauthorized" | "unconfigured" | "migration" | "failed"; detail?: string };
 
 export async function adminStats(): Promise<StatsResult> {
   const s = stored();
@@ -135,8 +135,10 @@ export async function adminStats(): Promise<StatsResult> {
     }
     if (r.status === 503) return { ok: false, reason: "unconfigured" };
     if (r.status === 501) return { ok: false, reason: "migration" };
-    return { ok: false, reason: "failed" };
-  } catch {
-    return { ok: false, reason: "failed" };
+    const body = (await r.json().catch(() => ({}))) as { detail?: string };
+    return { ok: false, reason: "failed", detail: body.detail ? `HTTP ${r.status}, ${body.detail}` : `HTTP ${r.status}` };
+  } catch (e) {
+    // fetch threw (offline, blocked) or the 200 answer was not JSON
+    return { ok: false, reason: "failed", detail: e instanceof Error ? e.name : "error" };
   }
 }

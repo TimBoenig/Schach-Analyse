@@ -103,7 +103,24 @@ export function shortEval(label: string): string {
   return Number.isFinite(n) && Math.abs(n) >= 10 ? String(Math.round(n)) : s;
 }
 
-export function EvalBar({ wc, flipped, label }: { wc: number | null; flipped: boolean; label: string }) {
+export interface EvalShown {
+  wc: number | null;
+  label: string;
+}
+
+/** Value the bar shows: while the engine is pending, the last settled value instead of the middle. */
+export function heldEval(last: EvalShown | null, now: EvalShown, pending: boolean): EvalShown {
+  return pending && last ? last : now;
+}
+
+/**
+ * `pending` = the engine is still computing this position. The bar then keeps the last
+ * shown value (it would otherwise snap to the middle and slide back after every move).
+ */
+export function EvalBar({ wc, flipped, label, pending = false }: { wc: number | null; flipped: boolean; label: string; pending?: boolean }) {
+  const last = useRef<EvalShown | null>(null);
+  if (!pending && wc !== null) last.current = { wc, label };
+  ({ wc, label } = heldEval(last.current, { wc, label }, pending));
   const pct = Math.round((wc ?? 0.5) * 100);
   const whiteAhead = pct >= 50;
   return (
@@ -752,6 +769,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
     : game.moves[0]
       ? formatEval(game.moves[0].eval_before_cp, game.moves[0].eval_before_mate)
       : "";
+  let evalPending = false;
   if (explore && exploreFen) {
     const best = live.lines[0];
     if (best) {
@@ -760,6 +778,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       evalLabel = formatEval(s.cp, s.mate);
     } else {
       evalLabel = "…";
+      evalPending = true;
     }
   }
 
@@ -1133,7 +1152,7 @@ export function AnalysisView({ gameId, ply }: { gameId?: string; ply?: number })
       <div class="analysis">
         <div class="board-area" ref={boardRef}>
           {playerLine(top, 1)}
-          <EvalBar wc={wc} flipped={flipped} label={evalLabel} />
+          <EvalBar wc={wc} flipped={flipped} label={evalLabel} pending={evalPending} />
           <div class="board-fx-wrap" style={{ gridRow: 2, gridColumn: 2 }}>
             <Board
               fen={fen}

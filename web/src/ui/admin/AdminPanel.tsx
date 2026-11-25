@@ -131,7 +131,7 @@ export function AdminPanel() {
         ? t("Die Datenbank-Anbindung ist auf dem Server noch nicht eingerichtet (SUPABASE_SERVICE_ROLE_KEY).")
         : r.reason === "migration"
           ? t("Die Datenbank-Funktion admin_stats() fehlt noch: Migration 20261123_admin_stats.sql einspielen.")
-          : t("Die Zahlen konnten nicht geladen werden."),
+          : t("Die Zahlen konnten nicht geladen werden.") + (r.detail ? ` (${r.detail})` : ""),
     );
   }, []);
 
