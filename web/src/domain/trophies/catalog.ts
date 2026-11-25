@@ -20,6 +20,19 @@ export const TIER_LABEL: Record<Tier, string> = {
   legendary: t("Legendär"),
 };
 
+/**
+ * Collector ranks, named after the pieces. A rank starts at this share of all
+ * points, so it stays right when trophies are added to the catalog.
+ */
+export const LEVELS: { from: number; name: string }[] = [
+  { from: 0, name: t("Bauer") },
+  { from: 0.08, name: t("Springer") },
+  { from: 0.2, name: t("Läufer") },
+  { from: 0.38, name: t("Turm") },
+  { from: 0.6, name: t("Dame") },
+  { from: 0.85, name: t("König") },
+];
+
 /** Icon names the page maps to its drawings (the domain does not import UI). */
 export type TrophyIcon =
   | "bolt" | "board" | "calendar" | "check" | "cpu" | "crown" | "flame" | "games" | "gauge" | "globe" | "hourglass"

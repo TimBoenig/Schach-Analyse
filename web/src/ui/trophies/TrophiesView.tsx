@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "preact/hooks";
 import { getSetting, setSetting } from "../../storage/db";
 import { playerUsernames, type TrackedPlayer } from "../../domain/players";
 import {
+  collectorLevel,
   compareTrophies,
   evaluateTrophies,
   nextTrophies,
@@ -29,6 +30,7 @@ import { t } from "../../i18n";
 const SEEN_KEY = "trophies.seen";
 
 type Status = "all" | "unlocked" | "locked";
+type Sort = "tier" | "progress" | "name";
 type Holder = "all" | "both" | "me" | "them" | "none";
 
 interface Reports {
@@ -108,6 +110,9 @@ function useFresh(report: TrophyReport | null): Set<string> {
   return fresh;
 }
 
+/** Name as the card shows it: a locked secret trophy sorts last so the order does not give it away. */
+const shownName = (s: TrophyState) => (s.def.secret && !s.unlocked ? "\uffff" : s.def.name);
+
 function progressText(s: TrophyState): string | null {
   const { def } = s;
   if (def.below) {
@@ -134,6 +139,8 @@ function TrophyCard({
   const hidden = def.secret && !s.unlocked;
   const text = hidden ? null : progressText(s);
   const showBar = !s.unlocked && !hidden && !def.below && def.goal > 1;
+  // Only work that adds up can be "almost there"; a best-of value (a rating) can sit at 90 % forever.
+  const almost = showBar && !s.best && s.progress >= 0.8;
   return (
     <article class={`tr-card tier-${def.tier}${s.unlocked ? " unlocked" : " locked"}${fresh ? " fresh" : ""}`} data-trophy={def.id}>
       <Medal icon={def.icon} tier={def.tier} locked={!s.unlocked} secret={def.secret} />
@@ -153,6 +160,7 @@ function TrophyCard({
         <span class="tr-meta">
           <span class={`tr-tier tier-${def.tier}`}>{TIER_LABEL[def.tier]}</span>
           {def.quirky && !hidden && <span class="tr-tag">{t("Kurios")}</span>}
+          {almost && <span class="tr-tag tr-almost">{t("Fast geschafft")}</span>}
           {s.unlocked && s.game && (
             <button class="tr-link" onClick={() => navigate({ view: "analysis", gameId: s.game })}>
               {t("Partie ansehen")}
@@ -173,7 +181,8 @@ function TrophyCard({
 
 function Hero({ report, loading }: { report: TrophyReport | null; loading: boolean }) {
   if (!report) return <div class="skeleton span-12" style={{ height: "170px" }} />;
-  const next = nextTrophies(report);
+  const next = nextTrophies(report, 4);
+  const level = collectorLevel(report.points, report.maxPoints);
   return (
     <section class="card tr-hero span-12">
       <div class="tr-hero-main">
@@ -188,6 +197,17 @@ function Hero({ report, loading }: { report: TrophyReport | null; loading: boole
             {t("{points} von {max} Punkten", { points: report.points, max: report.maxPoints })}
             {" · "}
             {plural(report.games, t("gezählte Partie"), t("gezählte Partien"))}
+          </div>
+          <div class="tr-level">
+            <span class="tr-level-name">{t("Rang: {name}", { name: level.name })}</span>
+            {level.next ? (
+              <>
+                <Meter value={level.progress * 100} max={100} tone="tr-meter" />
+                <span class="tr-count tnum">{t("Noch {n} Punkte bis {name}", { n: level.missing, name: level.next })}</span>
+              </>
+            ) : (
+              <span class="tr-count">{t("Höchster Rang erreicht")}</span>
+            )}
           </div>
         </div>
       </div>
@@ -224,6 +244,31 @@ function Hero({ report, loading }: { report: TrophyReport | null; loading: boole
           <p class="small faint">{loading ? t("Wird berechnet …") : t("Spiel weiter, dann zeigen sich hier die nächsten Ziele.")}</p>
         )}
       </div>
+    </section>
+  );
+}
+
+/** What was unlocked since the last visit, with a short burst of sparks around each new medal. */
+function FreshBanner({ report, fresh }: { report: TrophyReport; fresh: Set<string> }) {
+  const list = report.states.filter((s) => fresh.has(s.def.id) && s.unlocked);
+  if (!list.length) return null;
+  return (
+    <section class="card tr-fresh span-12" aria-live="polite">
+      <h2>{plural(list.length, t("neue Trophäe seit deinem letzten Besuch"), t("neue Trophäen seit deinem letzten Besuch"))}</h2>
+      <ul>
+        {list.map((s) => (
+          <li key={s.def.id} class={`tier-${s.def.tier}`}>
+            <span class="tr-burst">
+              <Medal icon={s.def.icon} tier={s.def.tier} secret={false} />
+            </span>
+            <span class="tr-fresh-text">
+              <strong>{s.def.name}</strong>
+              <span class="small faint">{s.def.about}</span>
+            </span>
+            <span class="tr-points tnum">{TIER_POINTS[s.def.tier]}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -308,6 +353,8 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [quirky, setQuirky] = useState(false);
   const [holder, setHolder] = useState<Holder>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("tier");
 
   // A link to #/trophaeen/<friend> opens with that friend picked.
   useEffect(() => {
@@ -351,11 +398,14 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
     );
   }
 
+  const q = query.trim().toLowerCase();
   const shown = (mine?.states ?? []).filter((s) => {
     if (status === "unlocked" && !s.unlocked) return false;
     if (status === "locked" && s.unlocked) return false;
     if (tiers.length && !tiers.includes(s.def.tier)) return false;
     if (quirky && !s.def.quirky) return false;
+    // A secret trophy stays unsearchable until earned, or the search would give it away.
+    if (q && (s.def.secret && !s.unlocked ? true : !`${s.def.name} ${s.def.about}`.toLowerCase().includes(q))) return false;
     if (diff && holder !== "all") {
       const id = s.def.id;
       const set = { both: diff.both, me: diff.onlyA, them: diff.onlyB, none: diff.neither }[holder];
@@ -371,6 +421,7 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
       <PageHeader />
       <div class="dash">
         <Hero report={mine} loading />
+        {mine && <FreshBanner report={mine} fresh={fresh} />}
         {mine && friends.length > 0 && <FriendsCard players={friends} mine={mine} reports={friendReports} picked={picked} onPick={setPicked} />}
         {mine && friends.length === 0 && (
           <p class="small faint span-12 tr-hint">
@@ -394,6 +445,27 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
                 ] as [Status, string][]
               ).map(([key, label]) => (
                 <button key={key} class={status === key ? "active" : ""} aria-pressed={status === key} onClick={() => setStatus(key)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input
+              class="tr-search"
+              type="search"
+              value={query}
+              placeholder={t("Trophäe suchen …")}
+              aria-label={t("Trophäe suchen")}
+              onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+            />
+            <div class="segmented" role="group" aria-label={t("Sortierung")}>
+              {(
+                [
+                  ["tier", t("Nach Seltenheit")],
+                  ["progress", t("Nach Fortschritt")],
+                  ["name", t("A–Z")],
+                ] as [Sort, string][]
+              ).map(([key, label]) => (
+                <button key={key} class={sort === key ? "active" : ""} aria-pressed={sort === key} onClick={() => setSort(key)}>
                   {label}
                 </button>
               ))}
@@ -432,7 +504,21 @@ export function TrophiesView({ playerId }: { playerId?: string }) {
             <p class="notice tr-hint">{t("Von {name} sind noch keine Partien geladen, deshalb ist die Sammlung leer.", { name: friend.name })}</p>
           )}
 
-          {TIERS.map((tier) => {
+          {sort !== "tier" && shown.length > 0 && (
+            <div class="tr-grid tr-flat">
+              {[...shown]
+                .sort(sort === "name" ? (a, b) => shownName(a).localeCompare(shownName(b)) : (a, b) => Number(a.unlocked) - Number(b.unlocked) || b.progress - a.progress)
+                .map((s) => (
+                  <TrophyCard
+                    key={s.def.id}
+                    s={s}
+                    fresh={fresh.has(s.def.id)}
+                    who={friend && theirs ? { name: friend.name, tone: toneOf(friends, friend.id), theirs: theirsById.get(s.def.id) ?? false } : null}
+                  />
+                ))}
+            </div>
+          )}
+          {sort === "tier" && TIERS.map((tier) => {
             const list = shown.filter((s) => s.def.tier === tier).sort(first);
             if (!list.length) return null;
             const b = mine.byTier[tier];
