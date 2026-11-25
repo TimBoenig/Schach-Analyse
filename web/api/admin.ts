@@ -40,7 +40,7 @@ export async function POST(req: Request): Promise<Response> {
   if (body.action === "verify") return json(200, { ok: true });
   if (body.action === "stats") {
     const r = await fetchStats(env);
-    return r.ok ? json(200, r.stats) : json(r.status, { error: r.error });
+    return r.ok ? json(200, r.stats) : json(r.status, { error: r.error, detail: r.detail });
   }
   return json(400, { error: "bad-request" });
 }

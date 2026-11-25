@@ -58,6 +58,11 @@ describe("fetchStats", () => {
     expect((init.headers as Record<string, string>).apikey).toBe("service-key");
     expect(await fetchStats(env, reply(404) as unknown as typeof fetch)).toMatchObject({ ok: false, error: "missing-migration" });
     expect(await fetchStats(env, reply(500) as unknown as typeof fetch)).toMatchObject({ ok: false, error: "failed" });
+    // The admin can read why: Supabase status and PostgREST message, never the key.
+    const denied = await fetchStats(env, reply(401, { code: "PGRST301", message: "JWT invalid" }) as unknown as typeof fetch);
+    expect(denied).toMatchObject({ ok: false, detail: "supabase 401 PGRST301 JWT invalid" });
+    const down = await fetchStats(env, (async () => Promise.reject(new TypeError("fetch failed"))) as unknown as typeof fetch);
+    expect(down).toMatchObject({ ok: false, detail: "TypeError: fetch failed" });
     expect(await fetchStats({ ...env, SUPABASE_SERVICE_ROLE_KEY: undefined })).toMatchObject({ ok: false, error: "not-configured" });
   });
 });

@@ -95,7 +95,19 @@ export class LoginThrottle {
   }
 }
 
-export type StatsResult = { ok: true; stats: unknown } | { ok: false; status: number; error: "not-configured" | "missing-migration" | "failed" };
+export type StatsResult = { ok: true; stats: unknown } | { ok: false; status: number; error: "not-configured" | "missing-migration" | "failed"; detail?: string };
+
+/** Short, secret-free reason for the admin to read ("rpc 401 PGRST301 ..."); never contains keys. */
+async function failureDetail(r: Response): Promise<string> {
+  let code = "";
+  try {
+    const b = (await r.json()) as { code?: unknown; message?: unknown };
+    code = [b.code, b.message].filter((x) => typeof x === "string").join(" ").slice(0, 160);
+  } catch {
+    // not JSON
+  }
+  return `supabase ${r.status}${code ? ` ${code}` : ""}`;
+}
 
 /** Calls the SQL function admin_stats() with the service-role key (server only). */
 export async function fetchStats(env: AdminEnv, fetchImpl: typeof fetch = fetch): Promise<StatsResult> {
@@ -107,12 +119,14 @@ export async function fetchStats(env: AdminEnv, fetchImpl: typeof fetch = fetch)
       method: "POST",
       headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: "{}",
+      // Answer with a reason instead of letting the platform cut the function off silently.
+      signal: AbortSignal.timeout(25_000),
     });
     // 404 = the function does not exist yet: the migration has not been applied.
     if (r.status === 404) return { ok: false, status: 501, error: "missing-migration" };
-    if (!r.ok) return { ok: false, status: 502, error: "failed" };
+    if (!r.ok) return { ok: false, status: 502, error: "failed", detail: await failureDetail(r) };
     return { ok: true, stats: await r.json() };
-  } catch {
-    return { ok: false, status: 502, error: "failed" };
+  } catch (e) {
+    return { ok: false, status: 502, error: "failed", detail: e instanceof Error ? `${e.name}: ${e.message}`.slice(0, 160) : "unknown" };
   }
 }
