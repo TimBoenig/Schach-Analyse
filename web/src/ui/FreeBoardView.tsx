@@ -12,6 +12,7 @@ import { formatEval } from "./labels";
 import { LineMoves, VerdictCard } from "./LiveLine";
 import { navigate } from "./router";
 import { GuideButton, usePageGuide } from "./stage/PageGuide";
+import { PositionEditor } from "./board/PositionEditor";
 import { OpeningLine } from "./OpeningLine";
 import { useBook } from "./useBook";
 import { usePositionLines, useVerdicts } from "./useLive";
@@ -76,6 +77,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
   const [showArrows, setShowArrows] = useState(true);
   const [fenInput, setFenInput] = useState("");
   const [fenError, setFenError] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     try {
@@ -121,7 +123,7 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (editing || isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "ArrowLeft") go(n - 1);
       else if (e.key === "ArrowRight") go(n + 1);
       else if (e.key === "Home") go(0);
@@ -151,11 +153,28 @@ export function FreeBoardView({ fen: initialFen }: { fen?: string }) {
         ? t("Remis.")
         : t("{0} am Zug{1}", { 0: board.turn() === "w" ? t("Weiß") : t("Schwarz"), 1: board.inCheck() ? t(" (Schach)") : "" });
 
+  if (editing) {
+    return (
+      <PositionEditor
+        fen={fen}
+        flipped={flipped}
+        onCancel={() => setEditing(false)}
+        onApply={(f) => {
+          reset(f);
+          setEditing(false);
+        }}
+      />
+    );
+  }
+
   return (
     <div>
       <PageHeader
         actions={
           <>
+            <button class="btn small" onClick={() => setEditing(true)}>
+              {t("Stellung aufbauen")}
+            </button>
             <button class="btn small" onClick={() => reset()}>
               <IconReset />  {t("Startstellung")}
             </button>
