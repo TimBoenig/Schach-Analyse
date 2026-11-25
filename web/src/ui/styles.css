@@ -976,13 +976,13 @@ dialog::backdrop {
 .board .pc.white.bishop, .promo-piece.white.bishop { background-image: url("/pieces/white-bishop.svg"); }
 .board .pc.white.rook, .promo-piece.white.rook { background-image: url("/pieces/white-rook.svg"); }
 .board .pc.white.queen, .promo-piece.white.queen { background-image: url("/pieces/white-queen.svg"); }
-.board .pc.white.king { background-image: url("/pieces/white-king.svg"); }
+.board .pc.white.king, .promo-piece.white.king { background-image: url("/pieces/white-king.svg"); }
 .board .pc.black.pawn, .promo-piece.black.pawn { background-image: url("/pieces/black-pawn.svg"); }
 .board .pc.black.knight, .promo-piece.black.knight { background-image: url("/pieces/black-knight.svg"); }
 .board .pc.black.bishop, .promo-piece.black.bishop { background-image: url("/pieces/black-bishop.svg"); }
 .board .pc.black.rook, .promo-piece.black.rook { background-image: url("/pieces/black-rook.svg"); }
 .board .pc.black.queen, .promo-piece.black.queen { background-image: url("/pieces/black-queen.svg"); }
-.board .pc.black.king { background-image: url("/pieces/black-king.svg"); }
+.board .pc.black.king, .promo-piece.black.king { background-image: url("/pieces/black-king.svg"); }
 
 /* Coordinates inside the edge squares, in the opposite square colour (chess.com style). */
 .board .coord {
@@ -7251,4 +7251,49 @@ label,
 [role="menuitem"],
 [role="menuitemcheckbox"] {
   touch-action: manipulation;
+}
+
+/* ---------- position editor ---------- */
+
+.pe-palette {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+.pe-tool {
+  aspect-ratio: 1;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.pe-tool.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.pe-rights {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 12px;
+  margin: 8px 0;
+}
+.pe-rights label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+.pe-problems {
+  margin: 0 0 12px;
+  padding-left: 18px;
+}
+.board.editing {
+  touch-action: none;
+}
+.btn.small.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
 }

@@ -50,6 +50,11 @@ interface Props {
   annotate?: boolean;
   /** Horizontal swipe that starts on an empty square (a piece is picked up instead). */
   onSwipe?: (direction: "left" | "right") => void;
+  /**
+   * Position editor: no rules, no move validation. A tap reports the square, a piece
+   * dragged somewhere reports where it was dropped (null = off the board = remove it).
+   */
+  edit?: { tap: (square: string) => void; move: (from: string, to: string | null) => void };
 }
 
 type Brush = { color: string; opacity: number; width: number };
@@ -128,7 +133,7 @@ function Ring({ at, brush, flipped, cls }: ShapeProps & { at: string }) {
   return <circle class={cls} cx={c + 0.5} cy={r + 0.5} r={0.5 - w / 2 - 0.02} fill="none" stroke-width={w} opacity={brush.opacity} style={{ stroke: brush.color }} />;
 }
 
-export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], circles = [], annotate = false, onSwipe }: Props) {
+export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMove, legalTargets, highlight = [], circles = [], annotate = false, onSwipe, edit }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
   const floatRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -144,6 +149,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
   const movable = !!onMove && !!legalTargets;
   const canPick = (sq: string) => {
     const p = placement.get(sq);
+    if (edit) return !!p;
     return movable && !!p && isWhitePiece(p) === white && legalTargets!(sq).length > 0;
   };
   // Promotions list the same square once per piece.
@@ -230,6 +236,8 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
       return;
     }
     setSelected(null);
+    // Editing: an empty square is simply tapped (placing a piece or erasing nothing).
+    if (edit) edit.tap(sq);
   };
 
   const onPointerMove = (e: JSX.TargetedPointerEvent<HTMLDivElement>) => {
@@ -274,6 +282,15 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
     if (!p || p.pointerId !== e.pointerId) return;
     pick.current = null;
     setDrag(null);
+    if (edit) {
+      setSelected(null);
+      if (!p.dragging) edit.tap(p.square);
+      else {
+        const dropped = squareAt(e.clientX, e.clientY);
+        if (dropped !== p.square) edit.move(p.square, dropped);
+      }
+      return;
+    }
     if (!p.dragging) {
       if (p.wasSelected) setSelected(null);
       return;
@@ -361,7 +378,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
   return (
     <div
       ref={rootRef}
-      class={`board${movable ? " interactive" : ""}${drag ? " is-dragging" : ""}`}
+      class={`board${movable || edit ? " interactive" : ""}${edit ? " editing" : ""}${drag ? " is-dragging" : ""}`}
       role="img"
       aria-label={t("Schachbrett")}
       onPointerDown={(e) => {
@@ -399,7 +416,7 @@ export function Board({ fen, flipped = false, lastMove, arrows = [], badge, onMo
           const [c, r] = screenPos(p.square, flipped);
           const ghost = drag?.square === p.square;
           // Pieces of the side to move show a grab cursor (the board handles the pointer events).
-          const own = movable && isWhitePiece(p.piece) === white;
+          const own = edit ? true : movable && isWhitePiece(p.piece) === white;
           return (
             <div
               key={p.id}
