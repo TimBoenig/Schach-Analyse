@@ -82,7 +82,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
     [game, level, pace, hook, ending, language, edit, point, music, voice, poll],
   );
   const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, scenario, answers }), [topic, platform, length, notes, side, scenario, answers]);
-  const result = useMemo(() => (answer.trim() ? importAiScript(answer, { art: scenarioArt(scenario), platform, musicStyle: edit ? music : "auto" }) : null), [answer, scenario, platform, edit, music]);
+  const result = useMemo(() => (answer.trim() ? importAiScript(answer, { art: scenarioArt(scenario), platform, musicStyle: edit ? music : "auto", tighten: true }) : null), [answer, scenario, platform, edit, music]);
 
   const pick = (sc: Scenario) => {
     setScenario(sc);

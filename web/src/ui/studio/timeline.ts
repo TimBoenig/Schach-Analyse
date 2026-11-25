@@ -789,12 +789,14 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   const standing = new Set(pieces.filter((p) => !p.flight && p.alpha > 0.9 && !p.tilt).map((p) => xzSquare(p.x, p.z)));
   const played = [...c.steps.filter((st) => local >= st.t1), ...(prev?.steps.length ? [prev.steps[prev.steps.length - 1]] : [])];
   const ready = (a: { from: string; to: string }) => standing.has(a.from) || played.some((st) => st.from === a.from && st.to === a.to);
+  // The arrows of a scene belong together (threat and its second attacker): while one of them points from an empty square, none shows.
+  const sceneReady = s.arrows.every(ready);
   const arrows: FrameArrow[] = s.arrows.map((a, i) => {
     const carried = prevArrows.has(arrowKey(a));
     const start = c.annotate + i * 0.14;
     const progress = carried ? 1 : ease(clamp01((local - start) / 0.45));
     const outA = nextArrows.has(arrowKey(a)) ? 1 : clamp01(tail / 0.3);
-    return { ...a, progress, alpha: (carried ? 1 : clamp01((local - start) / 0.2)) * outA * (ready(a) ? 1 : 0) };
+    return { ...a, progress, alpha: (carried ? 1 : clamp01((local - start) / 0.2)) * outA * (sceneReady ? 1 : 0) };
   });
   // The piece in flight draws a faint path, so it is clear which piece goes where.
   if (moving) {

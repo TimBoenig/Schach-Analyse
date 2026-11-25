@@ -633,7 +633,7 @@ export function reelTemplate(): StudioProject {
       scene({ moves: "4. Qxf7#", duration: 0.6, badge: "brilliant", effects: ["mate", "slowmo"], arrows: [{ from: "h5", to: "f7", tone: "accent" }] }),
       scene({ fen: fork, moves: "Nc7+", duration: 0.6, badge: "best", effects: ["spotlight", "slowmo"], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] }),
       ...[0, 1, 2].map(() => scene({ duration: 0.6, marks: [{ square: "e8", tone: "bad" }, { square: "a8", tone: "bad" }], arrows: [{ from: "c7", to: "e8", tone: "bad" }, { from: "c7", to: "a8", tone: "bad" }] })),
-      outro({ title: t("Mehr Taktik aus deinen Partien") }),
+      outro({ title: t("Mehr Taktik aus deinen Partien"), duration: 1.3 }),
     ],
     START_FEN,
     "mono",

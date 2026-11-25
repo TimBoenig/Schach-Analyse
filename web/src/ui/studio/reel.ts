@@ -745,7 +745,7 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     ctx.font = `400 ${fit.size}px ${SERIF}`;
     ctx.fillStyle = "#ffffff";
     ctx.textBaseline = "alphabetic";
-    fit.lines.forEach((line, i) => ctx.fillText(line.map((tk) => tk.word).join(" "), W / 2, L.titleTop + (L.portrait ? -10 : 28) * u + i * fit.size * 1.05));
+    fit.lines.forEach((line, i) => ctx.fillText(line.map((tk) => tk.word).join(" "), W / 2, L.titleTop + (L.portrait ? 10 : 28) * u + i * fit.size * 1.05));
   }
   if (!frame.lesson && frame.text.text.trim() && quiet > 0.01) {
     ctx.globalAlpha = frame.text.alpha * quiet * easeOut(frame.text.age / 0.3);
@@ -788,8 +788,9 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   // ---- branding stays small and quiet: the name at the bottom, the address under it
   if (v.brand && !(card.kind === "outro" && card.alpha > 0.5)) {
     // Square and wide pictures fill the frame with the board: the name sits at the top edge, not on the white king (e1) at the bottom.
-    const size = (L.portrait ? 30 : 24) * u;
-    const y = L.portrait ? H - 250 * u : 36 * u;
+    // Phone format too: the lower picture is the board, so the name goes up under the progress edge, above the hook text.
+    const size = (L.portrait ? 28 : 24) * u;
+    const y = L.portrait ? 120 * u : 36 * u;
     ctx.save();
     ctx.globalAlpha = 0.72 * Math.max(quiet, 0.5);
     ctx.font = `400 ${size}px ${SERIF}`;
