@@ -165,6 +165,31 @@ describe("the edit tools work without an extra click", () => {
     expect(raw.project!.scenes[0].title).toBe("");
   });
 
+  it("a stated laenge is respected: Fried Liver edit with 19 half-moves, camera scene and outro stays about 31 s, not tightened to 11 s", () => {
+    const dur = (n: number) => (n === 10 || n === 18 ? 2 : n === 19 ? 4 : 1.3);
+    const scenes: Record<string, unknown>[] = [];
+    for (let n = 1; n <= 19; n++) {
+      const sc: Record<string, unknown> = { zugNr: n, dauer: dur(n), pfeile: [], markierungen: [] };
+      if (n === 10 || n === 14) sc.bewertung = "patzer";
+      if (n === 11) Object.assign(sc, { stempel: "OPFER", effekte: { hitstop: 1, invert: 1, glitch: 0.6, wackeln: 0.4 } });
+      if (n === 14) Object.assign(sc, { stempel: "PATZER", effekte: { hitstop: 1, invert: 1, glitch: 0.6, wackeln: 0.4 } });
+      if (n === 19) Object.assign(sc, { bewertung: "brillant", stempel: "MATT", effekte: { matt: 1, zeitlupe: 1, hitstop: 1, wackeln: 1 } });
+      scenes.push(sc);
+      if (n === 11) scenes.push({ dauer: 1.3, kameras: ["nah", "tief", "oben"], effekte: { whip: 1, wackeln: 0.2 } });
+    }
+    scenes.push({ karte: "abspann", titel: "Folge für mehr Schach-Fallen", dauer: 1.3 });
+    const json = JSON.stringify({
+      videoart: "edit", titel: "Fried Liver Attack Matt", plattform: "tiktok", laenge: 31.4, perspektive: "weiss",
+      pgn: "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7 Kxf7 7. Qf3+ Kg8 8. Bxd5+ Qxd5 9. Qxd5+ Be6 10. Qxe6#",
+      szenen: scenes,
+    });
+    const made = importAiScript(json, { art: "edit", platform: "tiktok", tighten: true });
+    expect(made.errors).toEqual([]);
+    expect(made.stats!.seconds).toBeGreaterThan(28);
+    expect(made.stats!.seconds).toBeLessThan(36);
+    expect(made.project!.scenes[0].moves).toBe("1. e4");
+  });
+
   it("the reel template ends on the short outro and the arrows of one scene show together or not at all", () => {
     const tpl = reelTemplate();
     expect(tpl.scenes[tpl.scenes.length - 1].duration).toBe(OUTRO_SECONDS);

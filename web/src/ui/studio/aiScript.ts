@@ -862,7 +862,10 @@ export function importAiScript(input: string, defaults: ImportDefaults = {}): Ai
   if (length && length >= 5 && speed === null && !edit) project = fitLength(project, length);
   // An edit is made short and dense whatever the AI wrote: start in the critical position with a hook,
   // the forced exchange between sacrifice and mate squeezed, the outro a 1.3 s overlay (see tightenEdit).
-  if (edit && defaults.tighten) project = tightenEdit(project, { lang: lang() }).project;
+  // But a "laenge" the script states is a decision, not a guess: a script whose scenes fit into it keeps
+  // its build-up and its durations (the Edit tab still tightens on request).
+  const stated = !!length && length >= 5 && compile(project).total <= length * 1.3;
+  if (edit && defaults.tighten && !stated) project = tightenEdit(project, { lang: lang() }).project;
   const seconds = compile(project).total;
   // The target length of an edit is an upper limit: a shorter edit is what was asked for.
   if (length && (edit && defaults.tighten ? seconds > length * 1.3 : Math.abs(seconds - length) > length * 0.3)) warnings.push(t("Das Video dauert {0} s statt {1} s. Mit „auf N s anpassen“ lässt es sich angleichen.", { 0: Math.round(seconds), 1: Math.round(length) }));
