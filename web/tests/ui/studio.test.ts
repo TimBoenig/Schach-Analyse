@@ -1338,3 +1338,35 @@ describe("edit defaults, calm camera and scenario prompts", () => {
     }
   });
 });
+
+describe("scene length", () => {
+  const base = (view: "3d" | "reel", speed = 1) => {
+    const p = make([scene({ moves: "1. e4 e5", duration: 3 }), scene({ moves: "2. Sf3", duration: 3 })]);
+    return { ...p, style: { ...p.style, view }, video: { ...p.video, speed } };
+  };
+  const lengthOf = (p: StudioProject, duration: number) => compile({ ...p, scenes: p.scenes.map((s, i) => (i === 0 ? { ...s, duration } : s)) }).scenes[0];
+
+  it("runs a scene exactly as long as asked once it is above its minimum, and never below the minimum", () => {
+    for (const view of ["3d", "reel"] as const) {
+      const p = base(view);
+      const minimum = lengthOf(p, 0.5).minDur;
+      expect(lengthOf(p, 0.5).dur).toBeCloseTo(minimum, 6);
+      expect(minimum).toBeGreaterThan(1);
+      const long = Math.ceil(minimum) + 3;
+      expect(lengthOf(p, long).dur).toBeGreaterThanOrEqual(long - 1e-6);
+      expect(lengthOf(p, long).dur).toBeLessThan(long + (view === "reel" ? REEL_BEAT : 0.001));
+    }
+  });
+
+  it("lets the editor slider ask for real seconds: duration = real length * tempo reproduces that length", () => {
+    for (const view of ["3d", "reel"] as const) {
+      for (const speed of [0.75, 1, 1.5]) {
+        const p = base(view, speed);
+        const real = lengthOf(p, 20).dur;
+        // A beat multiple in the reel (what the slider steps through), whole tenths otherwise.
+        const target = view === "reel" ? real - 3 * REEL_BEAT : Math.round((real - 1) * 10) / 10;
+        expect(lengthOf(p, target * speed).dur).toBeCloseTo(target, 6);
+      }
+    }
+  });
+});

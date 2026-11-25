@@ -1807,12 +1807,58 @@
   resize: vertical;
 }
 
-/* ---- narrow windows: preview on top, panels below */
+/* ---- narrow windows. This block comes last on purpose: the redesign above sets the desktop grid
+   and would otherwise win over the earlier responsive rules (it broke the phone layout). */
 @media (max-width: 1180px) {
   .studio {
     grid-template-columns: 220px minmax(0, 1fr) 320px;
   }
   .studio-controls {
     gap: 8px;
+  }
+}
+@media (max-width: 1100px) {
+  .studio {
+    position: static;
+    min-height: 100vh;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: auto minmax(70vh, auto) auto;
+    grid-template-areas: "top top" "scenes stage" "panel panel";
+  }
+  .studio-top {
+    flex-wrap: wrap;
+    padding: 10px 14px;
+  }
+}
+@media (max-width: 700px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas: "top" "stage" "scenes" "panel";
+  }
+  .studio-top {
+    gap: 8px;
+  }
+  .studio-name {
+    order: 5;
+    max-width: none;
+    flex-basis: 100%;
+  }
+  .studio-brand {
+    min-width: 0;
+  }
+  .studio-top-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+  .studio-canvas-wrap {
+    margin: 12px 12px 0;
+  }
+  .studio-transport {
+    margin: 10px 12px 14px;
+  }
+  .studio-scenes ol {
+    max-height: 40vh;
   }
 }

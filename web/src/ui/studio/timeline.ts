@@ -57,6 +57,8 @@ export interface CompiledScene {
   scene: Scene;
   start: number;
   dur: number;
+  /** Shortest time the scene can run (its moves, effects, speech), in real seconds; a shorter "Dauer" is ignored. */
+  minDur: number;
   before: PieceState[];
   /** Pieces that fade out / in when the scene jumps to another position. */
   jumpOut: PieceState[];
@@ -432,7 +434,9 @@ export function compile(project: StudioProject): Timeline {
     );
     const wanted = Math.max(s.duration / speed, minimum);
     // Reel: round up to whole beats so every cut lands on the beat.
-    const dur = reel ? Math.max(1, Math.ceil(wanted / REEL_BEAT - 1e-6)) * REEL_BEAT : wanted;
+    const beats = (x: number) => Math.max(1, Math.ceil(x / REEL_BEAT - 1e-6)) * REEL_BEAT;
+    const dur = reel ? beats(wanted) : wanted;
+    const minDur = reel ? beats(minimum) : minimum;
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
     let mate: CompiledScene["mate"] = null;
     if (s.effects.includes("mate")) {
@@ -481,6 +485,7 @@ export function compile(project: StudioProject): Timeline {
       scene: shown,
       start: tk,
       dur,
+      minDur,
       before,
       jumpOut,
       jumpIn,
