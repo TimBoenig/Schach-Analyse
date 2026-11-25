@@ -1,7 +1,7 @@
 // Which trophies a player has, how far away the others are, and how two
 // collections compare.
 import type { RawGame } from "../metrics";
-import { TIER_POINTS, TIERS, TROPHIES, type Tier, type TrophyDef } from "./catalog";
+import { LEVELS, TIER_POINTS, TIERS, TROPHIES, type Tier, type TrophyDef } from "./catalog";
 import { computeStats, type StatKey, type TrophyOptions } from "./stats";
 
 /**
@@ -95,4 +95,34 @@ export function nextTrophies(report: TrophyReport, n = 3): TrophyState[] {
     .filter((s) => !s.unlocked && !s.def.below && !s.best && s.progress > 0 && s.def.goal > 1)
     .sort((x, y) => y.progress - x.progress || TIER_POINTS[x.def.tier] - TIER_POINTS[y.def.tier])
     .slice(0, n);
+}
+
+export interface CollectorLevel {
+  /** 0-based rank (Bauer = 0). */
+  index: number;
+  name: string;
+  /** Name of the next rank, null at the top. */
+  next: string | null;
+  /** Points still missing for the next rank (0 at the top). */
+  missing: number;
+  /** 0..1 on the way from this rank to the next (1 at the top). */
+  progress: number;
+}
+
+/** The collector rank for a point score, relative to the points available. */
+export function collectorLevel(points: number, maxPoints: number): CollectorLevel {
+  const at = (i: number) => Math.ceil(LEVELS[i].from * maxPoints);
+  let index = 0;
+  for (let i = 1; i < LEVELS.length; i++) if (maxPoints > 0 && points >= at(i)) index = i;
+  const top = index === LEVELS.length - 1;
+  if (top) return { index, name: LEVELS[index].name, next: null, missing: 0, progress: 1 };
+  const lo = at(index);
+  const hi = at(index + 1);
+  return {
+    index,
+    name: LEVELS[index].name,
+    next: LEVELS[index + 1].name,
+    missing: Math.max(0, hi - points),
+    progress: hi > lo ? Math.min(1, Math.max(0, (points - lo) / (hi - lo))) : 1,
+  };
 }

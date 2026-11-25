@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { RawGame } from "../../src/domain/metrics";
 import { Board, moveToUci } from "../../src/domain/tactics/board";
-import { compareTrophies, evaluateTrophies, nextTrophies, STAT_KEYS, TIERS, TROPHIES } from "../../src/domain/trophies";
+import { collectorLevel, compareTrophies, evaluateTrophies, nextTrophies, STAT_KEYS, TIERS, TROPHIES } from "../../src/domain/trophies";
 import { emptyMove, type Classification, type MoveData } from "../../src/domain/types";
 
 const ME = ["Tim"];
@@ -406,5 +406,19 @@ describe("progress and comparison", () => {
     // White moved once and the opponent left: Black has no move, which used to throw and leave the page loading forever.
     const r = evaluateTrophies([game({ sans: ["e4"], user: "black", result: "1-0" }), game()], ME);
     expect(r.games).toBe(2);
+  });
+});
+
+describe("collector rank", () => {
+  it("starts as a pawn, rises with the share of points and ends at the king", () => {
+    const max = 1000;
+    expect(collectorLevel(0, max)).toMatchObject({ index: 0, next: expect.any(String), progress: 0 });
+    const mid = collectorLevel(300, max);
+    expect(mid.index).toBeGreaterThan(0);
+    expect(mid.missing).toBeGreaterThan(0);
+    expect(mid.progress).toBeGreaterThan(0);
+    expect(mid.progress).toBeLessThan(1);
+    expect(collectorLevel(max, max)).toMatchObject({ next: null, missing: 0, progress: 1 });
+    expect(collectorLevel(0, 0).index).toBe(0);
   });
 });
