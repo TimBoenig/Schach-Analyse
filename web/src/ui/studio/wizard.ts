@@ -5,6 +5,7 @@
 import { Chess, type Move, type PieceSymbol, type Square } from "chess.js";
 
 import { BRAND_DOMAIN } from "../../brand";
+import { tightenEdit } from "./editTools";
 import { compile } from "./timeline";
 import {
   DEFAULT_VIDEO,
@@ -363,7 +364,7 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
             : a.level === "beginner"
               ? t("Einfach erklärt")
               : t("Die wichtigsten Ideen"),
-      duration: fast ? 2.4 : 3.2,
+      duration: a.vibe === "reel" ? 1.3 : fast ? 2.4 : 3.2,
       countdown: a.kind === "puzzle" && !a.poll ? 3 : 0,
       camera: "white",
       orbit: vibe.orbit,
@@ -504,7 +505,8 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
   }
 
   const end = ENDINGS[a.ending];
-  scenes.push(scene({ card: "outro", title: end.title, text: end.text, duration: 4, camera: "corner", orbit: 6, mood: "wow" }));
+  // The reel look ends on a short overlay (1.3 s) and loops straight into its start, a 4 s end screen loses the viewers.
+  scenes.push(scene({ card: "outro", title: end.title, text: end.text, duration: a.vibe === "reel" ? 1.3 : 4, camera: "corner", orbit: 6, mood: "wow" }));
 
   const style = styleFromTheme(vibe.theme, { titleFont: vibe.serif ? "serif" : "sans", environment: a.environment, view: a.platform === "youtube" ? "2d" : (vibe.view ?? "3d") });
   const project: StudioProject = {
@@ -517,7 +519,9 @@ export function buildProject(tree: GameTree, a: Answers): StudioProject {
     updatedAt: Date.now(),
   };
   const withScript = a.script.trim() ? distributeScript(project, a.script) : project;
-  return fitLength(withScript, a.length);
+  const fitted = fitLength(withScript, a.length);
+  // The reel look is an edit: it starts on the critical position with a hook and keeps the middle short.
+  return a.vibe === "reel" ? tightenEdit(fitted, { lang: lang() }).project : fitted;
 }
 
 /** Sets the overall speed so the video lasts about `seconds` (within sensible limits). */

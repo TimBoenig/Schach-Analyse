@@ -1486,3 +1486,333 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* ==========================================================================
+   Studio 2026-11 redesign: the same calm Nova surfaces as the rest of the site.
+   One top bar, scene cards, a stage with a floating transport, a settings
+   panel whose fields sit in quiet groups. Loaded last, so it wins over the
+   older rules above without touching them.
+   ========================================================================== */
+
+.studio {
+  grid-template-columns: 264px minmax(0, 1fr) 372px;
+  grid-template-rows: 56px minmax(0, 1fr);
+  font-size: 13.5px;
+}
+
+/* ---- top bar */
+.studio-top {
+  gap: 10px;
+  padding: 0 14px;
+  background: var(--bg);
+}
+.studio-back,
+.studio-projects,
+.studio-name {
+  background: var(--surface);
+  border-color: var(--border);
+  height: 34px;
+}
+.studio-back {
+  width: 34px;
+  display: grid;
+  place-items: center;
+  transition: background 0.15s;
+}
+.studio-back:hover {
+  background: var(--surface-2);
+}
+.studio-brand {
+  font-size: 14px;
+}
+.studio-projects {
+  max-width: 150px;
+  color: var(--text-2);
+}
+.studio-name {
+  max-width: 340px;
+}
+.studio-name:focus,
+.studio-projects:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.studio-history {
+  display: flex;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  overflow: hidden;
+}
+.studio-history button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  font-size: 16px;
+  cursor: pointer;
+  color: var(--text-2);
+}
+.studio-history button + button {
+  border-left: 1px solid var(--border);
+}
+.studio-history button:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.studio-history button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.studio-ai-btn {
+  background: var(--ai-soft) !important;
+  border: 1px solid var(--border-strong) !important;
+}
+.studio-menu-lang {
+  padding: 6px 8px;
+}
+.studio-menu-lang .studio-lang {
+  width: 100%;
+  max-width: none;
+}
+.studio-export {
+  box-shadow: 0 10px 26px -12px var(--cta);
+}
+
+/* ---- scenes */
+.studio-scenes {
+  background: var(--bg);
+}
+.studio-col-head {
+  padding: 16px 16px 10px;
+}
+.studio-scenes ol {
+  padding: 0 10px 6px;
+}
+.studio-scene {
+  margin-bottom: 6px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s, background 0.15s;
+}
+.studio-scene:hover {
+  border-color: var(--border-strong);
+}
+.studio-scene.on {
+  background: var(--surface-2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.studio-scene-no {
+  border-radius: 9px;
+}
+.studio-scene-meta code {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.studio-scene-tools {
+  gap: 6px;
+}
+.studio-scene-tools button {
+  background: var(--surface-3);
+  border-color: transparent;
+}
+.studio-scene-tools button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.studio-add {
+  border-style: dashed;
+  background: none;
+}
+
+/* ---- stage with floating transport */
+.studio-stage {
+  background: radial-gradient(ellipse at 50% 35%, rgba(124, 140, 255, 0.09), transparent 62%), var(--bg-elev);
+}
+.studio-canvas-wrap {
+  margin: 20px 20px 0;
+}
+.studio-transport {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin: 12px 20px 18px;
+  padding: 12px 16px 12px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+.studio-scrub {
+  gap: 7px;
+}
+.studio-segments {
+  height: 10px;
+  gap: 3px;
+}
+.studio-segments button {
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.studio-segments button:hover {
+  background: var(--border-strong);
+}
+.studio-segments button.hit {
+  box-shadow: inset 0 -3px 0 var(--warn);
+}
+.studio-segments button.mate {
+  box-shadow: inset 0 -3px 0 var(--loss);
+}
+.studio-segments button.card {
+  background: var(--accent-soft);
+}
+.studio-segments button.on {
+  background: var(--accent);
+}
+.studio-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.studio-controls-gap {
+  flex: 1;
+}
+.studio-play {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+}
+.studio-time {
+  font-size: 13px;
+}
+.studio-len {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.studio-len.ok {
+  background: var(--pos-soft);
+  color: var(--win);
+}
+.studio-len.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.studio-len.long {
+  background: var(--neg-soft);
+  color: var(--loss);
+}
+
+/* ---- settings panel */
+.studio-panel {
+  background: var(--bg);
+}
+.studio-tabs {
+  margin: 12px 14px 0;
+  padding: 4px;
+  gap: 2px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--surface);
+}
+.studio-tabs button {
+  padding: 7px 4px;
+  border-radius: 9px;
+  font-size: 13px;
+}
+.studio-tabs button.on {
+  background: var(--surface-3);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.studio-panel-body {
+  padding: 14px;
+  scrollbar-width: thin;
+}
+.studio-form {
+  gap: 10px;
+}
+.studio-form > .studio-field,
+.studio-form > .studio-toggle,
+.studio-form > .studio-draw,
+.studio-form > .studio-cams {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.studio-form > .studio-toggle {
+  padding: 11px 14px;
+}
+.studio-label {
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.studio-field input:not([type]),
+.studio-field input[type="text"],
+.studio-field textarea,
+.studio-field select {
+  background: var(--bg-elev);
+  border-radius: 9px;
+}
+.studio-sub {
+  margin: 10px 2px 0;
+}
+.studio-hint {
+  line-height: 1.5;
+}
+.studio-seg button {
+  border-radius: 9px;
+}
+
+/* ---- Edit tab */
+.edit-help {
+  gap: 12px;
+}
+.edit-help-block {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.edit-help-block h4 {
+  font-size: 14px;
+}
+.edit-help-list li {
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+.edit-help-list li:first-child {
+  border-top: 0;
+}
+.edit-help-tips li + li {
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.edit-help-block textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 9px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elev);
+  color: var(--text);
+  padding: 9px 11px;
+  font: inherit;
+  resize: vertical;
+}
+
+/* ---- narrow windows: preview on top, panels below */
+@media (max-width: 1180px) {
+  .studio {
+    grid-template-columns: 220px minmax(0, 1fr) 320px;
+  }
+  .studio-controls {
+    gap: 8px;
+  }
+}

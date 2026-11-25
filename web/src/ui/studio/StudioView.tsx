@@ -265,8 +265,32 @@ export function StudioView() {
   }, [projects]);
   useEffect(() => setCurrentId(project.id), [project.id]);
 
-  const update = (fn: (p: StudioProject) => StudioProject) =>
-    setProjects((list) => list.map((p) => (p.id === project.id ? { ...fn(p), updatedAt: Date.now() } : p)));
+  // Undo and redo: a snapshot of the project before each burst of changes (typing in a field is one burst).
+  const history = useRef<{ id: string; past: StudioProject[]; future: StudioProject[]; at: number }>({ id: project.id, past: [], future: [], at: 0 });
+  if (history.current.id !== project.id) history.current = { id: project.id, past: [], future: [], at: 0 };
+  const update = (fn: (p: StudioProject) => StudioProject) => {
+    const h = history.current;
+    const now = Date.now();
+    if (!h.past.length || now - h.at > 700) {
+      h.past.push(project);
+      if (h.past.length > 80) h.past.shift();
+    }
+    h.at = now;
+    h.future = [];
+    setProjects((list) => list.map((p) => (p.id === project.id ? { ...fn(p), updatedAt: now } : p)));
+  };
+  const travel = (from: "past" | "future") => {
+    const h = history.current;
+    const target = h[from].pop();
+    if (!target) return;
+    h[from === "past" ? "future" : "past"].push(project);
+    h.at = 0;
+    setPlaying(false);
+    setSel((i) => Math.min(i, target.scenes.length - 1));
+    setProjects((list) => list.map((p) => (p.id === project.id ? { ...target, updatedAt: Date.now() } : p)));
+  };
+  const undo = () => travel("past");
+  const redo = () => travel("future");
   const updateScene = (patch: Partial<Scene>, index = sel) =>
     update((p) => ({ ...p, scenes: p.scenes.map((s, i) => (i === index ? { ...s, ...patch } : s)) }));
   const setStyle = (patch: Partial<StudioStyle>) => update((p) => ({ ...p, style: { ...p.style, ...patch } }));
@@ -363,7 +387,14 @@ export function StudioView() {
     const on = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest("input, textarea, select")) return;
-      if (e.key === " ") {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+      } else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
       } else if (e.key === "ArrowRight") selectScene(Math.min(project.scenes.length - 1, sel + 1));
@@ -559,15 +590,18 @@ export function StudioView() {
           ))}
         </select>
         <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label={t("Name des Videos")} />
+        <div class="studio-history" role="group" aria-label={t("Rückgängig und Wiederholen")}>
+          <button onClick={undo} disabled={!history.current.past.length} title={t("Rückgängig (Strg+Z)")} aria-label={t("Rückgängig (Strg+Z)")}>
+            ↶
+          </button>
+          <button onClick={redo} disabled={!history.current.future.length} title={t("Wiederholen (Strg+Umschalt+Z)")} aria-label={t("Wiederholen (Strg+Umschalt+Z)")}>
+            ↷
+          </button>
+        </div>
         <div class="studio-top-actions">
-          <StudioLangSelect />
           <button class="btn ghost studio-ai-btn" onClick={() => setDialog("ai")} title={t("Prompt für ChatGPT, Claude oder Gemini holen und das fertige Skript übernehmen")}>
             
             {t("✦ Mit KI")}
-          </button>
-          <button class="btn ghost" onClick={() => setDialog("script")} title={t("Skript einfügen und auf die Szenen verteilen")}>
-            
-            {t("Skript")}
           </button>
           <button class="btn ghost" onClick={() => setDialog("new")}>
             
@@ -578,6 +612,10 @@ export function StudioView() {
               ⋯
             </summary>
             <div class="studio-menu">
+              <button onClick={() => setDialog("script")}>{t("Skript einfügen")}</button>
+              <div class="studio-menu-lang">
+                <StudioLangSelect />
+              </div>
               <button onClick={() => openProject({ ...structuredClone(project), id: newId("p"), name: t("{name} (Kopie)", { name: project.name }), updatedAt: Date.now() })}>{t("Duplizieren")}</button>
               <button onClick={exportJson}>{t("Als Datei sichern")}</button>
               <button onClick={() => download(new Blob([speechSheet(project)], { type: "text/plain" }), `${FILE_PREFIX}-sprechtext-${slug(project.name)}.txt`)}>{t("Sprechtext mit Zeiten")}</button>
@@ -680,15 +718,12 @@ export function StudioView() {
           )}
         </div>
         <div class="studio-transport">
-          <button class="studio-play" onClick={() => setPlaying(!playing)} aria-label={playing ? t("Pause") : t("Abspielen")}>
-            {playing ? "❚❚" : "▶"}
-          </button>
           <div class="studio-scrub">
             <div class="studio-segments">
               {timeline.scenes.map((c, i) => (
                 <button
                   key={c.scene.id}
-                  class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""}`}
+                  class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""} ${c.mate ? "mate" : ""} ${c.hit !== null ? "hit" : ""}`}
                   style={{ flexGrow: c.dur }}
                   onClick={() => selectScene(i)}
                   title={t("Szene {0}", { 0: i + 1 })}
@@ -708,35 +743,47 @@ export function StudioView() {
               aria-label={t("Zeit")}
             />
           </div>
-          <span class="studio-time">
-            {fmtTime(time)} / {fmtTime(timeline.total)}
-          </span>
-          <div class="studio-speed" title={t("Tempo des ganzen Videos")}>
-            {[0.75, 1, 1.25, 1.5].map((sp) => (
-              <button key={sp} class={Math.abs(project.video.speed - sp) < 0.01 ? "on" : ""} onClick={() => setVideo({ speed: sp })}>
-                {String(sp).replace(".", dec())}×
-              </button>
-            ))}
+          <div class="studio-controls">
+            <button class="studio-play" onClick={() => setPlaying(!playing)} aria-label={playing ? t("Pause") : t("Abspielen")} title={t("Leertaste")}>
+              {playing ? "❚❚" : "▶"}
+            </button>
+            <span class="studio-time">
+              {fmtTime(time)} / {fmtTime(timeline.total)}
+            </span>
+            {project.style.view === "reel" && (
+              <span class={`studio-len ${timeline.total <= 18.5 ? "ok" : timeline.total <= 22 ? "warn" : "long"}`} title={t("Kurze, dichte Edits werden häufiger bis zum Ende geschaut und geloopt. Der Tab „Edit“ kürzt automatisch.")}>
+                {timeline.total <= 18.5 ? t("Ideale Länge") : t("Ideal: 15 bis 18 s")}
+              </span>
+            )}
+            <span class="studio-controls-gap" />
+            <div class="studio-speed" title={t("Tempo des ganzen Videos")}>
+              {[0.75, 1, 1.25, 1.5].map((sp) => (
+                <button key={sp} class={Math.abs(project.video.speed - sp) < 0.01 ? "on" : ""} onClick={() => setVideo({ speed: sp })}>
+                  {String(sp).replace(".", dec())}×
+                </button>
+              ))}
+            </div>
+            <select
+              class="studio-fit"
+              value=""
+              onChange={(e) => {
+                const v = Number(e.currentTarget.value);
+                if (v) update((p) => fitLength(p, v));
+                e.currentTarget.value = "";
+              }}
+              aria-label={t("Auf Länge kürzen")}
+            >
+              <option value="">{t("Länge …")}</option>
+              {[15, 30, 45, 60, 90].map((n) => (
+                <option key={n} value={n}>
+                  {t("auf {n} s anpassen", { n })}
+                </option>
+              ))}
+            </select>
+            <label class="studio-safe" title={t("Zeigt, wo die App ihre Knöpfe hinlegt (nicht im Video)")}>
+              <input type="checkbox" checked={safe} onChange={() => setSafe(!safe)} /> {t("Sichere Zone")}
+            </label>
           </div>
-          <select
-            class="studio-fit"
-            value=""
-            onChange={(e) => {
-              const v = Number(e.currentTarget.value);
-              if (v) update((p) => fitLength(p, v));
-              e.currentTarget.value = "";
-            }}
-            aria-label={t("Auf Länge kürzen")}
-          >
-            <option value="">{t("Länge …")}</option>
-            {[15, 30, 45, 60, 90].map((n) => (
-              <option key={n} value={n}>
-                {t("auf {n} s anpassen", { n })}</option>
-            ))}
-          </select>
-          <label class="studio-safe" title={t("Zeigt, wo die App ihre Knöpfe hinlegt (nicht im Video)")}>
-            <input type="checkbox" checked={safe} onChange={() => setSafe(!safe)} />  {t("Sichere Zone")}
-          </label>
         </div>
       </main>
 

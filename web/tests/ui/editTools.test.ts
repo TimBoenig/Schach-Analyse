@@ -6,6 +6,7 @@ import { captionKit, EDIT_TARGET_SECONDS, hookIdeas, keyMoveLabel, MIDDLE_MAX_SE
 import { generateMusic, musicCues } from "../../src/ui/studio/musicGen";
 import { reelTemplate, scene, scenePositions, START_FEN, type StudioProject } from "../../src/ui/studio/model";
 import { compile, frameAt, xzSquare } from "../../src/ui/studio/timeline";
+import { importAiScript } from "../../src/ui/studio/aiScript";
 import { setLangNow } from "../../src/i18n";
 import { EN } from "../../src/i18n/en";
 
@@ -136,4 +137,45 @@ describe("phonk edit sound", () => {
     }
     expect(low / all).toBeGreaterThan(0.76);
   }, 30000);
+});
+
+describe("the edit tools work without an extra click", () => {
+  const script = JSON.stringify({
+    videoart: "edit",
+    pgn: "1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6 5. Nxe5 Bxd1 6. Bxf7+ Ke7 7. Nd5#",
+    szenen: [
+      { zugNr: "1-8", dauer: 4 },
+      { zugNr: 9, dauer: 2, bewertung: "brillant", stempel: "OPFER", effekte: ["hitstop"] },
+      { zugNr: 10, dauer: 3.5 },
+      { zugNr: 11, dauer: 3.5 },
+      { zugNr: 12, dauer: 3.5 },
+      { zugNr: 13, dauer: 4, effekte: ["matt"] },
+      { karte: "abspann", titel: "Folge für mehr", dauer: 4 },
+    ],
+  });
+
+  it("an imported AI edit (import dialog) starts in the critical position, is dense and ends on a 1.3 s outro; the raw import stays as written", () => {
+    const raw = importAiScript(script, { art: "edit" });
+    const made = importAiScript(script, { art: "edit", tighten: true });
+    expect(raw.errors).toEqual([]);
+    expect(made.errors).toEqual([]);
+    expect(made.stats!.seconds).toBeLessThan(raw.stats!.seconds / 1.8);
+    expect(made.project!.scenes[0].title).not.toBe("");
+    expect(made.project!.scenes[made.project!.scenes.length - 1].duration).toBeLessThanOrEqual(OUTRO_SECONDS);
+    expect(raw.project!.scenes[0].title).toBe("");
+  });
+
+  it("the reel template ends on the short outro and the arrows of one scene show together or not at all", () => {
+    const tpl = reelTemplate();
+    expect(tpl.scenes[tpl.scenes.length - 1].duration).toBe(OUTRO_SECONDS);
+    // c4-f7 alone would be legal now (the bishop stands on c4), but g5-f7 of the same scene is not: none shows.
+    const p: StudioProject = {
+      ...reelTemplate(),
+      startFen: START_FEN,
+      scenes: [scene({ moves: "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6", duration: 2 }), scene({ duration: 2, arrows: [{ from: "g5", to: "f7", tone: "bad" }, { from: "c4", to: "f7", tone: "bad" }] })],
+    };
+    const tl = compile(p);
+    const f = frameAt(tl, p, tl.scenes[1].start + tl.scenes[1].annotate + 0.5)!;
+    expect(f.arrows.filter((a) => !a.path).every((a) => a.alpha === 0)).toBe(true);
+  });
 });

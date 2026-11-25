@@ -41,6 +41,7 @@ import {
 import { compile, LESSON_CHUNK, SHORT_CHUNK } from "./timeline";
 import type { MusicId } from "./music";
 import { STYLE_LABEL, type StyleId } from "./musicGen";
+import { tightenEdit } from "./editTools";
 import { fitLength, movesLabel } from "./wizard";
 import { lang, t } from "../../i18n";
 
@@ -197,6 +198,8 @@ export interface ImportDefaults {
   art?: VideoArt | "auto";
   platform?: Platform;
   musicStyle?: StyleId | "auto";
+  /** Make an edit short and dense as it comes in (hook start, squeezed middle, 1.3 s outro). The import dialog always does; false keeps the script as written. */
+  tighten?: boolean;
 }
 
 const list = (o: Record<string, unknown>) => Object.keys(o).join(", ");
@@ -857,8 +860,12 @@ export function importAiScript(input: string, defaults: ImportDefaults = {}): Ai
   const length = number(field(root, "laenge", "length", "dauer"));
   // An edit keeps its beat: stretching its cuts to a length would turn it back into a slow video.
   if (length && length >= 5 && speed === null && !edit) project = fitLength(project, length);
+  // An edit is made short and dense whatever the AI wrote: start in the critical position with a hook,
+  // the forced exchange between sacrifice and mate squeezed, the outro a 1.3 s overlay (see tightenEdit).
+  if (edit && defaults.tighten) project = tightenEdit(project, { lang: lang() }).project;
   const seconds = compile(project).total;
-  if (length && Math.abs(seconds - length) > length * 0.3) warnings.push(t("Das Video dauert {0} s statt {1} s. Mit „auf N s anpassen“ lässt es sich angleichen.", { 0: Math.round(seconds), 1: Math.round(length) }));
+  // The target length of an edit is an upper limit: a shorter edit is what was asked for.
+  if (length && (edit && defaults.tighten ? seconds > length * 1.3 : Math.abs(seconds - length) > length * 0.3)) warnings.push(t("Das Video dauert {0} s statt {1} s. Mit „auf N s anpassen“ lässt es sich angleichen.", { 0: Math.round(seconds), 1: Math.round(length) }));
   return { project, errors, warnings, stats: { scenes: project.scenes.length, moves: moveCount, variations, seconds } };
 }
 
