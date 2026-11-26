@@ -874,7 +874,7 @@ export function StudioView() {
               lucena={project.video.lucena}
               perspective={project.video.perspective}
               effective={current?.dur ?? scene.duration}
-              minimum={current?.minDur ?? 1}
+              minimum={current?.floorDur ?? 1}
               speed={Math.max(0.3, project.video.speed || 1)}
               beat={project.style.view === "reel" ? REEL_BEAT : 0}
               tool={tool}
@@ -1103,6 +1103,44 @@ function Slider({ label, value, min, max, step, unit, onChange }: { label: strin
   );
 }
 
+/** Scene length: slider for coarse moves, plus − / number / + for exact values (tap-friendly on touch). */
+function DurationControl({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
+  const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / 0.001) * 0.001));
+  const set = (v: number) => Number.isFinite(v) && onChange(clamp(v));
+  // Re-snap to the step grid so − / + after a free value land on clean numbers.
+  const nudge = (dir: number) => set(Math.round((value + dir * step) / step) * step);
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <div class="studio-field">
+      <span class="studio-label">{label}</span>
+      <div class="studio-dur">
+        <button type="button" aria-label={t("Kürzer")} disabled={value <= min + 1e-6} onClick={() => nudge(-1)}>
+          −
+        </button>
+        <input type="range" min={min} max={max} step={step} value={value} aria-label={label} onInput={(e) => set(Number(e.currentTarget.value))} />
+        <button type="button" aria-label={t("Länger")} disabled={value >= max - 1e-6} onClick={() => nudge(1)}>
+          +
+        </button>
+        <input
+          class="studio-dur-num"
+          type="text"
+          inputMode="decimal"
+          aria-label={label}
+          value={draft ?? value.toFixed(1).replace(".", ",")}
+          onFocus={(e) => e.currentTarget.select()}
+          onInput={(e) => {
+            setDraft(e.currentTarget.value);
+            const v = Number(e.currentTarget.value.replace(",", "."));
+            if (e.currentTarget.value.trim() && v > 0) set(v);
+          }}
+          onBlur={() => setDraft(null)}
+        />
+        <span class="studio-dur-unit">s</span>
+      </div>
+    </div>
+  );
+}
+
 function ToneChips({ value, style, onChange }: { value: Tone; style: StudioStyle; onChange: (tk: Tone) => void }) {
   return (
     <div class="studio-tones">
@@ -1209,13 +1247,12 @@ function SceneEditor({
         <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
       </Field>
       {/* The slider shows the length the scene really plays (real seconds, tempo included). Below the scene's natural length it plays moves and effects faster. */}
-      <Slider
+      <DurationControl
         label={t("Dauer")}
         value={effective}
         min={beat || 0.5}
-        max={Math.max(15, Math.ceil(effective))}
+        max={Math.max(15, Math.ceil(Math.max(effective, minimum)))}
         step={beat || 0.1}
-        unit=" s"
         onChange={(real) => onChange({ duration: real * speed, squeeze: real < minimum - 1e-6 })}
       />
       {scene.squeeze && effective < minimum - 1e-6 && <p class="studio-hint">{t("Gestaucht: Züge und Effekte laufen schneller, damit die Szene {n} s dauert (natürlich {m} s).", { n: effective.toFixed(1), m: minimum.toFixed(1) })}</p>}

@@ -1809,6 +1809,40 @@
 
 /* ---- narrow windows. This block comes last on purpose: the redesign above sets the desktop grid
    and would otherwise win over the earlier responsive rules (it broke the phone layout). */
+.studio-dur {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.studio-dur input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  touch-action: pan-y;
+}
+.studio-dur button {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1;
+}
+.studio-dur button:disabled {
+  opacity: 0.4;
+}
+.studio-dur .studio-dur-num {
+  width: 56px;
+  flex: none;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.studio-dur-unit {
+  color: var(--text-3);
+  font-size: 13px;
+}
 @media (max-width: 1180px) {
   .studio {
     grid-template-columns: 220px minmax(0, 1fr) 320px;
