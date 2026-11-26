@@ -1160,6 +1160,8 @@ export const EN: Record<string, string> = {
   "Datenschutzerklärung lesen": "Read the privacy policy",
   "Datum": "Date",
   "Dauer": "Duration",
+  "Kürzer": "Shorter",
+  "Länger": "Longer",
   "davon {bullet} Bullet": "of which {bullet} Bullet",
   "Davon Fehler": "Of which mistakes",
   "Dein Angstgegner": "Your bogeyman",

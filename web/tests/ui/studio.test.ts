@@ -1383,4 +1383,14 @@ describe("scene length", () => {
       expect(squeezed.minDur).toBeCloseTo(natural, 6);
     }
   });
+
+  it("lets a scene with speech be set to any length between its visual length and its speech floor", () => {
+    const p = base("3d");
+    const talky = { ...p, scenes: p.scenes.map((s, i) => (i === 0 ? { ...s, speech: "word ".repeat(30) } : s)) };
+    const c0 = compile(talky).scenes[0];
+    expect(c0.floorDur).toBeGreaterThan(c0.minDur + 1);
+    const mid = (c0.minDur + c0.floorDur) / 2;
+    const set = compile({ ...talky, scenes: talky.scenes.map((s, i) => (i === 0 ? { ...s, duration: mid, squeeze: true } : s)) }).scenes[0];
+    expect(set.dur).toBeCloseTo(mid, 6);
+  });
 });

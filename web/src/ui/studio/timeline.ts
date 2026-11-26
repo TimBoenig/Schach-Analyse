@@ -59,6 +59,8 @@ export interface CompiledScene {
   dur: number;
   /** Natural length of the scene's moves and effects in real seconds; a shorter "Dauer" squeezes the scene (when `squeeze` is set), otherwise it is ignored. */
   minDur: number;
+  /** Shortest length this scene plays without squeezing: `minDur` plus time to read out its speech text. Below it the "Dauer" control sets `squeeze`. */
+  floorDur: number;
   before: PieceState[];
   /** Pieces that fade out / in when the scene jumps to another position. */
   jumpOut: PieceState[];
@@ -448,11 +450,14 @@ export function compile(project: StudioProject): Timeline {
       if (hit !== null) hit = fxAt;
       squeezed = true;
     }
-    const wanted = squeezed ? asked : Math.max(asked, minimum);
+    // A squeezed scene (asked below its floor incl. speech) ignores the speech, but never drops below the
+    // natural visual length unless it was squeezed visually above.
+    const wanted = squeezed ? asked : Math.max(asked, s.squeeze ? visual : minimum);
     // Reel: round up to whole beats so every cut lands on the beat.
     const beats = (x: number) => Math.max(1, Math.ceil(x / REEL_BEAT - 1e-6)) * REEL_BEAT;
     const dur = reel ? beats(wanted) : wanted;
     const minDur = reel ? beats(visual) : visual;
+    const floorDur = reel ? beats(minimum) : minimum;
     const focus = lastStep?.to ?? s.arrows[0]?.to ?? s.marks[0]?.square ?? null;
     let mate: CompiledScene["mate"] = null;
     if (s.effects.includes("mate")) {
@@ -502,6 +507,7 @@ export function compile(project: StudioProject): Timeline {
       start: tk,
       dur,
       minDur,
+      floorDur,
       before,
       jumpOut,
       jumpIn,
