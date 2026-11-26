@@ -58,6 +58,9 @@ const FLOW = 0.6;
 /** The close variant: a quick flight to the next move, a long one at the opening. */
 const CLOSE_FLOW = 0.4;
 const OPEN_FLOW = 1.3;
+/** The opening overview: the picture is this many squares across (the whole board with a margin) and stays so for this many seconds. */
+export const OVERVIEW_ACROSS = 8.8;
+export const OVERVIEW_HOLD = 0.7;
 
 /**
  * How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board.
@@ -126,6 +129,8 @@ function closePose(shot: ReelShot, m: number, preset: CameraPreset | null): Pose
   across /= shot.zoom;
   if (shot.effects.includes("mate")) across = Math.max(across, 6.2);
   if (shot.card !== "none") across = 8.6;
+  // The title shot at the start has no move to frame: it keeps most of the board in view.
+  if (shot.index === 0 && !shot.move) across = Math.max(across, 6.8);
   let [tx, tz] = [0, 0];
   if (span) {
     const [ax, az] = squareXZ(span.from);
@@ -221,12 +226,17 @@ export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = 
 
   const sc = frame.scene;
   const to = shotPose(frame.shot, m, frame.shot.entryPreset, close);
-  // The very first picture is already moving: it starts close and pulls out, so the clip has motion from frame one.
-  // The close variant opens on the tilted board pulling in, like the reference's title shot; the others start a little closer than they stay.
-  const from: Pose = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset, close) : close ? { S: wide * 1.55, x: 0, z: 0, roll: 24 } : { ...to, S: to.S * 1.3 };
+  // The very first picture is the overview: the whole board and the whole position, held for a moment, so viewers know what they are looking at.
+  // Only then does the camera fly in to the scene's framing. Cuts, punch-ins and the orbit's sway wait until the overview has been seen (`ov`).
+  const opening = !frame.prevShot;
+  const from: Pose = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset, close) : { S: m / OVERVIEW_ACROSS, x: 0, z: 0, roll: 0 };
   const flow = close ? (frame.prevShot ? CLOSE_FLOW : OPEN_FLOW) : FLOW;
+  const hold = opening ? Math.min(OVERVIEW_HOLD, frame.dur * 0.45) : 0;
+  const ov = opening ? 1 - easeInOut((age - hold) / 0.35) : 0;
+  // The horizon straightens and sways back in more slowly than the zoom changes, so the roll never snaps.
+  const ovRoll = opening ? 1 - easeInOut((age - hold) / 0.9) : 0;
   // A scene that cuts between angles (or whips) is entered quickly, any other by a slow flight.
-  const k = easeInOut(age / Math.min(frame.dur, frame.shot.fastEntry ? WHIP_T : flow));
+  const k = easeInOut((age - hold) / Math.min(Math.max(0.2, frame.dur - hold), frame.shot.fastEntry ? WHIP_T : flow));
   let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
   let tx = lerp(from.x, to.x, k);
   let tz = lerp(from.z, to.z, k);
@@ -272,7 +282,8 @@ export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = 
   const threatAge = fx("threat");
   const leanAge = threatAge ?? fx("mate");
   const lean = close && leanAge !== undefined ? 12 * easeOut(leanAge / 0.6) : 0;
-  const roll = ((sway + (frame.scene.orbit || 0) * age + tilt + frame.roll + lean) * Math.PI) / 180;
+  // During the overview the board stays nearly straight: a tilted whole board would lose its corners.
+  const roll = (((sway + (frame.scene.orbit || 0) * age + tilt + frame.roll + lean) * (1 - 0.8 * ovRoll)) * Math.PI) / 180;
 
   // The mating blow: the camera backs off to show the whole board while the pieces break.
   const mateAge = fx("mate");
@@ -281,6 +292,12 @@ export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = 
     S = lerp(S, close ? m / 6.2 : wide * 1.12, km);
     tx *= 1 - km;
     tz *= 1 - km;
+  }
+
+  if (ov > 0) {
+    S = Math.exp(lerp(Math.log(S), Math.log(m / OVERVIEW_ACROSS), ov));
+    tx *= 1 - ov;
+    tz *= 1 - ov;
   }
 
   // Never show the black around the board when close: the centre stays far enough inside that the picture (with some slack for the roll) is all board.
@@ -745,10 +762,21 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   }
   // ---- close variant: the hand that drags the piece, and rings that spread from the rated square
   if (close) {
-    for (const p of ordered) {
-      if (!p.flight || p.flight.k <= 0 || p.flight.k >= 1) continue;
-      const grow = isHeroFlight(frame, p) ? 1 + 1.25 * Math.sin(Math.PI * p.flight.k) : 1 + 0.2 * WEIGHT[p.type] * Math.sin(Math.PI * p.flight.k);
-      drawHand(ctx, dir * p.x + 0.04, dir * p.z + 0.1, 0.78 * grow, -0.12, 1);
+    const hand = frame.hand;
+    if (hand) {
+      // The hand holds the piece it drags; the showcase piece swells in the air, so its hand grows with it.
+      const air = ordered.find((p) => isHeroFlight(frame, p));
+      const grow = air?.flight ? 1 + 0.9 * Math.sin(Math.PI * air.flight.k) : 1;
+      // A soft ring spreads from the fingers at the grab, like a click.
+      if (hand.grabAge >= 0 && hand.grabAge < 0.45) {
+        const k = hand.grabAge / 0.45;
+        ctx.beginPath();
+        ctx.arc(dir * hand.x, dir * hand.z, 0.3 + easeOut(k) * 0.55, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${0.7 * (1 - k)})`;
+        ctx.lineWidth = 0.05 * (1 - k) + 0.01;
+        ctx.stroke();
+      }
+      drawHand(ctx, S, dir * hand.x + hand.ox * grow, dir * hand.z + hand.oz * grow, 1.25 * hand.scale * grow, hand.angle, hand.alpha, hand.grip);
     }
     if (rating && frame.badge) {
       const [bx, bz] = squareXZ(frame.badge.square);
@@ -981,7 +1009,8 @@ function drawCloseTitle(ctx: CanvasRenderingContext2D, frame: Frame, assets: Ass
   const a = frame.title.alpha * quiet * easeOut(frame.title.age / 0.3);
   if (a <= 0.01) return;
   ctx.save();
-  ctx.fillStyle = `rgba(0,0,0,${0.66 * a})`;
+  // The very first title shot dims the board less: the position is what the viewer should take in first.
+  ctx.fillStyle = `rgba(0,0,0,${(frame.prevShot ? 0.66 : 0.24) * a})`;
   ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = a;
   ctx.textAlign = "center";

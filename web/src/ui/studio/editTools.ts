@@ -8,6 +8,7 @@
 // Pure and without Qt-style side effects, so it is tested without a browser.
 import { t, tr, type Lang } from "../../i18n";
 import { displaySan, scenePositions, type Badge, type Scene, type StudioProject } from "./model";
+import { thinArrows } from "./arrowRules";
 import { compile } from "./timeline";
 
 /** Target length of an edit: shorter, denser clips are watched to the end and looped far more often. */
@@ -136,6 +137,13 @@ export function tightenEdit(input: StudioProject, opts: TightenOptions = {}): Ti
   if (outros.length) {
     project = { ...project, scenes: project.scenes.map((s) => (s.card === "outro" ? { ...s, duration: Math.min(s.duration, OUTRO_SECONDS) } : s)) };
     changes.push(t("Abspann auf {s} Sekunden verkürzt (Overlay statt Endbild, danach beginnt das Video von vorn).", { s: OUTRO_SECONDS }));
+  }
+
+  // 5. Arrows only on the important moments (a threat, a tactic, the key move), not on every move.
+  const thin = thinArrows(project);
+  if (thin.removed > 0) {
+    project = thin.project;
+    changes.push(t("Pfeile nur noch an den wichtigen Momenten ({n} entfernt).", { n: thin.removed }));
   }
 
   return { project, changes, seconds: total(project) };

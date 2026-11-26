@@ -23,6 +23,7 @@ import {
   type Tone,
 } from "./model";
 import { t } from "../../i18n";
+import { handAt, type HandState } from "./hand";
 
 export interface PieceState {
   id: number;
@@ -232,6 +233,8 @@ export interface Frame {
   pollMarks: { square: string; letter: string; colour: string; alpha: number }[];
   /** Squares the subtitle names, softly lit so viewers find them. */
   hints: { square: string; alpha: number }[];
+  /** The pointer hand that drags the pieces (close reel look only). */
+  hand: HandState | null;
 }
 
 export interface Impact {
@@ -708,6 +711,17 @@ export function cameraAt(timeline: Timeline, index: number, local: number, intro
   return lerpCamera(unwrapYaw(from, target.yaw), target, ease(local / span));
 }
 
+/** The hand of the close reel look, with the moves just before and after this scene so it flies across the cut without a jump. */
+function handAround(timeline: Timeline, index: number, local: number) {
+  const c = timeline.scenes[index];
+  const prev = timeline.scenes[index - 1];
+  const next = timeline.scenes[index + 1];
+  const shift = (st: Step | undefined, by: number) => (st ? { t0: st.t0 + by, t1: st.t1 + by, from: st.from, to: st.to } : null);
+  // The next scene's first move only counts when it goes on from this position (no jump, no card).
+  const goesOn = next && next.scene.card === "none" && !next.jumpIn.size && !next.jumpOut.length;
+  return handAt(c.steps, local, { before: prev ? shift(prev.steps[prev.steps.length - 1], -animDur(prev)) : null, after: goesOn ? shift(next.steps[0], animDur(c)) : null });
+}
+
 const arrowKey = (a: { from: string; to: string; tone: Tone }) => `${a.from}${a.to}${a.tone}`;
 const markKey = (m: StudioMark) => `${m.square}${m.tone}`;
 
@@ -923,6 +937,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,
     hints,
+    hand: project.style.view === "reel" && project.style.reelLook === "close" ? handAround(timeline, index, local) : null,
     cut: cutAt(c, local),
     push: pushAt(c, local),
     roll: rollAt(c, index, local),
