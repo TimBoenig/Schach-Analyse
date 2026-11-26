@@ -1435,4 +1435,18 @@ describe("the close variant of the reel look", () => {
     expect(ask("auto")).toContain("\"schnittstil\"");
     expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "explain" })).not.toContain("schnittstil");
   });
+
+  it("keeps titles and subtitles of a squeezed scene clean: fully in before the fade-out starts, gone at the cut", () => {
+    const p = make([scene({ moves: "1. e4 e5", duration: 3 }), scene({ moves: "2. Sf3", duration: 3 })]);
+    const short = { ...p, scenes: p.scenes.map((s, i) => (i === 0 ? { ...s, title: "Titel", text: "Untertitel", duration: 0.5, squeeze: true } : { ...s, title: "Anders", text: "Anderer Text" })) };
+    const tl = compile(short);
+    const d = tl.scenes[0].dur;
+    expect(d).toBeLessThan(1);
+    const f = (t: number) => frameAt(tl, short, t)!;
+    // Entrance (age 0.4 in the renderer) is complete while the fade-out has not begun.
+    expect(f(d * 0.5).title.age).toBeGreaterThanOrEqual(0.4 - 1e-6);
+    expect(f(d * 0.5).title.alpha).toBe(1);
+    expect(f(d - 0.001).title.alpha).toBeLessThan(0.05);
+    expect(f(d - 0.001).text.alpha).toBeLessThan(0.05);
+  });
 });
