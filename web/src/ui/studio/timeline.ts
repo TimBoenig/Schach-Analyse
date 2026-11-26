@@ -161,6 +161,8 @@ export interface ReelShot {
   effects: Effect[];
   /** The squares of the scene's last move. */
   move: { from: string; to: string } | null;
+  /** Every move of the scene with its flight in scene seconds and all squares the move touches (both ends, the castling rook): the close camera keeps each one fully in the picture while it is played. */
+  moves: { t0: number; t1: number; squares: string[] }[];
   /** The first arrow the scene draws (a poll's answers do not count), the first mark, and the square the effects point at. */
   arrow: { from: string; to: string } | null;
   mark: string | null;
@@ -219,6 +221,8 @@ export interface Frame {
   /** The reel camera's framing of this scene and of the one before it. */
   shot: ReelShot;
   prevShot: ReelShot | null;
+  /** The next scene's framing: the close camera starts making room for its first move before the cut. */
+  nextShot: ReelShot | null;
   /** Moves played so far in this line, for the lesson's move list (last one is the current). */
   moveList: string[];
   /** The camera angle the scene is cutting on right now (null = the scene's own camera). prev null = no cut transition (the flight into the scene leads here). */
@@ -543,6 +547,7 @@ function shotOf(c: CompiledScene, index: number): ReelShot {
     zoom: c.scene.zoom,
     effects: c.scene.effects,
     move: last ? { from: last.from, to: last.to } : null,
+    moves: c.steps.map((st) => ({ t0: st.t0, t1: st.t1, squares: [...new Set([st.from, st.to, ...st.movers.flatMap((mv) => [mv.from, mv.to])])] })),
     arrow: arrow ? { from: arrow.from, to: arrow.to } : null,
     mark: c.scene.marks[0]?.square ?? null,
     fxSquare: c.fxSquare,
@@ -933,6 +938,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     focus: c.steps.length ? { from: c.steps[c.steps.length - 1].from, to: c.steps[c.steps.length - 1].to } : null,
     shot: shotOf(c, index),
     prevShot: index > 0 ? shotOf(timeline.scenes[index - 1], index - 1) : null,
+    nextShot: index + 1 < timeline.scenes.length ? shotOf(timeline.scenes[index + 1], index + 1) : null,
     moveList: lesson ? moveListAt(timeline, index, local) : [],
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,

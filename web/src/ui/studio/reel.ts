@@ -148,6 +148,67 @@ function closePose(shot: ReelShot, m: number, preset: CameraPreset | null): Pose
   return { S, x: tx * hold, z: tz * hold, roll: preset ? PRESET_LOOK[preset].roll * 0.3 : 0 };
 }
 
+/** Room around a square's centre that must stay in the picture: the square itself plus the piece standing tall on it, hand and halo. */
+const FIT_MARGIN_X = 0.85;
+const FIT_MARGIN_Z = 1.2;
+/** Seconds the camera starts making room before a move takes off and keeps it after the landing. */
+const FIT_LEAD = 0.7;
+const FIT_TAIL = 1;
+/** How far outside its margin a square with no weight at all may be: more than the board is wide. */
+const FIT_SLACK = 6;
+
+/**
+ * The last word of the close camera: whatever the zoom effects, punch-ins, hero close-up, creep and tilt did, both ends of the move being played
+ * (and the castling rook) stay completely in the picture. The picture backs off just enough and slides just enough, so it is a smooth change
+ * (the need fades in before take-off and out after landing) and never a hard crop. Returns the corrected framing.
+ */
+export function fitMoves(
+  shot: ReelShot,
+  next: ReelShot | null,
+  dur: number,
+  local: number,
+  cam: { S: number; x: number; z: number; roll: number },
+  W: number,
+  H: number,
+  extra = 0,
+): { S: number; x: number; z: number } {
+  // Every move that is (nearly) being played asks for room, the more insistently the closer it is to take-off or landing: a square with weight w may sit
+  // (1 - w) * FIT_SLACK squares outside the margin, so a move joining or leaving the set never makes the framing jump.
+  const asks: { x: number; z: number; slack: number }[] = [];
+  const c = Math.cos(cam.roll);
+  const s = Math.sin(cam.roll);
+  // The next scene's moves count as well, shifted by this scene's length, so the framing is ready when the next move takes off.
+  const upcoming = (next?.moves ?? []).map((mv) => ({ ...mv, t0: mv.t0 + dur, t1: mv.t1 + dur }));
+  for (const mv of [...shot.moves, ...upcoming]) {
+    const w = easeInOut((local - (mv.t0 - FIT_LEAD)) / FIT_LEAD) * (1 - easeInOut((local - (mv.t1 + FIT_TAIL * 0.4)) / FIT_TAIL));
+    if (w <= 0) continue;
+    // Work in the tilted frame of the picture, where the picture is an upright rectangle.
+    for (const sq of mv.squares) {
+      const [x, z] = squareXZ(sq);
+      asks.push({ x: x * c - z * s, z: x * s + z * c, slack: (1 - w) * FIT_SLACK });
+    }
+  }
+  if (!asks.length) return { S: cam.S, x: cam.x, z: cam.z };
+  const mx = FIT_MARGIN_X + extra;
+  const mz = FIT_MARGIN_Z + extra;
+  // Two squares a and b both fit when their distance is at most the picture's size minus both margins, plus both slacks.
+  const need = (axis: "x" | "z", margin: number) => {
+    let d = 0;
+    for (const a of asks) for (const b of asks) d = Math.max(d, a[axis] - b[axis] - a.slack - b.slack);
+    return d + 2 * margin;
+  };
+  const S = Math.min(cam.S, W / need("x", mx), H / need("z", mz));
+  const halfX = W / (2 * S) - mx;
+  const halfZ = H / (2 * S) - mz;
+  const [cx, cz] = [cam.x * c - cam.z * s, cam.x * s + cam.z * c];
+  // The centre may sit anywhere that keeps all asked squares inside; the nearest such spot to where the camera is.
+  const clampTo = (v: number, lo: number, hi: number) => (lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v)));
+  const fx = clampTo(cx, Math.max(...asks.map((a) => a.x - halfX - a.slack)), Math.min(...asks.map((a) => a.x + halfX + a.slack)));
+  const fz = clampTo(cz, Math.max(...asks.map((a) => a.z - halfZ - a.slack)), Math.min(...asks.map((a) => a.z + halfZ + a.slack)));
+  // Back to board coordinates (inverse rotation).
+  return { S, x: fx * c + fz * s, z: -fx * s + fz * c };
+}
+
 /** How a scene is framed once the camera has arrived: pure, so the previous scene's framing can be the start of this one's flight. */
 function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.entryPreset, tight = false): Pose {
   if (tight) return closePose(shot, m, preset);
@@ -317,6 +378,13 @@ export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = 
   if (impact >= 0) shake = Math.max(shake, 14 * Math.exp(-impact * 9));
   const shakeX = shake * u * Math.sin(age * 71);
   const shakeY = shake * u * Math.cos(age * 63);
+  if (close) {
+    // The picture shakes by up to `shake` px: that room is kept too.
+    const fit = fitMoves(frame.shot, frame.nextShot, frame.dur, age, { S, x: tx, z: tz, roll }, W, H, (shake * u) / S);
+    S = fit.S;
+    tx = fit.x;
+    tz = fit.z;
+  }
 
   // No strobe at cuts, there are none: white only for the "flash" effect and the mating blow.
   let flash = 0;

@@ -1411,8 +1411,10 @@ describe("the close variant of the reel look", () => {
   it("is the reference look: a tight, straight crop that follows the move, tilted only at the opening and under threat", () => {
     expect(close.style).toMatchObject({ view: "reel", reelLook: "close" });
     // After the opening pull-in every held picture is about four and a half squares across and nearly level.
-    const book = tl.scenes[1];
-    const held = cam(book.start + book.dur - 0.05);
+    // (At a scene's end the camera is already making room for the next scene's first move, which may lie anywhere on the board,
+    // so the tight picture is measured half way through a one-move scene, with the move being played.)
+    const book = tl.scenes[7];
+    const held = cam(book.start + book.dur * 0.5);
     expect(1080 / held.S).toBeGreaterThan(4);
     expect(1080 / held.S).toBeLessThan(5.8);
     expect(Math.abs(held.roll)).toBeLessThan(0.06);

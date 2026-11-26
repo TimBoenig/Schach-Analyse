@@ -1,7 +1,7 @@
 // The close reel look's pointer hand (one continuous movement: fly in, grab, drag, let go, float away) and the sparse arrows of an edit.
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { importAiScript } from "../../src/ui/studio/aiScript";
+import { buildAiPrompt, importAiScript } from "../../src/ui/studio/aiScript";
 import { ARROW_GAP, ARROW_SHARE, thinArrows } from "../../src/ui/studio/arrowRules";
 import { tightenEdit } from "../../src/ui/studio/editTools";
 import { handAt, HAND_REST, type HandStep } from "../../src/ui/studio/hand";
@@ -108,8 +108,9 @@ describe("sparse arrows in an edit", () => {
     expect(withArrows.length).toBeLessThanOrEqual(Math.ceil(p.scenes.length * ARROW_SHARE));
     expect(withArrows.length).toBeGreaterThan(0);
     for (let k = 1; k < withArrows.length; k++) expect(withArrows[k] - withArrows[k - 1]).toBeGreaterThan(ARROW_GAP);
-    // The threat arrow of the queen stays (the scene with the highest worth among the early ones).
-    expect(r.project.scenes[1].arrows).toEqual([{ from: "h5", to: "f7", tone: "bad" }]);
+    // The threat arrow of the blunder stays (the scene with the highest worth); the queen's earlier threat is too close to it.
+    expect(r.project.scenes[4].arrows).toEqual([{ from: "g8", to: "f6", tone: "bad" }]);
+    expect(r.project.scenes[1].arrows).toEqual([]);
     // The plain move arrows are gone.
     expect(r.project.scenes[0].arrows).toEqual([]);
     expect(r.project.scenes[2].arrows).toEqual([]);
@@ -139,5 +140,29 @@ describe("sparse arrows in an edit", () => {
     const busy = make(szenen.map((s, i) => scene({ moves: s.zug, arrows: [{ from: "e2", to: "e4", tone: "accent" }, { from: "a1", to: "a2", tone: "accent" }][i % 2 ? 1 : 0] ? [{ from: "h5", to: "f7", tone: "accent" }] : [] })));
     const tightened = tightenEdit(busy, { lang: "en", keepStart: true });
     expect(count(tightened.project)).toBeLessThan(count(busy));
+  });
+});
+
+describe("the edit prompt: rare arrows, no language in the picture", () => {
+  it("asks for almost no arrows, only sign stamps, and a single closing sentence, in both languages, with an example that follows it", () => {
+    for (const lang of ["de", "en"] as const) {
+      setLangNow(lang, lang === "en" ? EN : undefined);
+      try {
+        const prompt = buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "edit" });
+        // Arrows: zero to two in a whole edit; stamps are signs, not words; the outro sentence is the only text.
+        expect(prompt).toMatch(lang === "de" ? /0 bis 2 Pfeile im ganzen Video/ : /zero to two arrows in the whole video/);
+        expect(prompt).toMatch(lang === "de" ? /universelle[sn]? Zeichen/ : /universal sign/);
+        expect(prompt).toMatch(lang === "de" ? /einzige Text im ganzen Video/ : /only text in the whole video/);
+        const res = importAiScript(prompt.split("```json")[1].split("```")[0]);
+        const stamps = res.project!.scenes.map((s) => s.stamp).filter(Boolean);
+        expect(stamps.length).toBeGreaterThan(0);
+        for (const st of stamps) expect(st).toMatch(/^[?!#+]{1,3}$/);
+        expect(res.project!.scenes.filter((s) => s.arrows.length).length).toBeLessThanOrEqual(1);
+        // Only the closing card carries a title.
+        expect(res.project!.scenes.filter((s) => s.card !== "outro" && s.title).length).toBe(0);
+      } finally {
+        setLangNow("de");
+      }
+    }
   });
 });
