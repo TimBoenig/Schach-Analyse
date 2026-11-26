@@ -113,7 +113,7 @@ export class StudioStage {
       compose(this.ctx, frame, project, this.renderer.canvas, this.renderer.viewProj, this.assets, opts, sprites);
     }
     // Whip blur, RGB split, invert flash and the stamped word go over every look.
-    paintImpact(this.ctx, frame);
+    paintImpact(this.ctx, frame, project.style.view === "reel" && project.style.reelLook === "close");
     return frame;
   }
 

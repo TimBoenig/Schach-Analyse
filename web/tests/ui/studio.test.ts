@@ -18,6 +18,7 @@ import {
   START_FEN,
   styleFromTheme,
   TEMPLATES,
+  closeTemplate,
   type StudioProject,
 } from "../../src/ui/studio/model";
 import { pieceMesh, triangulate } from "../../src/ui/studio/pieces";
@@ -1392,5 +1393,46 @@ describe("scene length", () => {
     const mid = (c0.minDur + c0.floorDur) / 2;
     const set = compile({ ...talky, scenes: talky.scenes.map((s, i) => (i === 0 ? { ...s, duration: mid, squeeze: true } : s)) }).scenes[0];
     expect(set.dur).toBeCloseTo(mid, 6);
+  });
+});
+
+describe("the close variant of the reel look", () => {
+  const close = closeTemplate();
+  const tl = compile(close);
+  const cam = (tk: number) => reelCamera(frameAt(tl, close, tk)!, 1080, 1080, "close");
+
+  it("is the reference look: a tight, straight crop that follows the move, tilted only at the opening and under threat", () => {
+    expect(close.style).toMatchObject({ view: "reel", reelLook: "close" });
+    // After the opening pull-in every held picture is about four and a half squares across and nearly level.
+    const book = tl.scenes[1];
+    const held = cam(book.start + book.dur - 0.05);
+    expect(1080 / held.S).toBeGreaterThan(4);
+    expect(1080 / held.S).toBeLessThan(5.8);
+    expect(Math.abs(held.roll)).toBeLessThan(0.06);
+    // The very first picture still leans (the title shot of the reference), the classic look at the same time does not start there.
+    expect(Math.abs(cam(0.05).roll)).toBeGreaterThan(0.25);
+    // The classic camera frames the same scene wider and sways far more.
+    const classic = reelCamera(frameAt(tl, close, book.start + book.dur - 0.05)!, 1080, 1080, "classic");
+    expect(classic.S).toBeLessThan(held.S);
+  });
+
+  it("is chosen in the AI format, written back, and the classic cut stays the default", () => {
+    const script = (extra: object) => JSON.stringify({ videoart: "edit", pgn: "1. e4 e5", szenen: [{ zugNr: "1-2" }], ...extra });
+    expect(importAiScript(script({ schnittstil: "nah" })).project!.style.reelLook).toBe("close");
+    expect(importAiScript(script({ cutStyle: "close" })).project!.style.reelLook).toBe("close");
+    expect(importAiScript(script({})).project!.style.reelLook).toBe("classic");
+    const again = importAiScript(toAiScript(importAiScript(script({ schnittstil: "nah" })).project!)).project!;
+    expect(again.style.reelLook).toBe("close");
+    const odd = importAiScript(script({ schnittstil: "bunt" }));
+    expect(odd.project!.style.reelLook).toBe("classic");
+    expect(odd.warnings.join(" ")).toContain("bunt");
+    expect(normalizeProject({ style: { view: "reel", reelLook: "nonsense" } }).style.reelLook).toBe("classic");
+  });
+
+  it("tells the AI about it in the edit prompt and the automatic one", () => {
+    const ask = (type: "edit" | "auto") => buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type });
+    expect(ask("edit")).toContain("\"schnittstil\"");
+    expect(ask("auto")).toContain("\"schnittstil\"");
+    expect(buildAiPrompt({ topic: "x", platform: "reels", length: 20, notes: "", type: "explain" })).not.toContain("schnittstil");
   });
 });

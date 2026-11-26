@@ -16,7 +16,8 @@ import { BRAND, BRAND_DOMAIN } from "../../brand";
 import { t } from "../../i18n";
 import { drawCard, fitText, layout, tokens, type Assets } from "./compose";
 import { pieceKey } from "./flat";
-import { powerOf, type Badge, type CameraPreset, type Tone, type StudioProject } from "./model";
+import { CLOSE_BADGE, CLOSE_BOARD, CLOSE_RED, CLOSE_SAND, drawDust, drawGlass, drawHand, greyPiece, rgb as rgbOf, wireFlash } from "./closeLook";
+import { powerOf, type Badge, type CameraPreset, type ReelLook, type Tone, type StudioProject } from "./model";
 import { squareXZ, WHIP_T, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
 
 const SANS = '"Geist", -apple-system, "Segoe UI", sans-serif';
@@ -25,7 +26,7 @@ const SERIF = '"Instrument Serif", Georgia, serif';
 /** The only colours of the look. Everything else is grey. */
 export const GLOW = { red: "#ff2a2a", green: "#1fdc3c", blue: "#5b6cff", cyan: "#19e0e0", amber: "#ffcf40", white: "#ffffff" } as const;
 /** How solid each glow is: red and green are almost opaque, blue stays a soft tint. */
-const SOLID: Record<string, number> = { [GLOW.red]: 0.92, [GLOW.green]: 0.85, [GLOW.cyan]: 0.82, [GLOW.blue]: 0.55, [GLOW.amber]: 0.8, [GLOW.white]: 0.6 };
+const SOLID: Record<string, number> = { [CLOSE_RED]: 0.96, [CLOSE_SAND]: 0.5, [CLOSE_BADGE.blunder]: 0.92, [CLOSE_BADGE.best]: 0.9, [CLOSE_BADGE.book]: 0.7, [GLOW.red]: 0.92, [GLOW.green]: 0.85, [GLOW.cyan]: 0.82, [GLOW.blue]: 0.55, [GLOW.amber]: 0.8, [GLOW.white]: 0.6 };
 
 export const TONE_GLOW: Record<Tone, string> = { bad: GLOW.red, good: GLOW.green, accent: GLOW.blue, idea: GLOW.cyan, white: GLOW.white };
 /** Glow under the badge's square, like the rating colours of the analysis page. */
@@ -54,6 +55,9 @@ const easeInOut = (k: number) => {
 };
 /** Seconds a flight into the next framing takes at most. */
 const FLOW = 0.6;
+/** The close variant: a quick flight to the next move, a long one at the opening. */
+const CLOSE_FLOW = 0.4;
+const OPEN_FLOW = 1.3;
 
 /**
  * How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board.
@@ -110,8 +114,38 @@ export const PRESET_LOOK: Record<CameraPreset, { cl: number; roll: number }> = {
   close: { cl: 0.9, roll: 4 },
 };
 
+/**
+ * The framing of the "close" variant: about four and a half squares across, centred on what the scene is about
+ * (the move, else the arrow, else the mark), straight, never a tilt unless the scene asks for one. A long move pulls back
+ * just far enough to keep both ends in the picture; the mating blow shows a little more of the board.
+ */
+function closePose(shot: ReelShot, m: number, preset: CameraPreset | null): Pose {
+  const span = shot.move ?? shot.arrow;
+  let across = 4.6;
+  if (preset) across *= 1 + 0.35 * (0.3 - PRESET_LOOK[preset].cl);
+  across /= shot.zoom;
+  if (shot.effects.includes("mate")) across = Math.max(across, 6.2);
+  if (shot.card !== "none") across = 8.6;
+  let [tx, tz] = [0, 0];
+  if (span) {
+    const [ax, az] = squareXZ(span.from);
+    const [bx, bz] = squareXZ(span.to);
+    across = Math.max(across, Math.hypot(bx - ax, bz - az) + 3.4);
+    [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
+  } else {
+    const sq = shot.fxSquare ?? shot.mark;
+    if (sq) [tx, tz] = squareXZ(sq);
+  }
+  across = Math.min(across, 8.6);
+  const S = m / across;
+  // The whole board in view stays centred.
+  const hold = clamp01((8.6 - across) / 2);
+  return { S, x: tx * hold, z: tz * hold, roll: preset ? PRESET_LOOK[preset].roll * 0.3 : 0 };
+}
+
 /** How a scene is framed once the camera has arrived: pure, so the previous scene's framing can be the start of this one's flight. */
-function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.entryPreset): Pose {
+function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.entryPreset, tight = false): Pose {
+  if (tight) return closePose(shot, m, preset);
   const wide = m / 9.2;
   const close = m / 2.3;
   // How close: 0 = the whole tilted board, 1 = two or three squares. The overview is never given up, so the range stays moderate.
@@ -177,7 +211,8 @@ function isHeroFlight(frame: Frame, p: FramePiece): boolean {
  * previous scene's framing ended, and the picture rolls slowly like an orbit around the board, so the
  * whole video is one continuous move.
  */
-export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
+export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = "classic"): ReelCam {
+  const close = look === "close";
   const m = Math.min(W, H);
   const u = m / 1080;
   const age = frame.local;
@@ -185,11 +220,13 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
 
   const sc = frame.scene;
-  const to = shotPose(frame.shot, m);
+  const to = shotPose(frame.shot, m, frame.shot.entryPreset, close);
   // The very first picture is already moving: it starts close and pulls out, so the clip has motion from frame one.
-  const from = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset) : { ...to, S: to.S * 1.3 };
+  // The close variant opens on the tilted board pulling in, like the reference's title shot; the others start a little closer than they stay.
+  const from: Pose = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset, close) : close ? { S: wide * 1.55, x: 0, z: 0, roll: 24 } : { ...to, S: to.S * 1.3 };
+  const flow = close ? (frame.prevShot ? CLOSE_FLOW : OPEN_FLOW) : FLOW;
   // A scene that cuts between angles (or whips) is entered quickly, any other by a slow flight.
-  const k = easeInOut(age / Math.min(frame.dur, frame.shot.fastEntry ? WHIP_T : FLOW));
+  const k = easeInOut(age / Math.min(frame.dur, frame.shot.fastEntry ? WHIP_T : flow));
   let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
   let tx = lerp(from.x, to.x, k);
   let tz = lerp(from.z, to.z, k);
@@ -197,8 +234,8 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
   // The cuts of the scene: a quick whip from the angle before to the one now; the first cut after a hit-stop starts from where the picture is.
   const cut = frame.cut;
   if (cut && cut.prev !== null) {
-    const a: Pose = cut.prev === "plain" ? { S, x: tx, z: tz, roll: tilt } : shotPose(frame.shot, m, cut.prev);
-    const b = shotPose(frame.shot, m, cut.preset);
+    const a: Pose = cut.prev === "plain" ? { S, x: tx, z: tz, roll: tilt } : shotPose(frame.shot, m, cut.prev, close);
+    const b = shotPose(frame.shot, m, cut.preset, close);
     const kc = easeInOut((age - cut.since) / WHIP_T);
     S = Math.exp(lerp(Math.log(a.S), Math.log(b.S), kc));
     tx = lerp(a.x, b.x, kc);
@@ -206,7 +243,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
     tilt = lerp(a.roll, b.roll, kc);
   }
   // After arriving the camera keeps creeping in, so a held shot is never dead.
-  S *= 1 + 0.04 * Math.max(0, age - FLOW);
+  S *= 1 + (close ? 0.03 : 0.04) * Math.max(0, age - flow);
   const zoomAge = fx("zoom");
   if (zoomAge !== undefined) S *= 1 + 0.35 * powerOf(sc, "zoom") * easeOut(zoomAge / 0.5);
   // Punch-in and riser push the picture in.
@@ -222,7 +259,7 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
     tz = lerp(tz, pz, heroK);
   } else {
     // Any other heavy piece in the air makes the camera lean in a little, never past a four-square view.
-    const flying = frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
+    const flying = close ? 0 : frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
     if (flying > 0) S = Math.min(S * (1 + 0.22 * flying), Math.max(S, m / 4.2));
   }
   // Every landing nudges the picture.
@@ -230,20 +267,26 @@ export function reelCamera(frame: Frame, W: number, H: number): ReelCam {
 
   // The orbit: a slow swing of the horizon, never the same twice in a row, and the same in every scene, so nothing jumps.
   const t = frame.time;
-  const roll = ((13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3) + (frame.scene.orbit || 0) * age + tilt + frame.roll) * Math.PI) / 180;
+  // The close variant stays almost straight: a light sway, a lean into a threat or the mating blow, and the opening's tilt (in `tilt`).
+  const sway = close ? 1.6 * Math.sin(t * 0.9) : 13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3);
+  const threatAge = fx("threat");
+  const leanAge = threatAge ?? fx("mate");
+  const lean = close && leanAge !== undefined ? 12 * easeOut(leanAge / 0.6) : 0;
+  const roll = ((sway + (frame.scene.orbit || 0) * age + tilt + frame.roll + lean) * Math.PI) / 180;
 
   // The mating blow: the camera backs off to show the whole board while the pieces break.
   const mateAge = fx("mate");
   if (mateAge !== undefined) {
     const km = easeOut((mateAge - 0.3) / 0.7);
-    S = lerp(S, wide * 1.12, km);
+    S = lerp(S, close ? m / 6.2 : wide * 1.12, km);
     tx *= 1 - km;
     tz *= 1 - km;
   }
 
   // Never show the black around the board when close: the centre stays far enough inside that the picture (with some slack for the roll) is all board.
+  // (The close variant may show a little black at the edge, like the reference: the centre only stays on the board.)
   const half = (m / 2 / S) * 1.25;
-  const limit = Math.max(0, 4 - half);
+  const limit = close ? 3.1 : Math.max(0, 4 - half);
   tx = Math.max(-limit, Math.min(limit, tx));
   tz = Math.max(-limit, Math.min(limit, tz));
 
@@ -305,7 +348,8 @@ interface Glow {
 }
 
 /** Which squares glow in which colour; later entries win, so danger beats the last-move tint. */
-function glows(frame: Frame): Glow[] {
+function glows(frame: Frame, close = false): Glow[] {
+  if (close) return closeGlows(frame);
   const out = new Map<string, Glow>();
   const put = (square: string, colour: string, alpha: number) => {
     if (alpha > 0.01) out.set(square, { square, colour, alpha });
@@ -324,6 +368,28 @@ function glows(frame: Frame): Glow[] {
     const colour = BADGE_GLOW[frame.badge.kind];
     if (colour) put(frame.badge.square, colour, Math.min(1, frame.badge.age / 0.2));
   }
+  return [...out.values()];
+}
+
+/** The tints of the close variant: the squares of the last move carry the rating's colour (sand when there is none), threats are solid red. */
+function closeGlows(frame: Frame): Glow[] {
+  const out = new Map<string, Glow>();
+  const put = (square: string, colour: string, alpha: number) => {
+    if (alpha > 0.01) out.set(square, { square, colour, alpha });
+  };
+  const rated = frame.badge ? CLOSE_BADGE[frame.badge.kind] : CLOSE_SAND;
+  if (frame.lastMove) {
+    put(frame.lastMove.from, rated, 0.4 * frame.lastMove.alpha);
+    put(frame.lastMove.to, rated, 0.85 * frame.lastMove.alpha);
+  }
+  for (const h of frame.hints) put(h.square, CLOSE_SAND, 0.6 * h.alpha);
+  const tone: Record<Tone, string> = { bad: CLOSE_RED, good: CLOSE_BADGE.best, accent: CLOSE_BADGE.great, idea: CLOSE_BADGE.brilliant, white: "#ffffff" };
+  for (const m of frame.marks) put(m.square, tone[m.tone], m.alpha);
+  const threat = frame.fx.find((f) => f.kind === "threat")?.age;
+  if (threat !== undefined) for (const sq of frame.threats) put(sq, CLOSE_RED, powerOf(frame.scene, "threat") * Math.min(1, threat / 0.3) * (0.85 + 0.15 * Math.sin(threat * 8)));
+  const mate = frame.fx.find((f) => f.kind === "mate")?.age;
+  if (mate !== undefined && frame.mate) put(frame.mate.king, CLOSE_RED, Math.min(1, mate / 0.2));
+  if (frame.badge) put(frame.badge.square, CLOSE_BADGE[frame.badge.kind], Math.min(1, frame.badge.age / 0.2));
   return [...out.values()];
 }
 
@@ -507,9 +573,10 @@ function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Ass
   }
 }
 
-function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, dir: number): void {
-  const img = assets.pieces[pieceKey(p.color, p.type)];
-  if (!img) return;
+function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, dir: number, close = false): void {
+  const plain = assets.pieces[pieceKey(p.color, p.type)];
+  if (!plain) return;
+  const img = close && p.color === "b" ? greyPiece(plain) : plain;
   const x = dir * p.x;
   const z = dir * p.z;
   let size = 0.96 * p.scale;
@@ -529,13 +596,14 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
   } else if (flying !== null) {
     // The piece swells towards the camera and flips like a coin, so every move feels thrown.
     const arc = Math.sin(Math.PI * flying);
-    size *= 1 + 0.9 * w * arc;
-    if (w >= 0.8) flipX = Math.cos(2 * Math.PI * flying);
-    rot = arc * 0.35 * (p.id % 2 ? 1 : -1) * w;
+    // The close variant lifts the piece a little like a hand would, no coin flip.
+    size *= 1 + (close ? 0.2 : 0.9) * w * arc;
+    if (!close && w >= 0.8) flipX = Math.cos(2 * Math.PI * flying);
+    rot = close ? 0 : arc * 0.35 * (p.id % 2 ? 1 : -1) * w;
   }
   if (flying !== null) {
     // Motion trail: fainter copies back along the path.
-    if (w >= 0.6 && flying > 0.05) {
+    if (!close && w >= 0.6 && flying > 0.05) {
       const [fx0, fz0] = [dir * p.flight!.fromX, dir * p.flight!.fromZ];
       for (let i = 4; i >= 1; i--) {
         const back = 1 - i * 0.11;
@@ -586,7 +654,8 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   const st = project.style;
   const v = project.video;
   const dir: 1 | -1 = flipped(frame.camera.yaw) ? -1 : 1;
-  const cam = reelCamera(frame, W, H);
+  const close = st.reelLook === "close";
+  const cam = reelCamera(frame, W, H, st.reelLook);
   const { S } = cam;
   const view: ReelView = { ...cam, W, H, dir };
 
@@ -611,7 +680,7 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   // ---- the board: two greys, rank and file in the corners like on the big chess sites
   for (let f = 0; f < 8; f++) {
     for (let r = 0; r < 8; r++) {
-      ctx.fillStyle = (f + r) % 2 === 0 ? st.dark : st.light;
+      ctx.fillStyle = (f + r) % 2 === 0 ? (close ? CLOSE_BOARD.dark : st.dark) : close ? CLOSE_BOARD.light : st.light;
       ctx.fillRect(dir * (f - 3.5) - 0.505, dir * (3.5 - r) - 0.505, 1.01, 1.01);
     }
   }
@@ -634,7 +703,7 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   }
 
   // ---- glowing squares under the pieces
-  for (const g of glows(frame)) {
+  for (const g of glows(frame, close)) {
     const [x, z] = squareXZ(g.square);
     glowSquare(ctx, S, dir * x, dir * z, g.colour, g.alpha);
   }
@@ -653,6 +722,14 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     }
   }
 
+  // ---- close variant: a halo of the rating's colour behind the piece that just moved
+  const rating = close && frame.badge ? CLOSE_BADGE[frame.badge.kind] : null;
+  if (rating && frame.badge) {
+    const [bx, bz] = squareXZ(frame.badge.square);
+    const a = clamp01(frame.badge.age / 0.2) * (1 - clamp01((frame.badge.age - 1.3) / 0.9));
+    softBlob(ctx, dir * bx, dir * bz, 1.25, 1.25, 0.6 * a, rgbOf(rating));
+  }
+
   // ---- pieces: the ones on the board first, the flying ones on top
   const ordered = [...frame.pieces].filter((p) => p.alpha > 0.01).sort((a, b) => Number(Boolean(a.flight)) - Number(Boolean(b.flight)) || a.y - b.y);
   // The side that got mated: all its pieces break, the nearest to the king first.
@@ -663,8 +740,28 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
       const dist = Math.hypot(p.x - matedKing[0], p.z - matedKing[1]);
       const local = mateAge - (0.25 + dist * 0.05);
       if (local >= 0) drawShattered(ctx, p, assets, dir, local, matedKing as [number, number]);
-      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, dir);
-    } else drawPiece(ctx, p, frame, assets, dir);
+      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, dir, close);
+    } else drawPiece(ctx, p, frame, assets, dir, close);
+  }
+  // ---- close variant: the hand that drags the piece, and rings that spread from the rated square
+  if (close) {
+    for (const p of ordered) {
+      if (!p.flight || p.flight.k <= 0 || p.flight.k >= 1) continue;
+      const grow = isHeroFlight(frame, p) ? 1 + 1.25 * Math.sin(Math.PI * p.flight.k) : 1 + 0.2 * WEIGHT[p.type] * Math.sin(Math.PI * p.flight.k);
+      drawHand(ctx, dir * p.x + 0.04, dir * p.z + 0.1, 0.78 * grow, -0.12, 1);
+    }
+    if (rating && frame.badge) {
+      const [bx, bz] = squareXZ(frame.badge.square);
+      for (const delay of [0, 0.22]) {
+        const k = (frame.badge.age - delay) / 0.9;
+        if (k <= 0 || k >= 1) continue;
+        ctx.beginPath();
+        ctx.arc(dir * bx, dir * bz, 0.5 + easeOut(k) * 0.9, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(rating, 0.75 * (1 - k));
+        ctx.lineWidth = 0.05 * (1 - k) + 0.008;
+        ctx.stroke();
+      }
+    }
   }
 
   // ---- the showcase landing: a white shock ring, a second fainter one and dust flying off the square
@@ -741,13 +838,28 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   }
   const vig = ctx.createRadialGradient(cx, cy, Math.min(W, H) * hole, cx, cy, Math.max(W, H) * 0.8);
   vig.addColorStop(0, "rgba(0,0,0,0)");
-  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.72 + 0.2 * powerOf(frame.scene, "spotlight") : 0.72})`);
+  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.72 + 0.2 * powerOf(frame.scene, "spotlight") : close ? 0.4 : 0.72})`);
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
-  const danger = mateAge !== undefined ? Math.min(1, mateAge / 0.3) * Math.max(0.12, 0.34 - 0.1 * mateAge) * (1 + 0.2 * Math.sin(mateAge * 9)) : frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "miss") ? 0.3 * Math.exp(-frame.badge.age * 3.5) : 0;
+  const danger = close ? 0 : mateAge !== undefined ? Math.min(1, mateAge / 0.3) * Math.max(0.12, 0.34 - 0.1 * mateAge) * (1 + 0.2 * Math.sin(mateAge * 9)) : frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "miss") ? 0.3 * Math.exp(-frame.badge.age * 3.5) : 0;
   if (danger > 0.01) {
     ctx.fillStyle = `rgba(150,0,0,${danger})`;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  if (close) {
+    drawDust(ctx, frame.time, 1);
+    // Glass at the big hits: the mating blow first, then the showcase landing, then a bad rated move. It breaks over the square it happened on.
+    const hero = frame.shot.hero;
+    const badRated = frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "mistake" || frame.badge.kind === "miss");
+    let hit: { age: number; square: string } | null = null;
+    if (mateAge !== undefined && frame.mate) hit = { age: mateAge, square: frame.mate.king };
+    else if (hero && frame.local >= hero.t1) hit = { age: frame.local - hero.t1, square: hero.to };
+    else if (badRated && frame.badge) hit = { age: frame.badge.age, square: frame.badge.square };
+    if (hit) {
+      const [gx, gy] = onScreen(hit.square);
+      drawGlass(ctx, gx, gy, hit.age, 1, frame.shot.index * 13 + 5);
+    }
   }
 
   // ---- text: almost none. A quiet headline on top, a plain caption at the bottom.
@@ -757,7 +869,8 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   ctx.textAlign = "center";
   ctx.shadowColor = "rgba(0,0,0,0.9)";
   ctx.shadowBlur = 18 * u;
-  if (!frame.lesson && frame.title.text.trim() && quiet > 0.01) {
+  if (close && !frame.lesson && frame.title.text.trim() && quiet > 0.01) drawCloseTitle(ctx, frame, assets, L, quiet, st.textScale);
+  else if (!frame.lesson && frame.title.text.trim() && quiet > 0.01) {
     ctx.globalAlpha = frame.title.alpha * quiet * easeOut(frame.title.age / 0.4);
     const fit = fitText(ctx, tokens(frame.title.text), L.textMax, 2, 78 * u * st.textScale, (sz) => `400 ${sz}px ${SERIF}`);
     ctx.font = `400 ${fit.size}px ${SERIF}`;
@@ -803,8 +916,29 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     ctx.fillRect(0, 0, W, H);
   }
 
+  // ---- close variant: the wireframe flash on the hits and at the start of a rated move, in the colour of the rating
+  if (close) {
+    const colour = frame.badge ? CLOSE_BADGE[frame.badge.kind] : CLOSE_BADGE.best;
+    let wire = frame.impact.invert;
+    const loud = frame.badge && ["best", "great", "brilliant", "blunder", "mistake", "miss"].includes(frame.badge.kind);
+    if (loud && frame.shot.index > 0 && frame.local < 0.14) wire = Math.max(wire, 1 - frame.local / 0.14);
+    wireFlash(ctx, colour, wire > 0.05 ? wire : 0);
+  }
+
   // ---- branding stays small and quiet: the name at the bottom, the address under it
-  if (v.brand && !(card.kind === "outro" && card.alpha > 0.5)) {
+  if (close && v.brand && !(card.kind === "outro" && card.alpha > 0.5)) {
+    // Like the reference: the handle small in the lower right corner, upper case.
+    ctx.save();
+    ctx.globalAlpha = 0.7 * Math.max(quiet, 0.5);
+    ctx.font = `700 ${22 * u}px ${SANS}`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "rgba(0,0,0,0.8)";
+    ctx.shadowBlur = 6 * u;
+    ctx.fillText(`@${BRAND.toUpperCase()}`, W - 28 * u, H - (L.portrait ? 120 : 24) * u);
+    ctx.restore();
+  } else if (v.brand && !(card.kind === "outro" && card.alpha > 0.5)) {
     // Square and wide pictures fill the frame with the board: the name sits at the top edge, not on the white king (e1) at the bottom.
     // Phone format too: the lower picture is the board, so the name goes up under the progress edge, above the hook text.
     const size = (L.portrait ? 28 : 24) * u;
@@ -835,6 +969,62 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     ctx.fillRect(0, H - 4 * u, W * frame.progress, 4 * u);
   }
   return view;
+}
+
+/**
+ * The title of the close variant: thin capitals with a glow, in the middle of a board that dims behind it. On the very first picture a king and a queen
+ * flank the line, like the hook of the reference.
+ */
+function drawCloseTitle(ctx: CanvasRenderingContext2D, frame: Frame, assets: Assets, L: ReturnType<typeof layout>, quiet: number, textScale: number): void {
+  const { width: W, height: H } = ctx.canvas;
+  const u = L.u;
+  const a = frame.title.alpha * quiet * easeOut(frame.title.age / 0.3);
+  if (a <= 0.01) return;
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${0.66 * a})`;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = a;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  const fit = fitText(ctx, tokens(frame.title.text.toUpperCase()), L.textMax * 0.8, 3, 58 * u * textScale, (sz) => `300 ${sz}px ${SANS}`);
+  ctx.font = `300 ${fit.size}px ${SANS}`;
+  // letterSpacing is missing in older browsers: the text is then just a little tighter.
+  const spaced = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  spaced.letterSpacing = `${(fit.size * 0.04).toFixed(1)}px`;
+  ctx.shadowColor = "rgba(255,255,255,0.9)";
+  ctx.shadowBlur = 16 * u;
+  ctx.fillStyle = "#ffffff";
+  const lh = fit.size * 1.18;
+  const top = H * 0.5 - (fit.lines.length * lh) / 2 + fit.size * 0.85;
+  let widest = 0;
+  fit.lines.forEach((line, i) => {
+    const text = line.map((tk) => tk.word).join(" ");
+    widest = Math.max(widest, ctx.measureText(text).width);
+    ctx.fillText(text, W / 2, top + i * lh);
+  });
+  spaced.letterSpacing = "0px";
+  if (!frame.prevShot) {
+    const king = assets.pieces[pieceKey("b", "k")];
+    const queen = assets.pieces[pieceKey("w", "q")];
+    const size = fit.size * 1.9;
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = a * 0.85;
+    if (king) {
+      ctx.save();
+      ctx.translate(W / 2 - widest / 2 - size * 0.6, H * 0.5);
+      ctx.rotate(-0.28);
+      ctx.drawImage(king, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+    if (queen) {
+      ctx.save();
+      ctx.translate(W / 2 + widest / 2 + size * 0.6, H * 0.5);
+      ctx.rotate(0.22);
+      ctx.drawImage(queen, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
 }
 
 /**
