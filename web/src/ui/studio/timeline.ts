@@ -855,20 +855,24 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   let titleStart = c.start;
   for (let i = index - 1; i >= 0 && timeline.scenes[i].scene.title === s.title && timeline.scenes[i].scene.card === s.card; i--) titleStart = timeline.scenes[i].start;
   const titleStays = nextScene && nextScene.scene.title === s.title && nextScene.scene.card === s.card;
-  const titleAlpha = titleStays ? 1 : clamp01(tail / 0.3);
+  // Texts enter over ~0.4 s and leave over ~0.3 s. In a short (squeezed) scene those two would overlap and the
+  // text would never be fully readable, so both shrink with the scene: fully in at its first third, out in its last.
+  const quick = Math.min(1, stillDur / 1.2);
+  const fadeOut = 0.3 * quick;
+  const titleAlpha = titleStays ? 1 : clamp01(tail / fadeOut);
   // A subtitle with "|" shows its parts one after another, each for an equal share of the scene.
   const lesson = isLesson(project);
   const spell = (x: string) => (project.video.spellMoves ? spellNotation(x) : x);
   const parts = textParts(spell(s.text), !lesson);
   let textNow = parts[0] ?? "";
-  let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / 0.3);
+  let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / fadeOut);
   let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
   if (parts.length > 1) {
     const share = stillDur / parts.length;
     const k = Math.min(parts.length - 1, Math.floor(local / share));
     textNow = parts[k];
     textStart = c.start + k * share;
-    if (k < parts.length - 1) textAlpha = clamp01((share * (k + 1) - local) / 0.2);
+    if (k < parts.length - 1) textAlpha = clamp01((share * (k + 1) - local) / Math.min(0.2, share * 0.3));
   }
 
   const current = moving ?? lastDone;
@@ -883,8 +887,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
 
   // The very first card is there from the first frame: fading it in would show the plain headline and
   // subtitle underneath for a moment, the same text twice at the start of the video.
-  const cardIn = !prev || (prev.scene.card === s.card && s.card !== "none") ? 1 : clamp01(local / CARD_FADE);
-  const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / CARD_FADE);
+  const cardIn = !prev || (prev.scene.card === s.card && s.card !== "none") ? 1 : clamp01(local / (CARD_FADE * quick));
+  const cardOut = nextScene?.scene.card === s.card ? 1 : clamp01(tail / (CARD_FADE * quick));
   const countdown = (s.card === "question" || s.card === "poll") && s.countdown > 0 ? Math.max(0, s.countdown - Math.max(0, local - 0.6)) : null;
 
   return {
@@ -898,8 +902,8 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     lastMove,
     landing,
     camera: cameraAt(timeline, index, local, project.video.introFly),
-    title: { text: spell(s.title), age: clock - titleStart, alpha: titleAlpha },
-    text: { text: textNow, age: clock - textStart, alpha: textAlpha },
+    title: { text: spell(s.title), age: (clock - titleStart) / (titleStart === c.start ? quick : 1), alpha: titleAlpha },
+    text: { text: textNow, age: (clock - textStart) / (textStart === c.start ? quick : 1), alpha: textAlpha },
     label: s.label,
     pill,
     card: { kind: s.card, age: local, alpha: s.card === "none" ? 0 : Math.min(cardIn, cardOut) },
