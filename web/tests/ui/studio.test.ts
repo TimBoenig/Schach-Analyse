@@ -849,11 +849,18 @@ describe("reel look", () => {
     expect(blunder.steps[0].t0).toBeLessThan(0.15);
   });
 
-  it("starts on the board without a title card and already moving", () => {
+  it("starts on the board without a title card, showing the whole board first and then flying in", () => {
     expect(project.scenes[0].card).toBe("none");
     expect(project.scenes[0].title).toBe("");
     const cam = (tk: number) => reelCamera(frameAt(tl, project, tk)!, 1080, 1080);
-    expect(cam(0.01).S).toBeGreaterThan(cam(0.5).S * 1.15);
+    // The first picture is the overview: the whole board (8 squares and a margin) in the middle, held for a moment.
+    for (const tk of [0.01, 0.3, 0.6]) {
+      expect(1080 / cam(tk).S).toBeGreaterThanOrEqual(8.7);
+      expect(Math.abs(cam(tk).fx) + Math.abs(cam(tk).fz)).toBeLessThan(0.05);
+    }
+    // The picture is alive from the first frame (the horizon sways a little), and the camera closes in afterwards.
+    expect(Math.abs(cam(0.3).roll - cam(0.01).roll)).toBeGreaterThan(1e-4);
+    expect(cam(tl.scenes[0].dur - 0.02).S).toBeGreaterThan(cam(0.01).S * 1.05);
   });
 
   it("an AI script of type edit becomes a quiet, fast reel, and the prompt asks for the type", () => {
@@ -995,7 +1002,7 @@ describe("edit pressure: hit-stop, cuts, strengths, stamps", () => {
     expect(cam(2 * c.cutIv + 0.4).roll).not.toBeCloseTo(wide.roll, 2);
     const tilted = reelOf([scene({ moves: "1. e4", duration: 2, effects: ["dutch"] })]);
     const plain = reelOf([scene({ moves: "1. e4", duration: 2 })]);
-    const rollOf = (q: StudioProject) => reelCamera(frameAt(compile(q), q, 1)!, 1080, 1080).roll;
+    const rollOf = (q: StudioProject) => reelCamera(frameAt(compile(q), q, 1.9)!, 1080, 1080).roll;
     expect(Math.abs(rollOf(tilted) - rollOf(plain))).toBeCloseTo((12 * Math.PI) / 180, 3);
     // The zoom stays out of the black around the board whatever the cuts do.
     for (let tk = 0.01; tk < c.dur; tk += 0.05) expect(Math.abs(cam(tk).fx)).toBeLessThanOrEqual(3.5);
@@ -1409,8 +1416,9 @@ describe("the close variant of the reel look", () => {
     expect(1080 / held.S).toBeGreaterThan(4);
     expect(1080 / held.S).toBeLessThan(5.8);
     expect(Math.abs(held.roll)).toBeLessThan(0.06);
-    // The very first picture still leans (the title shot of the reference), the classic look at the same time does not start there.
-    expect(Math.abs(cam(0.05).roll)).toBeGreaterThan(0.25);
+    // The very first picture is the overview of the whole board, held straight, so the position can be taken in before the camera moves in.
+    expect(1080 / cam(0.05).S).toBeGreaterThanOrEqual(8.7);
+    expect(Math.abs(cam(0.05).roll)).toBeLessThan(0.08);
     // The classic camera frames the same scene wider and sways far more.
     const classic = reelCamera(frameAt(tl, close, book.start + book.dur - 0.05)!, 1080, 1080, "classic");
     expect(classic.S).toBeLessThan(held.S);

@@ -40,48 +40,105 @@ export function rgb(hex: string): string {
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
 }
 
+/** The hand's parts when it points (grip 0) and when it holds a piece in its fist (grip 1): x, top and size of each finger, in hand units. */
+const FINGERS = [
+  { open: [-0.07, 0, 0.14, 0.52], fist: [-0.19, 0.12, 0.125, 0.3] },
+  { open: [0.065, 0.2, 0.125, 0.4], fist: [-0.065, 0.09, 0.125, 0.3] },
+  { open: [0.185, 0.24, 0.115, 0.36], fist: [0.06, 0.11, 0.125, 0.3] },
+  { open: [0.295, 0.29, 0.1, 0.31], fist: [0.185, 0.16, 0.115, 0.26] },
+] as const;
+const PALM = { open: [-0.13, 0.36, 0.53, 0.42], fist: [-0.2, 0.28, 0.5, 0.45] } as const;
+const THUMB = { open: [-0.17, 0.47, 0.22, 0.115, -0.55], fist: [-0.04, 0.43, 0.34, 0.125, -0.08] } as const;
+
+const mix = (a: readonly number[], b: readonly number[], k: number) => a.map((v, i) => v + (b[i] - v) * k);
+
 /**
- * The pointer hand of the reference, drawn in board units with the fingertip at (x, z): it grabs the piece, drags it and lets go.
- * White glove, grey outline, a soft dark edge so it also reads on the white squares.
+ * The pointer hand, drawn in board units: an open pointing hand that closes into a fist as it grabs the piece.
+ * White glove with a thin dark outline (the outline is drawn first under all parts, so the parts merge into one silhouette),
+ * a soft shadow so it reads on white and black squares, and the knuckle lines of the fist fading in with the grip.
+ * (x, z) is the tip of the index finger; `size` 1 is a hand about three quarters of a square tall.
  */
-export function drawHand(ctx: CanvasRenderingContext2D, x: number, z: number, size: number, angle: number, alpha: number): void {
+export function drawHand(ctx: CanvasRenderingContext2D, S: number, x: number, z: number, size: number, angle: number, alpha: number, grip: number): void {
   if (alpha <= 0.01) return;
+  const g = clamp01(grip);
   ctx.save();
   ctx.globalAlpha *= clamp01(alpha);
   ctx.translate(x, z);
   ctx.rotate(angle);
   ctx.scale(size, size);
+  // The closed hand sits a little higher and to the left of the index fingertip: its middle is what holds the piece.
+  ctx.translate(-0.07 * g, -0.12 * g);
   ctx.lineJoin = "round";
   ctx.lineCap = "round";
-  ctx.shadowColor = "rgba(0,0,0,0.55)";
-  ctx.shadowBlur = 6;
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#5a5a5a";
-  ctx.lineWidth = 0.05;
-  // Four fingers side by side (the index finger a little longer), the palm below, the thumb folded across.
-  const finger = (cx: number, top: number) => {
+
+  const parts: (() => void)[] = [];
+  FINGERS.forEach((f) => {
+    const [fx, ft, fw, fh] = mix(f.open, f.fist, g);
+    parts.push(() => ctx.roundRect(fx, ft, fw, fh, fw / 2));
+  });
+  const [px, py, pw, ph] = mix(PALM.open, PALM.fist, g);
+  parts.push(() => ctx.roundRect(px, py, pw, ph, [0.03, 0.03, 0.17, 0.15]));
+  const [tx, tz, tw, th, ta] = mix(THUMB.open, THUMB.fist, g);
+  parts.push(() => {
+    ctx.save();
+    ctx.translate(tx, tz);
+    ctx.rotate(ta);
+    ctx.roundRect(-tw / 2, -th / 2, tw, th, th / 2);
+    ctx.restore();
+  });
+  const trace = () => {
     ctx.beginPath();
-    ctx.roundRect(cx - 0.065, top, 0.13, 0.5 - top, 0.065);
-    ctx.fill();
-    ctx.stroke();
+    parts.forEach((p) => p());
   };
-  ctx.beginPath();
-  ctx.roundRect(-0.27, 0.12, 0.54, 0.34, [0.04, 0.04, 0.14, 0.14]);
+  // Shadow: the whole silhouette once, blurred, to the lower right.
+  ctx.save();
+  ctx.shadowColor = "rgba(0,0,0,0.5)";
+  ctx.shadowBlur = 0.09 * S * size;
+  ctx.shadowOffsetX = 0.025 * S * size;
+  ctx.shadowOffsetY = 0.05 * S * size;
+  ctx.fillStyle = "#101010";
+  trace();
   ctx.fill();
+  ctx.restore();
+  // Outline under, glove on top.
+  ctx.strokeStyle = "#141414";
+  ctx.lineWidth = 0.075;
+  trace();
   ctx.stroke();
-  ctx.shadowColor = "transparent";
-  finger(-0.2, 0.05);
-  finger(-0.067, -0.12);
-  finger(0.067, 0.0);
-  finger(0.2, 0.08);
-  // The palm again without outline, so the finger roots flow into it.
-  ctx.beginPath();
-  ctx.roundRect(-0.255, 0.14, 0.51, 0.3, [0, 0, 0.12, 0.12]);
+  ctx.fillStyle = "#fbfbfb";
+  trace();
   ctx.fill();
+  // Shading: the lower part of the glove a touch grey, so it has a body.
+  const body = ctx.createLinearGradient(0, py, 0, py + ph);
+  body.addColorStop(0, "rgba(120,120,130,0)");
+  body.addColorStop(1, "rgba(120,120,130,0.28)");
+  ctx.fillStyle = body;
   ctx.beginPath();
-  ctx.ellipse(-0.27, 0.3, 0.075, 0.13, -0.5, 0, Math.PI * 2);
+  ctx.roundRect(px, py, pw, ph, [0.03, 0.03, 0.17, 0.15]);
   ctx.fill();
-  ctx.stroke();
+  // Knuckle lines between the curled fingers, and the thumb's edge over them.
+  if (g > 0.05) {
+    ctx.strokeStyle = `rgba(20,20,20,${0.9 * g})`;
+    ctx.lineWidth = 0.022;
+    for (let i = 0; i < FINGERS.length - 1; i++) {
+      const [fx, ft, fw, fh] = mix(FINGERS[i + 1].open, FINGERS[i + 1].fist, g);
+      void fw;
+      ctx.beginPath();
+      ctx.moveTo(fx, ft + 0.06);
+      ctx.lineTo(fx, ft + fh * 0.78);
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.save();
+    ctx.translate(tx, tz);
+    ctx.rotate(ta);
+    ctx.roundRect(-tw / 2, -th / 2, tw, th, th / 2);
+    ctx.restore();
+    ctx.fillStyle = "#fbfbfb";
+    ctx.fill();
+    ctx.lineWidth = 0.03;
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
