@@ -134,12 +134,13 @@ function drawStamp(ctx: CanvasRenderingContext2D, stamp: NonNullable<Impact["sta
 }
 
 /** Paints the impact's effects over the finished picture; does nothing when none is on. */
-export function paintImpact(ctx: CanvasRenderingContext2D, frame: Frame): void {
+/** `wireInstead`: the look draws its own wireframe flash for the hit, so the plain inverted flash stays off. */
+export function paintImpact(ctx: CanvasRenderingContext2D, frame: Frame, wireInstead = false): void {
   const im = frame.impact;
   const { width: W, height: H } = ctx.canvas;
   if (im.blur && im.blur.amount > 0.02) blurPicture(ctx, im.blur);
   if (im.glitch > 0.02) splitPicture(ctx, im.glitch, im.age);
-  if (im.invert > 0.01) {
+  if (im.invert > 0.01 && !wireInstead) {
     ctx.save();
     ctx.globalCompositeOperation = "difference";
     ctx.globalAlpha = im.invert;

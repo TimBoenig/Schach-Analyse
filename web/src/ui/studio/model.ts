@@ -95,6 +95,14 @@ export type BoardView = "3d" | "2d" | "billboard" | "reel";
 /** Order of the choices in the editor. */
 export const VIEWS: BoardView[] = ["2d", "billboard", "3d", "reel"];
 export const VIEW_LABEL: Record<BoardView, string> = { "2d": t("2D – klar wie im Buch"), billboard: t("3D-Brett, 2D-Figuren"), "3d": t("3D – Show-Look"), reel: t("Reel – Schwarz-Weiß mit Glühen") };
+/**
+ * Two ways to cut the reel look. "classic": grey board, tilted, mostly the whole board in view. "close": the look of the
+ * reference edit: white and black squares, straight tight crop that follows the move, soft tinted squares in the rating colour,
+ * a hand that drags the piece, wireframe flashes on the beat and glass that cracks at the big hits.
+ */
+export type ReelLook = "classic" | "close";
+export const REEL_LOOKS: ReelLook[] = ["classic", "close"];
+export const REEL_LOOK_LABEL: Record<ReelLook, string> = { classic: t("Klassisch – schräg mit Überblick"), close: t("Nah dran – hell, ruhige Kamera, Glas") };
 /** The views with a 3D board (camera, surroundings, reflection). The reel look draws its own tilted flat board. */
 export const isBoard3d = (v: BoardView) => v === "3d" || v === "billboard";
 export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: t("Im Kasten"), outline: t("Mit Kontur"), punch: t("Groß und fett") };
@@ -121,6 +129,8 @@ export interface StudioStyle {
   /** Size of all texts, 1 = normal. */
   textScale: number;
   view: BoardView;
+  /** Only used by the reel view. */
+  reelLook: ReelLook;
 }
 
 export type Format = "9:16" | "1:1" | "16:9";
@@ -177,7 +187,7 @@ export interface StudioProject {
   updatedAt: number;
 }
 
-export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale" | "view">> = {
+export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale" | "view" | "reelLook">> = {
   nova: { label: "Nova", light: "#d3d8e6", dark: "#4b5675", frame: "#121620", whitePiece: "#f3f1ec", blackPiece: "#1b1d24", material: "porcelain", bgTop: "#1a2140", bgBottom: "#05060a", accent: "#8d9aff" },
   marmor: { label: t("Marmor"), light: "#ece9e3", dark: "#8b909b", frame: "#26292f", whitePiece: "#f7f5f0", blackPiece: "#16171b", material: "porcelain", bgTop: "#2c313b", bgBottom: "#08090b", accent: "#3fd2ea" },
   holz: { label: t("Holz"), light: "#e9d0a5", dark: "#a5714a", frame: "#43291a", whitePiece: "#ecd3a4", blackPiece: "#3a2216", material: "wood", bgTop: "#2b1e15", bgBottom: "#0a0705", accent: "#ff9d5c" },
@@ -272,7 +282,7 @@ export const FORMAT_SIZE: Record<Format, [number, number]> = { "9:16": [1080, 19
 
 export function styleFromTheme(theme: ThemeId, keep?: Partial<StudioStyle>): StudioStyle {
   const { label: _label, ...colours } = THEMES[theme];
-  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", pieceRim: true, captionStyle: "box", textScale: 1, view: "3d", ...keep, ...colours, theme };
+  return { reflection: true, coords: true, titleFont: "sans", environment: "podium", pieceRim: true, captionStyle: "box", textScale: 1, view: "3d", reelLook: "classic", ...keep, ...colours, theme };
 }
 
 export const DEFAULT_VIDEO: StudioVideo = {
@@ -495,6 +505,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
     textScale: num(st.textScale, 0.8, 1.3, 1),
     // Projects from before the 2D board: YouTube lessons get the clearer flat board, short videos keep 3D.
+    reelLook: st.reelLook === "close" ? "close" : "classic",
     view: st.view === "2d" || st.view === "3d" || st.view === "billboard" || st.view === "reel" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);
@@ -670,6 +681,32 @@ export function reelTemplate(): StudioProject {
   };
 }
 
+/** The close variant on the Légal trap: title on the tilted board, book moves in sand, a bad grab in purple, the knight mate with glass and wireframe. */
+export function closeTemplate(): StudioProject {
+  const base = project(
+    t("Ein Springeropfer für ein leichtes Matt"),
+    [
+      scene({ title: t("Ein Springeropfer für ein leichtes Matt"), duration: 2 }),
+      scene({ moves: "1. e4 e5", duration: 1.3, badge: "book" }),
+      scene({ moves: "2. Nf3 d6", duration: 1.3, badge: "book" }),
+      scene({ moves: "3. Bc4 Bg4 4. Nc3 g6", duration: 1.3 }),
+      scene({ moves: "5. Nxe5", duration: 2.6, badge: "great", effects: ["spotlight"] }),
+      scene({ moves: "5... Bxd1??", duration: 2, badge: "blunder", effects: ["hitstop"] }),
+      scene({ moves: "6. Bxf7+", duration: 2.6, badge: "best" }),
+      scene({ moves: "6... Ke7", duration: 1.3 }),
+      scene({ moves: "7. Nd5#", duration: 4, badge: "brilliant", effects: ["mate", "slowmo"] }),
+      outro({ title: t("Mehr Taktik aus deinen Partien"), duration: 1.3 }),
+    ],
+    START_FEN,
+    "mono",
+  );
+  return {
+    ...base,
+    style: styleFromTheme("mono", { view: "reel", reelLook: "close", titleFont: "sans", environment: "void", coords: false }),
+    video: { ...DEFAULT_VIDEO, format: "9:16", platform: "reels", tempo: 2.4, lucena: false, movePill: false, music: "generated" },
+  };
+}
+
 export function blankProject(): StudioProject {
   return project(t("Neues Video"), [scene({ card: "intro", title: t("Dein Titel"), text: t("Untertitel"), camera: "white" }), scene({ moves: "1. e4", title: t("Erster Zug"), text: t("Erkläre hier den Zug.") }), outro()]);
 }
@@ -706,5 +743,6 @@ export const TEMPLATES: { id: string; label: string; hint: string; make: () => S
   { id: "scholar", label: t("Falle zeigen"), hint: t("Matt in 4 Zügen und die richtige Verteidigung"), make: scholarTemplate },
   { id: "puzzle", label: t("Rätsel mit Countdown"), hint: t("Stellung, Frage, 3-2-1, Lösung"), make: puzzleTemplate },
   { id: "reel", label: t("Reel-Stil"), hint: t("Schwarz-Weiß, schräge Kamera, Glühen: wie die schnellen Clips"), make: reelTemplate },
+  { id: "reel-close", label: t("Reel nah dran"), hint: t("Wie der Vorbild-Edit: helles Brett, enge Kamera, Hand, Glasbruch"), make: closeTemplate },
   { id: "blank", label: t("Leeres Video"), hint: t("Titel, eine Szene, Abspann"), make: blankProject },
 ];
