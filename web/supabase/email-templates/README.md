@@ -33,6 +33,13 @@ setzen und den Inhalt der HTML-Datei in „Message body“ einfügen:
 | Change Email Address | `Neue E-Mail-Adresse bestätigen` | `change-email.html` |
 
 
+Die Links in den Vorlagen zeigen auf die eigene Domain
+(`{{ .SiteURL }}/?token_hash=…&type=…`) statt auf `supabase.co`. Absender und
+Link gehören dann zur selben Domain, das mögen Spamfilter, und die App tauscht
+den Einmal-Code beim Öffnen selbst gegen die Anmeldung (`sync.ts`, `verifyOtp`).
+**Erst die neue App-Version ausliefern, dann die Vorlagen einfügen.** Die
+Site URL muss `https://endgameking.com` sein.
+
 Die HTML-Dateien entstehen aus `web/scripts/build-email-templates.mjs`
 (`node scripts/build-email-templates.mjs`); Änderungen bitte dort machen.
 
@@ -49,7 +56,13 @@ oft im Spam. Für echte Nutzer braucht es einen SMTP-Dienst, z. B. Resend
 3. Supabase → Authentication → Emails → SMTP Settings → „Enable custom SMTP“:
    Host `smtp.resend.com`, Port `465`, User `resend`, Passwort = API-Key,
    Absender `EndGameKing <konto@endgameking.com>`.
-4. Authentication → Rate Limits: „Emails sent per hour“ auf z. B. 100 erhöhen.
+4. **DMARC setzen** (fehlte am 2026-11-26): In Cloudflare → DNS einen TXT-Eintrag
+   `_dmarc` mit dem Wert `v=DMARC1; p=none; rua=mailto:support@endgameking.com`
+   anlegen. Gmail und Yahoo verlangen DMARC, ohne landen Mails eher im Spam.
+   Nach 2 bis 4 Wochen ohne Fehlberichte auf `p=quarantine` erhöhen.
+5. In Resend: „Click tracking“ und „Open tracking“ für die Domain ausschalten
+   (verändern Links und Mail, schlecht für Zustellung).
+6. Authentication → Rate Limits: „Emails sent per hour“ auf z. B. 100 erhöhen.
 
 ## 4. Konto selbst löschen
 

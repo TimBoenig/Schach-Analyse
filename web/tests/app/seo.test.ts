@@ -37,9 +37,18 @@ describe("SEO basics", () => {
     expect(app.replace(/<[^>]+>/g, "").length).toBeGreaterThan(400);
   });
 
-  it("robots.txt points to a sitemap that lists only the canonical page", () => {
+  it("robots.txt points to a sitemap whose pages all exist, are canonical and are linked from the home page", () => {
     expect(read("public/robots.txt")).toContain(`Sitemap: ${SITE_URL}/sitemap.xml`);
-    expect([...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])).toEqual([`${SITE_URL}/`]);
+    const urls = [...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(urls[0]).toBe(`${SITE_URL}/`);
+    expect(urls.length).toBeGreaterThan(1);
+    for (const u of urls.slice(1)) {
+      const path = u.slice(SITE_URL.length);
+      const page = read(`public${path}index.html`);
+      expect(page).toContain(`<link rel="canonical" href="${u}">`);
+      expect(page).toMatch(/<h1>[^<]+<\/h1>/);
+      expect(html).toContain(`href="${path}"`);
+    }
   });
 
   it("keeps the 404 page out of the index", () => {

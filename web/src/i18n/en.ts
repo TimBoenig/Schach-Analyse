@@ -1675,7 +1675,7 @@ export const EN: Record<string, string> = {
   "Elo {eloText}": "Elo {eloText}",
   "Elo-Erwartung": "Elo expectation",
   "Empfehlung": "Recommendation",
-  "EndGameKing – Schachanalyse und Training": "EndGameKing – chess analysis and training",
+  "EndGameKing – Schachpartien analysieren und trainieren": "EndGameKing – analyse and train your chess games",
   "Endspiel": "Endgame",
   "Endspiel & Technik": "Endgame & technique",
   "Endspiel erreicht in {fmtDe} % der Partien": "Endgame reached in {fmtDe} % of the games",
