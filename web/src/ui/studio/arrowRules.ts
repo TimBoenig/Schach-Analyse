@@ -1,4 +1,4 @@
-// Arrows in a short edit: sparse, and only where they mean something.
+// Arrows in a short edit: rare, and only where they mean something (at most about one scene in seven, with three scenes between two of them).
 //
 // An arrow on every move reads as a lesson, not as an edit: the picture is busy, and the one arrow that matters (the threat, the
 // tactic, the key move) is lost between the rest. An AI script often gives every scene an arrow anyway, so the import (and the Edit
@@ -8,9 +8,9 @@
 import { scenePositions, type Scene, type StudioArrow, type StudioProject } from "./model";
 
 /** At most this share of the scenes (but at least one) keeps arrows. */
-export const ARROW_SHARE = 0.25;
+export const ARROW_SHARE = 0.15;
 /** Scenes that must lie between two scenes with (different) arrows. */
-export const ARROW_GAP = 2;
+export const ARROW_GAP = 3;
 /** Arrows kept in one scene. */
 export const ARROWS_PER_SCENE = 2;
 
