@@ -1,0 +1,18 @@
+/* Styles of the static SEO pages (see scripts/build-seo-pages.mjs). */
+:root{color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:#0a0c11;color:#e8eaf2;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;line-height:1.65}
+a{color:#8d9aff}
+.top{display:flex;align-items:center;justify-content:space-between;max-width:760px;margin:0 auto;padding:16px 20px}
+.brand{color:#e8eaf2;text-decoration:none;font-weight:700;font-size:18px}
+main{max-width:760px;margin:0 auto;padding:8px 20px 40px}
+.crumbs{font-size:14px;color:#a3a9bd;margin-bottom:8px}
+h1{font-size:clamp(28px,5vw,40px);line-height:1.15;margin:8px 0 12px}
+h2{font-size:22px;margin:32px 0 8px}
+.lead{font-size:18px;color:#c7ccdc}
+.cta{display:inline-block;background:#8d9aff;color:#0a0c11;font-weight:700;text-decoration:none;padding:13px 24px;border-radius:12px}
+.cta.small{padding:8px 16px;font-size:14px}
+details{border-top:1px solid #232838;padding:12px 0}
+summary{cursor:pointer;font-weight:600}
+.more ul{padding-left:20px}
+footer{max-width:760px;margin:0 auto;padding:24px 20px 48px;color:#a3a9bd;font-size:14px;border-top:1px solid #232838}

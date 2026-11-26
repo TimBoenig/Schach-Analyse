@@ -16,7 +16,7 @@
 // Every few hours (and at sign-in or on request) the headers of *all* records
 // are compared, which also repairs anything an earlier round missed.
 // supabase-js is loaded on demand so it stays out of the startup bundle.
-import type { AuthChangeEvent, SupabaseClient, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, EmailOtpType, SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoredGame } from "../domain/types";
 import {
@@ -111,7 +111,7 @@ export interface AuthCallback {
 let authCallback: AuthCallback | null = (() => {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  if (!params.has("access_token") && !params.has("error")) return null;
+  if (!params.has("access_token") && !params.has("error") && !params.has("token_hash")) return null;
   const error = params.get("error_description") || params.get("error");
   return { type: params.get("type") ?? "signup", error: error ? translateLinkError(error) : null };
 })();
@@ -138,12 +138,30 @@ export function syncAvailable(): boolean {
   return Boolean(url && key);
 }
 
+/**
+ * Account mails link to our own domain ("#token_hash=…&type=…") instead of
+ * the Supabase address: a link whose domain differs from the sender's is a
+ * classic spam signal. The code is redeemed here, before anything else
+ * uses the client.
+ */
+async function redeemMailToken(sb: SupabaseClient): Promise<void> {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const tokenHash = params.get("token_hash");
+  if (!tokenHash) return;
+  const type = params.get("type") ?? "signup";
+  history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: type as EmailOtpType });
+  if (error && authCallback) authCallback = { ...authCallback, error: translateLinkError(error.message) };
+}
+
 export function supabase(): Promise<SupabaseClient> | null {
   if (!syncAvailable()) return null;
   if (!client) {
-    client = import("@supabase/supabase-js").then(({ createClient }) =>
-      createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } }),
-    );
+    client = import("@supabase/supabase-js").then(async ({ createClient }) => {
+      const sb = createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } });
+      await redeemMailToken(sb);
+      return sb;
+    });
   }
   return client;
 }

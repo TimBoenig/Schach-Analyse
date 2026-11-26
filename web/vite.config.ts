@@ -36,7 +36,8 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,svg,png,json,wasm,txt,woff2}"],
         maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        // The static SEO pages (public/*.html, see scripts/build-seo-pages.mjs) are real pages, not app routes.
+        navigateFallbackDenylist: [/^\/api\//, /^\/(schachanalyse|schachpartien-analysieren|chess-com-analyse|lichess-analyse|schach-training|schach-eroeffnungen-analyse|ueber-endgameking)$/],
         // The engine's neural network (76 MB) is not downloaded with the app shell
         // but on the first analysis; from then on it is served from this cache,
         // also offline. Its address carries the network's name (see engine/uci.ts).
