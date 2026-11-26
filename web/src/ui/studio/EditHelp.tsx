@@ -51,7 +51,7 @@ export function EditHelp({ project, onProject, onFirstTitle }: { project: Studio
         <p class="studio-hint">
           {t("Dein Edit ist {s} s lang, ideal sind {lo} bis {hi} s.", { s: seconds, lo, hi })} {long && <b class="bad">{t("Das ist lang für TikTok und Shorts.")}</b>}
         </p>
-        <p class="studio-hint">{t("Die Funktion startet direkt in der kritischen Stellung mit einem Hook-Text, strafft die Schlagfolge zwischen Opfer und Matt auf etwa 4 Sekunden und macht den Abspann zu einem kurzen Overlay über dem zersplitterten Brett. Danach beginnt das Video von vorn.")}</p>
+        <p class="studio-hint">{t("Die Funktion startet direkt in der kritischen Stellung (ohne Text, damit der Edit überall auf der Welt funktioniert), strafft die Schlagfolge zwischen Opfer und Matt auf etwa 4 Sekunden und macht den Abspann zu einem kurzen Overlay über dem zersplitterten Brett. Danach beginnt das Video von vorn.")}</p>
         <button
           class="btn primary"
           disabled={!canTighten(project)}

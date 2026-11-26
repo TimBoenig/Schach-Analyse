@@ -28,6 +28,10 @@ import {
 } from "./model";
 import { lang, t } from "../../i18n";
 
+import { movesLabel } from "./model";
+
+export { movesLabel };
+
 // ---------- move tree (main line plus side variations) ----------
 
 export interface Variation {
@@ -317,16 +321,6 @@ function groupMoves(count: number, budget: number, keyPly: number): Group[] {
 }
 
 /** "3. Lb5 a6" or "3… a6 4. La4" for moves played from `fenBefore`. */
-export function movesLabel(moves: Move[], fenBefore: string): string {
-  let no = Number(fenBefore.split(" ")[5]) || 1;
-  return moves
-    .map((m, k) => {
-      const s = m.color === "w" ? `${no}. ${displaySan(m.san)}` : k === 0 ? `${no}… ${displaySan(m.san)}` : displaySan(m.san);
-      if (m.color === "b") no += 1;
-      return s;
-    })
-    .join(" ");
-}
 
 /** Plausible wrong answers for a poll: checks and captures first, then any move, always the same for the same position. */
 function distractors(fen: string, right: string, count: number): string[] {

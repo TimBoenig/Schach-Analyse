@@ -44,6 +44,7 @@ import { compile, LESSON_CHUNK, SHORT_CHUNK } from "./timeline";
 import type { MusicId } from "./music";
 import { STYLE_LABEL, type StyleId } from "./musicGen";
 import { tightenEdit } from "./editTools";
+import { applyFromStart, fromStartState } from "./leadIn";
 import { fitLength, movesLabel } from "./wizard";
 import { lang, t } from "../../i18n";
 
@@ -194,7 +195,32 @@ export interface PromptAnswers {
   /** Explainers: write a voice-over / end with a poll. */
   voice?: boolean;
   poll?: boolean;
+  /** Where the video starts: in the exciting position (default) or in the starting position, the game played up to it. */
+  start?: "hook" | "start";
+  /** The quick start the questions were filled from: its brief goes into the prompt. */
+  recipe?: RecipeId;
 }
+
+/** Quick starts: a proven video format in one click. A recipe fills the questions and adds its own brief to the prompt. */
+export type RecipeId = "trap" | "brilliant" | "blunder" | "findmove" | "opening" | "mygame";
+export interface Recipe {
+  id: RecipeId;
+  label: () => string;
+  hint: () => string;
+  scenario: Scenario;
+  /** Seconds (short vertical video). */
+  length: number;
+  answers: Partial<PromptAnswers>;
+  brief: () => string;
+}
+export const RECIPES: Recipe[] = [
+  { id: "trap", label: () => t("Falle in 15 s"), hint: () => t("Eine bekannte Eröffnungsfalle als Edit, endet mit Matt"), scenario: "edit", length: 15, answers: { hook: "auto", point: "mate", ending: "follow", pace: "normal" }, brief: () => t("REZEPT: FALLE IN 15 SEKUNDEN\n- Eine bekannte Eröffnungsfalle, die in echten Partien unter 1500 Elo ständig vorkommt (z. B. Légal-Falle, Fishing-Pole-Falle, Englund-Gambit-Falle, Blackburne-Shilling-Gambit). Die Partie ab Zug 1 in \"pgn\".\n- Hook: die Stellung, in der der Gegner gerade den natürlich aussehenden Fehler spielt.\n- Höhepunkt: das Matt oder der Damengewinn, 15 bis 18 Sekunden insgesamt.\n- posttext: \"Kennst du diese Falle?\" und der Nutzen (\"Spiel sie heute Abend\"). Das bringt Speichern und Teilen.") },
+  { id: "brilliant", label: () => t("Brillantes Opfer"), hint: () => t("Berühmte Partie mit einem Opfer, das niemand erwartet"), scenario: "edit", length: 30, answers: { hook: "auto", point: "sacrifice", ending: "follow", pace: "normal" }, brief: () => t("REZEPT: BRILLANTES OPFER\n- Eine echte, berühmte Partie mit einem atemberaubenden Opfer (z. B. Morphy in der Opernpartie 1858, Anderssen in der Unsterblichen Partie 1851, Kasparov gegen Topalov 1999, Byrne gegen Fischer 1956). Züge exakt wie gespielt in \"pgn\".\n- Hook: die Stellung direkt vor dem Opfer, der Zuschauer soll denken \"Da ist doch nichts\".\n- Das Opfer ist der erste Aufprall, die Folgen kommen schnell hintereinander, der Höhepunkt ist das Matt oder der entscheidende Gewinn.\n- posttext: \"Hättest du die Dame gegeben?\" und wer gespielt hat. Staunen bringt Teilen und zweites Anschauen.") },
+  { id: "blunder", label: () => t("Patzer, den jeder kennt"), hint: () => t("Ein typischer Fehler, in dem sich jeder wiedererkennt"), scenario: "edit", length: 15, answers: { hook: "auto", point: "blunder", ending: "question", pace: "fast" }, brief: () => t("REZEPT: PATZER, DEN JEDER KENNT\n- Ein Fehler, den fast jeder schon gemacht hat (Dame hängt, Grundreihenmatt, Gabel übersehen, zu früh rochiert ins Messer). Kurz, schnell, mit Invert und Glitch beim Patzer.\n- Hook: die Stellung kurz vor dem Fehler. Der Patzer kommt früh, der Höhepunkt ist die gnadenlose Strafe.\n- posttext: \"Ehrlich: Wem ist das schon passiert? 😅\" Wiedererkennen bringt Kommentare und Teilen (\"Das bist du\").") },
+  { id: "findmove", label: () => t("Findest du den Zug?"), hint: () => t("Rätsel mit Countdown, die Lösung kommt erst am Ende"), scenario: "puzzle", length: 30, answers: { hook: "question", ending: "question", pace: "normal", poll: false, voice: true }, brief: () => t("REZEPT: FINDEST DU DEN ZUG?\n- Ein Rätsel mit genau einer Lösung, die schön ist, aber nicht zu schwer (Matt in 2, Damenopfer, Gabel): lösbar für Spieler um 1000 bis 1400 Elo in 5 Sekunden.\n- Erste Szene: die Stellung mit der Frage \"Weiß am Zug. Findest du es?\" (\"karte\": \"frage\" mit \"countdown\": 5).\n- Dann die Lösung mit Effekt, zum Schluss ein Satz, warum die anderen Züge nicht gehen.\n- posttext: \"Schreib deinen Zug in die Kommentare, bevor die Lösung kommt!\" Das bringt viele Kommentare.") },
+  { id: "opening", label: () => t("Eröffnung in 30 s"), hint: () => t("Hauptzüge, die eine Idee und eine Falle zum Speichern"), scenario: "opening", length: 30, answers: { hook: "bold", ending: "part2", pace: "fast", poll: false, voice: true }, brief: () => t("REZEPT: ERÖFFNUNG IN 30 SEKUNDEN\n- Eine Eröffnung in drei Schritten: die ersten Züge (höchstens 4 Szenen), die EINE Idee dahinter in einem Satz, eine typische Falle, auf die Gegner hereinfallen.\n- Hook: das Versprechen (\"Mit dieser Eröffnung gewinnst du schnell\"), sofort mit Brett.\n- Abspann: \"Teil 2\" mit der nächsten Variante. So entsteht eine Serie.\n- posttext: \"Speicher dir das für deine nächste Partie\" und die Frage, welche Eröffnung als Nächstes kommen soll.") },
+  { id: "mygame", label: () => t("Meine Partie als Edit"), hint: () => t("Deine eigene Partie (PGN einfügen) als Edit um den besten Moment"), scenario: "edit", length: 30, answers: { hook: "auto", point: "auto", ending: "follow", pace: "normal" }, brief: () => t("REZEPT: MEINE PARTIE ALS EDIT\n- Nimm genau die eingefügte Partie. Such den einen Moment, der auch Fremde packt (ein Opfer, ein Patzer des Gegners, ein Matt, eine Wende), und schneide den Edit um ihn herum.\n- Hook in der Stellung kurz vor diesem Moment, nicht bei Zug 1. Lieber 15 dichte Sekunden als die halbe Partie.\n- posttext: eine Frage aus Sicht des Spielers (\"Mein bester Zug bisher? 👀\") und die Elo-Stufe der Partie, wenn sie in der PGN steht.") },
+];
 
 /** What the import takes from the questions when the script itself does not say. */
 export interface ImportDefaults {
@@ -204,6 +230,8 @@ export interface ImportDefaults {
   musicStyle?: StyleId | "auto";
   /** Make an edit short and dense as it comes in (hook start, squeezed middle, 1.3 s outro). The import dialog always does; false keeps the script as written. */
   tighten?: boolean;
+  /** Start the video in the starting position: the game is played quickly up to the first scene (needs "pgn"). */
+  fromStart?: boolean;
 }
 
 const list = (o: Record<string, unknown>) => Object.keys(o).join(", ");
@@ -268,6 +296,14 @@ const EDIT_MUSIC_HINT = (m: StyleId) => ({
   epic: t("Pauken und Streicher: langer Spannungsaufbau mit riser, wenige Schläge dazwischen und ein gewaltiger Höhepunkt (matt voll)"),
   thriller: t("treibender Puls und Spannung: viele Drohungen (schraeglage, drohung, Pfeile auf die Gefahr), der Aufprall kommt spät und trifft hart"),
 })[m];
+const VIRAL_SHORT = () => t("WAS AUF TIKTOK, REELS UND SHORTS FUNKTIONIERT (so entscheidet der Algorithmus)\nDie App zeigt jedes neue Video zuerst wenigen Leuten und misst: Wie viele schauen bis zum Ende? Wie viele schauen es ein zweites Mal? Wie viele teilen, speichern und kommentieren es? Nur wenn das gut läuft, zeigt sie es vielen. Daraus folgen diese Regeln:\n- Erste Sekunde: Der Daumen ist schon am Wischen. Das erste Bild stellt eine offene Frage (eine Figur hängt, ein König steht nackt, eine Dame wird geopfert). Kein Logo, kein Intro, keine Begrüßung.\n- Offene Schleife: Versprich am Anfang eine Auflösung und gib sie erst am Ende. Wer die Pointe in Sekunde 3 schon kennt, wischt weg.\n- Kein Leerlauf: Spätestens alle 2 Sekunden ändert sich etwas (ein Zug, ein Schnitt, ein Effekt, ein neuer Satz).\n- Kürzer gewinnt: Ein Video, das bis zum Ende geschaut wird, schlägt jedes längere. Lieber 18 starke Sekunden als 40 mittelmäßige.\n- Loop: Das Ende führt nahtlos zurück zum Anfang (kurzer Abspann, kein langes Schlussbild). So schauen viele ein zweites Mal, und das zählt doppelt.\n- Teilen: Mach etwas, das man einem Freund schickt: \"Genau das passiert dir immer\", eine unglaubliche Wendung, ein Trick für die nächste Partie.\n- Speichern: Gib einen Nutzen, den man behalten will (eine Falle für die Partie heute Abend, ein Muster zum Wiedererkennen).\n- Kommentare: Lass eine Frage offen, zu der jeder eine Meinung hat (\"Hättest du es gesehen?\", \"Welchen Zug spielst du?\", \"Kennst du die Falle?\").\n- Was Schach-Zuschauer wollen: schnelle Erfolge (Fallen und Matts für die eigenen Partien), sich in Fehlern wiedererkennen (Patzer, die jeder kennt), staunen (brillante Opfer, berühmte Partien von Morphy, Tal, Kasparov oder Magnus Carlsen) und mitraten (Rätsel). Die meisten sind Anfänger und Vereinsspieler zwischen 600 und 1600 Elo: Die Pointe muss ohne Rechnen sichtbar sein.\n- Ehrlich bleiben: keine erfundenen Partien, keine falschen Zahlen, kein Köder, den das Video nicht einlöst. Wer sich betrogen fühlt, wischt weg.\n- Serie: Ein wiedererkennbares Format (\"Falle Nr. 3\", \"Teil 2\") bringt Follower, weil niemand den nächsten Teil verpassen will.");
+const VIRAL_EDIT_NOTE = () => t("- Im Edit gilt trotzdem: kein Text im Bild. Die Frage für die Kommentare, das Versprechen und die Hashtags stehen im \"posttext\".");
+const VIRAL_EXPLAIN_NOTE = () => t("- Viele schauen ohne Ton: Jeder wichtige Satz steht auch als Untertitel im Bild und ist in einer Sekunde gelesen.");
+const VIRAL_LONG = () => t("WAS AUF YOUTUBE FUNKTIONIERT\n- YouTube misst, wie lange Zuschauer bleiben. Die ersten 30 Sekunden entscheiden: Sag sofort, was der Zuschauer am Ende kann (\"Nach diesem Video weißt du, wie du gegen ... gewinnst\"), und zeig kurz die spannendste Stellung als Vorschau.\n- Halte das Versprechen von Titel und Vorschaubild früh und vollständig ein.\n- Alle 30 bis 60 Sekunden ein neuer Abschnitt mit einer kleinen Frage oder Wendung. Jedes Kapitel endet mit einem Grund, das nächste zu sehen.\n- \"titel\" mit Nutzen und Neugier, höchstens 60 Zeichen (z. B. \"Diese Falle gewinnt in 7 Zügen\"), nie mit erfundenen Zahlen.\n- Ende mit einem klaren nächsten Schritt (eine Übungsfrage für die Kommentare, das nächste Video), nicht mit einer langen Verabschiedung.");
+const POST_FORMAT = () => t("BEITRAGSTEXT (\"posttext\" oben im JSON: kommt nicht ins Video, sondern wird zum Kopieren für den Post angezeigt)\n- \"text\": die Beschreibung unter dem Video in der Sprache der Texte, 1 bis 2 kurze Sätze, höchstens 150 Zeichen: die offene Frage oder das Versprechen, das zum Kommentieren bringt (z. B. \"Hättest du das Matt gesehen? 👀\"). Verrate die Pointe nicht.\n- \"hashtags\": 3 bis 5 Hashtags, 1 bis 2 große (z. B. #chess, #schach) und dazu genaue zum Thema (z. B. #schachfalle, #chesstactics). Keine Hashtag-Wand.\n- \"kommentar\": dein erster eigener Kommentar, der eine Diskussion startet (z. B. eine Gegenfrage oder ein Hinweis auf Teil 2).");
+const POST_CHECK = () => t("- Steht oben ein \"posttext\" mit Frage, 3 bis 5 Hashtags und erstem Kommentar, ohne die Pointe zu verraten?");
+const START_EDIT = () => t("- Start: Das Video beginnt in der Grundstellung. Schreib in \"pgn\" die ganze Partie ab Zug 1 (keine \"startstellung\"). Das Studio spielt den Weg bis zu deiner ersten Szene selbst im Zeitraffer ab, deine Hook-Szene bleibt der spannende Moment.");
+const START_EXPLAIN = () => t("- Start: Das Video beginnt in der Grundstellung. Schreib oben in \"pgn\" die ganze Partie ab Zug 1 oder lass die Szenen selbst ab Zug 1 spielen. Das Studio spielt den Weg bis zur ersten Szene im Zeitraffer ab.");
 const LANG_TEXT = (l: "de" | "en") => (l === "en" ? t("Englisch") : t("Deutsch"));
 
 /** The answers of the questions step as lines for "MEIN VIDEO"; nothing when nothing was answered. */
@@ -285,6 +321,9 @@ function answerLines(a: PromptAnswers | undefined, edit: boolean): string {
   if (a.language) lines.push(edit ? t("- Sprache der Texte im Video (Hook-Titel, Stempel, Abspann): {x}. Die Feldnamen im JSON bleiben wie im Format unten.", { x: LANG_TEXT(a.language) }) : t("- Sprache der Texte im Video (Titel, Stempel, Abspann, Untertitel, Sprechtext): {x}. Die Feldnamen im JSON bleiben wie im Format unten.", { x: LANG_TEXT(a.language) }));
   if (!edit && a.voice !== undefined) lines.push(a.voice ? t("- Schreib zu jeder Szene einen Sprechtext.") : t("- Kein Sprechtext, nur Untertitel."));
   if (!edit && a.poll !== undefined) lines.push(a.poll ? t("- Ende das Video mit einer Umfrage.") : t("- Keine Umfrage."));
+  if (a.start === "start") lines.push(edit ? START_EDIT() : START_EXPLAIN());
+  const recipe = a.recipe && RECIPES.find((r) => r.id === a.recipe);
+  if (recipe) lines.push("\n" + recipe.brief());
   return lines.length ? lines.join("\n") + "\n" : "";
 }
 
@@ -302,6 +341,7 @@ function EDIT_EXAMPLE(platform: Platform) {
     laenge: 16.3,
     perspektive: "weiss",
     pgn: "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#",
+    posttext: { text: t("Hättest du das Matt gesehen? 👀"), hashtags: ["#chess", t("#schach"), "#chesstactics"], kommentar: t("Was hätte Schwarz im 3. Zug spielen müssen?") },
     szenen: [
       { zugNr: 5, dauer: 1.3, effekte: { punch: 0.5 }, markierungen: ["f7 gefahr"] }, // hook (no arrow: the overview comes first): starts in the critical position; i18n: format words
       { dauer: 2, effekte: { schraeglage: 0.5 }, markierungen: ["f7 gefahr", "e8 idee"] }, // second build-up scene: the camera tilts; i18n: format words
@@ -326,6 +366,7 @@ function LONG_EXAMPLE(platform: Platform) {
     umgebung: "bibliothek",
     design: { figuren: "holz", schrift: "elegant", musik: "lofi", untertitelStil: "kasten" },
     geschwindigkeit: 0.9,
+    posttext: { text: t("Die Italienische Partie in 4 Minuten: Pläne, Fallen, Merksätze."), hashtags: ["#chess", t("#schach"), t("#eröffnung")], kommentar: t("Welche Eröffnung soll ich als Nächstes erklären?") },
     szenen: [
       { karte: "titel", titel: t("Italienisch verstehen"), untertitel: t("Die Ideen hinter den ersten Zügen"), sprechtext: t("In diesem Video schauen wir uns an, warum die Italienische Partie seit Jahrhunderten gespielt wird und welche Pläne dahinterstecken."), dauer: 8 },
       { kleineZeile: t("Kapitel 1: Das Zentrum"), zug: "1. e4", titel: t("Der erste Zug"), untertitel: t("Weiß besetzt mit *e4* das Zentrum und öffnet gleichzeitig Wege für die *Dame* und den *Läufer*. Genau diese beiden Figuren spielen gleich eine große Rolle."), sprechtext: t("Der Bauer auf e4 kontrolliert d5 und f5 und gibt der Dame und dem Läufer auf f1 freie Bahn."), markierungen: ["d5 akzent", "f5 akzent"], kamera: "normal", dauer: 14 }, // i18n: format words
@@ -353,6 +394,7 @@ const KEY_EN: Record<string, string> = {
   zuegeAusschreiben: "spellMoves", felderLeuchten: "glowSquares", fortschritt: "progress", koordinaten: "coordinates",
   kameraflug: "cameraFlight", spiegelung: "reflection", videoart: "videoType", schnittstil: "cutStyle",
   zugNr: "moveNo", kameras: "cameras", stempel: "stamp", intensitaet: "intensity",
+  posttext: "postText", kommentar: "comment",
 };
 // i18n: format words, not texts
 const VALUE_EN: Record<string, Record<string, string>> = {
@@ -400,6 +442,7 @@ export function buildAiPrompt(o: PromptOptions): string {
     look: "nova",
     umgebung: "buehne",
     design: { figuren: "lack", untertitelStil: "kontur", schrift: "modern", musik: "spannung", textgroesse: 1 },
+    posttext: { text: t("Kennst du diese Falle? Speicher sie dir für deine nächste Partie."), hashtags: ["#chess", t("#schach"), t("#schachfalle")], kommentar: t("Welche Falle soll ich als Nächstes zeigen?") },
     szenen: [
       { karte: "titel", titel: t("Fällst du darauf rein?"), untertitel: t("Matt in *4 Zügen*"), sprechtext: t("Auf diese Falle fallen viele Anfänger herein."), kamera: "normal", dauer: 2.5 },
       { zug: "1. e4 e5", titel: t("Ganz normal"), untertitel: t("Beide Bauern gehen ins *Zentrum*."), kamera: "normal", markierungen: ["e4 akzent", "e5 akzent"], dauer: 2.5 }, // i18n: format words
@@ -419,12 +462,12 @@ export function buildAiPrompt(o: PromptOptions): string {
   const limits = { title: FIT.title, list: list(PLATFORMS) };
   // An edit gets its own prompt: the explainer sections (captions, voice-over, polls, design) would pull the AI away from the edit.
   if (type === "edit") {
-    return [EDIT_INTRO(), (myVideo + answerLines(o.answers, true)).trimEnd(), EDIT_RULES(), EDIT_LOOK(), EDIT_EFFECTS() + "\n\n" + EDIT_CAMERA(), CHESS_HEAD(), sub(EDIT_FORMAT(), limits), EDIT_CHECK(), exampleBlock].join("\n\n");
+    return [EDIT_INTRO(), (myVideo + answerLines(o.answers, true)).trimEnd(), VIRAL_SHORT() + "\n" + VIRAL_EDIT_NOTE(), EDIT_RULES(), EDIT_LOOK(), EDIT_EFFECTS() + "\n\n" + EDIT_CAMERA(), CHESS_HEAD(), sub(EDIT_FORMAT(), limits) + "\n\n" + POST_FORMAT(), EDIT_CHECK() + "\n" + POST_CHECK(), exampleBlock].join("\n\n");
   }
   const prefix = type === "explain" ? ART_EXPLAIN() : ART_AUTO();
   const rules = long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK });
   const layout = long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option });
-  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n\n" + exampleBlock;
+  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + (long ? VIRAL_LONG() : VIRAL_SHORT() + "\n" + VIRAL_EXPLAIN_NOTE()) + "\n\n" + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + POST_FORMAT() + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n" + POST_CHECK() + "\n\n" + exampleBlock;
 }
 
 // ---------- reading the answer ----------
@@ -533,6 +576,17 @@ function plyRange(v: unknown): [number, number] | null {
 }
 
 /** The whole game of a script: its moves and the position after every half-move (index 0 = before the first). PGN headers, comments, variations and NAGs are skipped. */
+/** The text for the post under the video: a plain text, or an object with caption, hashtags and a first comment. */
+function postText(v: unknown): string {
+  if (typeof v === "string") return v.trim().slice(0, 2200);
+  if (!v || typeof v !== "object") return "";
+  const o = v as Obj;
+  const caption = text(field(o, "text", "caption", "beschreibung", "titel"), 600);
+  const tags = asList(field(o, "hashtags", "tags")).map((x) => String(x).trim()).filter(Boolean).map((x) => (x.startsWith("#") ? x : `#${x}`)).slice(0, 8).join(" ");
+  const comment = text(field(o, "kommentar", "ersterkommentar", "comment", "firstcomment"), 300);
+  return [caption, tags, comment ? t("Erster Kommentar: {x}", { x: comment }) : ""].filter(Boolean).join("\n\n");
+}
+
 function readGame(pgn: string, start: string): { moves: Move[]; fens: string[]; error?: string } {
   let body = pgn.replace(/^\s*\[[^\]]*\]\s*$/gm, " ").replace(/;[^\n]*/g, " ").replace(/\$\d+/g, " ");
   for (let i = 0; i < 6; i++) body = body.replace(/\([^()]*\)/g, " ");
@@ -876,6 +930,15 @@ export function importAiScript(input: string, defaults: ImportDefaults = {}): Ai
   // An arrow on every move makes an edit look like a lesson: only the important moments keep theirs, whatever the script wrote.
   if (edit) project = thinArrows(project).project;
   if (edit && defaults.tighten && !stated) project = tightenEdit(project, { lang: lang() }).project;
+  // The game the video is cut from, kept so the video can start from move 1 ("Aus der Grundstellung starten").
+  if (game && game.moves.length && startFen.split(" ").slice(0, 4).join(" ") === START_FEN.split(" ").slice(0, 4).join(" ")) project = { ...project, game: game.moves.map((m) => m.san).join(" ") };
+  const post = postText(field(root, "posttext", "post", "beitrag", "beitragstext", "caption"));
+  if (post) project = { ...project, post };
+  const fromStart = bool(field(root, "vongrundstellung", "ausgrundstellung", "fromstart", "startfromstart")) ?? defaults.fromStart ?? false;
+  if (fromStart) {
+    project = applyFromStart(project, true);
+    if (fromStartState(project).kind === "unknown") warnings.push(t("Der Weg von der Grundstellung zur ersten Szene ist nicht bekannt (keine ganze Partie oben im Skript). Das Video startet deshalb in der ersten Szene."));
+  }
   const seconds = compile(project).total;
   // The target length of an edit is an upper limit: a shorter edit is what was asked for.
   if (length && (edit && defaults.tighten ? seconds > length * 1.3 : Math.abs(seconds - length) > length * 0.3)) warnings.push(t("Das Video dauert {0} s statt {1} s. Mit „auf N s anpassen“ lässt es sich angleichen.", { 0: Math.round(seconds), 1: Math.round(length) }));
@@ -918,6 +981,7 @@ export function toAiScript(project: StudioProject): string {
       musik: project.video.music === "file" ? "keine" : rev(MUSICS, project.video.music),
     },
     ...(project.startFen !== START_FEN ? { startstellung: project.startFen } : {}),
+    ...(project.post ? { posttext: project.post } : {}),
     szenen: project.scenes.map((s) => ({
       ...(s.card !== "none" ? { karte: rev(CARDS, s.card) } : {}),
       ...(s.fen ? { fen: s.fen } : {}),
