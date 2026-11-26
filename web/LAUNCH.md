@@ -5,10 +5,11 @@ Stand: 2026-11-24. Häkchen = im Code erledigt und per Test abgesichert (`tests/
 ## Im Code erledigt
 
 - [x] Titel, Beschreibung, Canonical, Open Graph, Twitter-Card mit Vorschaubild (`public/icons/og-image.png`, 1200×630)
-- [x] `robots.txt`, `sitemap.xml` (nur `/`: Hash-Routen wie `#/profil` sind für Google keine eigenen Seiten)
+- [x] `robots.txt`, `sitemap.xml` (App-Start plus sieben statische Landingpages)
+- [x] Statische Landingpages mit echten Adressen (`/schachanalyse`, `/schachpartien-analysieren`, `/chess-com-analyse`, `/lichess-analyse`, `/schach-training`, `/schach-eroeffnungen-analyse`, `/ueber-endgameking`) mit eigenem Titel, Beschreibung, FAQ-Daten und Brotkrumen; erzeugt mit `node scripts/build-seo-pages.mjs` (Inhalte dort ändern, nicht in den HTML-Dateien)
+- [x] Hash-Routen wie `#/profil` sind für Google keine eigenen Seiten; deshalb dienen die statischen Seiten als Einstiegspunkte
 - [x] JSON-LD (WebSite, WebApplication, kostenlos) – ohne Bewertungen oder Zitate
 - [x] Crawlbarer Text im ausgelieferten HTML (`<div id="app">` in `index.html`); die App ersetzt ihn beim Start
-- [x] Drei statische Themenseiten (`/schachpartien-analysieren/` u. a., erzeugt von `scripts/build-seo-pages.mjs`), in Sitemap und Startseite verlinkt
 - [x] Favicon, Apple-Touch-Icon, PWA-Manifest mit `id`, Kategorien, maskable Icon
 - [x] 404-Seite (`public/404.html`, `noindex`)
 - [x] Impressum und Datenschutzerklärung (`#/rechtliches`), verlinkt im Footer und auf der Startseite
@@ -29,5 +30,5 @@ Stand: 2026-11-24. Häkchen = im Code erledigt und per Test abgesichert (`tests/
 ## Bewusst nicht gemacht
 
 - **hreflang DE/EN:** Die Sprache wird in der App gewählt und nicht über die Adresse unterschieden. Ohne eigene URLs je Sprache (z. B. `/en/`) wäre ein hreflang-Tag falsch. Das wäre ein eigener größerer Schritt.
-- **Eigene indexierbare Seiten für Impressum/Datenschutz/Funktionen:** brauchen echte Pfade statt Hash-Routen; lohnt sich, sobald es Inhalte wie Ratgeber oder Eröffnungsseiten gibt.
+- **Impressum/Datenschutz als eigene Seiten:** bleiben App-Routen; für die Suche nicht nötig.
 - **Analytics:** keine eingebaut. Falls gewünscht: Vercel Web Analytics ist cookiefrei, braucht aber einen Satz in der Datenschutzerklärung und eine CSP-Anpassung.

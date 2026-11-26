@@ -26,4 +26,10 @@ describe("information architecture", () => {
   it("keeps the phone tab bar to five areas", () => {
     expect(MAIN_AREAS.map((a) => a.label)).toEqual(["Start", "Partien", "Statistik", "Training", "Spieler"]);
   });
+
+  it("opens the account page for every kind of e-mail link", () => {
+    for (const hash of ["#access_token=a&type=signup", "#error=access_denied", "#token_hash=abc&type=recovery"]) {
+      expect(parseHash(hash)).toEqual({ view: "account" });
+    }
+  });
 });

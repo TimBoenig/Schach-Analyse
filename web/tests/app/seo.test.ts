@@ -37,17 +37,34 @@ describe("SEO basics", () => {
     expect(app.replace(/<[^>]+>/g, "").length).toBeGreaterThan(400);
   });
 
-  it("robots.txt points to a sitemap whose pages all exist, are canonical and are linked from the home page", () => {
+  it("robots.txt points to a sitemap that lists the app and every static landing page", () => {
     expect(read("public/robots.txt")).toContain(`Sitemap: ${SITE_URL}/sitemap.xml`);
-    const urls = [...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
-    expect(urls[0]).toBe(`${SITE_URL}/`);
-    expect(urls.length).toBeGreaterThan(1);
-    for (const u of urls.slice(1)) {
-      const path = u.slice(SITE_URL.length);
-      const page = read(`public${path}index.html`);
-      expect(page).toContain(`<link rel="canonical" href="${u}">`);
-      expect(page).toMatch(/<h1>[^<]+<\/h1>/);
-      expect(html).toContain(`href="${path}"`);
+    const locs = [...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(locs[0]).toBe(`${SITE_URL}/`);
+    expect(locs.length).toBeGreaterThan(5);
+    expect(new Set(locs).size).toBe(locs.length);
+    // Every listed page exists, is indexable and names itself as canonical.
+    for (const loc of locs.slice(1)) {
+      const page = read(`public/${loc.slice(SITE_URL.length + 1)}.html`);
+      expect(page).toContain(`<link rel="canonical" href="${loc}" />`);
+      expect(page).not.toContain("noindex");
+      expect(page.match(/<title>([^<]+)<\/title>/)![1].length).toBeLessThanOrEqual(65);
+      expect(page.match(/<h1>/g)).toHaveLength(1);
+      expect(() => JSON.parse(page.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)![1])).not.toThrow();
+    }
+  });
+
+  it("serves the static pages without .html and keeps them out of the app's offline fallback", () => {
+    expect(JSON.parse(read("vercel.json")).cleanUrls).toBe(true);
+    const config = read("vite.config.ts");
+    for (const loc of [...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).slice(1)) {
+      expect(config).toContain(loc.slice(SITE_URL.length + 1));
+    }
+  });
+
+  it("links every landing page from the crawlable start page", () => {
+    for (const loc of [...read("public/sitemap.xml").matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).slice(1)) {
+      expect(html).toContain(`href="${loc.slice(SITE_URL.length)}"`);
     }
   });
 

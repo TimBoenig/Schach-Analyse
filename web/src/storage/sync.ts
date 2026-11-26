@@ -106,35 +106,12 @@ export interface AuthCallback {
   error: string | null;
 }
 
-// Mail links either carry tokens in the "#" part (Supabase's own redirect) or,
-// with our templates, a one-time token hash in the query: that link points at
-// our own domain, which mail filters trust more than a foreign verify URL. The
-// hash is exchanged for a session once the client starts (see supabase()).
-interface PendingOtp {
-  tokenHash: string;
-  type: EmailOtpType;
-}
-const OTP_TYPES: readonly string[] = ["signup", "invite", "magiclink", "recovery", "email_change", "email"];
-let pendingOtp: PendingOtp | null = null;
-
 // supabase-js reads and then clears the tokens in the URL while it starts, so
 // what the e-mail link was for is captured before that.
 let authCallback: AuthCallback | null = (() => {
   if (typeof window === "undefined") return null;
-  const query = new URLSearchParams(window.location.search);
-  const tokenHash = query.get("token_hash");
-  const type = query.get("type") ?? "";
-  if (tokenHash && OTP_TYPES.includes(type)) {
-    pendingOtp = { tokenHash, type: type as EmailOtpType };
-    // The token must not stay in the address bar, history or a shared screenshot.
-    query.delete("token_hash");
-    query.delete("type");
-    const rest = query.toString();
-    window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
-    return { type: type === "magiclink" ? "signup" : type, error: null };
-  }
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  if (!params.has("access_token") && !params.has("error")) return null;
+  if (!params.has("access_token") && !params.has("error") && !params.has("token_hash")) return null;
   const error = params.get("error_description") || params.get("error");
   return { type: params.get("type") ?? "signup", error: error ? translateLinkError(error) : null };
 })();
@@ -161,17 +138,28 @@ export function syncAvailable(): boolean {
   return Boolean(url && key);
 }
 
+/**
+ * Account mails link to our own domain ("#token_hash=…&type=…") instead of
+ * the Supabase address: a link whose domain differs from the sender's is a
+ * classic spam signal. The code is redeemed here, before anything else
+ * uses the client.
+ */
+async function redeemMailToken(sb: SupabaseClient): Promise<void> {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const tokenHash = params.get("token_hash");
+  if (!tokenHash) return;
+  const type = params.get("type") ?? "signup";
+  history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type: type as EmailOtpType });
+  if (error && authCallback) authCallback = { ...authCallback, error: translateLinkError(error.message) };
+}
+
 export function supabase(): Promise<SupabaseClient> | null {
   if (!syncAvailable()) return null;
   if (!client) {
     client = import("@supabase/supabase-js").then(async ({ createClient }) => {
       const sb = createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } });
-      if (pendingOtp) {
-        const { tokenHash, type } = pendingOtp;
-        pendingOtp = null;
-        const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type });
-        if (error && authCallback) authCallback = { ...authCallback, error: translateLinkError(error.message) };
-      }
+      await redeemMailToken(sb);
       return sb;
     });
   }

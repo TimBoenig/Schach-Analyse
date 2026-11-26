@@ -28,7 +28,7 @@ export type LegalTab = "impressum" | "datenschutz" | "lizenzen";
 
 export function parseHash(hash: string): Route {
   // Links from account e-mails come back as "#access_token=…" or "#error=…".
-  if (/^#?(access_token|error)=/.test(hash)) return { view: "account" };
+  if (/^#?(access_token|error|token_hash)=/.test(hash)) return { view: "account" };
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
   switch (parts[0]) {
     case "analyse":
