@@ -21,7 +21,7 @@ window.addEventListener("hashchange", () => {
 });
 
 void initLang(pageLang(viewOf())).then(() => {
-  document.title = t("EndGameKing – Schachanalyse und Training");
+  document.title = t("EndGameKing – Schachpartien analysieren und trainieren");
   document.querySelector('meta[name="description"]')?.setAttribute("content", t("Schachpartien von chess.com und Lichess kostenlos analysieren, Fehlermuster erkennen und gezielt trainieren. Läuft auf deinem Gerät."));
   return import("./boot");
 });

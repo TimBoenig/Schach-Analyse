@@ -8,6 +8,7 @@ Stand: 2026-11-24. Häkchen = im Code erledigt und per Test abgesichert (`tests/
 - [x] `robots.txt`, `sitemap.xml` (nur `/`: Hash-Routen wie `#/profil` sind für Google keine eigenen Seiten)
 - [x] JSON-LD (WebSite, WebApplication, kostenlos) – ohne Bewertungen oder Zitate
 - [x] Crawlbarer Text im ausgelieferten HTML (`<div id="app">` in `index.html`); die App ersetzt ihn beim Start
+- [x] Drei statische Themenseiten (`/schachpartien-analysieren/` u. a., erzeugt von `scripts/build-seo-pages.mjs`), in Sitemap und Startseite verlinkt
 - [x] Favicon, Apple-Touch-Icon, PWA-Manifest mit `id`, Kategorien, maskable Icon
 - [x] 404-Seite (`public/404.html`, `noindex`)
 - [x] Impressum und Datenschutzerklärung (`#/rechtliches`), verlinkt im Footer und auf der Startseite

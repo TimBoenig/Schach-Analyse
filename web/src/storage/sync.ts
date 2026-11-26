@@ -16,7 +16,7 @@
 // Every few hours (and at sign-in or on request) the headers of *all* records
 // are compared, which also repairs anything an earlier round missed.
 // supabase-js is loaded on demand so it stays out of the startup bundle.
-import type { AuthChangeEvent, SupabaseClient, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, EmailOtpType, SupabaseClient, User } from "@supabase/supabase-js";
 
 import type { StoredGame } from "../domain/types";
 import {
@@ -106,10 +106,33 @@ export interface AuthCallback {
   error: string | null;
 }
 
+// Mail links either carry tokens in the "#" part (Supabase's own redirect) or,
+// with our templates, a one-time token hash in the query: that link points at
+// our own domain, which mail filters trust more than a foreign verify URL. The
+// hash is exchanged for a session once the client starts (see supabase()).
+interface PendingOtp {
+  tokenHash: string;
+  type: EmailOtpType;
+}
+const OTP_TYPES: readonly string[] = ["signup", "invite", "magiclink", "recovery", "email_change", "email"];
+let pendingOtp: PendingOtp | null = null;
+
 // supabase-js reads and then clears the tokens in the URL while it starts, so
 // what the e-mail link was for is captured before that.
 let authCallback: AuthCallback | null = (() => {
   if (typeof window === "undefined") return null;
+  const query = new URLSearchParams(window.location.search);
+  const tokenHash = query.get("token_hash");
+  const type = query.get("type") ?? "";
+  if (tokenHash && OTP_TYPES.includes(type)) {
+    pendingOtp = { tokenHash, type: type as EmailOtpType };
+    // The token must not stay in the address bar, history or a shared screenshot.
+    query.delete("token_hash");
+    query.delete("type");
+    const rest = query.toString();
+    window.history.replaceState(null, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
+    return { type: type === "magiclink" ? "signup" : type, error: null };
+  }
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   if (!params.has("access_token") && !params.has("error")) return null;
   const error = params.get("error_description") || params.get("error");
@@ -141,9 +164,16 @@ export function syncAvailable(): boolean {
 export function supabase(): Promise<SupabaseClient> | null {
   if (!syncAvailable()) return null;
   if (!client) {
-    client = import("@supabase/supabase-js").then(({ createClient }) =>
-      createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } }),
-    );
+    client = import("@supabase/supabase-js").then(async ({ createClient }) => {
+      const sb = createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true } });
+      if (pendingOtp) {
+        const { tokenHash, type } = pendingOtp;
+        pendingOtp = null;
+        const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type });
+        if (error && authCallback) authCallback = { ...authCallback, error: translateLinkError(error.message) };
+      }
+      return sb;
+    });
   }
   return client;
 }
