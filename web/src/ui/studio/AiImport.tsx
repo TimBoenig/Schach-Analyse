@@ -2,7 +2,7 @@
 // answer (the JSON script) into a finished video project.
 import { useMemo, useState } from "preact/hooks";
 
-import { buildAiPrompt, importAiScript, scenarioArt, SCENARIOS, toAiScript, type Ending, type Hook, type Level, type Pace, type Point, type PromptAnswers, type Scenario } from "./aiScript";
+import { buildAiPrompt, importAiScript, RECIPES, scenarioArt, SCENARIOS, toAiScript, type Ending, type Hook, type Level, type Pace, type Point, type PromptAnswers, type Recipe, type RecipeId, type Scenario } from "./aiScript";
 import { STYLE_IDS, STYLE_LABEL, type StyleId } from "./musicGen";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
 import { lang, t, tj } from "../../i18n";
@@ -74,21 +74,42 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [language, setLanguage] = useState<"de" | "en">(lang());
   const [voice, setVoice] = useState(true);
   const [poll, setPoll] = useState(false);
+  const [start, setStart] = useState<"hook" | "start">(current.video.fromStart ? "start" : "hook");
+  const [recipe, setRecipe] = useState<RecipeId | null>(null);
   const [copied, setCopied] = useState<"" | "prompt" | "script" | "failed">("");
   const [answer, setAnswer] = useState("");
   const edit = scenario === "edit";
   const answers = useMemo<PromptAnswers>(
-    () => ({ game, level, pace, hook, ending, language, ...(edit ? { point, music } : { voice, poll }) }),
-    [game, level, pace, hook, ending, language, edit, point, music, voice, poll],
+    () => ({ game, level, pace, hook, ending, language, start, ...(recipe ? { recipe } : {}), ...(edit ? { point, music } : { voice, poll }) }),
+    [game, level, pace, hook, ending, language, start, recipe, edit, point, music, voice, poll],
   );
   const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, scenario, answers }), [topic, platform, length, notes, side, scenario, answers]);
-  const result = useMemo(() => (answer.trim() ? importAiScript(answer, { art: scenarioArt(scenario), platform, musicStyle: edit ? music : "auto", tighten: true }) : null), [answer, scenario, platform, edit, music]);
+  const result = useMemo(() => (answer.trim() ? importAiScript(answer, { art: scenarioArt(scenario), platform, musicStyle: edit ? music : "auto", tighten: true, fromStart: start === "start" }) : null), [answer, scenario, platform, edit, music, start]);
 
   const pick = (sc: Scenario) => {
+    setRecipe(null);
     setScenario(sc);
     const d = scenarioDefaults(sc, platform);
     setPlatform(d.platform);
     setLength(d.length);
+  };
+  // A quick start fills every question with the values that suit the format; the user can still change them.
+  const useRecipe = (r: Recipe) => {
+    setScenario(r.scenario);
+    const d = scenarioDefaults(r.scenario, platform);
+    setPlatform(d.platform);
+    setLength(r.length);
+    const a = r.answers;
+    if (a.hook) setHook(a.hook);
+    if (a.ending) setEnding(a.ending);
+    if (a.pace) setPace(a.pace);
+    if (a.point) setPoint(a.point);
+    if (a.voice !== undefined) setVoice(a.voice);
+    if (a.poll !== undefined) setPoll(a.poll);
+    setRecipe(r.id);
+    setCopied("");
+    // Your own game needs the PGN first; every other format is ready for the prompt.
+    if (r.id !== "mygame" || game.trim()) setStep("prompt");
   };
   const doCopy = async (text: string, what: "prompt" | "script") => setCopied((await copy(text)) ? what : "failed");
   const readFile = async (file: File) => setAnswer((await file.text()).slice(0, 200000));
@@ -113,6 +134,18 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
 
         {step === "questions" && (
           <div class="ai-body">
+            <div class="ai-field">
+              <span>{t("Schnellstart")}</span>
+              <div class="ai-recipes">
+                {RECIPES.map((r) => (
+                  <button key={r.id} class={`ai-recipe ${recipe === r.id ? "on" : ""}`} onClick={() => useRecipe(r)}>
+                    <b>{r.label()}</b>
+                    <small>{r.hint()}</small>
+                  </button>
+                ))}
+              </div>
+              <small class="muted">{recipe === "mygame" && !game.trim() ? t("Füg unten deine Partie als PGN ein, dann weiter zum Prompt.") : t("Ein Klick füllt alle Fragen passend aus und erstellt den Prompt. Ohne Thema sucht die KI selbst ein starkes Beispiel.")}</small>
+            </div>
             <p class="muted small">{t("Je genauer du antwortest, desto besser wird das Video. Alles ist optional: was du offen lässt, entscheidet die KI.")}</p>
             <div class="ai-field">
               <span>{t("Was für ein Video soll es werden?")}</span>
@@ -129,7 +162,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
               <span>{t("Worum geht es?")}</span>
               <input value={topic} onInput={(e) => setTopic(e.currentTarget.value)} placeholder={scenario === "puzzle" ? t("z. B. Matt in 2 mit der Dame") : scenario === "opening" ? t("z. B. Die Italienische Partie für Weiß") : t("z. B. Die Spanische Partie für Anfänger")} />
             </label>
-            <details class="studio-fine" open={game.trim() !== ""}>
+            <details class="studio-fine" open={game.trim() !== "" || recipe === "mygame"}>
               <summary>{t("Eigene Partie oder Stellung verwenden (optional)")}</summary>
               <label class="ai-field">
                 <span>{t("PGN oder FEN einfügen: Die KI nimmt genau diese Züge und erfindet keine dazu")}</span>
@@ -162,6 +195,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
                 </div>
               </div>
             </div>
+            <Ask<"hook" | "start"> label={t("Wo beginnt das Video?")} value={start} onChange={setStart} options={[["hook", t("In der spannenden Stellung")], ["start", t("Ab Zug 1 (Grundstellung)")]]} hint={start === "start" ? t("Das Studio spielt die Partie bis zur ersten Szene im Zeitraffer ab. Abschalten kannst du das später unter Video › Start des Videos.") : undefined} />
             <Ask<Side | "auto"> label={t("Aus wessen Sicht?")} value={side} onChange={setSide} options={[["auto", t("KI entscheidet")], ["white", t("Weiß")], ["black", t("Schwarz")]]} />
             <Ask<Level> label={t("Für wen ist das Video?")} value={level} onChange={setLevel} options={[["beginner", t("Anfänger")], ["club", t("Vereinsspieler")], ["strong", t("Fortgeschrittene")]]} />
             <Ask<Pace> label={t("Wie schnell soll es sein?")} value={pace} onChange={setPace} options={[["calm", t("Ruhiger")], ["normal", t("Normal")], ["fast", t("Sehr schnell")]]} />

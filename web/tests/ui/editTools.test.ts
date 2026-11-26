@@ -38,8 +38,9 @@ describe("tightenEdit", () => {
     expect(r.project.scenes[0].moves).toBe("5. Nxe5");
     expect(scenePositions(r.project)[0].before).toBe(scenePositions(before)[1].before);
     expect(keyMoveLabel(r.project)).toEqual({ label: "5. Sxe5", side: "white" });
-    // The hook: a text on top in the chosen language and the sacrifice landing within 2 s.
-    expect(r.project.scenes[0].title).toBe("DEADLY TRAP");
+    // The hook is a punch-in without text (an edit stays free of language); a text only when one is asked for.
+    expect(r.project.scenes[0].title).toBe("");
+    expect(tightenEdit(before, { lang: "en", hook: "DEADLY TRAP" }).project.scenes[0].title).toBe("DEADLY TRAP");
     // The sacrifice itself lands within two seconds (the showcase throw of a brilliant move needs its run-up).
     expect(tl.scenes[0].steps[0].t1).toBeLessThanOrEqual(2);
     // Between the sacrifice and the mate: the forced exchange in at most a few seconds.
@@ -51,7 +52,7 @@ describe("tightenEdit", () => {
     expect(tl.scenes[tl.scenes.length - 1].dur).toBeLessThanOrEqual(OUTRO_SECONDS + 0.7);
     expect(r.seconds).toBeLessThan(was / 1.8);
     expect(r.seconds).toBeLessThanOrEqual(EDIT_TARGET_SECONDS[1] + 3);
-    expect(r.changes).toHaveLength(4);
+    expect(r.changes).toHaveLength(3);
     // Nothing left to do on a second run.
     const again = tightenEdit(r.project, { lang: "en" });
     expect(again.project.scenes.map((s) => [s.moves, s.duration, s.tempo])).toEqual(r.project.scenes.map((s) => [s.moves, s.duration, s.tempo]));
@@ -160,7 +161,7 @@ describe("the edit tools work without an extra click", () => {
     expect(raw.errors).toEqual([]);
     expect(made.errors).toEqual([]);
     expect(made.stats!.seconds).toBeLessThan(raw.stats!.seconds / 1.8);
-    expect(made.project!.scenes[0].title).not.toBe("");
+    expect(made.project!.scenes[0].title).toBe("");
     expect(made.project!.scenes[made.project!.scenes.length - 1].duration).toBeLessThanOrEqual(OUTRO_SECONDS);
     expect(raw.project!.scenes[0].title).toBe("");
   });

@@ -64,17 +64,19 @@ import {
 } from "./model";
 import { Assistant, MoveRecorder } from "./Assistant";
 import { AiImport } from "./AiImport";
+import { SceneTrack } from "./SceneTrack";
+import { applyFromStart, fromStartState } from "./leadIn";
 import { EditHelp } from "./EditHelp";
 import { speechSheet } from "./aiScript";
 import { download, recordVideo, videoType } from "./record";
 import { autoScene, distributeScript, fitLength, movesLabel, variationScene, type Cursor, type GameTree } from "./wizard";
 import { Chess } from "chess.js";
 import { StudioStage } from "./stage";
-import { currentId, loadProjects, saveProjects, setCurrentId } from "./store";
+import { currentId, loadProjects, mergeProjects, PROJECTS_KEY, saveProjects, setCurrentId, storedProjects } from "./store";
 import { compile, REEL_BEAT, type Timeline } from "./timeline";
-import { t, dec, changeStudioLang, LANG_NAMES, LANGS, siteLang, studioSetting, type StudioLang } from "../../i18n";
+import { t, dec, lang, changeStudioLang, LANG_NAMES, LANGS, siteLang, studioSetting, type StudioLang } from "../../i18n";
 
-type Tab = "szene" | "stil" | "video" | "edit";
+type Tab = "szene" | "stil" | "sound" | "video" | "edit";
 type Tool = "none" | "arrow" | "mark";
 
 interface ExportState {
@@ -117,7 +119,7 @@ export function StudioView() {
   const [safe, setSafe] = useState(true);
   const [dialog, setDialog] = useState<"new" | "templates" | "script" | "board" | "ai" | null>(null);
   const [exp, setExp] = useState<ExportState | null>(null);
-  const [saveError, setSaveError] = useState(false);
+  const [saved, setSaved] = useState<{ state: "saved" | "pending" | "error"; at: number }>({ state: "saved", at: Date.now() });
   const [glError, setGlError] = useState<string | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -268,11 +270,49 @@ export function StudioView() {
     }
   };
 
-  // ---- saving (debounced; quota errors are shown, not thrown)
+  // ---- saving: shortly after each change, and at once when the page is hidden or left (closing the tab right after typing keeps
+  // the change). Other tabs' projects are merged, never overwritten; a storage error is shown, not thrown.
+  const removedRef = useRef(new Set<string>());
+  const latestRef = useRef(projects);
+  latestRef.current = projects;
+  const dirtyRef = useRef(true);
+  const flush = () => {
+    if (!dirtyRef.current) return;
+    dirtyRef.current = false;
+    const ok = saveProjects(latestRef.current, removedRef.current) !== null;
+    setSaved({ state: ok ? "saved" : "error", at: Date.now() });
+  };
   useEffect(() => {
-    const id = window.setTimeout(() => setSaveError(!saveProjects(projects)), 400);
+    dirtyRef.current = true;
+    setSaved((x) => (x.state === "pending" ? x : { state: "pending", at: x.at }));
+    const id = window.setTimeout(flush, 400);
     return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projects]);
+  useEffect(() => {
+    const onHide = () => flush();
+    const onVisibility = () => document.visibilityState === "hidden" && flush();
+    // Another tab saved: take over its newer projects, so this tab does not keep working on an old copy.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== PROJECTS_KEY) return;
+      const stored = storedProjects();
+      if (!stored) return;
+      setProjects((list) => {
+        const merged = mergeProjects(list, stored, removedRef.current);
+        return merged.length === list.length && merged.every((p, i) => p === list[i]) ? list : merged;
+      });
+    };
+    window.addEventListener("pagehide", onHide);
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      flush();
+      window.removeEventListener("pagehide", onHide);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("storage", onStorage);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const firstProject = useRef(true);
   useEffect(() => {
     setCurrentId(project.id);
@@ -527,6 +567,7 @@ export function StudioView() {
   };
   const removeProject = () => {
     if (!confirmDelete()) return;
+    removedRef.current.add(project.id);
     const rest = projects.filter((p) => p.id !== project.id);
     const next = rest.length ? rest : [TEMPLATES[0].make()];
     setProjects(next);
@@ -667,23 +708,13 @@ export function StudioView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [project, timeline, positions, sel],
   );
-  const segments = useMemo(
-    () => (
-            <div class="studio-segments">
-              {timeline.scenes.map((c, i) => (
-                <button
-                  key={c.scene.id}
-                  class={`${i === sel ? "on" : ""} ${c.scene.card !== "none" ? "card" : ""} ${c.mate ? "mate" : ""} ${c.hit !== null ? "hit" : ""}`}
-                  style={{ flexGrow: c.dur }}
-                  onClick={() => selectScene(i)}
-                  title={t("Szene {0}", { 0: i + 1 })}
-                />
-              ))}
-            </div>
-    ),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [timeline, sel],
-  );
+  /** A new real length for scene i (seconds as it plays, video tempo included); below its natural length the scene is squeezed. */
+  const setSceneLength = (i: number, real: number) => {
+    const c = timeline.scenes[i];
+    if (!c) return;
+    const speed = Math.max(0.3, project.video.speed || 1);
+    updateScene({ duration: real * speed, squeeze: real < c.floorDur - 1e-6 }, i);
+  };
 
   const hasSound = mixHasSound(mix(), timeline);
   const current = timeline.scenes[sel];
@@ -709,6 +740,13 @@ export function StudioView() {
           ))}
         </select>
         <input class="studio-name" value={project.name} onInput={(e) => update((p) => ({ ...p, name: e.currentTarget.value }))} aria-label={t("Name des Videos")} />
+        <span
+          class={`studio-saved ${saved.state}`}
+          role="status"
+          title={saved.state === "error" ? t("Der Browser-Speicher ist voll oder gesperrt. Sichere das Projekt unter ⋯ als Datei.") : t("Automatisch in diesem Browser gespeichert (auf diesem Gerät). Für ein anderes Gerät: ⋯ › Als Datei sichern.")}
+        >
+          {saved.state === "pending" ? t("Speichert …") : saved.state === "error" ? t("⚠ Nicht gespeichert") : t("✓ Gespeichert {time}", { time: new Date(saved.at).toLocaleTimeString(lang() === "en" ? "en-GB" : "de-DE", { hour: "2-digit", minute: "2-digit" }) })}
+        </span>
         <div class="studio-history" role="group" aria-label={t("Rückgängig und Wiederholen")}>
           <button onClick={undo} disabled={!history.current.past.length} title={t("Rückgängig (Strg+Z)")} aria-label={t("Rückgängig (Strg+Z)")}>
             ↶
@@ -801,8 +839,8 @@ export function StudioView() {
           )}
         </div>
         <div class="studio-transport">
+          <SceneTrack timeline={timeline} sel={sel} beat={project.style.view === "reel" ? REEL_BEAT : 0} onSelect={selectScene} onResize={setSceneLength} />
           <div class="studio-scrub">
-            {segments}
             <input
               ref={scrubRef}
               type="range"
@@ -830,8 +868,9 @@ export function StudioView() {
               </span>
             )}
             <span class="studio-controls-gap" />
-            <div class="studio-speed" title={t("Tempo des ganzen Videos")}>
-              {[0.75, 1, 1.25, 1.5].map((sp) => (
+            <div class="studio-speed" title={t("Tempo des ganzen Videos")} role="group" aria-label={t("Tempo des ganzen Videos")}>
+              <span class="studio-speed-label">{t("Tempo")}</span>
+              {[0.75, 1, 1.25, 1.5, 2].map((sp) => (
                 <button key={sp} class={Math.abs(project.video.speed - sp) < 0.01 ? "on" : ""} onClick={() => setVideo({ speed: sp })}>
                   {String(sp).replace(".", dec())}×
                 </button>
@@ -863,9 +902,9 @@ export function StudioView() {
 
       <aside class="studio-panel">
         <div class="studio-tabs" role="tablist">
-          {(["szene", "stil", "video", "edit"] as Tab[]).map((tk) => (
+          {(["szene", "stil", "sound", "video", "edit"] as Tab[]).map((tk) => (
             <button key={tk} role="tab" aria-selected={tab === tk} class={tab === tk ? "on" : ""} onClick={() => setTab(tk)}>
-              {tk === "szene" ? t("Szene {0}", { 0: sel + 1 }) : tk === "stil" ? t("Stil") : tk === "edit" ? t("Edit") : t("Video")}
+              {tk === "szene" ? t("Szene {0}", { 0: sel + 1 }) : tk === "stil" ? t("Stil") : tk === "sound" ? t("Ton") : tk === "edit" ? t("Edit") : t("Video")}
             </button>
           ))}
         </div>
@@ -909,7 +948,8 @@ export function StudioView() {
               onFirstTitle={(title) => updateScene({ title }, 0)}
             />
           )}
-          {tab === "video" && (
+          {tab === "edit" && <PostText value={project.post ?? ""} onChange={(post) => update((p) => ({ ...p, post }))} />}
+          {tab === "sound" && (
             <SoundPanel
               video={project.video}
               plan={{ style: plan.style, bpm: plan.bpm ?? 0, auto: plan.auto }}
@@ -926,9 +966,22 @@ export function StudioView() {
               onRemoveVoice={removeVoice}
             />
           )}
-          {tab === "video" && <VideoEditor project={project} type={type?.ext ?? null} onVideo={setVideo} onStyle={setStyle} onStart={(fen) => update((p) => ({ ...p, startFen: fen }))} />}
+          {tab === "video" && (
+            <VideoEditor
+              project={project}
+              type={type?.ext ?? null}
+              onVideo={setVideo}
+              onStyle={setStyle}
+              onStart={(fen) => update((p) => ({ ...p, startFen: fen }))}
+              onFromStart={(on) => {
+                update((p) => applyFromStart(p, on));
+                setSel(0);
+                setTime(0);
+              }}
+            />
+          )}
         </div>
-        {saveError && <p class="studio-warn">{t("Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.")}</p>}
+        {saved.state === "error" && <p class="studio-warn">{t("Speicher voll: Änderungen sind nicht gesichert. Sichere das Projekt als Datei.")}</p>}
       </aside>
 
       {dialog === "new" && <Assistant onClose={() => setDialog(null)} onCreate={openProject} onTemplates={() => setDialog("templates")} onAi={() => setDialog("ai")} />}
@@ -1106,7 +1159,87 @@ function Slider({ label, value, min, max, step, unit, onChange }: { label: strin
   );
 }
 
+const SECTIONS_KEY = "schach.studio.sections";
+function sectionOpen(id: string): boolean {
+  try {
+    const map = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}") as Record<string, boolean>;
+    return map[id] !== false;
+  } catch {
+    return true;
+  }
+}
+function rememberSection(id: string, open: boolean): void {
+  try {
+    const map = JSON.parse(localStorage.getItem(SECTIONS_KEY) ?? "{}") as Record<string, boolean>;
+    localStorage.setItem(SECTIONS_KEY, JSON.stringify({ ...map, [id]: open }));
+  } catch {
+    // only a convenience
+  }
+}
+
+/** A foldable group of the editor: the head shows what is set inside, so a closed group still tells its state. Open or closed is remembered. */
+function Section({ id, title, summary, children }: { id: string; title: string; summary?: string; children: ComponentChildren }) {
+  const [open, setOpen] = useState(() => sectionOpen(id));
+  return (
+    <section class={`studio-sec ${open ? "open" : ""}`}>
+      <button
+        type="button"
+        class="studio-sec-head"
+        aria-expanded={open}
+        onClick={() => {
+          setOpen(!open);
+          rememberSection(id, !open);
+        }}
+      >
+        <span class="studio-sec-title">{title}</span>
+        {summary && <span class="studio-sec-sum">{summary}</span>}
+        <span class="studio-sec-chev" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && <div class="studio-sec-body">{children}</div>}
+    </section>
+  );
+}
+
 /** Scene length: slider for coarse moves, plus − / number / + for exact values (tap-friendly on touch). */
+/** The caption for the post under the video (from the AI script or typed in): shown for copying, never rendered into the video. */
+function PostText({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Section id="post" title={t("Beitragstext für TikTok, Reels, Shorts")} summary={value.trim() ? t("{n} Zeichen", { n: value.length }) : t("leer")}>
+      <textarea
+        class="studio-post"
+        rows={5}
+        value={value}
+        maxLength={2200}
+        onInput={(e) => {
+          setCopied(false);
+          onChange(e.currentTarget.value);
+        }}
+        placeholder={t("Beschreibung, Hashtags und erster Kommentar. Die KI schreibt ihn mit, wenn du über „Mit KI“ erstellst.")}
+      />
+      <div>
+        <button
+          class="btn ghost"
+          disabled={!value.trim()}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setCopied(true);
+            } catch {
+              setCopied(false);
+            }
+          }}
+        >
+          {copied ? t("✓ Kopiert") : t("Beitragstext kopieren")}
+        </button>
+      </div>
+      <p class="studio-hint">{t("Die Frage in der Beschreibung bringt Kommentare, der erste eigene Kommentar startet die Diskussion. Das zeigt der App, dass über das Video geredet wird.")}</p>
+    </Section>
+  );
+}
+
 function DurationControl({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v / 0.001) * 0.001));
   const set = (v: number) => Number.isFinite(v) && onChange(clamp(v));
@@ -1198,183 +1331,192 @@ function SceneEditor({
   useEffect(() => setFenOpen(Boolean(scene.fen)), [scene.id]);
   return (
     <div class="studio-form">
-      <Field label={t("Karte über dem Brett")}>
-        <Seg<Card> value={scene.card} options={(Object.keys(CARD_LABEL) as Card[]).map((c) => [c, CARD_LABEL[c]])} onChange={(card) => onChange({ card, countdown: (card === "question" || card === "poll") && !scene.countdown ? 3 : scene.countdown })} />
-      </Field>
-      {(scene.card === "question" || scene.card === "poll") && <Slider label={t("Countdown")} value={scene.countdown} min={0} max={10} step={1} unit=" s" onChange={(countdown) => onChange({ countdown })} />}
-      <Field
-        label={t("Züge in dieser Szene")}
-        hint={error ? <span class="bad">{t("„{error}“ ist hier kein gültiger Zug.", { error })}</span> : t("Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug.")}
-      >
-        <input class={error ? "invalid" : ""} value={scene.moves} onInput={(e) => onChange({ moves: e.currentTarget.value })} placeholder={t("z. B. 3. Lb5")} spellcheck={false} />
-      </Field>
-      <div class="studio-quick">
-        <button onClick={onBoard}>{t("♞ Auf dem Brett vorspielen")}</button>
-        <button onClick={onAuto} disabled={!scene.moves.trim()} title={t("Untertitel, Pfeile und Markierungen aus den Zügen")}>
-          
-          {t("✦ Automatisch erklären")}
-        </button>
-      </div>
-      {fenOpen ? (
-        <Field label={t("Vorher zu dieser Stellung springen (FEN)")} hint={scene.fen && !validFen(scene.fen) ? <span class="bad">{t("Diese FEN ist ungültig.")}</span> : t("Für „Was wäre wenn“: die Figuren blenden zur neuen Stellung über.")}>
-          <input value={scene.fen} onInput={(e) => onChange({ fen: e.currentTarget.value })} placeholder={START_FEN} spellcheck={false} />
+      <Section id="timing" title={t("Dauer und Tempo")} summary={`${effective.toFixed(1).replace(".", dec())} s · ${String(Math.round(scene.tempo * 100) / 100).replace(".", dec())}×`}>
+        {/* The slider shows the length the scene really plays (real seconds, tempo included). Below the scene's natural length it plays moves and effects faster. */}
+        <DurationControl
+          label={t("Dauer")}
+          value={effective}
+          min={beat || 0.5}
+          max={Math.max(15, Math.ceil(Math.max(effective, minimum)))}
+          step={beat || 0.1}
+          onChange={(real) => onChange({ duration: real * speed, squeeze: real < minimum - 1e-6 })}
+        />
+        {scene.squeeze && effective < minimum - 1e-6 && <p class="studio-hint">{t("Gestaucht: Züge und Effekte laufen schneller, damit die Szene {n} s dauert (natürlich {m} s).", { n: effective.toFixed(1), m: minimum.toFixed(1) })}</p>}
+        <Slider label={t("Zugtempo dieser Szene")} value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
+        <p class="studio-hint">{t("Tipp: Die Länge lässt sich auch unten in der Zeitleiste am rechten Rand jeder Szene ziehen. Das Tempo des ganzen Videos steht unter „Video“.")}</p>
+      </Section>
+      <Section id="moves" title={t("Züge und Stellung")} summary={scene.moves.trim() || (scene.card !== "none" ? CARD_LABEL[scene.card] : "")}>
+        <Field label={t("Karte über dem Brett")}>
+          <Seg<Card> value={scene.card} options={(Object.keys(CARD_LABEL) as Card[]).map((c) => [c, CARD_LABEL[c]])} onChange={(card) => onChange({ card, countdown: (card === "question" || card === "poll") && !scene.countdown ? 3 : scene.countdown })} />
         </Field>
-      ) : (
-        <button class="studio-link" onClick={() => setFenOpen(true)}>
-          
-          {t("+ Zu einer anderen Stellung springen")}
-        </button>
-      )}
-      {scene.card === "poll" && (
-        <Field label={t("Antworten der Umfrage")} hint={t("z. B. „A) Lb5“. Die Zuschauer stimmen in den Kommentaren ab.")}>
-          {[0, 1, 2].map((i) => (
-            <input
-              key={i}
-              value={scene.options[i] ?? ""}
-              placeholder={`${String.fromCharCode(65 + i)}) …`}
-              onInput={(e) => {
-                const options = [0, 1, 2].map((k) => (k === i ? e.currentTarget.value : scene.options[k] ?? "")).filter((o, k) => o.trim() || k < i);
-                onChange({ options });
-              }}
-            />
-          ))}
+        {(scene.card === "question" || scene.card === "poll") && <Slider label={t("Countdown")} value={scene.countdown} min={0} max={10} step={1} unit=" s" onChange={(countdown) => onChange({ countdown })} />}
+        <Field
+          label={t("Züge in dieser Szene")}
+          hint={error ? <span class="bad">{t("„{error}“ ist hier kein gültiger Zug.", { error })}</span> : t("Deutsch oder Englisch, z. B. 1. e4 e5 2. Sf3. Leer lassen für eine Erklär-Szene ohne Zug.")}
+        >
+          <input class={error ? "invalid" : ""} value={scene.moves} onInput={(e) => onChange({ moves: e.currentTarget.value })} placeholder={t("z. B. 3. Lb5")} spellcheck={false} />
         </Field>
-      )}
-      <Field label={t("Kleine Zeile über der Überschrift")} hint={t("z. B. „Variante 2“ oder „Teil 1“.")}>
-        <input value={scene.label} onInput={(e) => onChange({ label: e.currentTarget.value })} maxLength={40} />
-      </Field>
-      <Field label={t("Überschrift")}>
-        <input value={scene.title} onInput={(e) => onChange({ title: e.currentTarget.value })} maxLength={120} />
-      </Field>
-      <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
-        <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
-      </Field>
-      {/* The slider shows the length the scene really plays (real seconds, tempo included). Below the scene's natural length it plays moves and effects faster. */}
-      <DurationControl
-        label={t("Dauer")}
-        value={effective}
-        min={beat || 0.5}
-        max={Math.max(15, Math.ceil(Math.max(effective, minimum)))}
-        step={beat || 0.1}
-        onChange={(real) => onChange({ duration: real * speed, squeeze: real < minimum - 1e-6 })}
-      />
-      {scene.squeeze && effective < minimum - 1e-6 && <p class="studio-hint">{t("Gestaucht: Züge und Effekte laufen schneller, damit die Szene {n} s dauert (natürlich {m} s).", { n: effective.toFixed(1), m: minimum.toFixed(1) })}</p>}
-      <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
-        <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
-      </Field>
-
-      <h4 class="studio-sub">{t("Effekte")}</h4>
-      <div class="studio-fx">
-        {(Object.keys(EFFECT_LABEL) as Effect[]).map((fx) => {
-          const on = scene.effects.includes(fx);
-          return (
-            <button key={fx} class={on ? "on" : ""} title={EFFECT_LABEL[fx].hint} onClick={() => onChange({ effects: on ? scene.effects.filter((x) => x !== fx) : [...scene.effects, fx] })}>
-              <span class={`studio-fx-icon fx-${fx}`} aria-hidden="true" />
-              {EFFECT_LABEL[fx].label}
-            </button>
-          );
-        })}
-      </div>
-      {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
-      {scene.effects.length > 0 && (
-        <details class="studio-fine">
-          <summary>{t("Stärke der Effekte")}</summary>
-          {scene.effects.map((fx) => (
-            <Slider key={fx} label={EFFECT_LABEL[fx].label} value={powerOf(scene, fx)} min={0} max={1} step={0.05} unit="" onChange={(v) => onChange({ power: { ...scene.power, [fx]: v } })} />
-          ))}
-        </details>
-      )}
-      <Field label={t("Stempel")} hint={t("Ein Wort, riesig über dem Brett, 0,4 s lang im Moment des Aufpralls, z. B. BLUNDER oder ??.")}>
-        <input value={scene.stamp} maxLength={14} onInput={(e) => onChange({ stamp: e.currentTarget.value.toUpperCase() })} placeholder={t("Optional")} spellcheck={false} />
-      </Field>
-      <Field label={t("Bewertung des Zugs")} hint={scene.badge ? t("{0}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.", { 0: BADGE_LABEL[scene.badge] }) : t("Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.")}>
-        <div class="studio-badges">
-          {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
-            <button key={b || "none"} class={scene.badge === b ? "on" : ""} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]} aria-label={BADGE_LABEL[b]}>
-              {b ? <img src={`${import.meta.env.BASE_URL}badges/${BADGE_FILE[b]}`} alt="" width={30} height={30} /> : "–"}
-            </button>
-          ))}
-        </div>
-      </Field>
-      <Slider label={t("Zugtempo dieser Szene")} value={scene.tempo} min={0.3} max={3} step={0.05} unit="×" onChange={(tempo) => onChange({ tempo })} />
-
-      <h4 class="studio-sub">{t("Kamera")}</h4>
-      <p class="studio-hint">{t("Immer aus Sicht von {n}, änderbar unter „Video“.", { n: perspective === "black" ? t("Schwarz") : t("Weiß") })}</p>
-      <div class="studio-cams">
-        {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
-          <button key={c} class={scene.camera === c ? "on" : ""} onClick={() => onChange({ camera: c })}>
-            <CamIcon preset={c} />
-            {CAMERA_LABEL[c]}
+        <div class="studio-quick">
+          <button onClick={onBoard}>{t("♞ Auf dem Brett vorspielen")}</button>
+          <button onClick={onAuto} disabled={!scene.moves.trim()} title={t("Untertitel, Pfeile und Markierungen aus den Zügen")}>
+          
+            {t("✦ Automatisch erklären")}
           </button>
-        ))}
-      </div>
-      <Field label={t("Kameras im Takt")} hint={t("Die Szene schaltet der Reihe nach durch diese Winkel, mit schnellem Schwenk dazwischen (nach einem Hitstop erst danach). Leer = nur die Kamera oben.")}>
-        <div class="studio-stamp-cams">
-          {scene.cameras.map((c, i) => (
-            <button key={`${c}${i}`} class="on" onClick={() => onChange({ cameras: scene.cameras.filter((_, k) => k !== i) })} title={t("Entfernen")}>
-              {i + 1}. {CAMERA_LABEL[c]} ✕
+        </div>
+        {fenOpen ? (
+          <Field label={t("Vorher zu dieser Stellung springen (FEN)")} hint={scene.fen && !validFen(scene.fen) ? <span class="bad">{t("Diese FEN ist ungültig.")}</span> : t("Für „Was wäre wenn“: die Figuren blenden zur neuen Stellung über.")}>
+            <input value={scene.fen} onInput={(e) => onChange({ fen: e.currentTarget.value })} placeholder={START_FEN} spellcheck={false} />
+          </Field>
+        ) : (
+          <button class="studio-link" onClick={() => setFenOpen(true)}>
+          
+            {t("+ Zu einer anderen Stellung springen")}
+          </button>
+        )}
+        {scene.card === "poll" && (
+          <Field label={t("Antworten der Umfrage")} hint={t("z. B. „A) Lb5“. Die Zuschauer stimmen in den Kommentaren ab.")}>
+            {[0, 1, 2].map((i) => (
+              <input
+                key={i}
+                value={scene.options[i] ?? ""}
+                placeholder={`${String.fromCharCode(65 + i)}) …`}
+                onInput={(e) => {
+                  const options = [0, 1, 2].map((k) => (k === i ? e.currentTarget.value : scene.options[k] ?? "")).filter((o, k) => o.trim() || k < i);
+                  onChange({ options });
+                }}
+              />
+            ))}
+          </Field>
+        )}
+      </Section>
+      <Section id="texts" title={t("Texte und Sprechtext")} summary={scene.title.trim() || (scene.text.trim() ? scene.text.trim().slice(0, 24) : t("kein Text"))}>
+        <Field label={t("Kleine Zeile über der Überschrift")} hint={t("z. B. „Variante 2“ oder „Teil 1“.")}>
+          <input value={scene.label} onInput={(e) => onChange({ label: e.currentTarget.value })} maxLength={40} />
+        </Field>
+        <Field label={t("Überschrift")}>
+          <input value={scene.title} onInput={(e) => onChange({ title: e.currentTarget.value })} maxLength={120} />
+        </Field>
+        <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
+          <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
+        </Field>
+        <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
+          <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
+        </Field>
+
+        {lucena && (
+          <Field label={t("Lucenas Stimmung")}>
+            <Seg<Mood> value={scene.mood} options={(Object.keys(MOOD_LABEL) as Mood[]).map((m) => [m, MOOD_LABEL[m]])} onChange={(mood) => onChange({ mood })} />
+          </Field>
+        )}
+      </Section>
+      <Section id="fx" title={t("Bewertung und Effekte")} summary={[scene.badge ? BADGE_LABEL[scene.badge] : "", ...scene.effects.map((e) => EFFECT_LABEL[e].label), scene.stamp].filter(Boolean).join(" · ") || t("keine")}>
+        <div class="studio-fx">
+          {(Object.keys(EFFECT_LABEL) as Effect[]).map((fx) => {
+            const on = scene.effects.includes(fx);
+            return (
+              <button key={fx} class={on ? "on" : ""} title={EFFECT_LABEL[fx].hint} onClick={() => onChange({ effects: on ? scene.effects.filter((x) => x !== fx) : [...scene.effects, fx] })}>
+                <span class={`studio-fx-icon fx-${fx}`} aria-hidden="true" />
+                {EFFECT_LABEL[fx].label}
+              </button>
+            );
+          })}
+        </div>
+        {scene.effects.length > 0 && <p class="studio-hint">{scene.effects.map((fx) => EFFECT_LABEL[fx].hint).join(" · ")}</p>}
+        {scene.effects.length > 0 && (
+          <details class="studio-fine">
+            <summary>{t("Stärke der Effekte")}</summary>
+            {scene.effects.map((fx) => (
+              <Slider key={fx} label={EFFECT_LABEL[fx].label} value={powerOf(scene, fx)} min={0} max={1} step={0.05} unit="" onChange={(v) => onChange({ power: { ...scene.power, [fx]: v } })} />
+            ))}
+          </details>
+        )}
+        <Field label={t("Stempel")} hint={t("Ein Wort, riesig über dem Brett, 0,4 s lang im Moment des Aufpralls, z. B. BLUNDER oder ??.")}>
+          <input value={scene.stamp} maxLength={14} onInput={(e) => onChange({ stamp: e.currentTarget.value.toUpperCase() })} placeholder={t("Optional")} spellcheck={false} />
+        </Field>
+        <Field label={t("Bewertung des Zugs")} hint={scene.badge ? t("{0}: dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.", { 0: BADGE_LABEL[scene.badge] }) : t("Dasselbe Zeichen wie in der Analyse, über dem Feld des letzten Zugs.")}>
+          <div class="studio-badges">
+            {(Object.keys(BADGE_LABEL) as Badge[]).map((b) => (
+              <button key={b || "none"} class={scene.badge === b ? "on" : ""} onClick={() => onChange({ badge: b })} title={BADGE_LABEL[b]} aria-label={BADGE_LABEL[b]}>
+                {b ? <img src={`${import.meta.env.BASE_URL}badges/${BADGE_FILE[b]}`} alt="" width={30} height={30} /> : "–"}
+              </button>
+            ))}
+          </div>
+        </Field>
+      </Section>
+      <Section id="camera" title={t("Kamera")} summary={CAMERA_LABEL[scene.camera] + (scene.cameras.length ? ` +${scene.cameras.length}` : "")}>
+        <p class="studio-hint">{t("Immer aus Sicht von {n}, änderbar unter „Video“.", { n: perspective === "black" ? t("Schwarz") : t("Weiß") })}</p>
+        <div class="studio-cams">
+          {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
+            <button key={c} class={scene.camera === c ? "on" : ""} onClick={() => onChange({ camera: c })}>
+              <CamIcon preset={c} />
+              {CAMERA_LABEL[c]}
             </button>
           ))}
-          {scene.cameras.length < MAX_CAMERAS && (
-            <select value="" onChange={(e) => e.currentTarget.value && onChange({ cameras: [...scene.cameras, e.currentTarget.value as CameraPreset] })} aria-label={t("Winkel hinzufügen")}>
-              <option value="">{t("+ Winkel")}</option>
-              {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
-                <option key={c} value={c}>
-                  {CAMERA_LABEL[c]}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
-      </Field>
-      <details class="studio-fine">
-        <summary>{t("Feinschliff der Kamera")}</summary>
-      <Slider label={t("Zoom")} value={scene.zoom} min={0.45} max={1.6} step={0.05} unit="×" onChange={(zoom) => onChange({ zoom })} />
-      <Slider label={t("Kamerafahrt (Drehung)")} value={scene.orbit} min={-30} max={30} step={1} unit="°/s" onChange={(orbit) => onChange({ orbit })} />
-      </details>
-      <Toggle label={t("Auf den Zug zoomen")} checked={scene.focus} onChange={(focus) => onChange({ focus })} />
-
-      <h4 class="studio-sub">{t("Pfeile und Felder")}</h4>
-      <div class="studio-draw">
-        <button class={tool === "arrow" ? "on" : ""} onClick={() => onTool(tool === "arrow" ? "none" : "arrow")}>
-          
-          {t("↗ Pfeil zeichnen")}
-        </button>
-        <button class={tool === "mark" ? "on" : ""} onClick={() => onTool(tool === "mark" ? "none" : "mark")}>
-          
-          {t("▣ Feld markieren")}
-        </button>
-      </div>
-      <ToneChips value={tone} style={style} onChange={onTone} />
-      {(scene.arrows.length > 0 || scene.marks.length > 0) && (
-        <ul class="studio-annos">
-          {scene.arrows.map((a, i) => (
-            <li key={`a${i}`}>
-              <span class="dot" style={{ background: toneColor(a.tone, style) }} />
-              
-              {t("Pfeil {from} → {to}", { from: a.from, to: a.to })}
-              <button onClick={() => onChange({ arrows: scene.arrows.filter((_, k) => k !== i) })} aria-label={t("Pfeil löschen")}>
-                ✕
+        <Field label={t("Kameras im Takt")} hint={t("Die Szene schaltet der Reihe nach durch diese Winkel, mit schnellem Schwenk dazwischen (nach einem Hitstop erst danach). Leer = nur die Kamera oben.")}>
+          <div class="studio-stamp-cams">
+            {scene.cameras.map((c, i) => (
+              <button key={`${c}${i}`} class="on" onClick={() => onChange({ cameras: scene.cameras.filter((_, k) => k !== i) })} title={t("Entfernen")}>
+                {i + 1}. {CAMERA_LABEL[c]} ✕
               </button>
-            </li>
-          ))}
-          {scene.marks.map((m, i) => (
-            <li key={`m${i}`}>
-              <span class="dot sq" style={{ background: toneColor(m.tone, style) }} />
-              
-              {t("Feld {square}", { square: m.square })}
-              <button onClick={() => onChange({ marks: scene.marks.filter((_, k) => k !== i) })} aria-label={t("Markierung löschen")}>
-                ✕
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {lucena && (
-        <Field label={t("Lucenas Stimmung")}>
-          <Seg<Mood> value={scene.mood} options={(Object.keys(MOOD_LABEL) as Mood[]).map((m) => [m, MOOD_LABEL[m]])} onChange={(mood) => onChange({ mood })} />
+            ))}
+            {scene.cameras.length < MAX_CAMERAS && (
+              <select value="" onChange={(e) => e.currentTarget.value && onChange({ cameras: [...scene.cameras, e.currentTarget.value as CameraPreset] })} aria-label={t("Winkel hinzufügen")}>
+                <option value="">{t("+ Winkel")}</option>
+                {(Object.keys(CAMERA_LABEL) as CameraPreset[]).map((c) => (
+                  <option key={c} value={c}>
+                    {CAMERA_LABEL[c]}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
         </Field>
-      )}
+        <details class="studio-fine">
+          <summary>{t("Feinschliff der Kamera")}</summary>
+        <Slider label={t("Zoom")} value={scene.zoom} min={0.45} max={1.6} step={0.05} unit="×" onChange={(zoom) => onChange({ zoom })} />
+        <Slider label={t("Kamerafahrt (Drehung)")} value={scene.orbit} min={-30} max={30} step={1} unit="°/s" onChange={(orbit) => onChange({ orbit })} />
+        </details>
+        <Toggle label={t("Auf den Zug zoomen")} checked={scene.focus} onChange={(focus) => onChange({ focus })} />
+
+      </Section>
+      <Section id="draw" title={t("Pfeile und Felder")} summary={t("{a} Pfeile · {m} Felder", { a: scene.arrows.length, m: scene.marks.length })}>
+        <div class="studio-draw">
+          <button class={tool === "arrow" ? "on" : ""} onClick={() => onTool(tool === "arrow" ? "none" : "arrow")}>
+          
+            {t("↗ Pfeil zeichnen")}
+          </button>
+          <button class={tool === "mark" ? "on" : ""} onClick={() => onTool(tool === "mark" ? "none" : "mark")}>
+          
+            {t("▣ Feld markieren")}
+          </button>
+        </div>
+        <ToneChips value={tone} style={style} onChange={onTone} />
+        {(scene.arrows.length > 0 || scene.marks.length > 0) && (
+          <ul class="studio-annos">
+            {scene.arrows.map((a, i) => (
+              <li key={`a${i}`}>
+                <span class="dot" style={{ background: toneColor(a.tone, style) }} />
+              
+                {t("Pfeil {from} → {to}", { from: a.from, to: a.to })}
+                <button onClick={() => onChange({ arrows: scene.arrows.filter((_, k) => k !== i) })} aria-label={t("Pfeil löschen")}>
+                  ✕
+                </button>
+              </li>
+            ))}
+            {scene.marks.map((m, i) => (
+              <li key={`m${i}`}>
+                <span class="dot sq" style={{ background: toneColor(m.tone, style) }} />
+              
+                {t("Feld {square}", { square: m.square })}
+                <button onClick={() => onChange({ marks: scene.marks.filter((_, k) => k !== i) })} aria-label={t("Markierung löschen")}>
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Section>
     </div>
   );
 }
@@ -1477,20 +1619,27 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
 
 // ---------- video ----------
 
-function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: StudioProject; type: string | null; onVideo: (p: Partial<StudioVideo>) => void; onStyle: (p: Partial<StudioStyle>) => void; onStart: (fen: string) => void }) {
+function VideoEditor({
+  project,
+  type,
+  onVideo,
+  onStyle,
+  onStart,
+  onFromStart,
+}: {
+  project: StudioProject;
+  type: string | null;
+  onVideo: (p: Partial<StudioVideo>) => void;
+  onStyle: (p: Partial<StudioStyle>) => void;
+  onStart: (fen: string) => void;
+  onFromStart: (on: boolean) => void;
+}) {
   const v = project.video;
+  const lead = fromStartState(project);
+  const leadScene = project.scenes.find((s) => s.leadIn);
   return (
     <div class="studio-form">
-      <Field label={t("Sicht aufs Brett")} hint={t("Gilt für alle Szenen: die Kameras drehen sich mit, so bleibt die Seite im ganzen Video gleich.")}>
-        <Seg<Side>
-          value={v.perspective}
-          options={[
-            ["white", t("Weiß unten")],
-            ["black", t("Schwarz unten")],
-          ]}
-          onChange={(perspective) => onVideo({ perspective })}
-        />
-      </Field>
+      <Section id="v-format" title={t("Plattform und Format")} summary={`${PLATFORM_LABEL[v.platform]} · ${v.format} · ${v.fps} fps`}>
       <Field label={t("Plattform")} hint={t("Bestimmt die sichere Zone in der Vorschau und bei YouTube das Querformat.")}>
         <select
           class="studio-select"
@@ -1532,9 +1681,50 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
           onChange={(fps) => onVideo({ fps })}
         />
       </Field>
-      <Slider label={t("Tempo des ganzen Videos")} value={v.speed} min={0.5} max={2.5} step={0.05} unit="×" onChange={(speed) => onVideo({ speed })} />
-      <Slider label={t("Tempo nur der Figuren")} value={v.tempo} min={0.4} max={2.5} step={0.05} unit="×" onChange={(tempo) => onVideo({ tempo })} />
-      <h4 class="studio-sub">{t("Im Bild")}</h4>
+      {v.format === "16:9" && <Toggle label={t("Lernvideo: Brett links, Erklärung und Züge rechts")} checked={v.lesson} onChange={(lesson) => onVideo({ lesson })} />}
+      </Section>
+
+      <Section id="v-tempo" title={t("Tempo")} summary={`${t("Video")} ${String(v.speed).replace(".", dec())}× · ${t("Figuren")} ${String(v.tempo).replace(".", dec())}×`}>
+        <Slider label={t("Tempo des ganzen Videos")} value={v.speed} min={0.5} max={2.5} step={0.05} unit="×" onChange={(speed) => onVideo({ speed })} />
+        <div class="studio-speed wrap studio-presets">
+          {[0.75, 1, 1.25, 1.5, 2].map((sp) => (
+            <button key={sp} class={Math.abs(v.speed - sp) < 0.01 ? "on" : ""} onClick={() => onVideo({ speed: sp })}>
+              {String(sp).replace(".", dec())}×
+            </button>
+          ))}
+        </div>
+        <Slider label={t("Tempo nur der Figuren")} value={v.tempo} min={0.4} max={2.5} step={0.05} unit="×" onChange={(tempo) => onVideo({ tempo })} />
+        <p class="studio-hint">{t("Das Video-Tempo macht alles schneller oder langsamer (Szenen, Züge, Effekte). Das Figuren-Tempo ändert nur, wie schnell die Figuren ziehen. Die Länge einzelner Szenen stellst du in der Zeitleiste oder unter „Szene“ ein.")}</p>
+      </Section>
+
+      <Section id="v-start" title={t("Start des Videos")} summary={v.fromStart ? t("aus der Grundstellung") : t("in der ersten Szene")}>
+        <Toggle label={t("Aus der Grundstellung starten")} checked={v.fromStart} onChange={onFromStart} />
+        <p class="studio-hint">
+          {lead.kind === "already"
+            ? t("Das Video beginnt schon in der Grundstellung.")
+            : lead.kind === "possible"
+              ? v.fromStart && leadScene
+                ? t("Vor der ersten Szene läuft die Partie im Zeitraffer ab Zug 1 ({n} Halbzüge). Die Szene ist in der Liste markiert, ihre Länge stellst du dort ein.", { n: lead.plies })
+                : t("Spielt die Partie im Zeitraffer ab Zug 1 bis zur ersten Szene ({n} Halbzüge), statt mitten in der Partie zu beginnen.", { n: lead.plies })
+              : t("Für dieses Video ist der Weg aus der Grundstellung nicht bekannt. Das geht bei Videos aus „Mit KI“ mit ganzer Partie (pgn) oder wenn die Szenen selbst ab Zug 1 spielen.")}
+        </p>
+        <Toggle label={t("Kamerafahrt zum Start")} checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
+        <Field label={t("Startstellung (FEN)")} hint={!validFen(project.startFen) ? <span class="bad">{t("Ungültig, es gilt die Grundstellung.")}</span> : t("Für Rätsel oder Endspiele; leer = Grundstellung.")}>
+          <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder={t("Grundstellung")} onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
+        </Field>
+      </Section>
+
+      <Section id="v-board" title={t("Sicht und Anzeigen")} summary={v.perspective === "black" ? t("Schwarz unten") : t("Weiß unten")}>
+      <Field label={t("Sicht aufs Brett")} hint={t("Gilt für alle Szenen: die Kameras drehen sich mit, so bleibt die Seite im ganzen Video gleich.")}>
+        <Seg<Side>
+          value={v.perspective}
+          options={[
+            ["white", t("Weiß unten")],
+            ["black", t("Schwarz unten")],
+          ]}
+          onChange={(perspective) => onVideo({ perspective })}
+        />
+      </Field>
       <Toggle label={t("Logo und Name {BRAND}", { BRAND })} checked={v.brand} onChange={(brand) => onVideo({ brand })} />
       <Toggle label={t("Webadresse")} checked={v.watermark} onChange={(watermark) => onVideo({ watermark })} />
       <Toggle label={t("Lucena spricht die Untertitel")} checked={v.lucena} onChange={(lucena) => onVideo({ lucena })} />
@@ -1544,11 +1734,7 @@ function VideoEditor({ project, type, onVideo, onStyle, onStart }: { project: St
       <Toggle label={t("Felder aus dem Untertitel leuchten auf")} checked={v.squareHints} onChange={(squareHints) => onVideo({ squareHints })} />
       <Toggle label={t("Letzten Zug hervorheben")} checked={v.lastMove} onChange={(lastMove) => onVideo({ lastMove })} />
       <Toggle label={t("Fortschrittsbalken")} checked={v.progress} onChange={(progress) => onVideo({ progress })} />
-      {v.format === "16:9" && <Toggle label={t("Lernvideo: Brett links, Erklärung und Züge rechts")} checked={v.lesson} onChange={(lesson) => onVideo({ lesson })} />}
-      <Toggle label={t("Kamerafahrt zum Start")} checked={v.introFly} onChange={(introFly) => onVideo({ introFly })} />
-      <Field label={t("Startstellung (FEN)")} hint={!validFen(project.startFen) ? <span class="bad">{t("Ungültig, es gilt die Grundstellung.")}</span> : t("Für Rätsel oder Endspiele; leer = Grundstellung.")}>
-        <input value={project.startFen === START_FEN ? "" : project.startFen} placeholder={t("Grundstellung")} onInput={(e) => onStart(e.currentTarget.value.trim() || START_FEN)} spellcheck={false} />
-      </Field>
+      </Section>
       <p class="studio-hint">
         
         {t("Export als {n}. Der Export läuft meist schneller als das Video lang ist, ohne Ton für dich, aber mit Musik, deiner Stimme und den Effekt-Tönen im Video.", { n: type ? type.toUpperCase() : t("– (Browser kann nicht aufnehmen)") })}

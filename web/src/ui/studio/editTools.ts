@@ -9,6 +9,7 @@
 import { t, tr, type Lang } from "../../i18n";
 import { displaySan, scenePositions, type Badge, type Scene, type StudioProject } from "./model";
 import { thinArrows } from "./arrowRules";
+import { applyFromStart } from "./leadIn";
 import { compile } from "./timeline";
 
 /** Target length of an edit: shorter, denser clips are watched to the end and looped far more often. */
@@ -32,9 +33,9 @@ export interface TightenResult {
 }
 
 export interface TightenOptions {
-  /** Language of the hook text put on the first scene. */
+  /** Language of the change notes and of a hook text. */
   lang?: Lang;
-  /** Hook text for the first scene (default: the first hook stamp idea). */
+  /** Hook text for the first scene (default: none, the edit stays without language). */
   hook?: string;
   /** Leave the start alone (only squeeze the middle and the outro). */
   keepStart?: boolean;
@@ -95,7 +96,6 @@ function squeezeMiddle(project: StudioProject, from: number, to: number, changes
  * shrinks the outro to an overlay. A project that is already tight stays as it is.
  */
 export function tightenEdit(input: StudioProject, opts: TightenOptions = {}): TightenResult {
-  const lang = opts.lang ?? "de";
   const changes: string[] = [];
   let project: StudioProject = { ...input, scenes: input.scenes.map((s) => ({ ...s })) };
 
@@ -112,15 +112,16 @@ export function tightenEdit(input: StudioProject, opts: TightenOptions = {}): Ti
     changes.push(label ? t("Start direkt in der kritischen Stellung ({move}), {n} Anfangsszenen gestrichen.", { move: label.label, n: k }) : t("Start direkt in der kritischen Stellung, {n} Anfangsszenen gestrichen.", { n: k }));
   }
 
-  // 2. The first picture is the hook: a text on top, a punch-in, no longer than 1.3 s before the first cut.
+  // 2. The first picture is the hook: a punch-in, no longer than 1.3 s before the first cut. No text unless one is asked for:
+  // an edit without language works for viewers everywhere (a hook text is one click in the Edit tab).
   const first = project.scenes[0];
   if (first && first.card !== "outro") {
-    const hook = opts.hook ?? hookStamps(lang)[0];
-    const wantsHook = first.card === "none" && !first.title.trim();
-    const next: Scene = { ...first, title: wantsHook ? hook : first.title, duration: Math.min(first.duration, 1.3) };
+    const wantsHook = !!opts.hook?.trim() && first.card === "none" && !first.title.trim();
+    const next: Scene = { ...first, title: wantsHook ? opts.hook!.trim() : first.title, duration: Math.min(first.duration, 1.3) };
     if (!next.effects.length) next.effects = ["punch"];
     if (next.effects.includes("punch") && next.power.punch === undefined) next.power = { ...next.power, punch: 0.5 };
-    if (wantsHook || !first.effects.length) changes.push(t("Hook in den ersten 1,3 Sekunden: Text oben und Punch-in."));
+    if (wantsHook) changes.push(t("Hook in den ersten 1,3 Sekunden: Text oben und Punch-in."));
+    else if (!first.effects.length) changes.push(t("Hook in den ersten 1,3 Sekunden: Punch-in, ohne Text."));
     project = { ...project, scenes: [next, ...project.scenes.slice(1)] };
   }
 
@@ -145,6 +146,9 @@ export function tightenEdit(input: StudioProject, opts: TightenOptions = {}): Ti
     project = thin.project;
     changes.push(t("Pfeile nur noch an den wichtigen Momenten ({n} entfernt).", { n: thin.removed }));
   }
+
+  // 6. "Start from the starting position" stays on: the fast run from move 1 goes back in front of the new start.
+  if (input.video.fromStart) project = applyFromStart(project, true);
 
   return { project, changes, seconds: total(project) };
 }

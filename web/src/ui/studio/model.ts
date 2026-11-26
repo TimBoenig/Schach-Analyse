@@ -80,6 +80,8 @@ export interface Scene {
   stamp: string;
   /** How hard each effect hits, 0..1 (missing = 1). Lets the climax stand out from the normal blows. */
   power: Partial<Record<Effect, number>>;
+  /** Made by "start from the starting position": the game played quickly from move 1 up to the first scene. Removed when the setting is switched off. */
+  leadIn?: boolean;
 }
 
 export type ThemeId = "nova" | "marmor" | "holz" | "walnuss" | "turnier" | "neon" | "mono";
@@ -175,6 +177,8 @@ export interface StudioVideo {
   voiceVolume: number;
   /** Long, calm lesson for YouTube: board on the left, explanation and move list on the right. Only in 16:9. */
   lesson: boolean;
+  /** The video starts in the starting position: the game is played quickly up to the first scene (see leadIn.ts). */
+  fromStart: boolean;
 }
 
 export interface StudioProject {
@@ -185,6 +189,10 @@ export interface StudioProject {
   style: StudioStyle;
   video: StudioVideo;
   updatedAt: number;
+  /** The whole game the video is cut from (SAN from `startFen`), when it is known (AI script with "pgn"); lets the video start from move 1. */
+  game?: string;
+  /** Text for the post under the video (caption, hashtags, first comment), from the AI script; not shown in the video. */
+  post?: string;
 }
 
 export const THEMES: Record<ThemeId, { label: string } & Omit<StudioStyle, "theme" | "reflection" | "coords" | "titleFont" | "environment" | "pieceRim" | "captionStyle" | "textScale" | "view" | "reelLook">> = {
@@ -313,6 +321,7 @@ export const DEFAULT_VIDEO: StudioVideo = {
   voice: false,
   voiceVolume: 1,
   lesson: false,
+  fromStart: false,
 };
 
 let counter = 0;
@@ -459,6 +468,18 @@ export function validFen(fen: string): boolean {
   return ok;
 }
 
+/** A move list as the studio writes it: "3. Lb5 a6 4. La4" (German letters in German), numbered from the position it starts in. */
+export function movesLabel(moves: Move[], fenBefore: string): string {
+  let no = Number(fenBefore.split(" ")[5]) || 1;
+  return moves
+    .map((m, k) => {
+      const s = m.color === "w" ? `${no}. ${displaySan(m.san)}` : k === 0 ? `${no}… ${displaySan(m.san)}` : displaySan(m.san);
+      if (m.color === "b") no += 1;
+      return s;
+    })
+    .join(" ");
+}
+
 /** Position at the start of each scene and after it, following moves and jumps. Errors per scene. */
 export function scenePositions(project: StudioProject): { before: string; after: string; parsed: ParsedMoves }[] {
   let fen = validFen(project.startFen) ? project.startFen : START_FEN;
@@ -537,6 +558,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     voice: bool(vi.voice, false),
     voiceVolume: num(vi.voiceVolume, 0, 1.5, 1),
     lesson: bool(vi.lesson, false),
+    fromStart: bool(vi.fromStart, false),
   };
   const scenes = (Array.isArray(r.scenes) ? r.scenes : []).slice(0, 80).map((x): Scene => {
     const s = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
@@ -552,7 +574,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       .map((m) => ({ square: String(m.square), tone: pick(m.tone, TONE_IDS, "accent") }));
     return scene({
       id: str(s.id, "", 60) || newId(),
-      moves: str(s.moves, "", 600),
+      moves: str(s.moves, "", 1200),
       fen: str(s.fen, "", 120),
       title: str(s.title, "", 120),
       text: str(s.text, "", 900),
@@ -580,6 +602,7 @@ export function normalizeProject(raw: unknown): StudioProject {
           .filter(([k, v]) => k in EFFECT_LABEL && typeof v === "number" && Number.isFinite(v))
           .map(([k, v]) => [k, Math.min(1, Math.max(0, v as number))]),
       ),
+      ...(s.leadIn === true ? { leadIn: true } : {}),
     });
   });
   return {
@@ -590,6 +613,8 @@ export function normalizeProject(raw: unknown): StudioProject {
     style,
     video,
     updatedAt: num(r.updatedAt, 0, 1e15, Date.now()),
+    ...(typeof r.game === "string" && r.game.trim() ? { game: r.game.slice(0, 6000) } : {}),
+    ...(typeof r.post === "string" && r.post.trim() ? { post: r.post.slice(0, 2200) } : {}),
   };
 }
 
