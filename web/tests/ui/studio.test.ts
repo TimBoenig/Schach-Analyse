@@ -1261,6 +1261,14 @@ describe("edit defaults, calm camera and scenario prompts", () => {
     }
   });
 
+  it("keeps the editor rules the engine really follows: the edit never cuts to the overview, a mate has no rating, no arrow gives the mate away", () => {
+    const edit = buildAiPrompt({ topic: "Schäfermatt", platform: "tiktok", length: 30, notes: "", type: "edit" });
+    const rules = edit.slice(edit.indexOf("NACHSPIEL"), edit.indexOf("ABSPANN"));
+    expect(rules).toContain('"kameras": ["nah", "tief", "seitlich"]');
+    expect(edit).not.toContain('["nah", "tief", "oben"]');
+    for (const part of ["Beim Mattzug KEINE", "NIE vorab einen Pfeil", "RAHMEN:", "jedes Schach, jede Fesselung und jedes Köder-Opfer"]) expect(edit).toContain(part);
+  });
+
   it("states durations the studio really keeps: the minimums of the prompt are the minimums of the timeline", () => {
     const pgn = "1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6 4. Qxf7#";
     const lengthOf = (scene: object) => {
