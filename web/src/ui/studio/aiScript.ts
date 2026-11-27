@@ -46,7 +46,7 @@ import { STYLE_LABEL, type StyleId } from "./musicGen";
 import { tightenEdit } from "./editTools";
 import { applyFromStart, fromStartState } from "./leadIn";
 import { fitLength, movesLabel } from "./wizard";
-import { lang, t } from "../../i18n";
+import { lang, t, tr, type Lang } from "../../i18n";
 
 // ---------- words the AI may use (German or English) ----------
 
@@ -245,9 +245,117 @@ export function guessPerspective(content: string): Side {
   return BLACK_HINTS.test(content) ? "black" : "white";
 }
 
-const LONG_RULES = () => t("SO WIRD ES EIN GUTES LERNVIDEO\n1. Ruhig und seriös, kein Entertainment-Tempo. Der Zuschauer will etwas verstehen und mitdenken.\n2. Aufbau: Einstieg (was man lernt und warum es wichtig ist), dann 3 bis 5 Kapitel, dann eine Zusammenfassung mit den 3 wichtigsten Punkten, dann ein kurzer Abspann. \"kleineZeile\" ist der Kapitelname (z. B. \"Kapitel 2: Der Plan für Weiß\") und bleibt über mehrere Szenen gleich.\n3. Erkläre das Warum: Pläne, Bauernstruktur, typische Fehler, die Idee hinter jedem wichtigen Zug. Zeig auch, was passiert, wenn man es falsch macht (als Variante).\n4. Pro Szene meist ein Zug, höchstens zwei. Jede Szene dauert 8 bis 20 Sekunden, damit der Zuschauer den Zug sieht und die Erklärung lesen kann.\n5. \"untertitel\" ist die Erklärung, die rechts neben dem Brett komplett stehen bleibt: 2 bis 4 ganze Sätze, höchstens {lesson} Zeichen. *Sternchen* färben Schlüsselwörter und Felder.\n6. \"sprechtext\" ist ausführlicher als der Untertitel: das, was ich dazu sage, etwa 2,5 Wörter pro Sekunde, passend zur Dauer.\n7. Pfeile für Pläne und Drohungen, Markierungen für wichtige Felder. Effekte sparsam: höchstens spotlight, drohung, matt. Keine Konfetti-Explosion mitten in der Erklärung.\n8. Kamera meist \"normal\" oder \"oben\", ruhig, ohne Drehung. Bleib bei EINER Perspektive.\n9. Umfragen nur, wenn sie zum Mitdenken einladen (\"Was würdest du hier spielen?\"), höchstens zwei im ganzen Video.\n10. Keine erfundenen Zahlen, Statistiken oder Partien. Wenn du eine berühmte Partie zeigst, nur mit den echten Zügen.\n11. Schreib für Anfänger: nenn die Figur beim Namen und das Feld (\"der Springer zieht nach f3\", \"der Läufer schlägt den Springer auf c6\") statt nur Notation wie \"Sf3\" oder \"Lxc6\". Begriffe wie Gabel, Fesselung oder Rochade erklärst du beim ersten Mal in einem halben Satz.\n\n", { lesson: FIT.lesson });
 
-const LONG_LAYOUT = () => t("SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)\n- Links das Brett, groß und ruhig, standardmäßig flach von oben (2D) wie in einem Schachbuch.\n- Rechts eine Lesespalte: oben das Kapitel (\"kleineZeile\") in Akzentfarbe, darunter der \"titel\" (höchstens 2 Zeilen, etwa {title} Zeichen), darunter der ganze \"untertitel\" als Erklärung (bis 9 Zeilen, höchstens {lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.\n- Karten (\"titel\", \"frage\", \"umfrage\", \"abspann\") legen sich wie gewohnt über das ganze Bild.\n\n", { title: FIT.title, lesson: FIT.lesson });
+
+const LONG_RULES = () => t("SO WIRD ES EIN GUTES LERNVIDEO\nEin Lernvideo ist kein Lehrbuch: Es soll angeklickt, bis zum Ende geschaut und weitergeschickt werden. Der Ton bleibt ruhig und seriös, aber auf dem Brett passiert ständig etwas.\n1. HOOK (die ersten 15 bis 20 Sekunden, 2 bis 3 Szenen, Payoff first): Fang nicht mit \"In diesem Video schauen wir uns … an\" an. Zeig zuerst die Vorschau auf die stärkste Falle oder die Traumstellung (die Züge dahin als \"zug\", dazu Pfeile und der Effekt \"spotlight\"), stell eine mutige, wahre Behauptung auf (z. B. \"Why 1... d5 beats unprepared 1. e4 players\") und geh erst danach mit \"variante\": { \"zurueck\": n } (n = alle Halbzüge der Vorschau) zur Grundstellung zurück, damit das Video bei Zug 1 weitergeht.\n2. KURZE BEATS: Jede Szene dauert 6 bis 12 Sekunden, nicht länger. Alle paar Sekunden muss auf dem Brett etwas passieren: ein neuer Pfeil (\"idee\" gelb, \"gefahr\" rot, \"gut\" grün), eine Markierung oder ein kurzer Variantenzug. Eine lange Erklärung teilst du in 2 bis 3 Szenen auf derselben Stellung auf (Szenen ohne \"zug\").\n3. OFFENE SCHLEIFEN: Jedes Kapitel endet mit einer offenen Frage oder einer Überleitung, die das nächste Kapitel anteasert (z. B. \"That solves 3. Nc3, but what if White tries to trap your queen with 4. b4? Let's look at that next.\"). Das sagt die letzte Szene des Kapitels im \"sprechtext\".\n4. PAUSE & SOLVE: Alle 90 bis 120 Sekunden kommt eine Szene mit \"karte\": \"frage\" (siehe unten), in der der Zuschauer einen konkreten Plan oder eine Bestrafung finden muss. Die nächste Szene löst mit Pfeilen auf.\n5. AUFBAU eines Eröffnungsvideos: Kapitel 1 ist die Hauptidee und Traumstruktur (warum funktioniert das System?). Kapitel 2 bestraft typische Fehler der Gegner sofort (Taktik-Fallen, die man direkt in eigenen Partien anwenden kann). Kapitel 3 zeigt die wichtigsten Alternativen und Nebenvarianten, damit man sie sicher meistert. Dann das Fazit mit 3 goldenen Regeln und einer konkreten Frage für die Kommentare, dann ein kurzer Abspann. \"kleineZeile\" ist der Kapitelname (z. B. \"Kapitel 2: Fallen bestrafen\") und bleibt über alle Szenen des Kapitels gleich. Bei anderen Themen (Plan, Endspiel, Prinzip) gilt derselbe Bogen: Idee, typische Fehler, Sonderfälle, Fazit.\n6. Erkläre das Warum: Pläne, Bauernstruktur, Zugreihenfolge, die Idee hinter jedem wichtigen Zug. Zeig auch, was passiert, wenn man es falsch macht (als Variante).\n7. \"untertitel\" ist die Erklärung, die rechts neben dem Brett stehen bleibt: 1 bis 3 ganze Sätze, höchstens {lesson} Zeichen. *Sternchen* färben Schlüsselwörter und Felder.\n8. \"sprechtext\": JEDE Szene hat einen, auch die Titel- und die Abspannkarte (außer ich verlange oben keinen). Er ist ausführlicher als der Untertitel, etwa 2,5 Wörter pro Sekunde und passt genau zur \"dauer\" (10 Sekunden sind etwa 25 Wörter).\n9. Pfeile für Pläne und Drohungen, Markierungen für wichtige Felder. Effekte sparsam und nur die aus der Liste unten. Die Kamera bleibt ruhig bei EINER Perspektive.\n10. Keine erfundenen Zahlen, Statistiken oder Partien. Wenn du eine berühmte Partie zeigst, nur mit den echten Zügen.\n");
+const LONG_AUDIENCE_BEGINNER = () => t("11. Schreib für Anfänger: nenn die Figur beim Namen und das Feld (\"der Springer zieht nach f3\", \"der Läufer schlägt den Springer auf c6\") statt nur Notation wie \"Sf3\" oder \"Lxc6\". Begriffe wie Gabel, Fesselung oder Rochade erklärst du beim ersten Mal in einem halben Satz.\n");
+const LONG_AUDIENCE_CLUB = () => t("11. Schreib für Vereinsspieler: Standard-Notation im Text ist erlaubt (z. B. \"3... Qa5\" oder \"...Bf5\", einheitlich deutsch oder englisch). Grundbegriffe wie Gabel, Fesselung oder Rochade erklärst du nicht. Konzentrier dich auf Pläne, Bauernstrukturen, Zugreihenfolgen (warum erst dieser Zug und dann jener) und typische Fallen.\n");
+const LONG_SETTINGS = () => t("12. Studio-Einstellungen: Setz oben im JSON \"einstellungen\" und \"design\" genau so, wie im Beispiel unten.\n");
+const LONG_BUDGET = () => t("ZEIT- UND SZENENBUDGET (die Summe aller \"dauer\"-Werte ist genau {len} Sekunden, schreib dieselbe Zahl als \"laenge\")\n{lines}\nRechne die Dauern vor dem Antworten nach. Schreib das Video vollständig bis zum Abspann: Wird es lang, kürz lieber die Sprechtexte als ein Kapitel oder das Fazit. Halte in jedem Kapitel das Budget, damit die hinteren Kapitel nicht schlechter werden als die vorderen.");
+const LONG_BUDGET_INTRO = () => t("- Einstieg (Hook und Titelkarte): {sec} Sekunden, 2 bis 3 Szenen");
+const LONG_BUDGET_CHAPTER = () => t("- Kapitel {k}: {sec} Sekunden, etwa {n} Szenen");
+const LONG_BUDGET_OUTRO = () => t("- Fazit und Abspann: {sec} Sekunden, 2 bis 3 Szenen");
+const LONG_LAYOUT = () => t("SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)\n- Links das Brett, groß und ruhig, standardmäßig flach von oben (2D) wie in einem Schachbuch.\n- Rechts eine Lesespalte: oben das Kapitel (\"kleineZeile\") in Akzentfarbe, darunter der \"titel\" (höchstens 2 Zeilen, etwa {title} Zeichen), darunter der ganze \"untertitel\" als Erklärung (bis 9 Zeilen, höchstens {lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.\n- Karten (\"titel\", \"frage\", \"abspann\") legen sich wie gewohnt über das ganze Bild.\n\n");
+const LONG_EFFECTS = () => t("WAS DAS STUDIO KANN (sparsam und nur das, was dem Verstehen hilft)\nEffekte (\"effekte\", mehrere möglich):\n- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel. Für den einen Zug, auf den es ankommt, und für die Vorschau im Hook.\n- drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).\n- matt: Der König kippt um, großer Schriftzug SCHACHMATT. Nur in der Szene mit dem Mattzug.\nBewertung des Zugs (\"bewertung\", das Symbol erscheint wie auf Analyse-Seiten über dem Zielfeld): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.");
+const LONG_QUESTION = () => t("Frage-Karte (\"karte\": \"frage\"): ein Pause-Rätsel zum Mitdenken. \"titel\" ist die Frage (höchstens {title} Zeichen, z. B. \"Wie bestrafst du 4. b4?\"), \"countdown\": 5 (Sekunden), kein \"zug\" in dieser Szene; im \"sprechtext\" stellst du die Frage ganz und sagst, dass man das Video anhalten kann. Die nächste Szene löst auf: der Zug mit Pfeilen und ein Satz zum Warum. Verrate die Lösung nicht vorher.");
+const LONG_CAMERA = () => t("Kameras (\"kamera\"): normal (hinter der eigenen Seite), schraeg oder oben (von oben, gut für Pläne). Ruhig, ohne Drehung.");
+const LONG_FIELDS = () => t("ALLE FELDER\nVideo (oben): titel (höchstens 60 Zeichen), plattform ({list}), laenge (Sekunden), perspektive (weiss, schwarz), look, umgebung, design { ansicht, untertitelStil, schrift, musik, figurenRand }, startstellung{pgnField}, einstellungen { lucena, effektTon, zuganzeige, zugInWorten, koordinaten } (jeweils true oder false).\nSzene: karte (titel, frage, abspann oder weglassen), zug{plyField}, titel, untertitel, sprechtext, kleineZeile (z. B. \"Kapitel 1: Die Idee\"), dauer, kamera, pfeile (z. B. \"f3-e5 gefahr\"), markierungen (z. B. \"e5 gut\"), effekte (spotlight, drohung, matt), bewertung, zugtempo, countdown (Sekunden, bei frage), variante, hauptvariante.\nFarben für Pfeile und Markierungen: gefahr (rot: Drohung, Fehler), gut (grün: gute Idee, Verteidigung), idee (gelb: Plan), akzent (Hervorhebung), weiss.");
+const LONG_CHECK = () => t("PRÜF VOR DEM ANTWORTEN\n- Spiel alle Züge im Kopf nach: legal, richtige Reihenfolge, richtige Seite am Zug. Zähl bei jedem \"zurueck\" die Halbzüge nach.\n{moveCheck}- Jeder Titel höchstens {title} Zeichen, jeder Untertitel höchstens {chunk} Zeichen, der \"titel\" des Videos höchstens 60.\n- Die Summe aller \"dauer\"-Werte ist genau {len} und steht als \"laenge\" oben, jedes Kapitel hält sein Budget.\n- Jede Szene dauert 6 bis 12 Sekunden und hat einen \"sprechtext\" mit etwa 2,5 Wörtern pro Sekunde, auch die Titel- und die Abspannkarte.\n- Es beginnt mit der Vorschau auf die Falle oder Traumstellung, jedes Kapitel endet mit einer offenen Frage, alle 90 bis 120 Sekunden kommt eine Frage-Karte.\n- Das Fazit hat 3 Regeln und eine Frage für die Kommentare. Effekte nur spotlight, drohung und matt.");
+const LONG_MOVECHECK_FREE = () => t("- Kein \"pgn\" und kein \"zugNr\": alle Züge stehen als \"zug\" in den Szenen.\n");
+const LONG_CHESS_REST = () => t("- Eine Szene kann einen oder mehrere Züge haben (\"zug\"). Die Züge gehen in der Stellung weiter, in der die vorige Szene aufgehört hat. Eine Szene ohne \"zug\" zeigt dieselbe Stellung noch einmal, z. B. mit einem neuen Pfeil oder einer neuen Markierung.\n- Kein \"pgn\" und kein \"zugNr\" oben: Eröffnungs- und Konzeptvideos haben Varianten und Fehler, und die gehen nur mit \"zug\", \"variante\" und \"hauptvariante\". Schreib die Züge jeder Szene als \"zug\" (z. B. \"3. Lc4 Sf6\").\n- Variante: \"variante\": { \"zurueck\": n } geht vorher n Halbzüge zurück und spielt dann die Züge dieser Szene.\n- Zählhilfe: Ein Halbzug ist EIN Zug von Weiß ODER von Schwarz. \"1. e4 e5\" sind 2 Halbzüge, \"1. e4 e5 2. Sf3\" sind 3. Nach \"1. e4 e5 2. Sf3 Sc6 3. Lc4 Sf6\" stehen 6 Halbzüge auf dem Brett: \"zurueck\": 1 nimmt nur 3... Sf6 zurück, \"zurueck\": 6 geht zur Grundstellung. Gezählt wird über alle Szenen der laufenden Linie, auch über die Züge einer Variante. Rechne vor jedem \"zurueck\" nach, in welcher Stellung du danach stehst, damit die Züge der Szene legal sind.\n- Zurück zur Hauptvariante: \"hauptvariante\": true springt zur Stellung, bevor die Variante begann.\n- Eine besondere Startstellung (Rätsel, Endspiel) gibst du als \"startstellung\" (FEN) an.");
+const SCENARIO_OPENING_LONG = () => t("SZENARIO: ERÖFFNUNG VORSTELLEN (YouTube)\n- Der Aufbau steht oben unter SO WIRD ES EIN GUTES LERNVIDEO: Hook mit der Vorschau auf die stärkste Falle, Kapitel 1 Hauptidee, Kapitel 2 Fehler bestrafen, Kapitel 3 Nebenvarianten, dann Fazit.\n- Zeig nur Theoriezüge, die du sicher kennst. Wenn du dir bei einer Variante nicht sicher bist, lass sie weg, statt zu raten. Keine erfundenen Namen, Zahlen oder Statistiken (kein \"meistgespielt\" oder \"80 Prozent\").\n- Setz \"perspektive\" auf die Seite, für die die Eröffnung gedacht ist (Eröffnung für Schwarz: \"schwarz\").\n- Nenn den Namen der Eröffnung und der Variante im Titel der ersten Szene und in den Kapitel-Zeilen (\"kleineZeile\").");
+const VIRAL_LONG = () => t("WAS AUF YOUTUBE FUNKTIONIERT\n- YouTube misst Klickrate und Sehdauer. Die ersten 15 bis 20 Sekunden entscheiden: Vorschau auf die stärkste Stellung, mutige Behauptung, Versprechen (siehe HOOK).\n- Halte das Versprechen von Titel und Vorschaubild früh und vollständig ein.\n- \"titel\" oben im JSON (höchstens 60 Zeichen) verbindet klaren Nutzen mit Neugier, ohne zu lügen (z. B. \"Punish 1. e4 Instantly: Scandinavian Defense Guide\" statt \"Die Skandinavische Eröffnung\"), nie mit erfundenen Zahlen. Er steht in der Sprache der Texte.\n- Ende mit einem klaren nächsten Schritt (eine Übungsfrage für die Kommentare, das nächste Video), nicht mit einer langen Verabschiedung.");
+const LONG_KIND = () => t("ein lehrreiches YouTube-Video im Querformat, das geklickt und bis zum Ende geschaut wird");
+const LONG_POLL_ANSWER = () => t("- Ende das Video mit einer Frage-Karte (\"karte\": \"frage\").");
+const EX_TITLE = (l: Lang) => tr(l, "Italienisch: Diese Falle gewinnt eine Figur");
+const EX_POST = (l: Lang) => tr(l, "Die Italienische Partie: Plan, Falle und drei Merksätze.");
+const EX_COMMENT = (l: Lang) => tr(l, "Welche Eröffnung soll ich als Nächstes erklären?");
+const EX_HOOK_T = (l: Lang) => tr(l, "Der Springer-Trick");
+const EX_HOOK_S = (l: Lang) => tr(l, "Schwarz greift *d5* an und verliert eine Figur.");
+const EX_HOOK_V = (l: Lang) => tr(l, "Dieser Springer-Opfer-Trick schlägt Spieler, die ihre Eröffnung nicht kennen. Bleib dran, am Ende kannst du ihn selbst.");
+const EX_CARD_T = (l: Lang) => tr(l, "Italienisch verstehen");
+const EX_CARD_S = (l: Lang) => tr(l, "Plan, Falle und Merksätze");
+const EX_CARD_V = (l: Lang) => tr(l, "Jetzt von vorn: erst die Idee, dann die Falle, dann das Fazit.");
+const EX_K1 = (l: Lang) => tr(l, "Kapitel 1: Das Zentrum");
+const EX_K2 = (l: Lang) => tr(l, "Kapitel 2: Die Falle");
+const EX_K3 = (l: Lang) => tr(l, "Das Fazit");
+const EX_S1_T = (l: Lang) => tr(l, "Das Zentrum");
+const EX_S1_S = (l: Lang) => tr(l, "Beide Seiten besetzen mit *e4* und *e5* das Zentrum.");
+const EX_S1_V = (l: Lang) => tr(l, "Weiß und Schwarz besetzen mit den Bauern auf e4 und e5 sofort das Zentrum und öffnen Wege für ihre Läufer.");
+const EX_S2_T = (l: Lang) => tr(l, "Angriff auf e5");
+const EX_S2_S = (l: Lang) => tr(l, "Der Springer greift *e5* an und wird dabei entwickelt.");
+const EX_S2_V = (l: Lang) => tr(l, "Der Springer auf f3 greift den Bauern auf e5 an. Schwarz muss ihn jetzt decken. Aber was, wenn Weiß noch mehr vorhat? Das siehst du gleich.");
+const EX_S3_T = (l: Lang) => tr(l, "Ziel: f7");
+const EX_S3_S = (l: Lang) => tr(l, "Läufer und Springer zielen auf *f7*, den schwächsten Punkt von Schwarz.");
+const EX_S3_V = (l: Lang) => tr(l, "Der Läufer schaut auf f7, und jetzt kommt der Springer nach g5 dazu. Zwei Angreifer, aber nur der König deckt f7.");
+const EX_Q_T = (l: Lang) => tr(l, "Wie verteidigt Schwarz?");
+const EX_Q_V = (l: Lang) => tr(l, "Halt das Video kurz an: Wie wehrt Schwarz die Drohung auf f7 am besten ab? Du hast fünf Sekunden.");
+const EX_S4_T = (l: Lang) => tr(l, "Die richtige Antwort");
+const EX_S4_S = (l: Lang) => tr(l, "Nach *4... d5* ist der Druck auf f7 für den Moment weg.");
+const EX_S4_V = (l: Lang) => tr(l, "Schwarz schlägt im Zentrum zurück: Nach d5 und exd5 ist die Drohung auf f7 erst einmal abgewehrt, aber Vorsicht, die Falle ist noch nicht vorbei.");
+const EX_S5_T = (l: Lang) => tr(l, "Drei Merksätze");
+const EX_S5_S = (l: Lang) => tr(l, "Zentrum besetzen, *f7* im Blick behalten, vor dem Springer-Opfer die Stellung prüfen.");
+const EX_S5_V = (l: Lang) => tr(l, "Erstens: das Zentrum besetzen. Zweitens: f7 immer im Blick behalten. Drittens: vor jedem Opfer die Stellung genau prüfen. Und jetzt du: Wie würdest du die Falle als Schwarzer vermeiden? Schreib es in die Kommentare.");
+const EX_END_T = (l: Lang) => tr(l, "Danke fürs Zuschauen");
+const EX_END_S = (l: Lang) => tr(l, "Im nächsten Video: das Giuoco Piano");
+const EX_END_V = (l: Lang) => tr(l, "Danke fürs Zuschauen. Im nächsten Video schauen wir uns das Giuoco Piano an.");
+const EX_MOVES_HOOK = (l: Lang) => tr(l, "1. e4 e5 2. Sf3 Sc6 3. Lc4 Sf6 4. Sg5 d5 5. exd5 Sxd5 6. Sxf7");
+const EX_MOVES_2 = (l: Lang) => tr(l, "2. Sf3 Sc6");
+const EX_MOVES_3 = (l: Lang) => tr(l, "3. Lc4 Sf6 4. Sg5");
+
+/** Seconds and scenes per part of a long video: a hook, 2 or 3 chapters, a conclusion. One call that has to write 7 minutes loses the board logic in the back chapters, so every part gets its budget up front. */
+export function longBudget(length: number): { intro: number; chapters: { sec: number; scenes: number }[]; outro: number } {
+  const intro = length >= 240 ? 25 : 20;
+  const outro = length >= 240 ? 30 : 20;
+  const count = length >= 300 ? 3 : length >= 150 ? 2 : 1;
+  const each = Math.floor((length - intro - outro) / count);
+  // The last chapter takes the remainder, so the parts add up to the target exactly.
+  const chapters = Array.from({ length: count }, (_, k) => {
+    const sec = k === count - 1 ? length - intro - outro - each * (count - 1) : each;
+    return { sec, scenes: Math.max(1, Math.round(sec / 10)) };
+  });
+  return { intro, chapters, outro };
+}
+
+const longBudgetText = (length: number) => {
+  const b = longBudget(length);
+  const lines = [sub(LONG_BUDGET_INTRO(), { sec: b.intro }), ...b.chapters.map((c, k) => sub(LONG_BUDGET_CHAPTER(), { k: k + 1, sec: c.sec, n: c.scenes })), sub(LONG_BUDGET_OUTRO(), { sec: b.outro })];
+  return sub(LONG_BUDGET(), { len: length, lines: lines.join("\n") });
+};
+
+/** The rules of a learning video: the notation rule follows the audience (no beginner rule for club players), the budget follows the length. */
+const longRules = (level: Level | undefined, length: number) =>
+  sub(LONG_RULES(), { lesson: FIT.lesson }) + (level === "club" || level === "strong" ? LONG_AUDIENCE_CLUB() : LONG_AUDIENCE_BEGINNER()) + LONG_SETTINGS() + "\n" + longBudgetText(length) + "\n\n";
+
+/** A learning video that is not about the user's own game has no "pgn": variations and mistakes only work with "zug", "variante" and "hauptvariante". */
+const longHasGame = (a: PromptAnswers | undefined, scenario: Scenario | undefined) => !!(a?.game ?? "").trim() || scenario === "puzzle";
+
+function LONG_EXAMPLE(platform: Platform, level: Level | undefined, vl: Lang) {
+  const club = level === "club" || level === "strong";
+  // The texts are in the language of the video, whatever the language of the page; every scene, the title and outro cards included, has a voice-over.
+  return {
+    videoart: "erklaerung",
+    titel: EX_TITLE(vl),
+    plattform: platform,
+    laenge: 75,
+    perspektive: "weiss",
+    look: "walnuss",
+    design: { ansicht: "2d", untertitelStil: "kasten", musik: "lofi", figurenRand: true },
+    einstellungen: { koordinaten: true, zuganzeige: true, zugInWorten: !club, lucena: false, effektTon: true },
+    posttext: { text: EX_POST(vl), hashtags: ["#chess", tr(vl, "#schach"), tr(vl, "#eröffnung")], kommentar: EX_COMMENT(vl) },
+    szenen: [
+      { zug: EX_MOVES_HOOK(vl), titel: EX_HOOK_T(vl), untertitel: EX_HOOK_S(vl), sprechtext: EX_HOOK_V(vl), pfeile: ["g5-f7 gefahr", "c4-f7 gefahr"], effekte: ["spotlight"], zugtempo: 2, dauer: 10 },
+      { karte: "titel", variante: { zurueck: 11 }, titel: EX_CARD_T(vl), untertitel: EX_CARD_S(vl), sprechtext: EX_CARD_V(vl), dauer: 6 },
+      { kleineZeile: EX_K1(vl), zug: "1. e4 e5", titel: EX_S1_T(vl), untertitel: EX_S1_S(vl), sprechtext: EX_S1_V(vl), markierungen: ["e4 akzent", "e5 akzent"], kamera: "normal", dauer: 9 },
+      { kleineZeile: EX_K1(vl), zug: EX_MOVES_2(vl), titel: EX_S2_T(vl), untertitel: EX_S2_S(vl), sprechtext: EX_S2_V(vl), pfeile: ["f3-e5 idee"], dauer: 8 },
+      { kleineZeile: EX_K2(vl), zug: EX_MOVES_3(vl), titel: EX_S3_T(vl), untertitel: EX_S3_S(vl), sprechtext: EX_S3_V(vl), pfeile: ["g5-f7 gefahr", "c4-f7 gefahr"], effekte: ["drohung"], dauer: 9 },
+      { kleineZeile: EX_K2(vl), karte: "frage", titel: EX_Q_T(vl), sprechtext: EX_Q_V(vl), countdown: 5, dauer: 8 },
+      { kleineZeile: EX_K2(vl), zug: "4... d5 5. exd5", titel: EX_S4_T(vl), untertitel: EX_S4_S(vl), sprechtext: EX_S4_V(vl), pfeile: ["d5-c6 gut"], markierungen: ["f7 gefahr"], dauer: 9 },
+      { kleineZeile: EX_K3(vl), titel: EX_S5_T(vl), untertitel: EX_S5_S(vl), sprechtext: EX_S5_V(vl), dauer: 10 },
+      { karte: "abspann", titel: EX_END_T(vl), untertitel: EX_END_S(vl), sprechtext: EX_END_V(vl), dauer: 6 },
+    ],
+  };
+}
 
 const ART_EXPLAIN = () => t("VORAB: VIDEOART\nDas ist ein Erklärvideo. Setz \"videoart\": \"erklaerung\" ganz oben ins JSON.\n\n");
 const MY_VIDEO = () => t("MEIN VIDEO\n- Thema: {topic}\n{side}- Plattform: {platform} ({orient})\n- Ziellänge: etwa {len}\n{notes}");
@@ -299,7 +407,6 @@ const EDIT_MUSIC_HINT = (m: StyleId) => ({
 const VIRAL_SHORT = () => t("WAS AUF TIKTOK, REELS UND SHORTS FUNKTIONIERT (so entscheidet der Algorithmus)\nDie App zeigt jedes neue Video zuerst wenigen Leuten und misst: Wie viele schauen bis zum Ende? Wie viele schauen es ein zweites Mal? Wie viele teilen, speichern und kommentieren es? Nur wenn das gut läuft, zeigt sie es vielen. Daraus folgen diese Regeln:\n- Erste Sekunde: Der Daumen ist schon am Wischen. Das erste Bild stellt eine offene Frage (eine Figur hängt, ein König steht nackt, eine Dame wird geopfert). Kein Logo, kein Intro, keine Begrüßung.\n- Offene Schleife: Versprich am Anfang eine Auflösung und gib sie erst am Ende. Wer die Pointe in Sekunde 3 schon kennt, wischt weg.\n- Kein Leerlauf: Spätestens alle 2 Sekunden ändert sich etwas (ein Zug, ein Schnitt, ein Effekt, ein neuer Satz).\n- Kürzer gewinnt: Ein Video, das bis zum Ende geschaut wird, schlägt jedes längere. Lieber 18 starke Sekunden als 40 mittelmäßige.\n- Loop: Das Ende führt nahtlos zurück zum Anfang (kurzer Abspann, kein langes Schlussbild). So schauen viele ein zweites Mal, und das zählt doppelt.\n- Teilen: Mach etwas, das man einem Freund schickt: \"Genau das passiert dir immer\", eine unglaubliche Wendung, ein Trick für die nächste Partie.\n- Speichern: Gib einen Nutzen, den man behalten will (eine Falle für die Partie heute Abend, ein Muster zum Wiedererkennen).\n- Kommentare: Lass eine Frage offen, zu der jeder eine Meinung hat (\"Hättest du es gesehen?\", \"Welchen Zug spielst du?\", \"Kennst du die Falle?\").\n- Was Schach-Zuschauer wollen: schnelle Erfolge (Fallen und Matts für die eigenen Partien), sich in Fehlern wiedererkennen (Patzer, die jeder kennt), staunen (brillante Opfer, berühmte Partien von Morphy, Tal, Kasparov oder Magnus Carlsen) und mitraten (Rätsel). Die meisten sind Anfänger und Vereinsspieler zwischen 600 und 1600 Elo: Die Pointe muss ohne Rechnen sichtbar sein.\n- Ehrlich bleiben: keine erfundenen Partien, keine falschen Zahlen, kein Köder, den das Video nicht einlöst. Wer sich betrogen fühlt, wischt weg.\n- Serie: Ein wiedererkennbares Format (\"Falle Nr. 3\", \"Teil 2\") bringt Follower, weil niemand den nächsten Teil verpassen will.");
 const VIRAL_EDIT_NOTE = () => t("- Im Edit gilt trotzdem: kein Text im Bild. Die Frage für die Kommentare, das Versprechen und die Hashtags stehen im \"posttext\".");
 const VIRAL_EXPLAIN_NOTE = () => t("- Viele schauen ohne Ton: Jeder wichtige Satz steht auch als Untertitel im Bild und ist in einer Sekunde gelesen.");
-const VIRAL_LONG = () => t("WAS AUF YOUTUBE FUNKTIONIERT\n- YouTube misst, wie lange Zuschauer bleiben. Die ersten 30 Sekunden entscheiden: Sag sofort, was der Zuschauer am Ende kann (\"Nach diesem Video weißt du, wie du gegen ... gewinnst\"), und zeig kurz die spannendste Stellung als Vorschau.\n- Halte das Versprechen von Titel und Vorschaubild früh und vollständig ein.\n- Alle 30 bis 60 Sekunden ein neuer Abschnitt mit einer kleinen Frage oder Wendung. Jedes Kapitel endet mit einem Grund, das nächste zu sehen.\n- \"titel\" mit Nutzen und Neugier, höchstens 60 Zeichen (z. B. \"Diese Falle gewinnt in 7 Zügen\"), nie mit erfundenen Zahlen.\n- Ende mit einem klaren nächsten Schritt (eine Übungsfrage für die Kommentare, das nächste Video), nicht mit einer langen Verabschiedung.");
 const POST_FORMAT = () => t("BEITRAGSTEXT (\"posttext\" oben im JSON: kommt nicht ins Video, sondern wird zum Kopieren für den Post angezeigt)\n- \"text\": die Beschreibung unter dem Video in der Sprache der Texte, 1 bis 2 kurze Sätze, höchstens 150 Zeichen: die offene Frage oder das Versprechen, das zum Kommentieren bringt (z. B. \"Hättest du das Matt gesehen? 👀\"). Verrate die Pointe nicht.\n- \"hashtags\": 3 bis 5 Hashtags, 1 bis 2 große (z. B. #chess, #schach) und dazu genaue zum Thema (z. B. #schachfalle, #chesstactics). Keine Hashtag-Wand.\n- \"kommentar\": dein erster eigener Kommentar, der eine Diskussion startet (z. B. eine Gegenfrage oder ein Hinweis auf Teil 2).");
 const POST_CHECK = () => t("- Steht oben ein \"posttext\" mit Frage, 3 bis 5 Hashtags und erstem Kommentar, ohne die Pointe zu verraten?");
 const START_EDIT = () => t("- Start: Das Video beginnt in der Grundstellung. Schreib in \"pgn\" die ganze Partie ab Zug 1 (keine \"startstellung\"). Das Studio spielt den Weg bis zu deiner ersten Szene selbst im Zeitraffer ab, deine Hook-Szene bleibt der spannende Moment.");
@@ -307,7 +414,7 @@ const START_EXPLAIN = () => t("- Start: Das Video beginnt in der Grundstellung. 
 const LANG_TEXT = (l: "de" | "en") => (l === "en" ? t("Englisch") : t("Deutsch"));
 
 /** The answers of the questions step as lines for "MEIN VIDEO"; nothing when nothing was answered. */
-function answerLines(a: PromptAnswers | undefined, edit: boolean): string {
+function answerLines(a: PromptAnswers | undefined, edit: boolean, long = false): string {
   if (!a) return "";
   const lines: string[] = [];
   const game = (a.game ?? "").trim().slice(0, 4000);
@@ -320,7 +427,7 @@ function answerLines(a: PromptAnswers | undefined, edit: boolean): string {
   if (a.music && a.music !== "auto") lines.push(edit ? t("- Musikstil: {x}. Der Takt bleibt 90 BPM, der Stil ändert Klang und Stimmung (das Studio erzeugt die Musik, schreib sie nicht ins JSON): {hint}", { x: STYLE_LABEL[a.music], hint: EDIT_MUSIC_HINT(a.music) }) : t("- Musikstil: {x} (das Studio erzeugt die Musik, schreib sie nicht ins JSON, aber richte Tempo und Stimmung der Szenen danach aus)", { x: STYLE_LABEL[a.music] }));
   if (a.language) lines.push(edit ? t("- Sprache der Texte im Video (Hook-Titel, Stempel, Abspann): {x}. Die Feldnamen im JSON bleiben wie im Format unten.", { x: LANG_TEXT(a.language) }) : t("- Sprache der Texte im Video (Titel, Stempel, Abspann, Untertitel, Sprechtext): {x}. Die Feldnamen im JSON bleiben wie im Format unten.", { x: LANG_TEXT(a.language) }));
   if (!edit && a.voice !== undefined) lines.push(a.voice ? t("- Schreib zu jeder Szene einen Sprechtext.") : t("- Kein Sprechtext, nur Untertitel."));
-  if (!edit && a.poll !== undefined) lines.push(a.poll ? t("- Ende das Video mit einer Umfrage.") : t("- Keine Umfrage."));
+  if (!edit && a.poll !== undefined && (!long || a.poll)) lines.push(long ? LONG_POLL_ANSWER() : a.poll ? t("- Ende das Video mit einer Umfrage.") : t("- Keine Umfrage."));
   if (a.start === "start") lines.push(edit ? START_EDIT() : START_EXPLAIN());
   const recipe = a.recipe && RECIPES.find((r) => r.id === a.recipe);
   if (recipe) lines.push("\n" + recipe.brief());
@@ -328,8 +435,8 @@ function answerLines(a: PromptAnswers | undefined, edit: boolean): string {
 }
 
 /** The brief of a scenario that is an explainer with its own focus. */
-function scenarioBrief(sc: Scenario | undefined): string {
-  return sc === "explain" ? SCENARIO_EXPLAIN() : sc === "opening" ? SCENARIO_OPENING() : sc === "puzzle" ? SCENARIO_PUZZLE() : sc === "lesson" ? SCENARIO_LESSON() : "";
+function scenarioBrief(sc: Scenario | undefined, long = false): string {
+  return sc === "explain" ? SCENARIO_EXPLAIN() : sc === "opening" ? (long ? SCENARIO_OPENING_LONG() : SCENARIO_OPENING()) : sc === "puzzle" ? SCENARIO_PUZZLE() : sc === "lesson" ? SCENARIO_LESSON() : "";
 }
 
 function EDIT_EXAMPLE(platform: Platform) {
@@ -356,26 +463,6 @@ function EDIT_EXAMPLE(platform: Platform) {
   };
 }
 
-function LONG_EXAMPLE(platform: Platform) {
-  return {
-    titel: t("Die Italienische Partie verstehen"),
-    plattform: platform,
-    laenge: 240,
-    perspektive: "weiss",
-    look: "walnuss",
-    umgebung: "bibliothek",
-    design: { figuren: "holz", schrift: "elegant", musik: "lofi", untertitelStil: "kasten" },
-    geschwindigkeit: 0.9,
-    posttext: { text: t("Die Italienische Partie in 4 Minuten: Pläne, Fallen, Merksätze."), hashtags: ["#chess", t("#schach"), t("#eröffnung")], kommentar: t("Welche Eröffnung soll ich als Nächstes erklären?") },
-    szenen: [
-      { karte: "titel", titel: t("Italienisch verstehen"), untertitel: t("Die Ideen hinter den ersten Zügen"), sprechtext: t("In diesem Video schauen wir uns an, warum die Italienische Partie seit Jahrhunderten gespielt wird und welche Pläne dahinterstecken."), dauer: 8 },
-      { kleineZeile: t("Kapitel 1: Das Zentrum"), zug: "1. e4", titel: t("Der erste Zug"), untertitel: t("Weiß besetzt mit *e4* das Zentrum und öffnet gleichzeitig Wege für die *Dame* und den *Läufer*. Genau diese beiden Figuren spielen gleich eine große Rolle."), sprechtext: t("Der Bauer auf e4 kontrolliert d5 und f5 und gibt der Dame und dem Läufer auf f1 freie Bahn."), markierungen: ["d5 akzent", "f5 akzent"], kamera: "normal", dauer: 14 }, // i18n: format words
-      { kleineZeile: t("Kapitel 1: Das Zentrum"), zug: t("1... e5 2. Sf3"), titel: t("Angriff auf e5"), untertitel: t("Schwarz hält mit *e5* dagegen. Der Springer auf f3 greift den Bauern sofort an und entwickelt sich dabei zur Mitte."), pfeile: ["f3-e5 gefahr"], kamera: "normal", dauer: 14 },
-      { kleineZeile: t("Kapitel 2: Der Läufer"), zug: t("2... Sc6 3. Lc4"), titel: t("Ziel: f7"), untertitel: t("Der Läufer zielt auf *f7*, den schwächsten Punkt von Schwarz, weil ihn nur der König deckt."), pfeile: ["c4-f7 gefahr"], effekte: ["spotlight"], kamera: "oben", dauer: 16 },
-      { karte: "abspann", titel: t("Danke fürs Zuschauen"), untertitel: t("Im nächsten Teil: das Giuoco Piano"), dauer: 6 },
-    ],
-  };
-}
 
 
 // ---------- the format in the studio's language ----------
@@ -433,8 +520,10 @@ function inFormatLanguage(v: unknown, key = ""): unknown {
 
 export function buildAiPrompt(o: PromptOptions): string {
   const long = o.platform === "youtube";
-  const type = o.scenario ? scenarioArt(o.scenario) : (o.type ?? "auto");
-  const example = type === "edit" ? EDIT_EXAMPLE(o.platform) : long ? LONG_EXAMPLE(o.platform) : {
+  const asked = o.scenario ? scenarioArt(o.scenario) : (o.type ?? "auto");
+  // A long video is a learning video: the automatic choice never turns it into a reel edit.
+  const type = long && asked === "auto" ? "explain" : asked;
+  const example = type === "edit" ? EDIT_EXAMPLE(o.platform) : long ? LONG_EXAMPLE(o.platform, o.answers?.level, o.answers?.language ?? lang()) : {
     titel: t("Matt in 4 Zügen"),
     plattform: o.platform,
     laenge: 25,
@@ -465,6 +554,45 @@ export function buildAiPrompt(o: PromptOptions): string {
     return [EDIT_INTRO(), (myVideo + answerLines(o.answers, true)).trimEnd(), VIRAL_SHORT() + "\n" + VIRAL_EDIT_NOTE(), EDIT_RULES(), EDIT_LOOK(), EDIT_EFFECTS() + "\n\n" + EDIT_CAMERA(), CHESS_HEAD(), sub(EDIT_FORMAT(), limits) + "\n\n" + POST_FORMAT(), EDIT_CHECK() + "\n" + POST_CHECK(), exampleBlock].join("\n\n");
   }
   const prefix = type === "explain" ? ART_EXPLAIN() : ART_AUTO();
+  if (long) {
+    const free = !longHasGame(o.answers, o.scenario);
+    const brief = o.scenario === "explain" ? "" : scenarioBrief(o.scenario, true);
+    return (
+      prefix +
+      TASK_INTRO().replace("{kind}", () => LONG_KIND()) +
+      myVideo +
+      answerLines(o.answers, false, true) +
+      (brief ? brief + "\n" : "") +
+      "\n" +
+      longRules(o.answers?.level, o.length) +
+      VIRAL_LONG() +
+      "\n\n" +
+      LONG_EFFECTS() +
+      "\n" +
+      sub(LONG_QUESTION(), { title: FIT.title }) +
+      "\n" +
+      LONG_CAMERA() +
+      "\n" +
+      TEMPO_RULE() +
+      "\n\n" +
+      sub(LONG_LAYOUT(), { title: FIT.title, lesson: FIT.lesson }) +
+      DESIGN_BLOCK() +
+      "\n\n" +
+      CHESS_HEAD() +
+      "\n" +
+      (free ? LONG_CHESS_REST() : CHESS_REST()) +
+      "\n\n" +
+      sub(LONG_FIELDS(), { list: limits.list, pgnField: free ? "" : ", pgn", plyField: free ? "" : ", zugNr" }) +
+      "\n\n" +
+      POST_FORMAT() +
+      "\n\n" +
+      sub(LONG_CHECK(), { title: FIT.title, chunk: FIT.lesson, len: o.length, moveCheck: free ? LONG_MOVECHECK_FREE() : "" }) +
+      "\n" +
+      POST_CHECK() +
+      "\n\n" +
+      exampleBlock
+    );
+  }
   const rules = long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK });
   const layout = long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option });
   return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + (long ? VIRAL_LONG() : VIRAL_SHORT() + "\n" + VIRAL_EXPLAIN_NOTE()) + "\n\n" + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + POST_FORMAT() + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n" + POST_CHECK() + "\n\n" + exampleBlock;

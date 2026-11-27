@@ -1,11 +1,11 @@
 // "Mit KI erstellen": hands out a prompt for an external AI chat and turns its
 // answer (the JSON script) into a finished video project.
-import { useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 
 import { buildAiPrompt, importAiScript, RECIPES, scenarioArt, SCENARIOS, toAiScript, type Ending, type Hook, type Level, type Pace, type Point, type PromptAnswers, type Recipe, type RecipeId, type Scenario } from "./aiScript";
 import { STYLE_IDS, STYLE_LABEL, type StyleId } from "./musicGen";
 import { PLATFORM_LABEL, type Platform, type Side, type StudioProject } from "./model";
-import { lang, t, tj } from "../../i18n";
+import { lang, t, tj, loadDict } from "../../i18n";
 
 const LENGTHS = [15, 30, 45, 60, 90];
 // Long YouTube lessons: about four minutes is the sweet spot Tim asked for.
@@ -72,6 +72,11 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
   const [point, setPoint] = useState<Point>("auto");
   const [music, setMusic] = useState<StyleId | "auto">("auto");
   const [language, setLanguage] = useState<"de" | "en">(lang());
+  // The example of the prompt is written in the language of the video, so the English texts are needed even on a German page.
+  const [dictReady, setDictReady] = useState(0);
+  useEffect(() => {
+    if (language === "en") void loadDict().then(() => setDictReady((n) => n + 1));
+  }, [language]);
   const [voice, setVoice] = useState(true);
   const [poll, setPoll] = useState(false);
   const [start, setStart] = useState<"hook" | "start">(current.video.fromStart ? "start" : "hook");
@@ -83,7 +88,7 @@ export function AiImport({ current, onClose, onCreate, onReplace }: { current: S
     () => ({ game, level, pace, hook, ending, language, start, ...(recipe ? { recipe } : {}), ...(edit ? { point, music } : { voice, poll }) }),
     [game, level, pace, hook, ending, language, start, recipe, edit, point, music, voice, poll],
   );
-  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, scenario, answers }), [topic, platform, length, notes, side, scenario, answers]);
+  const prompt = useMemo(() => buildAiPrompt({ topic, platform, length, notes, side, scenario, answers }), [topic, platform, length, notes, side, scenario, answers, dictReady]);
   const result = useMemo(() => (answer.trim() ? importAiScript(answer, { art: scenarioArt(scenario), platform, musicStyle: edit ? music : "auto", tighten: true, fromStart: start === "start" }) : null), [answer, scenario, platform, edit, music, start]);
 
   const pick = (sc: Scenario) => {

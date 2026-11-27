@@ -33,7 +33,7 @@ import { reelCamera, reelSquareAt } from "../../src/ui/studio/reel";
 import { REEL_BEAT } from "../../src/ui/studio/timeline";
 import { setLangNow } from "../../src/i18n";
 import { EN } from "../../src/i18n/en";
-import { buildAiPrompt, guessPerspective, importAiScript, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
+import { buildAiPrompt, guessPerspective, importAiScript, longBudget, speechSheet, toAiScript } from "../../src/ui/studio/aiScript";
 import { buildProject, defaultAnswers, suggestPerspective, distributeScript, explainMove, fenAt, fitLength, playMove, takeBack, treeFromPgn } from "../../src/ui/studio/wizard";
 
 const make = (scenes: StudioProject["scenes"], startFen = START_FEN): StudioProject => ({
@@ -372,8 +372,7 @@ Viel Spaß!`;
         expect(prompt).not.toMatch(/"(szenen|zug|untertitel|sprechtext|kamera)"/);
         const r = importAiScript(prompt);
         expect(r.errors).toEqual([]);
-        // The long example is deliberately shorter than its stated length, in both languages.
-        expect(r.warnings.length).toBe(platform === "youtube" ? 1 : 0);
+        expect(r.warnings).toEqual([]);
         const p = r.project!;
         const out = toAiScript(p);
         expect(out).not.toMatch(/"(szenen|zug|kamera|markierungen|pfeile)"/);
@@ -709,7 +708,7 @@ describe("studio long lessons and short captions", () => {
     const tl = compile(p);
     const f = frameAt(tl, p, tl.scenes[2].start + tl.scenes[2].dur - 0.5)!;
     expect(f.lesson).toBe(true);
-    expect(f.moveList).toEqual(["1. e4", "1… e5", "2. Sf3"]);
+    expect(f.moveList).toEqual(["1. e4", "1… e5"]);
     // The short prompt asks for glanceable subtitles.
     expect(buildAiPrompt({ topic: "x", platform: "tiktok", length: 30, notes: "" })).toContain("höchstens 60 Zeichen");
   });
@@ -1466,5 +1465,63 @@ describe("the close variant of the reel look", () => {
     expect(f(d * 0.5).title.alpha).toBe(1);
     expect(f(d - 0.001).title.alpha).toBeLessThan(0.05);
     expect(f(d - 0.001).text.alpha).toBeLessThan(0.05);
+  });
+});
+
+describe("the long learning-video prompt", () => {
+  const ask = (o: Partial<Parameters<typeof buildAiPrompt>[0]> = {}) => buildAiPrompt({ topic: "Skandinavisch", platform: "youtube", length: 420, notes: "", scenario: "opening", ...o });
+
+  it("gives every part a budget that adds up to the length, for any length", () => {
+    for (const length of [60, 120, 180, 240, 420, 600]) {
+      const b = longBudget(length);
+      expect(b.intro + b.chapters.reduce((a, c) => a + c.sec, 0) + b.outro).toBe(length);
+      expect(ask({ length })).toContain(`genau ${length} Sekunden`);
+    }
+    expect(longBudget(420).chapters).toHaveLength(3);
+  });
+
+  it("drops the beginner rule for club players and keeps it for beginners", () => {
+    expect(ask({ answers: { level: "club" } })).not.toContain("Schreib für Anfänger");
+    expect(ask({ answers: { level: "club" } })).toContain("Standard-Notation im Text ist erlaubt");
+    expect(ask({ answers: { level: "strong" } })).toContain("Standard-Notation im Text ist erlaubt");
+    expect(ask({ answers: { level: "beginner" } })).toContain("Schreib für Anfänger");
+  });
+
+  it("keeps pgn and variations apart unless the video is about the user's own game", () => {
+    const free = ask();
+    expect(free).toContain("Kein \"pgn\" und kein \"zugNr\"");
+    expect(free).not.toContain("Gib die Hauptlinie oben einmal als");
+    expect(free).not.toMatch(/\bzugNr, /);
+    const game = ask({ answers: { game: "1. e4 e5 2. Nf3 Nc6" } });
+    expect(game).toContain("zugNr");
+    expect(game).not.toContain("Kein \"pgn\" und kein \"zugNr\"");
+  });
+
+  it("contradicts itself nowhere: no polls, none of the reel effects, no audience clash", () => {
+    const p = ask({ answers: { level: "club", poll: true } });
+    for (const word of ["umfrage", "hitstop", "glitch", "invert", "whip", "riser", "konfetti", "stempel", "schraeglage", "punch"]) expect(p.toLowerCase()).not.toContain(word);
+    expect(p).toContain("karte\": \"frage");
+  });
+
+  it("ships an example in the video language with a voice-over in every scene and the club settings", () => {
+    setLangNow("de", EN);
+    try {
+      for (const level of ["club", "beginner"] as const) {
+        for (const language of ["de", "en"] as const) {
+          const prompt = ask({ answers: { level, language } });
+          const json = prompt.slice(prompt.indexOf("```json") + 7, prompt.lastIndexOf("```"));
+          const raw = JSON.parse(json) as { szenen: { sprechtext?: string; zug?: string }[]; einstellungen: Record<string, boolean>; design: Record<string, unknown> };
+          expect(raw.szenen.every((x) => (x.sprechtext ?? "").length > 20)).toBe(true);
+          expect(raw.einstellungen).toMatchObject({ koordinaten: true, zuganzeige: true, zugInWorten: level === "beginner", lucena: false, effektTon: true });
+          expect(raw.design).toMatchObject({ ansicht: "2d", untertitelStil: "kasten", musik: "lofi", figurenRand: true });
+          expect(raw.szenen[0].zug).toBe(language === "en" ? "1. e4 e5 2. Nf3 Nc6 3. Bc4 Nf6 4. Ng5 d5 5. exd5 Nxd5 6. Nxf7" : "1. e4 e5 2. Sf3 Sc6 3. Lc4 Sf6 4. Sg5 d5 5. exd5 Sxd5 6. Sxf7");
+          const r = importAiScript(json);
+          expect(r.errors).toEqual([]);
+          expect(r.warnings).toEqual([]);
+        }
+      }
+    } finally {
+      setLangNow("de");
+    }
   });
 });
