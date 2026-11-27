@@ -255,7 +255,7 @@ const LONG_BUDGET = () => t("ZEIT- UND SZENENBUDGET (die Summe aller \"dauer\"-W
 const LONG_BUDGET_INTRO = () => t("- Einstieg (Hook und Titelkarte): {sec} Sekunden, 2 bis 3 Szenen");
 const LONG_BUDGET_CHAPTER = () => t("- Kapitel {k}: {sec} Sekunden, etwa {n} Szenen");
 const LONG_BUDGET_OUTRO = () => t("- Fazit und Abspann: {sec} Sekunden, 2 bis 3 Szenen");
-const LONG_LAYOUT = () => t("SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)\n- Links das Brett, groß und ruhig, standardmäßig flach von oben (2D) wie in einem Schachbuch.\n- Rechts eine Lesespalte: oben das Kapitel (\"kleineZeile\") in Akzentfarbe, darunter der \"titel\" (höchstens 2 Zeilen, etwa {title} Zeichen), darunter der ganze \"untertitel\" als Erklärung (bis 9 Zeilen, höchstens {lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.\n- Karten (\"titel\", \"frage\", \"abspann\") legen sich wie gewohnt über das ganze Bild.\n\n");
+const LONG_LAYOUT = () => t("SO SIEHT DAS VIDEO AUS (Querformat 16:9, Lernvideo)\n- Links das Brett, groß und ruhig, standardmäßig flach von oben (2D) wie in einem Schachbuch.\n- Rechts eine Lesespalte: oben das Kapitel (\"kleineZeile\") in Akzentfarbe, darunter der \"titel\" (höchstens 2 Zeilen, etwa {title} Zeichen), darunter der ganze \"untertitel\" als Erklärung (bis 9 Zeilen, höchstens {lesson} Zeichen), unten die bisher gespielten Züge mit dem aktuellen Zug hervorgehoben.\n- Oben in der Lesespalte läuft eine Kapitelleiste: ein Balken je Kapitel, das aktuelle ist hervorgehoben. Das Studio baut sie aus \"kleineZeile\", darum muss jede Szene ab Kapitel 1 (auch Frage-Karten) genau die Zeile ihres Kapitels tragen, immer im Format \"Kapitel 2: Die Falle\" mit demselben Namen in allen Szenen des Kapitels. Hook und Titelkarte haben keine Kapitelzeile.\n- Die Titelkarte zeigt rechts die Kapitel als Inhaltsverzeichnis: Nenn die Kapitel also so, dass man sie vorab versteht (kurz, höchstens 4 Wörter, keine Nummern im Namen).\n- Karten (\"titel\", \"frage\", \"abspann\") liegen auf der Lesespalte, das Brett bleibt dabei sichtbar: Bei einer Frage-Karte ist die Stellung also genau die, über die gefragt wird.\n\n");
 const LONG_EFFECTS = () => t("WAS DAS STUDIO KANN (sparsam und nur das, was dem Verstehen hilft)\nEffekte (\"effekte\", mehrere möglich):\n- spotlight: Alles außer dem Zielfeld des Zugs wird dunkel. Für den einen Zug, auf den es ankommt, und für die Vorschau im Hook.\n- drohung: Die bedrohten Felder pulsieren rot (die Ziele der roten Pfeile, sonst die Figuren, die der gezogene Stein angreift).\n- matt: Der König kippt um, großer Schriftzug SCHACHMATT. Nur in der Szene mit dem Mattzug.\nBewertung des Zugs (\"bewertung\", das Symbol erscheint wie auf Analyse-Seiten über dem Zielfeld): brillant, grossartig, bester, exzellent, gut, buch, ungenau, fehler, verpasst, patzer.");
 const LONG_QUESTION = () => t("Frage-Karte (\"karte\": \"frage\"): ein Pause-Rätsel zum Mitdenken. \"titel\" ist die Frage (höchstens {title} Zeichen, z. B. \"Wie bestrafst du 4. b4?\"), \"countdown\": 5 (Sekunden), kein \"zug\" in dieser Szene; im \"sprechtext\" stellst du die Frage ganz und sagst, dass man das Video anhalten kann. Die nächste Szene löst auf: der Zug mit Pfeilen und ein Satz zum Warum. Verrate die Lösung nicht vorher.");
 const LONG_CAMERA = () => t("Kameras (\"kamera\"): normal (hinter der eigenen Seite), schraeg oder oben (von oben, gut für Pläne). Ruhig, ohne Drehung.");
@@ -278,7 +278,7 @@ const EX_CARD_S = (l: Lang) => tr(l, "Plan, Falle und Merksätze");
 const EX_CARD_V = (l: Lang) => tr(l, "Jetzt von vorn: erst die Idee, dann die Falle, dann das Fazit.");
 const EX_K1 = (l: Lang) => tr(l, "Kapitel 1: Das Zentrum");
 const EX_K2 = (l: Lang) => tr(l, "Kapitel 2: Die Falle");
-const EX_K3 = (l: Lang) => tr(l, "Das Fazit");
+const EX_K3 = (l: Lang) => tr(l, "Kapitel 3: Das Fazit");
 const EX_S1_T = (l: Lang) => tr(l, "Das Zentrum");
 const EX_S1_S = (l: Lang) => tr(l, "Beide Seiten besetzen mit *e4* und *e5* das Zentrum.");
 const EX_S1_V = (l: Lang) => tr(l, "Weiß und Schwarz besetzen mit den Bauern auf e4 und e5 sofort das Zentrum und öffnen Wege für ihre Läufer.");
@@ -339,7 +339,7 @@ function LONG_EXAMPLE(platform: Platform, level: Level | undefined, vl: Lang) {
     plattform: platform,
     laenge: 75,
     perspektive: "weiss",
-    look: "walnuss",
+    look: "turnier",
     design: { ansicht: "2d", untertitelStil: "kasten", musik: "lofi", figurenRand: true },
     einstellungen: { koordinaten: true, zuganzeige: true, zugInWorten: !club, lucena: false, effektTon: true },
     posttext: { text: EX_POST(vl), hashtags: ["#chess", tr(vl, "#schach"), tr(vl, "#eröffnung")], kommentar: EX_COMMENT(vl) },

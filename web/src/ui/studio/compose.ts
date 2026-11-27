@@ -135,7 +135,8 @@ export function moveParts(label: string): { no: string; piece: string; rest: str
  * of the piece, so "Lb5" reads as "(bishop) b5" even for people who don't know
  * the German letters. Uses the current font; returns the width.
  */
-function drawMove(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size: number, assets: Assets, black: boolean | null, draw = true): number {
+function drawMove(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size: number, assets: Assets, black: boolean | null, draw = true, surface: "dark" | "paper" = "dark"): number {
+  // surface "paper": the lesson page, where white pieces need the dark chip.
   const p = moveParts(label);
   const isBlack = black ?? p.black;
   const img = p.piece ? assets.pieces[`${isBlack ? "black" : "white"}-${FIGURINE[p.piece]}`] : undefined;
@@ -151,9 +152,9 @@ function drawMove(ctx: CanvasRenderingContext2D, label: string, x: number, y: nu
     if (draw) {
       // The picture sits on the text's middle line; black pieces get a light chip so they show on dark backgrounds.
       const mid = ctx.textBaseline === "middle" ? y : y - size * 0.36;
-      if (isBlack) {
+      if (isBlack !== (surface === "paper")) {
         ctx.save();
-        ctx.fillStyle = "rgba(255,255,255,0.86)";
+        ctx.fillStyle = surface === "paper" ? "rgba(24,25,28,0.88)" : "rgba(255,255,255,0.86)";
         ctx.beginPath();
         ctx.arc(cx + s / 2, mid, s * 0.5, 0, Math.PI * 2);
         ctx.fill();
@@ -317,7 +318,10 @@ export function compose(
   const { u } = L;
   const st = project.style;
   const v = project.video;
-  background(ctx, W, H, project, frame.time);
+  if (frame.lesson) {
+    ctx.fillStyle = STAGE;
+    ctx.fillRect(0, 0, W, H);
+  } else background(ctx, W, H, project, frame.time);
   ctx.drawImage(board, 0, 0, W, H);
 
   // Board letters and numbers, drawn flat on the frame of the 3D board (the 2D board draws its own).
@@ -382,7 +386,7 @@ export function compose(
     }
   }
 
-  vignette(ctx, W, H);
+  if (!frame.lesson) vignette(ctx, W, H);
 
   // ---- threat and mate: the edges of the picture glow red
   const threat = fxAge("threat");
@@ -531,7 +535,8 @@ export function compose(
   // ---- subtitle box, with Lucena speaking it
   const hasLucena = v.lucena && assets.orb;
   if (frame.lesson) {
-    if (textAlphaBase > 0.01) lessonPanel(ctx, frame, project, assets, W, H, u, textAlphaBase);
+    if (frame.card.kind !== "none" && frame.card.alpha > 0.01) lessonCard(ctx, frame, project, assets, W, H, u);
+    else if (textAlphaBase > 0.01) lessonPanel(ctx, frame, project, assets, W, H, u, textAlphaBase);
   } else if (frame.text.text.trim() && textAlphaBase > 0.01) {
     const a = frame.text.alpha * textAlphaBase * clamp01(frame.text.age / 0.3);
     const orbSize = hasLucena ? 132 * u : 0;
@@ -638,7 +643,7 @@ export function compose(
   }
 
   // ---- cards
-  if (card.kind !== "none" && cardA > 0.01) drawCard(ctx, frame, project, assets, L, W, H);
+  if (card.kind !== "none" && cardA > 0.01 && !frame.lesson) drawCard(ctx, frame, project, assets, L, W, H);
 
   // ---- confetti burst from the square of the move
   const conf = fxAge("confetti");
@@ -655,8 +660,8 @@ export function compose(
   }
 
   // ---- branding and progress (always on top)
-  if (v.brand && !(card.kind === "outro" && cardA > 0.5)) brandPill(ctx, L.portrait ? W / 2 : frame.lesson ? W - 200 * u : 170 * u, L.brandY, u, assets.logo, L.portrait ? 1 : 0.8);
-  if (v.progress) {
+  if (v.brand && !frame.lesson && !(card.kind === "outro" && cardA > 0.5)) brandPill(ctx, L.portrait ? W / 2 : frame.lesson ? W - 200 * u : 170 * u, L.brandY, u, assets.logo, L.portrait ? 1 : 0.8);
+  if (v.progress && !frame.lesson) {
     const y = L.portrait ? 112 * u : 22 * u;
     const x = 90 * u;
     const w = W - 180 * u;
@@ -959,74 +964,170 @@ function drawConfetti(ctx: CanvasRenderingContext2D, ox: number, oy: number, age
   ctx.restore();
 }
 
-/**
- * The lesson layout for long YouTube videos: board on the left, a calm reading
- * column on the right with chapter, headline, the full explanation and the moves so far.
- */
+// ---------------------------------------------------------------------------
+// Lesson look (long YouTube videos): a calm "textbook page". The board stands on a
+// flat dark stage on the left; the right is a paper-coloured page with a chapter
+// rail on top, a serif headline, the explanation with highlighter marks and the
+// moves played. No glow, no particles, no gradients: it should look made by a
+// person who teaches chess, not generated.
+// ---------------------------------------------------------------------------
+const PAPER = "#f3efe5";
+const INK = "#18191c";
+const INK_SOFT = "rgba(24,25,28,0.62)";
+const RULE = "rgba(24,25,28,0.16)";
+const STAGE = "#17181b";
+
+/** The theme's accent, darkened until it reads as ink on paper. */
+function inkAccent(hex: string): string {
+  const n = parseInt(hex.slice(1), 16);
+  const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => Math.round(v * 0.52));
+  return `#${c.map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+}
+
+export interface Chapter {
+  name: string;
+  start: number;
+  end: number;
+}
+
+/** Chapters = runs of scenes with the same small line ("Kapitel 2: Die Falle"). Scenes before the first one are the intro. */
+export function chaptersOf(project: StudioProject): Chapter[] {
+  const out: Chapter[] = [];
+  // Labels the studio writes itself for side lines are not chapters.
+  const auto = /^(variante|variation|line|zurück|back)/i;
+  const numbered = /^(kapitel|chapter|teil|part)\s*\d+/i;
+  const explicit = project.scenes.some((s) => numbered.test(s.label.trim()));
+  project.scenes.forEach((s, i) => {
+    const raw = s.label.trim();
+    if (!raw || auto.test(raw) || (explicit && !numbered.test(raw))) return;
+    const name = raw.replace(/^(kapitel|chapter|teil|part)\s*\d+\s*[:.\-–—]\s*/i, "").trim() || raw;
+    const last = out[out.length - 1];
+    if (last && last.name === name) last.end = i + 1;
+    else out.push({ name, start: i, end: i + 1 });
+  });
+  // A chapter reaches up to the next one; closing cards belong to the last.
+  out.forEach((c, k) => (c.end = k + 1 < out.length ? out[k + 1].start : project.scenes.length));
+  return out;
+}
+
+/** The page: stage shadow, paper and the chapter rail. Returns the content's left edge, width and top. */
+function lessonPage(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, W: number, H: number, u: number, base: number) {
+  const st = project.style;
+  const px = Math.round(W * 0.585);
+  const pad = 72 * u;
+  const x0 = px + pad;
+  const maxW = W - x0 - pad;
+  ctx.save();
+  // The page throws a soft shadow onto the stage, so it reads as a sheet laid next to the board.
+  const sh = ctx.createLinearGradient(px - 36 * u, 0, px, 0);
+  sh.addColorStop(0, "rgba(0,0,0,0)");
+  sh.addColorStop(1, "rgba(0,0,0,0.32)");
+  ctx.fillStyle = sh;
+  ctx.fillRect(px - 36 * u, 0, 36 * u, H);
+  ctx.fillStyle = PAPER;
+  ctx.fillRect(px, 0, W - px, H);
+
+  const chapters = chaptersOf(project);
+  const accent = inkAccent(st.accent);
+  const cur = chapters.findIndex((c) => frame.index >= c.start && frame.index < c.end);
+  ctx.globalAlpha = base;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  const barY = 78 * u;
+  const kick = (txt: string) => {
+    ctx.font = `700 ${19 * u}px ${SANS}`;
+    ctx.fillStyle = accent;
+    ctx.fillText(txt.toUpperCase().split("").join(String.fromCharCode(8202)), x0, barY - 22 * u);
+  };
+  if (chapters.length) {
+    kick(cur >= 0 ? t("Kapitel {0} von {1}", { 0: cur + 1, 1: chapters.length }) : t("Einstieg"));
+    const gap = 8 * u;
+    const w = (maxW - gap * (chapters.length - 1)) / chapters.length;
+    chapters.forEach((c, k) => {
+      const x = x0 + k * (w + gap);
+      ctx.fillStyle = RULE;
+      ctx.fillRect(x, barY, w, 6 * u);
+      const done = frame.index >= c.end ? 1 : frame.index < c.start ? 0 : (frame.index - c.start + clamp01(frame.local / Math.max(0.1, frame.dur))) / Math.max(1, c.end - c.start);
+      ctx.fillStyle = k === cur ? INK : "rgba(24,25,28,0.55)";
+      ctx.fillRect(x, barY, w * done, 6 * u);
+    });
+  } else {
+    kick(t("Lernvideo"));
+    ctx.fillStyle = RULE;
+    ctx.fillRect(x0, barY, maxW, 6 * u);
+    ctx.fillStyle = INK;
+    ctx.fillRect(x0, barY, maxW * frame.progress, 6 * u);
+  }
+
+  // Footer: the brand, small and quiet.
+  const fy = H - 52 * u;
+  ctx.fillStyle = RULE;
+  ctx.fillRect(x0, fy - 38 * u, maxW, 2 * u);
+  if (project.video.brand) {
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${22 * u}px ${SANS}`;
+    ctx.fillStyle = INK;
+    ctx.fillText(BRAND, x0 + 42 * u, fy);
+  }
+  ctx.restore();
+  return { x0, maxW, accent, chapters, cur, fy };
+}
+
+/** Moves in figurine notation on paper: white pieces get a dark chip, black pieces need none. */
+function paperMove(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, size: number, assets: Assets, black: boolean | null, draw = true, onChip = false): number {
+  return drawMove(ctx, label, x, y, size, assets, black, draw, onChip ? "dark" : "paper");
+}
+
+/** The reading page next to the board: headline, the whole explanation, the move in words and the move list. */
 function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, assets: Assets, W: number, H: number, u: number, base: number): void {
   const st = project.style;
   const ts = st.textScale;
-  const x0 = W * 0.6;
-  const maxW = W - x0 - 90 * u;
-  const titleFont = st.titleFont === "serif" ? SERIF : SANS;
+  const { x0, maxW, accent, chapters, cur, fy } = lessonPage(ctx, frame, project, W, H, u, base);
   ctx.save();
-  // Soft column behind the text so it reads over any background.
-  const g = ctx.createLinearGradient(x0 - 80 * u, 0, W, 0);
-  g.addColorStop(0, "rgba(5,6,10,0)");
-  g.addColorStop(0.25, "rgba(5,6,10,0.55)");
-  g.addColorStop(1, "rgba(5,6,10,0.7)");
-  ctx.globalAlpha = base;
-  ctx.fillStyle = g;
-  ctx.fillRect(x0 - 80 * u, 0, W - x0 + 80 * u, H);
-  let y = 150 * u;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  // Chapter
-  if (frame.label) {
-    ctx.globalAlpha = base * frame.title.alpha;
-    const size = fitLine(ctx, frame.label.toUpperCase(), maxW, 24 * u * ts, (sz) => `700 ${sz}px ${SANS}`);
-    ctx.font = `700 ${size}px ${SANS}`;
-    ctx.fillStyle = st.accent;
-    ctx.fillText(frame.label.toUpperCase(), x0, y);
-    y += 22 * u;
+  let y = 150 * u;
+  // Chapter name under the rail, so the structure is always readable.
+  const chapterName = cur >= 0 ? chapters[cur].name : frame.label;
+  if (chapterName) {
+    ctx.globalAlpha = base;
+    const size = fitLine(ctx, chapterName, maxW, 28 * u * ts, (sz) => `600 ${sz}px ${SANS}`);
+    ctx.font = `600 ${size}px ${SANS}`;
+    ctx.fillStyle = INK_SOFT;
+    ctx.fillText(chapterName, x0, y);
   }
-  // Headline: up to three lines, smaller when it is long.
+  y += 24 * u;
+  // Headline in the serif: up to three lines.
   ctx.globalAlpha = base * frame.title.alpha * clamp01(frame.title.age / 0.5);
-  const tWeight = st.titleFont === "serif" ? 400 : 800;
-  const tFont = (sz: number) => `${tWeight} ${sz}px ${titleFont}`;
-  const tFit = fitText(ctx, tokens(frame.title.text.replace(/\*/g, "")), maxW, 3, 54 * u * ts * (st.titleFont === "serif" ? 1.15 : 1), tFont);
+  const tFont = (sz: number) => `400 ${sz}px ${SERIF}`;
+  const tFit = fitText(ctx, tokens(frame.title.text.replace(/\*/g, "")), maxW, 3, 84 * u * ts, tFont);
   ctx.font = tFont(tFit.size);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = INK;
   for (const line of tFit.lines) {
-    y += tFit.size * 1.15;
+    y += tFit.size * 1.08;
     ctx.fillText(line.map((tq, k) => (k && !tq.glue ? " " : "") + tq.word).join(""), x0, y);
   }
-  y += 26 * u;
-  ctx.globalAlpha = base * 0.4;
-  ctx.fillStyle = st.accent;
-  ctx.fillRect(x0, y, 64 * u, 4 * u);
   y += 34 * u;
 
   // The bottom block: the move just played in words, then the move list.
   const moves = frame.moveList.slice(-10);
-  const listTop = H - (moves.length ? 250 : 120) * u;
-  const nowTop = listTop - (frame.pill ? 118 * u : 0);
+  const listTop = fy - 38 * u - (moves.length ? 150 : 40) * u;
+  const nowTop = listTop - (frame.pill ? 124 * u : 0);
 
-  // Explanation: the whole text at once, at reading size, *words* in the accent colour.
-  // A long one gets smaller until it fits above the move block; it is never cut off.
-  const bodySize = 33 * u * ts;
-  const room = nowTop - 56 * u - y;
-  const maxLines = Math.max(3, Math.floor(room / (bodySize * 1.45)));
+  // Explanation: the whole text at once at reading size, *words* highlighted like with a marker.
+  const bodySize = 42 * u * ts;
+  const room = nowTop - 40 * u - y;
   let size = bodySize;
   let lines: Token[][] = [];
+  const src = tokens(frame.text.text.replace(/\|/g, " "));
   for (;;) {
     ctx.font = `450 ${size}px ${SANS}`;
-    lines = wrap(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, `700 ${size}px ${SANS}`);
+    lines = wrap(ctx, src, maxW, `700 ${size}px ${SANS}`);
     if (lines.length * size * 1.45 <= room || size <= bodySize * 0.66) break;
     size *= 0.94;
   }
-  const fitAll = Math.max(maxLines, Math.floor(room / (size * 1.45)));
-  if (lines.length > fitAll) lines = fitText(ctx, tokens(frame.text.text.replace(/\|/g, " ")), maxW, fitAll, size, (sz) => `450 ${sz}px ${SANS}`, (sz) => `700 ${sz}px ${SANS}`, 1).lines;
+  const fitAll = Math.max(3, Math.floor(room / (size * 1.45)));
+  if (lines.length > fitAll) lines = fitText(ctx, src, maxW, fitAll, size, (sz) => `450 ${sz}px ${SANS}`, (sz) => `700 ${sz}px ${SANS}`, 1).lines;
   const regular = `450 ${size}px ${SANS}`;
   const bold = `700 ${size}px ${SANS}`;
   ctx.font = regular;
@@ -1038,9 +1139,14 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     for (const [k, tk] of line.entries()) {
       x += gap(tk, k, space);
       ctx.font = tk.emph ? bold : regular;
-      ctx.fillStyle = tk.emph ? st.accent : "rgba(238,240,246,0.94)";
+      const w = ctx.measureText(tk.word).width;
+      if (tk.emph) {
+        ctx.fillStyle = rgba(st.accent, 0.34);
+        ctx.fillRect(x - 5 * u, y - size * 0.84, w + 10 * u, size * 1.08);
+      }
+      ctx.fillStyle = tk.emph ? INK : "rgba(24,25,28,0.88)";
       ctx.fillText(tk.word, x, y);
-      x += ctx.measureText(tk.word).width;
+      x += w;
     }
   });
 
@@ -1048,45 +1154,45 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
   if (frame.pill) {
     ctx.globalAlpha = base * clamp01(frame.pill.age / 0.3);
     const black = frame.pill.side === "b";
-    ctx.font = `600 ${20 * u}px ${SANS}`;
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(t("ZUG VON {0}", { 0: black ? t("SCHWARZ") : t("WEISS") }), x0, nowTop);
-    ctx.font = `800 ${36 * u}px ${SANS}`;
-    ctx.fillStyle = "#ffffff";
-    const mw = drawMove(ctx, frame.pill.text, x0, nowTop + 50 * u, 36 * u, assets, black);
+    ctx.fillStyle = RULE;
+    ctx.fillRect(x0, nowTop - 38 * u, maxW, 2 * u);
+    ctx.font = `700 ${20 * u}px ${SANS}`;
+    ctx.fillStyle = accent;
+    ctx.fillText(t("ZUG VON {0}", { 0: black ? t("SCHWARZ") : t("WEISS") }).split("").join(String.fromCharCode(8202)), x0, nowTop - 4 * u);
+    ctx.font = `800 ${42 * u}px ${SANS}`;
+    ctx.fillStyle = INK;
+    const mw = paperMove(ctx, frame.pill.text, x0, nowTop + 58 * u, 42 * u, assets, black);
     const words = frame.pill.plain;
-    const wsize = fitLine(ctx, words, maxW - mw - 26 * u, 28 * u, (sz) => `600 ${sz}px ${SANS}`);
-    ctx.font = `600 ${wsize}px ${SANS}`;
-    ctx.fillStyle = "rgba(238,240,246,0.85)";
-    ctx.fillText(words, x0 + mw + 22 * u, nowTop + 48 * u);
+    const wsize = fitLine(ctx, words, maxW - mw - 26 * u, 28 * u, (sz) => `500 ${sz}px ${SANS}`);
+    ctx.font = `500 ${wsize}px ${SANS}`;
+    ctx.fillStyle = INK_SOFT;
+    ctx.fillText(words, x0 + mw + 24 * u, nowTop + 56 * u);
   }
 
-  // Move list at the bottom: the last moves, pieces as symbols, the current one highlighted.
+  // Move list: the last moves as a score sheet, the current one on a dark chip.
   if (moves.length) {
     ctx.globalAlpha = base;
-    const top = listTop;
-    ctx.font = `600 ${20 * u}px ${SANS}`;
-    ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.fillText(t("ZÜGE"), x0, top);
-    const msize = 28 * u;
+    ctx.fillStyle = RULE;
+    ctx.fillRect(x0, listTop - 4 * u, maxW, 2 * u);
+    const msize = 27 * u;
     ctx.font = `600 ${msize}px ${SANS}`;
     let x = x0;
-    let row = top + 46 * u;
+    let row = listTop + 44 * u;
     moves.forEach((m, i) => {
       const now = i === moves.length - 1;
-      const w = drawMove(ctx, m, 0, 0, msize, assets, null, false) + 26 * u;
+      const w = paperMove(ctx, m, 0, 0, msize, assets, null, false) + 28 * u;
       if (x + w > x0 + maxW) {
         x = x0;
         row += 46 * u;
       }
       if (now) {
-        roundRect(ctx, x - 10 * u, row - 31 * u, w, 44 * u, 10 * u);
-        ctx.fillStyle = rgba(st.accent, 0.25);
+        roundRect(ctx, x - 12 * u, row - 32 * u, w, 46 * u, 8 * u);
+        ctx.fillStyle = INK;
         ctx.fill();
       }
-      ctx.fillStyle = now ? "#ffffff" : "rgba(238,240,246,0.7)";
-      drawMove(ctx, m, x, row, msize, assets, null);
-      x += w + 8 * u;
+      ctx.fillStyle = now ? PAPER : INK_SOFT;
+      paperMove(ctx, m, x, row, msize, assets, null, true, now);
+      x += w + 6 * u;
     });
   }
   if (project.video.lucena && assets.orb) {
@@ -1094,4 +1200,194 @@ function lessonPanel(ctx: CanvasRenderingContext2D, frame: Frame, project: Studi
     ctx.drawImage(assets.orb, W - 150 * u, H - 150 * u, 110 * u, 110 * u);
   }
   ctx.restore();
+  // Logo next to the footer's brand name.
+  if (project.video.brand && assets.logo) ctx.drawImage(assets.logo, x0, fy - 15 * u, 30 * u, 30 * u);
+}
+
+/**
+ * Cards in the lesson look live on the page, not over the board: the board stays
+ * fully visible. Title card = headline plus the chapters as an agenda, question =
+ * pause riddle with a countdown ring, poll = lettered answers, outro = brand,
+ * message and a plain call-to-action.
+ */
+function lessonCard(ctx: CanvasRenderingContext2D, frame: Frame, project: StudioProject, assets: Assets, W: number, H: number, u: number): void {
+  const st = project.style;
+  const a = frame.card.alpha;
+  const age = frame.card.age;
+  const { x0, maxW, accent, chapters, fy } = lessonPage(ctx, frame, project, W, H, u, a);
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.globalAlpha = a;
+  const kind = frame.card.kind;
+  let y = 170 * u;
+  const rise = (delay: number) => easeOut((age - delay) / 0.45);
+  const heading = (txt: string, size: number, delay: number, lines = 3) => {
+    const fit = fitText(ctx, tokens(txt.replace(/\*/g, "")), maxW, lines, size, (sz) => `400 ${sz}px ${SERIF}`);
+    ctx.font = `400 ${fit.size}px ${SERIF}`;
+    ctx.fillStyle = INK;
+    const k = rise(delay);
+    ctx.globalAlpha = a * k;
+    for (const line of fit.lines) {
+      y += fit.size * 1.06;
+      ctx.fillText(line.map((tq, i) => (i && !tq.glue ? " " : "") + tq.word).join(""), x0, y + (1 - k) * 18 * u);
+    }
+  };
+  const body = (txt: string, size: number, delay: number, lines = 3) => {
+    if (!txt.trim()) return;
+    const fit = fitText(ctx, tokens(txt), maxW, lines, size, (sz) => `450 ${sz}px ${SANS}`, (sz) => `700 ${sz}px ${SANS}`);
+    const k = rise(delay);
+    ctx.globalAlpha = a * k;
+    ctx.font = `450 ${fit.size}px ${SANS}`;
+    const space = ctx.measureText(" ").width;
+    for (const line of fit.lines) {
+      y += fit.size * 1.45;
+      let x = x0;
+      for (const [i, tk] of line.entries()) {
+        x += gap(tk, i, space);
+        ctx.font = `${tk.emph ? 700 : 450} ${fit.size}px ${SANS}`;
+        const w = ctx.measureText(tk.word).width;
+        if (tk.emph) {
+          ctx.fillStyle = rgba(st.accent, 0.34);
+          ctx.fillRect(x - 5 * u, y - fit.size * 0.84, w + 10 * u, fit.size * 1.08);
+        }
+        ctx.fillStyle = INK;
+        ctx.fillText(tk.word, x, y + (1 - k) * 14 * u);
+        x += w;
+      }
+    }
+  };
+  const label = (txt: string) => {
+    ctx.font = `700 ${19 * u}px ${SANS}`;
+    ctx.fillStyle = accent;
+    ctx.globalAlpha = a * rise(0);
+    ctx.fillText(txt.toUpperCase().split("").join(String.fromCharCode(8202)), x0, y);
+  };
+
+  if (kind === "intro") {
+    y = 230 * u;
+    label(t("{BRAND} erklärt", { BRAND }));
+    y += 16 * u;
+    heading(frame.title.text, 104 * u, 0.1);
+    y += 22 * u;
+    body(frame.text.text, 36 * u, 0.4, 2);
+    // The agenda: what the video covers, in order. Gives the viewer a map before the first lesson.
+    if (chapters.length) {
+      y += 54 * u;
+      ctx.globalAlpha = a * rise(0.7);
+      ctx.fillStyle = RULE;
+      ctx.fillRect(x0, y, maxW, 2 * u);
+      y += 14 * u;
+      chapters.slice(0, 5).forEach((c, i) => {
+        const k = rise(0.8 + i * 0.12);
+        ctx.globalAlpha = a * k;
+        y += 58 * u;
+        ctx.font = `700 ${22 * u}px ${SANS}`;
+        ctx.fillStyle = accent;
+        ctx.fillText(String(i + 1).padStart(2, "0"), x0, y + (1 - k) * 10 * u);
+        const size = fitLine(ctx, c.name, maxW - 70 * u, 31 * u, (sz) => `600 ${sz}px ${SANS}`);
+        ctx.font = `600 ${size}px ${SANS}`;
+        ctx.fillStyle = INK;
+        ctx.fillText(c.name, x0 + 62 * u, y + (1 - k) * 10 * u);
+        ctx.fillStyle = RULE;
+        ctx.fillRect(x0, y + 16 * u, maxW, 1.5 * u);
+      });
+    }
+  } else if (kind === "question" || kind === "poll") {
+    y = 230 * u;
+    label(kind === "poll" ? t("Du bist dran") : t("Pause: denk mit"));
+    y += 16 * u;
+    heading(frame.title.text, 78 * u, 0.1, 3);
+    if (kind === "poll") {
+      const opts = frame.scene.options;
+      y += 34 * u;
+      opts.forEach((o, i) => {
+        const k = rise(0.4 + i * 0.12);
+        const colour = POLL_COLOURS[i % POLL_COLOURS.length];
+        const m = o.match(/^\s*([A-Za-z])\s*[).:]\s*(.+)$/);
+        const letter = m ? m[1].toUpperCase() : String.fromCharCode(65 + i);
+        const text = (m ? m[2] : o).trim();
+        const rh = 84 * u;
+        ctx.globalAlpha = a * k;
+        roundRect(ctx, x0, y, maxW, rh, 10 * u);
+        ctx.fillStyle = "#fffdf7";
+        ctx.fill();
+        ctx.strokeStyle = RULE;
+        ctx.lineWidth = 2 * u;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x0 + 14 * u + 28 * u, y + rh / 2, 28 * u, 0, Math.PI * 2);
+        ctx.fillStyle = colour;
+        ctx.fill();
+        ctx.fillStyle = "#0a0c11";
+        ctx.font = `800 ${28 * u}px ${SANS}`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(letter, x0 + 42 * u, y + rh / 2 + 2 * u);
+        ctx.textAlign = "left";
+        ctx.fillStyle = INK;
+        ctx.font = `700 ${36 * u}px ${SANS}`;
+        paperMove(ctx, text, x0 + 96 * u, y + rh / 2 + 2 * u, 36 * u, assets, null);
+        ctx.textBaseline = "alphabetic";
+        y += rh + 14 * u;
+      });
+    }
+    y += 6 * u;
+    body(frame.text.text, 36 * u, 0.6, 3);
+    if (frame.countdown !== null && frame.countdown > 0) {
+      const total = frame.scene.countdown;
+      const R = 62 * u;
+      const cx = x0 + R;
+      const cy = Math.min(fy - 90 * u - R, Math.max(y + 60 * u + R, H * 0.64));
+      ctx.globalAlpha = a;
+      ctx.lineWidth = 9 * u;
+      ctx.strokeStyle = RULE;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = INK;
+      ctx.lineCap = "butt";
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * frame.countdown) / total);
+      ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.font = `800 ${64 * u}px ${SANS}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(String(Math.ceil(frame.countdown)), cx, cy + 4 * u);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = `500 ${24 * u}px ${SANS}`;
+      ctx.fillStyle = INK_SOFT;
+      ctx.fillText(t("Sekunden zum Überlegen"), cx + R + 28 * u, cy + 8 * u);
+    }
+  } else {
+    // Outro
+    y = 210 * u;
+    const k = backOut(age / 0.6);
+    const size = 96 * u * (0.7 + 0.3 * k);
+    ctx.globalAlpha = a;
+    if (assets.logo) ctx.drawImage(assets.logo, x0, y, size, size);
+    y += size + 36 * u;
+    heading(frame.title.text, 78 * u, 0.2, 3);
+    y += 20 * u;
+    body(frame.text.text, 36 * u, 0.5, 3);
+    const bk = easeOut((age - 0.9) / 0.5);
+    if (bk > 0) {
+      const text = t("Jetzt kostenlos auf {BRAND_DOMAIN}", { BRAND_DOMAIN });
+      ctx.font = `700 ${30 * u}px ${SANS}`;
+      const bw = Math.min(maxW, ctx.measureText(text).width + 72 * u);
+      const bh = 76 * u;
+      const by = y + 56 * u + (1 - bk) * 20 * u;
+      ctx.globalAlpha = a * bk;
+      roundRect(ctx, x0, by, bw, bh, 8 * u);
+      ctx.fillStyle = INK;
+      ctx.fill();
+      ctx.fillStyle = PAPER;
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, x0 + 36 * u, by + bh / 2 + 2 * u);
+    }
+  }
+  ctx.restore();
+  if (project.video.brand && assets.logo) ctx.drawImage(assets.logo, x0, fy - 15 * u, 30 * u, 30 * u);
 }
