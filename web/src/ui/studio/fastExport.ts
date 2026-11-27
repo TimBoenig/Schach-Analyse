@@ -9,7 +9,17 @@ import { muxMp4, type Mp4Sample, type Mp4Track } from "./mp4";
 import type { Timeline } from "./timeline";
 import { t } from "../../i18n";
 
-const VIDEO_CODECS = ["avc1.640033", "avc1.4d0033", "avc1.640028", "avc1.42003e", "avc1.42001f"];
+/**
+ * H.264 profile/level choices, most capable first. Level 5.1 (what this used to ask for) makes
+ * phone hardware decoders, WhatsApp and some TV/old Android players refuse the file; 1080p at
+ * 30 fps only needs level 4.0 (4.2 for 60 fps), so that is the highest that is requested.
+ */
+export function videoCodecs(w: number, h: number, fps: number): string[] {
+  const macroblocksPerSecond = Math.ceil(w / 16) * Math.ceil(h / 16) * fps;
+  const level = macroblocksPerSecond <= 245_760 ? "28" : macroblocksPerSecond <= 522_240 ? "2a" : "33";
+  // High, Main, Constrained Baseline, all at that level.
+  return [`avc1.6400${level}`, `avc1.4d00${level}`, `avc1.4200${level}`];
+}
 const SAMPLE_RATE = 48000;
 const TARGET_LUFS = -14;
 
@@ -28,7 +38,9 @@ export interface FastJob {
 
 async function videoConfig(w: number, h: number, fps: number): Promise<VideoEncoderConfig | null> {
   if (typeof VideoEncoder === "undefined" || typeof VideoFrame === "undefined") return null;
-  for (const codec of VIDEO_CODECS) {
+  // H.264 works in whole 16x16 blocks; odd sizes make some players show a green edge or refuse the file.
+  if (w % 2 || h % 2) return null;
+  for (const codec of videoCodecs(w, h, fps)) {
     const config: VideoEncoderConfig = {
       codec,
       width: w,
