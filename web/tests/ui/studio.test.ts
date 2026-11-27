@@ -714,8 +714,17 @@ describe("studio long lessons and short captions", () => {
   });
 });
 
+describe("studio h.264 level", () => {
+  it("asks for the lowest level that fits, never 5.1, so phone decoders and messengers accept the file", async () => {
+    const { videoCodecs } = await import("../../src/ui/studio/fastExport");
+    expect(videoCodecs(1080, 1920, 30)).toEqual(["avc1.640028", "avc1.4d0028", "avc1.420028"]);
+    expect(videoCodecs(1080, 1080, 30)[0]).toBe("avc1.640028");
+    expect(videoCodecs(1080, 1920, 60)[0]).toBe("avc1.64002a");
+  });
+});
+
 describe("studio mp4 writer", () => {
-  it("lays out ftyp, mdat and moov with chunk offsets pointing at each sample", async () => {
+  it("lays out ftyp, moov (fast start) and mdat with chunk offsets pointing at each sample", async () => {
     const { muxMp4 } = await import("../../src/ui/studio/mp4");
     const v = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5]), new Uint8Array([6])];
     const a = [new Uint8Array([7, 7]), new Uint8Array([8])];
@@ -730,7 +739,7 @@ describe("studio mp4 writer", () => {
       top.push(String.fromCharCode(...file.subarray(o + 4, o + 8)));
       o += dv.getUint32(o);
     }
-    expect(top).toEqual(["ftyp", "mdat", "moov"]);
+    expect(top).toEqual(["ftyp", "moov", "mdat"]);
     expect(o).toBe(file.length);
     // Every stco offset points at the matching sample's first byte.
     const firsts: number[] = [];

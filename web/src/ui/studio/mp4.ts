@@ -1,6 +1,8 @@
 // A small MP4 writer for the fast export: takes H.264 and AAC samples from the
 // browser's own encoders (WebCodecs) and lays them out as a normal .mp4 file.
-// Plain (not fragmented) layout: ftyp, mdat with all samples, moov at the end.
+// Plain (not fragmented) layout with "fast start": ftyp, moov, then mdat with all
+// samples. The index comes first so players, WhatsApp, TikTok/Instagram uploads and
+// browsers can start (or even accept the file) without reading it to the end.
 // Own code instead of a muxer package, so the app stays free of extra licences.
 
 export interface Mp4Sample {
@@ -146,26 +148,32 @@ function trak(tk: Mp4Track, id: number, offsets: number[]): Uint8Array {
   return box("trak", full("tkhd", 0, 3, tkhd), box("mdia", full("mdhd", 0, 0, mdhd), full("hdlr", 0, 0, hdlr), box("minf", media, dinf, box("stbl", ...tables))));
 }
 
-/** The finished .mp4 file. */
+/** The finished .mp4 file (index first, "fast start"). */
 export function muxMp4(tracks: Mp4Track[]): Uint8Array {
-  const ftyp = box("ftyp", new Writer().str("isom").u32(512).str("isom").str("iso2").str("avc1").str("mp41").done());
+  // mp42 + isom/avc1 brands are what iOS, QuickTime, Android and the social apps expect.
+  const ftyp = box("ftyp", new Writer().str("mp42").u32(0).str("isom").str("mp42").str("avc1").str("iso2").done());
   const dataLen = tracks.reduce((s, tk) => s + tk.samples.reduce((a, x) => a + x.data.length, 0), 0);
   // mdat header: plain 32-bit size (an export never gets near 4 GB).
   const mdatHead = new Writer().u32(8 + dataLen).str("mdat").done();
-  let offset = ftyp.length + mdatHead.length;
-  const offsets = tracks.map((tk) =>
-    tk.samples.map((s) => {
-      const o = offset;
-      offset += s.data.length;
-      return o;
-    }),
-  );
   const seconds = Math.max(...tracks.map((tk) => trackDuration(tk) / tk.timescale));
   const mvhd = new Writer().u32(0).u32(0).u32(1000).u32(Math.round(seconds * 1000)).u32(0x00010000).u16(0x0100).zeros(10);
   for (const m of MATRIX) mvhd.u32(m);
   mvhd.zeros(24).u32(tracks.length + 1);
-  const moov = box("moov", full("mvhd", 0, 0, mvhd), ...tracks.map((tk, i) => trak(tk, i + 1, offsets[i])));
-  const out = new Writer().bytes(ftyp).bytes(mdatHead);
+  const build = (start: number) => {
+    let offset = start;
+    const offsets = tracks.map((tk) =>
+      tk.samples.map((s) => {
+        const o = offset;
+        offset += s.data.length;
+        return o;
+      }),
+    );
+    return box("moov", full("mvhd", 0, 0, mvhd), ...tracks.map((tk, i) => trak(tk, i + 1, offsets[i])));
+  };
+  // The moov size does not depend on the offsets' values (fixed-width entries), so a first pass gives the real size.
+  const moovSize = build(0).length;
+  const moov = build(ftyp.length + moovSize + mdatHead.length);
+  const out = new Writer().bytes(ftyp).bytes(moov).bytes(mdatHead);
   for (const tk of tracks) for (const s of tk.samples) out.bytes(s.data);
-  return out.bytes(moov).done();
+  return out.done();
 }

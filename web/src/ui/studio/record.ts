@@ -77,6 +77,32 @@ export async function recordVideo(job: RecordJob): Promise<{ blob: Blob; type: V
   return { blob: new Blob(chunks, { type: mime }), type };
 }
 
+/**
+ * Opens the finished file the way a viewer's player would and checks that it really decodes
+ * (right size, a first picture, about the right length). A file that only looks fine to the
+ * muxer would otherwise be handed over as "Fertig!" and then fail on someone's phone.
+ */
+export function verifyPlayable(blob: Blob, width: number, height: number, seconds: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement("video");
+    v.muted = true;
+    v.preload = "auto";
+    v.playsInline = true;
+    const finish = (ok: boolean) => {
+      clearTimeout(timer);
+      v.removeAttribute("src");
+      v.load();
+      URL.revokeObjectURL(url);
+      resolve(ok);
+    };
+    const timer = setTimeout(() => finish(false), 10_000);
+    v.onerror = () => finish(false);
+    v.onloadeddata = () => finish(v.videoWidth === width && v.videoHeight === height && Math.abs(v.duration - seconds) < 1.5);
+    v.src = url;
+  });
+}
+
 export function download(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

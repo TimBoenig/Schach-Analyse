@@ -4976,6 +4976,7 @@ export const EN: Record<string, string> = {
   "🔊 Ton an": "🔊 Sound on",
   "🔇 Kein Ton": "🔇 No sound",
   "🔊 Mit Ton ({n}). Zum Prüfen oben im Video den Lautsprecher aufdrehen.": "🔊 With sound ({n}). To check, turn up the speaker in the video above.",
+  "✓ H.264-Video im MP4, mit Ton AAC: läuft auf iPhone, Android, Windows, Mac, WhatsApp, TikTok, Instagram und YouTube.": "✓ H.264 video in MP4, sound as AAC: plays on iPhone, Android, Windows, Mac, WhatsApp, TikTok, Instagram and YouTube.",
   "TikTok und Instagram mögen Opus im MP4 nicht immer: am besten in Chrome auf Windows, Mac oder Android exportieren (dort gibt es AAC).": "TikTok and Instagram do not always like Opus in MP4: best export in Chrome on Windows, Mac or Android (they have AAC).",
   "⚠ Der Ton ließ sich in diesem Browser nicht in die Datei schreiben. Probier Chrome oder Edge.": "⚠ The sound could not be written into the file in this browser. Try Chrome or Edge.",
   "🔇 Dieses Video hat keinen Ton: Musik, Stimme und Töne sind aus. Schalte sie im Tab Video unter Ton ein und exportier neu.": "🔇 This video has no sound: music, voice and sounds are off. Switch them on in the Video tab under Sound and export again.",

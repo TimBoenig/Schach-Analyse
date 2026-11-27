@@ -68,7 +68,7 @@ import { SceneTrack } from "./SceneTrack";
 import { applyFromStart, fromStartState } from "./leadIn";
 import { EditHelp } from "./EditHelp";
 import { speechSheet } from "./aiScript";
-import { download, recordVideo, videoType } from "./record";
+import { download, recordVideo, verifyPlayable, videoType } from "./record";
 import { autoScene, distributeScript, fitLength, movesLabel, variationScene, type Cursor, type GameTree } from "./wizard";
 import { Chess } from "chess.js";
 import { StudioStage } from "./stage";
@@ -626,8 +626,13 @@ export function StudioView() {
           onAudio: ({ codec }) => (soundResult = codec !== "none" ? codec : mixHasSound(audioMix, timeline) ? "lost" : "none"),
           isCancelled: () => cancelRef.current,
         });
+        if (!blob) {
+          stage.destroy();
+          return setExp(null);
+        }
+        // Check the file decodes before calling it done; if not, the real-time recording below takes over.
+        if (!(await verifyPlayable(blob, W, H, timeline.total))) throw new Error("unplayable");
         stage.destroy();
-        if (!blob) return setExp(null);
         setExp({ phase: "done", progress: 1, blob, url: URL.createObjectURL(blob), ext: "mp4", sound: soundResult });
         return;
       } catch {
@@ -1059,6 +1064,9 @@ export function StudioView() {
                 <p class="small muted">
                   {t("{W}×{H}, {fps} fps, {n}, {n2} MB{n3}", { W, H, fps: project.video.fps, n: exp.ext?.toUpperCase(), n2: ((exp.blob?.size ?? 0) / 1e6).toFixed(1), n3: exp.ext === "webm" ? t(" · TikTok und Instagram nehmen MP4 am liebsten: in Chrome oder Safari exportieren.") : "" })}
                 </p>
+                {exp.ext === "mp4" && exp.sound === "aac" && (
+                  <p class="small muted">{t("✓ H.264-Video im MP4, mit Ton AAC: läuft auf iPhone, Android, Windows, Mac, WhatsApp, TikTok, Instagram und YouTube.")}</p>
+                )}
                 <p class={`small ${exp.sound === "lost" || exp.sound === "none" ? "studio-warn" : "muted"}`}>
                   {exp.sound === "aac" || exp.sound === "opus" || exp.sound === "recorded"
                     ? t("🔊 Mit Ton ({n}). Zum Prüfen oben im Video den Lautsprecher aufdrehen.", { n: exp.sound === "aac" ? "AAC" : exp.sound === "opus" ? "Opus" : "AAC/Opus" }) + (exp.sound === "opus" ? " " + t("TikTok und Instagram mögen Opus im MP4 nicht immer: am besten in Chrome auf Windows, Mac oder Android exportieren (dort gibt es AAC).") : "")
