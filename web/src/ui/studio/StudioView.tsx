@@ -95,6 +95,15 @@ const PREVIEW_MAX = 1280;
 const fmtTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 /** Moment of a scene that shows its finished state (moves done, arrows drawn). */
+/** What each cut of the reel look does, shown under the picker. */
+const REEL_LOOK_HINT: Record<ReelLook, () => string> = {
+  classic: () => t("Grau auf Schwarz, schräg, mit Überblick über das ganze Brett."),
+  close: () => t("Wie im Vorbild-Edit: weißes Brett, die Kamera klebt eng am Zug und bleibt gerade, die Felder leuchten in der Farbe der Bewertung, eine Hand zieht die Figur, bei Treffern gibt es Drahtgitter-Blitze und Glasbruch."),
+  cinema: () => t("Breitbild mit Balken, warm gegradetes Holzbrett, Filmkorn und Lens-Flares. Die Kamera fährt langsam und lang, ohne Wackeln."),
+  neon: () => t("Nachtbrett mit leuchtendem Gitter, glühende Figuren mit Leuchtspur. Harte Schnitte auf den Beat, in jeder Einstellung ein Zoom nach vorn."),
+  comic: () => t("Papier mit Rasterpunkten, Figuren mit Tusche-Rand, Speedlines und ein Stern mit dem Zeichen des Zugs (!!, ??, #). Harte Panel-Schnitte."),
+};
+
 function showcase(timeline: Timeline, index: number): number {
   const c = timeline.scenes[index];
   if (!c) return 0;
@@ -1565,7 +1574,7 @@ function StyleEditor({ style, onChange }: { style: StudioStyle; onChange: (p: Pa
         <Seg<BoardView> value={style.view} options={VIEWS.map((b) => [b, VIEW_LABEL[b]] as [BoardView, string])} onChange={(view) => onChange(view === "reel" && style.theme !== "mono" ? styleFromTheme("mono", { reflection: style.reflection, coords: style.coords, titleFont: "serif", pieceRim: style.pieceRim, captionStyle: style.captionStyle, textScale: style.textScale, environment: style.environment, reelLook: style.reelLook, view }) : { view })} />
       </Field>
       {style.view === "reel" && (
-        <Field label={t("Schnitt-Stil")} hint={style.reelLook === "close" ? t("Wie im Vorbild-Edit: weißes Brett, die Kamera klebt eng am Zug und bleibt gerade, die Felder leuchten in der Farbe der Bewertung, eine Hand zieht die Figur, bei Treffern gibt es Drahtgitter-Blitze und Glasbruch.") : t("Grau auf Schwarz, schräg, mit Überblick über das ganze Brett.")}>
+        <Field label={t("Schnitt-Stil")} hint={REEL_LOOK_HINT[style.reelLook]()}>
           <Seg<ReelLook> value={style.reelLook} options={REEL_LOOKS.map((r) => [r, REEL_LOOK_LABEL[r]] as [ReelLook, string])} onChange={(reelLook) => onChange({ reelLook })} />
         </Field>
       )}

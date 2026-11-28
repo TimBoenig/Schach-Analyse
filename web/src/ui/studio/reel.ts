@@ -17,8 +17,10 @@ import { t } from "../../i18n";
 import { drawCard, fitText, layout, tokens, type Assets } from "./compose";
 import { pieceKey } from "./flat";
 import { CLOSE_BADGE, CLOSE_BOARD, CLOSE_RED, CLOSE_SAND, drawDust, drawGlass, drawHand, greyPiece, rgb as rgbOf, wireFlash } from "./closeLook";
-import { powerOf, type Badge, type CameraPreset, type ReelLook, type Tone, type StudioProject } from "./model";
-import { squareXZ, WHIP_T, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
+import { powerOf, type Badge, type ReelLook, type Tone, type StudioProject } from "./model";
+import { OVERVIEW_HOLD, sampleTrack, sway, trackOf, visibleHeight } from "./reelRig";
+import { burstSign, cinemaWindow, drawBoardExtras, drawNeonTrail, drawSpeedLines, drawStyleLight, drawStyleText, inkedPiece, isStyled, LIFT, NEON, STYLE_BOARD, STYLE_VIGNETTE, type Hit } from "./reelStyles";
+import { animDur, squareXZ, xzSquare, type Frame, type FramePiece, type ReelShot } from "./timeline";
 
 const SANS = '"Geist", -apple-system, "Segoe UI", sans-serif';
 const SERIF = '"Instrument Serif", Georgia, serif';
@@ -53,20 +55,7 @@ const easeInOut = (k: number) => {
   const x = clamp01(k);
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 };
-/** Seconds a flight into the next framing takes at most. */
-const FLOW = 0.6;
-/** The close variant: a quick flight to the next move, a long one at the opening. */
-const CLOSE_FLOW = 0.4;
-const OPEN_FLOW = 1.3;
-/** The opening overview: the picture is this many squares across (the whole board with a margin) and stays so for this many seconds. */
-export const OVERVIEW_ACROSS = 8.8;
-export const OVERVIEW_HOLD = 0.7;
-
-/**
- * How close each scene of a four-scene cycle is (0 = whole board, 1 = two squares): the camera flows between these framings and never closes in far enough to lose the board.
- * Even the closest of these still shows about five and a half squares across; the old cycle went down to three and cut the pieces off.
- */
-export const SHOT_SIZES = [0.12, 0.34, 0.2, 0.4];
+export { OVERVIEW_ACROSS, OVERVIEW_HOLD, PRESET_LOOK } from "./reelRig";
 /** Which pieces grow and flip when they move: the heavy ones, never pawns. */
 const WEIGHT: Record<PieceSymbol, number> = { p: 0.25, n: 0.8, b: 0.6, r: 0.6, q: 1, k: 0.4 };
 
@@ -92,61 +81,6 @@ export interface ReelView extends ReelCam {
 }
 
 const flipped = (yaw: number) => Math.cos((yaw * Math.PI) / 180) < 0;
-
-interface Pose {
-  /** Pixels per square. */
-  S: number;
-  /** Board point in the middle of the picture. */
-  x: number;
-  z: number;
-  /** Tilt of the horizon in degrees. */
-  roll: number;
-}
-
-/**
- * The camera angles of a scene that cuts (`cameras`), translated to this flat tilted board: how close the picture is
- * (0 = whole board, 1 = very close; kept at 3 squares or more) and how far the horizon leans.
- */
-export const PRESET_LOOK: Record<CameraPreset, { cl: number; roll: number }> = {
-  white: { cl: 0.2, roll: 0 },
-  black: { cl: 0.25, roll: 0 },
-  top: { cl: 0.1, roll: 0 },
-  corner: { cl: 0.45, roll: 9 },
-  side: { cl: 0.55, roll: -12 },
-  low: { cl: 0.7, roll: -7 },
-  close: { cl: 0.9, roll: 4 },
-};
-
-/**
- * The framing of the "close" variant: about four and a half squares across, centred on what the scene is about
- * (the move, else the arrow, else the mark), straight, never a tilt unless the scene asks for one. A long move pulls back
- * just far enough to keep both ends in the picture; the mating blow shows a little more of the board.
- */
-function closePose(shot: ReelShot, m: number, preset: CameraPreset | null): Pose {
-  const span = shot.move ?? shot.arrow;
-  let across = 4.6;
-  if (preset) across *= 1 + 0.35 * (0.3 - PRESET_LOOK[preset].cl);
-  across /= shot.zoom;
-  if (shot.effects.includes("mate")) across = Math.max(across, 6.2);
-  if (shot.card !== "none") across = 8.6;
-  // The title shot at the start has no move to frame: it keeps most of the board in view.
-  if (shot.index === 0 && !shot.move) across = Math.max(across, 6.8);
-  let [tx, tz] = [0, 0];
-  if (span) {
-    const [ax, az] = squareXZ(span.from);
-    const [bx, bz] = squareXZ(span.to);
-    across = Math.max(across, Math.hypot(bx - ax, bz - az) + 3.4);
-    [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
-  } else {
-    const sq = shot.fxSquare ?? shot.mark;
-    if (sq) [tx, tz] = squareXZ(sq);
-  }
-  across = Math.min(across, 8.6);
-  const S = m / across;
-  // The whole board in view stays centred.
-  const hold = clamp01((8.6 - across) / 2);
-  return { S, x: tx * hold, z: tz * hold, roll: preset ? PRESET_LOOK[preset].roll * 0.3 : 0 };
-}
 
 /** Room around a square's centre that must stay in the picture: the square itself plus the piece standing tall on it, hand and halo. */
 const FIT_MARGIN_X = 0.85;
@@ -209,60 +143,6 @@ export function fitMoves(
   return { S, x: fx * c + fz * s, z: -fx * s + fz * c };
 }
 
-/** How a scene is framed once the camera has arrived: pure, so the previous scene's framing can be the start of this one's flight. */
-function shotPose(shot: ReelShot, m: number, preset: CameraPreset | null = shot.entryPreset, tight = false): Pose {
-  if (tight) return closePose(shot, m, preset);
-  const wide = m / 9.2;
-  const close = m / 2.3;
-  // How close: 0 = the whole tilted board, 1 = two or three squares. The overview is never given up, so the range stays moderate.
-  // The mating blow ends with the whole board in view, so the next scene flies on from there.
-  if (shot.effects.includes("mate")) return { S: wide * 1.12, x: 0, z: 0, roll: 0 };
-  let cl = (preset ? PRESET_LOOK[preset].cl : SHOT_SIZES[shot.index % SHOT_SIZES.length]) + (1 - shot.zoom) * 0.5;
-  // The tilted board has to stay readable: a preset never closes in beyond about four and a half squares.
-  if (preset) cl = Math.min(0.55, cl);
-  if (shot.effects.includes("spotlight")) cl += 0.05;
-  if (shot.card !== "none") cl = 0.08;
-  let S = Math.exp(lerp(Math.log(wide), Math.log(close), clamp01(cl)));
-  // A long arrow or move pulls the shot back so both ends stay in the picture.
-  let [tx, tz] = [0, 0];
-  const span = shot.arrow ?? shot.move;
-  if (span) {
-    const [ax, az] = squareXZ(span.from);
-    const [bx, bz] = squareXZ(span.to);
-    S = Math.min(S, (0.6 * m) / (Math.hypot(bx - ax, bz - az) + 1.6));
-    // Framed by the middle, so the piece it starts from stays in the picture too.
-    [tx, tz] = [(ax + bx) / 2, (az + bz) / 2];
-  } else {
-    const sq = shot.fxSquare ?? shot.mark;
-    if (sq) [tx, tz] = squareXZ(sq);
-  }
-  // A wide shot shows the whole board, so it stays centred.
-  const hold = clamp01(((S - wide) / (close - wide)) * 1.4);
-  return { S, x: tx * hold, z: tz * hold, roll: preset ? PRESET_LOOK[preset].roll : 0 };
-}
-
-/** How close the camera gets on the showcase move: the picture is this many squares across. */
-const HERO_CLOSE = 4.2;
-
-/** 0..1: how much the camera is on the showcase piece right now (in shortly before take-off, out half a second after the landing). */
-export function heroFocus(frame: Frame): number {
-  const hero = frame.shot.hero;
-  if (!hero) return 0;
-  const into = easeInOut((frame.local - (hero.t0 - 0.55)) / 0.55);
-  const out = easeInOut((frame.local - (hero.t1 + 0.3)) / 0.6);
-  return into * (1 - out);
-}
-
-/** Where the showcase piece is: on its square before and after, in the air in between. */
-function heroPoint(frame: Frame): [number, number] {
-  const hero = frame.shot.hero!;
-  const [ax, az] = squareXZ(hero.from);
-  const [bx, bz] = squareXZ(hero.to);
-  const p = frame.pieces.find((q) => q.flight && q.flight.k > 0 && q.flight.k < 1 && Math.hypot(q.flight.fromX - ax, q.flight.fromZ - az) < 0.1);
-  if (p) return [p.x, p.z];
-  return frame.local < hero.t0 ? [ax, az] : [bx, bz];
-}
-
 /** Is this piece the showcase piece in the air? */
 function isHeroFlight(frame: Frame, p: FramePiece): boolean {
   const hero = frame.shot.hero;
@@ -272,121 +152,51 @@ function isHeroFlight(frame: Frame, p: FramePiece): boolean {
 }
 
 /**
- * The camera of one frame: pure, so the movement can be tested without a canvas.
- * There are no cuts. Each scene's framing is reached by an eased flight that starts from where the
- * previous scene's framing ended, and the picture rolls slowly like an orbit around the board, so the
- * whole video is one continuous move.
+ * The camera of one frame: pure, so the movement can be tested without a canvas. The path itself is planned once for the whole video
+ * (reelRig.ts); here only the moment's small additions join it: the sway of the horizon, the nudge of a landing, the shake of a hit,
+ * the white of a flash. None of them moves the framing, so nothing has to be corrected afterwards.
  */
 export function reelCamera(frame: Frame, W: number, H: number, look: ReelLook = "classic"): ReelCam {
-  const close = look === "close";
   const m = Math.min(W, H);
   const u = m / 1080;
   const age = frame.local;
-  const wide = m / 9.2;
   const fx = (kind: string) => frame.fx.find((f) => f.kind === kind)?.age;
-
   const sc = frame.scene;
-  const to = shotPose(frame.shot, m, frame.shot.entryPreset, close);
-  // The very first picture is the overview: the whole board and the whole position, held for a moment, so viewers know what they are looking at.
-  // Only then does the camera fly in to the scene's framing. Cuts, punch-ins and the orbit's sway wait until the overview has been seen (`ov`).
-  const opening = !frame.prevShot;
-  const from: Pose = frame.prevShot ? shotPose(frame.prevShot, m, frame.prevShot.lastPreset, close) : { S: m / OVERVIEW_ACROSS, x: 0, z: 0, roll: 0 };
-  const flow = close ? (frame.prevShot ? CLOSE_FLOW : OPEN_FLOW) : FLOW;
-  const hold = opening ? Math.min(OVERVIEW_HOLD, frame.dur * 0.45) : 0;
-  const ov = opening ? 1 - easeInOut((age - hold) / 0.35) : 0;
-  // The horizon straightens and sways back in more slowly than the zoom changes, so the roll never snaps.
-  const ovRoll = opening ? 1 - easeInOut((age - hold) / 0.9) : 0;
-  // A scene that cuts between angles (or whips) is entered quickly, any other by a slow flight.
-  const k = easeInOut((age - hold) / Math.min(Math.max(0.2, frame.dur - hold), frame.shot.fastEntry ? WHIP_T : flow));
-  let S = Math.exp(lerp(Math.log(from.S), Math.log(to.S), k));
-  let tx = lerp(from.x, to.x, k);
-  let tz = lerp(from.z, to.z, k);
-  let tilt = lerp(from.roll, to.roll, k);
-  // The cuts of the scene: a quick whip from the angle before to the one now; the first cut after a hit-stop starts from where the picture is.
-  const cut = frame.cut;
-  if (cut && cut.prev !== null) {
-    const a: Pose = cut.prev === "plain" ? { S, x: tx, z: tz, roll: tilt } : shotPose(frame.shot, m, cut.prev, close);
-    const b = shotPose(frame.shot, m, cut.preset, close);
-    const kc = easeInOut((age - cut.since) / WHIP_T);
-    S = Math.exp(lerp(Math.log(a.S), Math.log(b.S), kc));
-    tx = lerp(a.x, b.x, kc);
-    tz = lerp(a.z, b.z, kc);
-    tilt = lerp(a.roll, b.roll, kc);
-  }
-  // After arriving the camera keeps creeping in, so a held shot is never dead.
-  S *= 1 + (close ? 0.03 : 0.04) * Math.max(0, age - flow);
-  const zoomAge = fx("zoom");
-  if (zoomAge !== undefined) S *= 1 + 0.35 * powerOf(sc, "zoom") * easeOut(zoomAge / 0.5);
-  // Punch-in and riser push the picture in.
-  S /= frame.push;
-  // The showcase move: the camera goes in on the spinning piece, follows it through the air in slow motion,
-  // takes the landing and then backs out to where the scene was. Close, but still about four squares across.
-  const heroK = heroFocus(frame);
-  const hero = frame.shot.hero;
-  if (hero && heroK > 0) {
-    const [px, pz] = heroPoint(frame);
-    S = Math.exp(lerp(Math.log(S), Math.log(Math.max(S, m / HERO_CLOSE)), heroK));
-    tx = lerp(tx, px, heroK);
-    tz = lerp(tz, pz, heroK);
-  } else {
-    // Any other heavy piece in the air makes the camera lean in a little, never past a four-square view.
-    const flying = close ? 0 : frame.pieces.reduce((best, p) => (p.flight ? Math.max(best, WEIGHT[p.type] * Math.sin(Math.PI * clamp01(p.flight.k))) : best), 0);
-    if (flying > 0) S = Math.min(S * (1 + 0.22 * flying), Math.max(S, m / 4.2));
-  }
-  // Every landing nudges the picture.
-  if (frame.landing) S *= 1 + 0.04 * Math.exp(-frame.landing.k * 8);
-
-  // The orbit: a slow swing of the horizon, never the same twice in a row, and the same in every scene, so nothing jumps.
-  const t = frame.time;
-  // The close variant stays almost straight: a light sway, a lean into a threat or the mating blow, and the opening's tilt (in `tilt`).
-  const sway = close ? 1.6 * Math.sin(t * 0.9) : 13 * Math.sin(t * 0.8) + 7 * Math.sin(t * 0.31 + 1.3);
-  const threatAge = fx("threat");
-  const leanAge = threatAge ?? fx("mate");
-  const lean = close && leanAge !== undefined ? 12 * easeOut(leanAge / 0.6) : 0;
-  // During the overview the board stays nearly straight: a tilted whole board would lose its corners.
-  const roll = (((sway + (frame.scene.orbit || 0) * age + tilt + frame.roll + lean) * (1 - 0.8 * ovRoll)) * Math.PI) / 180;
-
-  // The mating blow: the camera backs off to show the whole board while the pieces break.
-  const mateAge = fx("mate");
-  if (mateAge !== undefined) {
-    const km = easeOut((mateAge - 0.3) / 0.7);
-    S = lerp(S, close ? m / 6.2 : wide * 1.12, km);
-    tx *= 1 - km;
-    tz *= 1 - km;
-  }
-
-  if (ov > 0) {
-    S = Math.exp(lerp(Math.log(S), Math.log(m / OVERVIEW_ACROSS), ov));
-    tx *= 1 - ov;
-    tz *= 1 - ov;
-  }
-
-  // Never show the black around the board when close: the centre stays far enough inside that the picture (with some slack for the roll) is all board.
-  // (The close variant may show a little black at the edge, like the reference: the centre only stays on the board.)
-  const half = (m / 2 / S) * 1.25;
-  const limit = close ? 3.1 : Math.max(0, 4 - half);
-  tx = Math.max(-limit, Math.min(limit, tx));
-  tz = Math.max(-limit, Math.min(limit, tz));
+  const plan = frame.reel;
+  const track = trackOf(plan, plan.scenes, plan.shots, W, H, look);
+  // The camera clock runs on through the scenes and stands still in a hit-stop, so the picture freezes with the pieces.
+  const T = (plan.offsets[frame.index] ?? 0) + age;
+  const pose = sampleTrack(track, T);
+  let S = pose.S;
+  // Every landing nudges the picture a little (gone within a fifth of a second: a hit, not a move).
+  if (frame.landing && look !== "cinema") S *= 1 + (look === "comic" ? 0.06 : 0.03) * Math.exp(-frame.landing.k * 8);
+  // During the opening overview the board stays nearly straight: a tilted whole board would lose its corners.
+  const hold = plan.scenes.length ? Math.min(OVERVIEW_HOLD, animDur(plan.scenes[0]) * 0.45) : 0;
+  const ovRoll = 1 - easeInOut((T - hold) / 0.9);
+  const roll = (((sway(look, T) * (1 - 0.8 * ovRoll) + pose.roll) * Math.PI) / 180);
 
   let shake = 0;
   const sh = fx("shake");
   if (sh !== undefined) shake = Math.max(shake, 16 * powerOf(sc, "shake") * Math.exp(-sh * 6));
   const mate = fx("mate");
-  if (mate !== undefined) shake = Math.max(shake, 24 * powerOf(sc, "mate") * Math.exp(-mate * 4));
+  if (mate !== undefined) shake = Math.max(shake, (look === "cinema" ? 10 : 24) * powerOf(sc, "mate") * Math.exp(-mate * 4));
   // The showcase piece hits the board hard.
+  const hero = frame.shot.hero;
   const impact = hero ? age - hero.t1 : -1;
-  if (impact >= 0) shake = Math.max(shake, 14 * Math.exp(-impact * 9));
+  if (impact >= 0 && look !== "cinema") shake = Math.max(shake, 14 * Math.exp(-impact * 9));
   const shakeX = shake * u * Math.sin(age * 71);
   const shakeY = shake * u * Math.cos(age * 63);
-  if (close) {
-    // The picture shakes by up to `shake` px: that room is kept too.
-    const fit = fitMoves(frame.shot, frame.nextShot, frame.dur, age, { S, x: tx, z: tz, roll }, W, H, (shake * u) / S);
+  let tx = pose.x;
+  let tz = pose.z;
+  if (look !== "classic") {
+    // The planned framing already holds every move; this only keeps the room the shake needs and is a guard, not a correction.
+    const fit = fitMoves(frame.shot, frame.nextShot, frame.dur, age, { S, x: tx, z: tz, roll }, W, visibleHeight(W, H, look), (shake * u) / S);
     S = fit.S;
     tx = fit.x;
     tz = fit.z;
   }
 
-  // No strobe at cuts, there are none: white only for the "flash" effect and the mating blow.
+  // No strobe at cuts: white only for the "flash" effect and the mating blow.
   let flash = 0;
   const fl = fx("flash");
   if (fl !== undefined && fl < 0.45) flash = Math.max(flash, 0.9 * powerOf(sc, "flash") * (1 - fl / 0.45) ** 2);
@@ -658,10 +468,14 @@ function drawShattered(ctx: CanvasRenderingContext2D, p: FramePiece, assets: Ass
   }
 }
 
-function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, dir: number, close = false): void {
+function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, assets: Assets, dir: number, look: ReelLook = "classic", S = 100): void {
   const plain = assets.pieces[pieceKey(p.color, p.type)];
   if (!plain) return;
-  const img = close && p.color === "b" ? greyPiece(plain) : plain;
+  const close = look === "close";
+  const styled = isStyled(look) ? look : null;
+  // Only the classic look throws its pieces like coins; the others lift them.
+  const calm = look !== "classic";
+  const img = styled === "comic" ? inkedPiece(plain) : (close || styled === "neon") && p.color === "b" ? greyPiece(plain) : plain;
   const x = dir * p.x;
   const z = dir * p.z;
   let size = 0.96 * p.scale;
@@ -682,13 +496,15 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
     // The piece swells towards the camera and flips like a coin, so every move feels thrown.
     const arc = Math.sin(Math.PI * flying);
     // The close variant lifts the piece a little like a hand would, no coin flip.
-    size *= 1 + (close ? 0.2 : 0.9) * w * arc;
-    if (!close && w >= 0.8) flipX = Math.cos(2 * Math.PI * flying);
-    rot = close ? 0 : arc * 0.35 * (p.id % 2 ? 1 : -1) * w;
+    size *= 1 + (close ? 0.2 : styled ? LIFT[styled] : 0.9) * w * arc;
+    if (!calm && w >= 0.8) flipX = Math.cos(2 * Math.PI * flying);
+    rot = calm ? (styled === "comic" ? arc * 0.12 * (p.id % 2 ? 1 : -1) : 0) : arc * 0.35 * (p.id % 2 ? 1 : -1) * w;
   }
   if (flying !== null) {
     // Motion trail: fainter copies back along the path.
-    if (!close && w >= 0.6 && flying > 0.05) {
+    if (styled === "neon") drawNeonTrail(ctx, x, z, dir * p.flight!.fromX, dir * p.flight!.fromZ, NEON[p.color], S, flying);
+    if (styled === "comic") drawSpeedLines(ctx, x, z, dir * p.flight!.fromX, dir * p.flight!.fromZ, size, flying, p.id);
+    if (!calm && w >= 0.6 && flying > 0.05) {
       const [fx0, fz0] = [dir * p.flight!.fromX, dir * p.flight!.fromZ];
       for (let i = 4; i >= 1; i--) {
         const back = 1 - i * 0.11;
@@ -700,7 +516,7 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
       }
     }
     // A flying piece sits in a halo of light.
-    softBlob(ctx, x, z, size * (hero ? 1.1 : 0.8), size * (hero ? 1.1 : 0.8), hero ? 0.75 : 0.6, "255,255,255");
+    if (styled !== "comic") softBlob(ctx, x, z, size * (hero ? 1.1 : 0.8), size * (hero ? 1.1 : 0.8), hero ? 0.75 : 0.6, styled === "neon" ? rgbOf(NEON[p.color]) : "255,255,255");
   } else {
     const landed = frame.landing && xzSquare(p.x, p.z) === frame.landing.square;
     const heroLanded = landed && frame.shot.hero && frame.shot.hero.to === frame.landing!.square && frame.local >= frame.shot.hero.t1;
@@ -727,6 +543,11 @@ function drawPiece(ctx: CanvasRenderingContext2D, p: FramePiece, frame: Frame, a
     ctx.scale(1 + squash, 1 - squash);
     ctx.translate(0, -size * 0.42);
   }
+  if (styled === "neon") {
+    // Every neon piece glows in its side's colour, brighter in the air.
+    ctx.shadowColor = NEON[p.color];
+    ctx.shadowBlur = (flying !== null ? 0.45 : 0.22) * S;
+  }
   ctx.drawImage(img, -size / 2, -size / 2, size, size);
   ctx.restore();
 }
@@ -739,8 +560,10 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   const st = project.style;
   const v = project.video;
   const dir: 1 | -1 = flipped(frame.camera.yaw) ? -1 : 1;
-  const close = st.reelLook === "close";
-  const cam = reelCamera(frame, W, H, st.reelLook);
+  const look = st.reelLook;
+  const close = look === "close";
+  const styled = isStyled(look) ? look : null;
+  const cam = reelCamera(frame, W, H, look);
   const { S } = cam;
   const view: ReelView = { ...cam, W, H, dir };
 
@@ -765,27 +588,31 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   // ---- the board: two greys, rank and file in the corners like on the big chess sites
   for (let f = 0; f < 8; f++) {
     for (let r = 0; r < 8; r++) {
-      ctx.fillStyle = (f + r) % 2 === 0 ? (close ? CLOSE_BOARD.dark : st.dark) : close ? CLOSE_BOARD.light : st.light;
+      ctx.fillStyle = (f + r) % 2 === 0 ? (styled ? STYLE_BOARD[styled].dark : close ? CLOSE_BOARD.dark : st.dark) : styled ? STYLE_BOARD[styled].light : close ? CLOSE_BOARD.light : st.light;
       ctx.fillRect(dir * (f - 3.5) - 0.505, dir * (3.5 - r) - 0.505, 1.01, 1.01);
     }
   }
+  const onDark = styled ? STYLE_BOARD[styled].onDark : "rgba(235,235,235,0.8)";
+  const onLight = styled ? STYLE_BOARD[styled].onLight : "rgba(70,70,70,0.85)";
   if (st.coords) {
     ctx.font = `700 0.17px ${SANS}`;
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
     const leftFile = dir > 0 ? 0 : 7;
     for (let r = 0; r < 8; r++) {
-      ctx.fillStyle = (leftFile + r) % 2 === 0 ? "rgba(235,235,235,0.8)" : "rgba(70,70,70,0.85)";
+      ctx.fillStyle = (leftFile + r) % 2 === 0 ? onDark : onLight;
       ctx.fillText(String(r + 1), dir * (leftFile - 3.5) - 0.46, dir * (3.5 - r) - 0.46);
     }
     ctx.textAlign = "right";
     ctx.textBaseline = "bottom";
     const bottomRank = dir > 0 ? 0 : 7;
     for (let f = 0; f < 8; f++) {
-      ctx.fillStyle = (f + bottomRank) % 2 === 0 ? "rgba(235,235,235,0.8)" : "rgba(70,70,70,0.85)";
+      ctx.fillStyle = (f + bottomRank) % 2 === 0 ? onDark : onLight;
       ctx.fillText("abcdefgh"[f], dir * (f - 3.5) + 0.46, dir * (3.5 - bottomRank) + 0.46);
     }
   }
+
+  if (styled) drawBoardExtras(ctx, styled, S, frame.landing ? Math.exp(-frame.landing.k * 5) : 0);
 
   // ---- glowing squares under the pieces
   for (const g of glows(frame, close)) {
@@ -825,8 +652,8 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
       const dist = Math.hypot(p.x - matedKing[0], p.z - matedKing[1]);
       const local = mateAge - (0.25 + dist * 0.05);
       if (local >= 0) drawShattered(ctx, p, assets, dir, local, matedKing as [number, number]);
-      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, dir, close);
-    } else drawPiece(ctx, p, frame, assets, dir, close);
+      else drawPiece(ctx, { ...p, tilt: undefined }, frame, assets, dir, look, S);
+    } else drawPiece(ctx, p, frame, assets, dir, look, S);
   }
   // ---- close variant: the hand that drags the piece, and rings that spread from the rated square
   if (close) {
@@ -907,8 +734,8 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     else drawArrow(ctx, S, from, to, a.progress, "#050505", "#ffffff", 0, a.alpha);
   });
 
-  // ---- rating badge on the corner of the square, like on the analysis page
-  if (frame.badge) {
+  // ---- rating badge on the corner of the square, like on the analysis page (the comic look shouts it in a burst instead)
+  if (frame.badge && styled !== "comic") {
     const img = assets.badges[frame.badge.kind];
     const k = backOut(frame.badge.age / 0.4);
     if (img && k > 0) {
@@ -934,10 +761,10 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
   }
   const vig = ctx.createRadialGradient(cx, cy, Math.min(W, H) * hole, cx, cy, Math.max(W, H) * 0.8);
   vig.addColorStop(0, "rgba(0,0,0,0)");
-  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.72 + 0.2 * powerOf(frame.scene, "spotlight") : close ? 0.4 : 0.72})`);
+  vig.addColorStop(1, `rgba(0,0,0,${spot !== undefined ? 0.72 + 0.2 * powerOf(frame.scene, "spotlight") : styled ? STYLE_VIGNETTE[styled] : close ? 0.4 : 0.72})`);
   ctx.fillStyle = vig;
   ctx.fillRect(0, 0, W, H);
-  const danger = close ? 0 : mateAge !== undefined ? Math.min(1, mateAge / 0.3) * Math.max(0.12, 0.34 - 0.1 * mateAge) * (1 + 0.2 * Math.sin(mateAge * 9)) : frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "miss") ? 0.3 * Math.exp(-frame.badge.age * 3.5) : 0;
+  const danger = close || styled === "comic" ? 0 : mateAge !== undefined ? Math.min(1, mateAge / 0.3) * Math.max(0.12, 0.34 - 0.1 * mateAge) * (1 + 0.2 * Math.sin(mateAge * 9)) : frame.badge && (frame.badge.kind === "blunder" || frame.badge.kind === "miss") ? 0.3 * Math.exp(-frame.badge.age * 3.5) : 0;
   if (danger > 0.01) {
     ctx.fillStyle = `rgba(150,0,0,${danger})`;
     ctx.fillRect(0, 0, W, H);
@@ -958,15 +785,36 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     }
   }
 
-  // ---- text: almost none. A quiet headline on top, a plain caption at the bottom.
+  // ---- the styled looks: their light over the whole picture, with the moment's hit (mate, showcase landing, a rated move, a check)
   const card = frame.card;
   const quiet = card.kind === "none" ? 1 : 1 - card.alpha;
+  if (styled) {
+    const hero = frame.shot.hero;
+    const kind = frame.badge?.kind ?? null;
+    const check = Boolean(frame.landing && frame.pill?.text.includes("+"));
+    let at: { age: number; square: string } | null = null;
+    if (mateAge !== undefined && frame.mate) at = { age: mateAge, square: frame.mate.king };
+    else if (hero && frame.local >= hero.t1) at = { age: frame.local - hero.t1, square: hero.to };
+    else if (frame.badge) at = { age: frame.badge.age, square: frame.badge.square };
+    else if (check && frame.landing) at = { age: frame.landing.k * 0.6, square: frame.landing.square };
+    let hit: Hit | null = null;
+    if (at) {
+      const [hx, hy] = onScreen(at.square);
+      const bad = mateAge !== undefined || kind === "blunder" || kind === "mistake" || kind === "miss";
+      const colour = styled === "comic" ? (bad ? "#ff4b3e" : kind === "brilliant" ? "#3fe0e8" : "#ffd83d") : bad ? "#ff3b5c" : kind === "brilliant" ? NEON.w : kind ? (BADGE_GLOW[kind] ?? NEON.w) : NEON.b;
+      hit = { x: hx, y: hy, age: at.age, sign: burstSign(kind, mateAge !== undefined, check), colour };
+    }
+    drawStyleLight(ctx, styled, frame, W, H, hit);
+    if (!frame.lesson && quiet > 0.01) drawStyleText(ctx, styled, { title: { ...frame.title, alpha: frame.title.alpha * quiet }, text: { ...frame.text, alpha: frame.text.alpha * quiet } }, W, H, st.textScale, L.portrait);
+  }
+
+  // ---- text: almost none. A quiet headline on top, a plain caption at the bottom.
   ctx.save();
   ctx.textAlign = "center";
   ctx.shadowColor = "rgba(0,0,0,0.9)";
   ctx.shadowBlur = 18 * u;
   if (close && !frame.lesson && frame.title.text.trim() && quiet > 0.01) drawCloseTitle(ctx, frame, assets, L, quiet, st.textScale);
-  else if (!frame.lesson && frame.title.text.trim() && quiet > 0.01) {
+  else if (!styled && !frame.lesson && frame.title.text.trim() && quiet > 0.01) {
     ctx.globalAlpha = frame.title.alpha * quiet * easeOut(frame.title.age / 0.4);
     const fit = fitText(ctx, tokens(frame.title.text), L.textMax, 2, 78 * u * st.textScale, (sz) => `400 ${sz}px ${SERIF}`);
     ctx.font = `400 ${fit.size}px ${SERIF}`;
@@ -974,7 +822,7 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     ctx.textBaseline = "alphabetic";
     fit.lines.forEach((line, i) => ctx.fillText(line.map((tk) => tk.word).join(" "), W / 2, L.titleTop + (L.portrait ? 10 : 28) * u + i * fit.size * 1.05));
   }
-  if (!frame.lesson && frame.text.text.trim() && quiet > 0.01) {
+  if (!styled && !frame.lesson && frame.text.text.trim() && quiet > 0.01) {
     ctx.globalAlpha = frame.text.alpha * quiet * easeOut(frame.text.age / 0.3);
     const base = 42 * u * st.textScale;
     const fit = fitText(ctx, tokens(frame.text.text), L.textMax, 3, base, (sz) => `600 ${sz}px ${SANS}`, (sz) => `800 ${sz}px ${SANS}`);
@@ -1038,7 +886,8 @@ export function paintReel(ctx: CanvasRenderingContext2D, frame: Frame, project: 
     // Square and wide pictures fill the frame with the board: the name sits at the top edge, not on the white king (e1) at the bottom.
     // Phone format too: the lower picture is the board, so the name goes up under the progress edge, above the hook text.
     const size = (L.portrait ? 28 : 24) * u;
-    const y = L.portrait ? 120 * u : 36 * u;
+    // In the cinema look the name sits high in the top bar, above the title.
+    const y = styled === "cinema" ? Math.max(28 * u, cinemaWindow(W, H).top * 0.26) : L.portrait ? 120 * u : 36 * u;
     ctx.save();
     ctx.globalAlpha = 0.72 * Math.max(quiet, 0.5);
     ctx.font = `400 ${size}px ${SERIF}`;

@@ -228,6 +228,8 @@ export interface Frame {
   prevShot: ReelShot | null;
   /** The next scene's framing: the close camera starts making room for its first move before the cut. */
   nextShot: ReelShot | null;
+  /** Every scene's framing at once: the reel camera plans its whole path from it (reelRig.ts). */
+  reel: ReelPlan;
   /** Moves played so far in this line, for the lesson's move list (last one is the current). */
   moveList: string[];
   /** The camera angle the scene is cutting on right now (null = the scene's own camera). prev null = no cut transition (the flight into the scene leads here). */
@@ -562,6 +564,28 @@ function shotOf(c: CompiledScene, index: number): ReelShot {
     lastPreset: c.scene.cameras.length ? c.scene.cameras[c.scene.cameras.length - 1] : null,
     fastEntry: fastEntry(c.scene),
   };
+}
+
+/** What the reel camera plans its path from: the compiled scenes, their framings and where each starts on the camera clock (animation seconds, hit-stops left out). */
+export interface ReelPlan {
+  scenes: CompiledScene[];
+  shots: ReelShot[];
+  offsets: number[];
+}
+const plans = new WeakMap<Timeline, ReelPlan>();
+export function reelPlan(timeline: Timeline): ReelPlan {
+  let plan = plans.get(timeline);
+  if (!plan) {
+    let off = 0;
+    const offsets = timeline.scenes.map((c) => {
+      const at = off;
+      off += animDur(c);
+      return at;
+    });
+    plan = { scenes: timeline.scenes, shots: timeline.scenes.map((c, i) => shotOf(c, i)), offsets };
+    plans.set(timeline, plan);
+  }
+  return plan;
 }
 
 /** A scene that cuts between angles or asks for a whip is entered by a quick whip, not a slow flight. */
@@ -948,6 +972,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     shot: shotOf(c, index),
     prevShot: index > 0 ? shotOf(timeline.scenes[index - 1], index - 1) : null,
     nextShot: index + 1 < timeline.scenes.length ? shotOf(timeline.scenes[index + 1], index + 1) : null,
+    reel: reelPlan(timeline),
     moveList: lesson ? moveListAt(timeline, index, local) : [],
     badge: s.badge && c.fxSquare && local >= c.fxAt ? { kind: s.badge, square: lastDone?.to ?? c.fxSquare, age: local - c.fxAt } : null,
     pollMarks,
