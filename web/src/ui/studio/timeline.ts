@@ -82,6 +82,8 @@ export interface CompiledScene {
   threats: string[];
   /** Poll answers drawn as coloured arrows on the board. */
   poll: { from: string; to: string; colour: string; letter: string }[];
+  /** Whose move it is once the scene's moves are played (puzzles say it on screen). */
+  turn: "w" | "b";
   /** Hit-stop: scene time at which the picture freezes for HITSTOP seconds (the animation clock stands still), or null. */
   hit: number | null;
   /** Camera cuts of the scene: when they start (animation clock) and how long each angle stays. */
@@ -200,7 +202,8 @@ export interface Frame {
   landing: { square: string; k: number } | null;
   camera: CameraState;
   title: { text: string; age: number; alpha: number };
-  text: { text: string; age: number; alpha: number };
+  /** `dur`: seconds this subtitle part stays on screen (word-by-word captions pace themselves over it). */
+  text: { text: string; age: number; alpha: number; dur: number };
   label: string;
   pill: { text: string; plain: string; side: "w" | "b"; age: number; alpha: number } | null;
   card: { kind: Card; age: number; alpha: number };
@@ -215,6 +218,8 @@ export interface Frame {
   badge: { kind: Exclude<Badge, "">; square: string; age: number } | null;
   /** Lesson layout (wide video, explanation panel on the right). */
   lesson: boolean;
+  /** Whose move it is at the end of this scene. */
+  toMove: "w" | "b";
   /** Seconds the scene lasts and the squares of its last move: the reel look's camera flies from one to the other. */
   dur: number;
   focus: { from: string; to: string } | null;
@@ -510,6 +515,7 @@ export function compile(project: StudioProject): Timeline {
     const carry = reel && s.card === "outro" && !steps.length && !jumpOut.length && !jumpIn.size && !mate && last?.mate && !s.effects.includes("mate");
     const shown: Scene = carry ? { ...s, effects: [...s.effects, "mate"], power: { ...s.power, mate: 0 } } : s;
     scenes.push({
+      turn: chess.turn(),
       scene: shown,
       start: tk,
       dur,
@@ -886,8 +892,10 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
   let textNow = parts[0] ?? "";
   let textAlpha = nextScene && nextScene.scene.text === s.text ? 1 : clamp01(tail / fadeOut);
   let textStart = prev && prev.scene.text === s.text ? prev.start : c.start;
+  let textDur = stillDur + (c.start - textStart);
   if (parts.length > 1) {
     const share = stillDur / parts.length;
+    textDur = share;
     const k = Math.min(parts.length - 1, Math.floor(local / share));
     textNow = parts[k];
     textStart = c.start + k * share;
@@ -922,7 +930,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     landing,
     camera: cameraAt(timeline, index, local, project.video.introFly),
     title: { text: spell(s.title), age: (clock - titleStart) / (titleStart === c.start ? quick : 1), alpha: titleAlpha },
-    text: { text: textNow, age: (clock - textStart) / (textStart === c.start ? quick : 1), alpha: textAlpha },
+    text: { text: textNow, age: (clock - textStart) / (textStart === c.start ? quick : 1), alpha: textAlpha, dur: textDur },
     label: s.label,
     pill,
     card: { kind: s.card, age: local, alpha: s.card === "none" ? 0 : Math.min(cardIn, cardOut) },
@@ -934,6 +942,7 @@ export function frameAt(timeline: Timeline, project: StudioProject, tk: number):
     mate: c.mate,
     threats: c.threats,
     lesson,
+    toMove: c.turn,
     dur: stillDur,
     focus: c.steps.length ? { from: c.steps[c.steps.length - 1].from, to: c.steps[c.steps.length - 1].to } : null,
     shot: shotOf(c, index),

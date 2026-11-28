@@ -313,7 +313,8 @@ describe("studio AI scripts", () => {
     for (const word of ["matt:", "drohung:", "spotlight:", "wackeln:", "zoom:", "blitz:", "konfetti:", "zeitlupe:"]) expect(prompt).toContain(`- ${word}`);
     expect(p.scenes.find((s) => s.title === "Ziel: f7")!.arrows).toEqual([{ from: "c4", to: "f7", tone: "bad" }]);
     expect(p.scenes.find((s) => s.card === "poll")!.options).toHaveLength(3);
-    expect(p.style.environment).toBe("podium");
+    expect(p.style.environment).toBe("void");
+    expect(variation.takeaway).toBe("Greift die Dame früh an, vertreib sie mit Tempo.");
   });
 
   it("reads sloppy answers: text around the JSON, trailing commas, any key spelling and arrow format", () => {
