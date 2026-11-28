@@ -76,6 +76,8 @@ export interface Scene {
    * With a hit-stop they start after it: build-up, freeze, then fast cuts.
    */
   cameras: CameraPreset[];
+  /** Key takeaway of the scene ("Merke: …"): shown as a boxed note, collected for the recap at the end. Empty = none. */
+  takeaway: string;
   /** One loud word stamped over the picture for about 0.4 s at the impact ("BLUNDER", "??"); empty = none. */
   stamp: string;
   /** How hard each effect hits, 0..1 (missing = 1). Lets the climax stand out from the normal blows. */
@@ -356,6 +358,7 @@ export function scene(over: Partial<Scene> = {}): Scene {
     tempo: 1,
     cameras: [],
     stamp: "",
+    takeaway: "",
     power: {},
     ...over,
   };
@@ -597,6 +600,7 @@ export function normalizeProject(raw: unknown): StudioProject {
       tempo: num(s.tempo, 0.3, 3, 1),
       cameras: (Array.isArray(s.cameras) ? s.cameras : []).filter((c): c is CameraPreset => typeof c === "string" && c in CAMERA_LABEL).slice(0, MAX_CAMERAS),
       stamp: str(s.stamp, "", 14).toUpperCase(),
+      takeaway: str(s.takeaway, "", 140),
       power: Object.fromEntries(
         Object.entries(s.power && typeof s.power === "object" ? (s.power as Record<string, unknown>) : {})
           .filter(([k, v]) => k in EFFECT_LABEL && typeof v === "number" && Number.isFinite(v))

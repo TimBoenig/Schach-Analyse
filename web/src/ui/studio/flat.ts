@@ -34,9 +34,9 @@ export function boardSlot(W: number, H: number, lesson: boolean): Slot {
     return { cx: W * 0.3, cy: H / 2 + 14 * u, size };
   }
   if (L.portrait) {
-    // Under the move pill and its words, above a three-line subtitle box.
-    const top = L.pillY + 118 * u;
-    const bottom = L.subCenter - 128 * u;
+    // Under the move tag and its words, above the captions: as big as the gap allows, phones are small.
+    const top = L.pillY + 96 * u;
+    const bottom = L.subCenter - 104 * u;
     return { cx: W / 2, cy: (top + bottom) / 2, size: Math.min(W - 60 * u, bottom - top) };
   }
   const top = L.pillY + 84 * u;

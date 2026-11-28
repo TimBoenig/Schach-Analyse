@@ -291,6 +291,8 @@ const EX_S3_V = (l: Lang) => tr(l, "Der Läufer schaut auf f7, und jetzt kommt d
 const EX_Q_T = (l: Lang) => tr(l, "Wie verteidigt Schwarz?");
 const EX_Q_V = (l: Lang) => tr(l, "Halt das Video kurz an: Wie wehrt Schwarz die Drohung auf f7 am besten ab? Du hast fünf Sekunden.");
 const EX_S4_T = (l: Lang) => tr(l, "Die richtige Antwort");
+const EX_TAKE_2 = (l: Lang) => tr(l, "Zwei Angreifer auf f7: Zähl immer die Verteidiger.");
+const EX_TAKE_4 = (l: Lang) => tr(l, "Gegen Sg5 schlägt d5 sofort im Zentrum zurück.");
 const EX_S4_S = (l: Lang) => tr(l, "Nach *4... d5* ist der Druck auf f7 für den Moment weg.");
 const EX_S4_V = (l: Lang) => tr(l, "Schwarz schlägt im Zentrum zurück: Nach d5 und exd5 ist die Drohung auf f7 erst einmal abgewehrt, aber Vorsicht, die Falle ist noch nicht vorbei.");
 const EX_S5_T = (l: Lang) => tr(l, "Drei Merksätze");
@@ -348,9 +350,9 @@ function LONG_EXAMPLE(platform: Platform, level: Level | undefined, vl: Lang) {
       { karte: "titel", variante: { zurueck: 11 }, titel: EX_CARD_T(vl), untertitel: EX_CARD_S(vl), sprechtext: EX_CARD_V(vl), dauer: 6 },
       { kleineZeile: EX_K1(vl), zug: "1. e4 e5", titel: EX_S1_T(vl), untertitel: EX_S1_S(vl), sprechtext: EX_S1_V(vl), markierungen: ["e4 akzent", "e5 akzent"], kamera: "normal", dauer: 9 },
       { kleineZeile: EX_K1(vl), zug: EX_MOVES_2(vl), titel: EX_S2_T(vl), untertitel: EX_S2_S(vl), sprechtext: EX_S2_V(vl), pfeile: ["f3-e5 idee"], dauer: 8 },
-      { kleineZeile: EX_K2(vl), zug: EX_MOVES_3(vl), titel: EX_S3_T(vl), untertitel: EX_S3_S(vl), sprechtext: EX_S3_V(vl), pfeile: ["g5-f7 gefahr", "c4-f7 gefahr"], effekte: ["drohung"], dauer: 9 },
+      { kleineZeile: EX_K2(vl), zug: EX_MOVES_3(vl), titel: EX_S3_T(vl), untertitel: EX_S3_S(vl), sprechtext: EX_S3_V(vl), merksatz: EX_TAKE_2(vl), pfeile: ["g5-f7 gefahr", "c4-f7 gefahr"], effekte: ["drohung"], dauer: 9 },
       { kleineZeile: EX_K2(vl), karte: "frage", titel: EX_Q_T(vl), sprechtext: EX_Q_V(vl), countdown: 5, dauer: 8 },
-      { kleineZeile: EX_K2(vl), zug: "4... d5 5. exd5", titel: EX_S4_T(vl), untertitel: EX_S4_S(vl), sprechtext: EX_S4_V(vl), pfeile: ["d5-c6 gut"], markierungen: ["f7 gefahr"], dauer: 9 },
+      { kleineZeile: EX_K2(vl), zug: "4... d5 5. exd5", titel: EX_S4_T(vl), untertitel: EX_S4_S(vl), sprechtext: EX_S4_V(vl), merksatz: EX_TAKE_4(vl), pfeile: ["d5-c6 gut"], markierungen: ["f7 gefahr"], dauer: 9 },
       { kleineZeile: EX_K3(vl), titel: EX_S5_T(vl), untertitel: EX_S5_S(vl), sprechtext: EX_S5_V(vl), dauer: 10 },
       { karte: "abspann", titel: EX_END_T(vl), untertitel: EX_END_S(vl), sprechtext: EX_END_V(vl), dauer: 6 },
     ],
@@ -406,6 +408,8 @@ const EDIT_MUSIC_HINT = (m: StyleId) => ({
 })[m];
 const VIRAL_SHORT = () => t("WAS AUF TIKTOK, REELS UND SHORTS FUNKTIONIERT (so entscheidet der Algorithmus)\nDie App zeigt jedes neue Video zuerst wenigen Leuten und misst: Wie viele schauen bis zum Ende? Wie viele schauen es ein zweites Mal? Wie viele teilen, speichern und kommentieren es? Nur wenn das gut läuft, zeigt sie es vielen. Daraus folgen diese Regeln:\n- Erste Sekunde: Der Daumen ist schon am Wischen. Das erste Bild stellt eine offene Frage (eine Figur hängt, ein König steht nackt, eine Dame wird geopfert). Kein Logo, kein Intro, keine Begrüßung.\n- Offene Schleife: Versprich am Anfang eine Auflösung und gib sie erst am Ende. Wer die Pointe in Sekunde 3 schon kennt, wischt weg.\n- Kein Leerlauf: Spätestens alle 2 Sekunden ändert sich etwas (ein Zug, ein Schnitt, ein Effekt, ein neuer Satz).\n- Kürzer gewinnt: Ein Video, das bis zum Ende geschaut wird, schlägt jedes längere. Lieber 18 starke Sekunden als 40 mittelmäßige.\n- Loop: Das Ende führt nahtlos zurück zum Anfang (kurzer Abspann, kein langes Schlussbild). So schauen viele ein zweites Mal, und das zählt doppelt.\n- Teilen: Mach etwas, das man einem Freund schickt: \"Genau das passiert dir immer\", eine unglaubliche Wendung, ein Trick für die nächste Partie.\n- Speichern: Gib einen Nutzen, den man behalten will (eine Falle für die Partie heute Abend, ein Muster zum Wiedererkennen).\n- Kommentare: Lass eine Frage offen, zu der jeder eine Meinung hat (\"Hättest du es gesehen?\", \"Welchen Zug spielst du?\", \"Kennst du die Falle?\").\n- Was Schach-Zuschauer wollen: schnelle Erfolge (Fallen und Matts für die eigenen Partien), sich in Fehlern wiedererkennen (Patzer, die jeder kennt), staunen (brillante Opfer, berühmte Partien von Morphy, Tal, Kasparov oder Magnus Carlsen) und mitraten (Rätsel). Die meisten sind Anfänger und Vereinsspieler zwischen 600 und 1600 Elo: Die Pointe muss ohne Rechnen sichtbar sein.\n- Ehrlich bleiben: keine erfundenen Partien, keine falschen Zahlen, kein Köder, den das Video nicht einlöst. Wer sich betrogen fühlt, wischt weg.\n- Serie: Ein wiedererkennbares Format (\"Falle Nr. 3\", \"Teil 2\") bringt Follower, weil niemand den nächsten Teil verpassen will.");
 const VIRAL_EDIT_NOTE = () => t("- Im Edit gilt trotzdem: kein Text im Bild. Die Frage für die Kommentare, das Versprechen und die Hashtags stehen im \"posttext\".");
+const LONG_LEARN = () => t("MERKSÄTZE, KAPITEL UND MITLESEN\n- Gib jedem Kapitel genau einen \"merksatz\" (höchstens 90 Zeichen) in der Szene, in der die Idee klar wird: die eine Regel zum Mitnehmen, als Aufforderung formuliert (z. B. \"Zähl Angreifer und Verteidiger, bevor du schlägst.\"). Das Studio zeigt ihn als Notiz neben dem Brett und sammelt alle Merksätze im Abspann als Rückblick \"Das nimmst du mit\". Nie im Hook.\n- Jedes Kapitel beginnt mit einem großen Zwischentitel (Nummer und Name), den das Studio selbst zeichnet. Die erste Szene eines Kapitels braucht darum mindestens 6 Sekunden, ihr Text kommt erst danach.\n- Der Untertitel wird Satz für Satz hervorgehoben, während er läuft: kurze Sätze mit höchstens 15 Wörtern, ein Gedanke pro Satz, keine Klammern.\n");
+const SHORT_LEARN = () => t("LERNEFFEKT UND KOMMENTARE\n- Gib der Szene mit der wichtigsten Erkenntnis einen \"merksatz\" (höchstens 70 Zeichen), als Aufforderung formuliert. Er erscheint in der zweiten Hälfte der Szene als gelbe Notiz \"MERKEN\" an Stelle des Untertitels. Höchstens zwei pro Video.\n- Die Untertitel leuchten Wort für Wort auf, während sie laufen (wie gesprochen): kurze, gesprochene Sätze, keine Klammern, höchstens 12 Wörter pro Teil.\n- Ein Rätsel (\"frage\" oder \"umfrage\") zeigt automatisch, wer am Zug ist, und fordert zum Kommentieren auf. Setz es vor die Auflösung, nie als letzte Szene.\n");
 const VIRAL_EXPLAIN_NOTE = () => t("- Viele schauen ohne Ton: Jeder wichtige Satz steht auch als Untertitel im Bild und ist in einer Sekunde gelesen.");
 const POST_FORMAT = () => t("BEITRAGSTEXT (\"posttext\" oben im JSON: kommt nicht ins Video, sondern wird zum Kopieren für den Post angezeigt)\n- \"text\": die Beschreibung unter dem Video in der Sprache der Texte, 1 bis 2 kurze Sätze, höchstens 150 Zeichen: die offene Frage oder das Versprechen, das zum Kommentieren bringt (z. B. \"Hättest du das Matt gesehen? 👀\"). Verrate die Pointe nicht.\n- \"hashtags\": 3 bis 5 Hashtags, 1 bis 2 große (z. B. #chess, #schach) und dazu genaue zum Thema (z. B. #schachfalle, #chesstactics). Keine Hashtag-Wand.\n- \"kommentar\": dein erster eigener Kommentar, der eine Diskussion startet (z. B. eine Gegenfrage oder ein Hinweis auf Teil 2).");
 const POST_CHECK = () => t("- Steht oben ein \"posttext\" mit Frage, 3 bis 5 Hashtags und erstem Kommentar, ohne die Pointe zu verraten?");
@@ -480,7 +484,7 @@ const KEY_EN: Record<string, string> = {
   einstellungen: "settings", effektTon: "effectSound", zuganzeige: "moveDisplay", zugInWorten: "moveInWords",
   zuegeAusschreiben: "spellMoves", felderLeuchten: "glowSquares", fortschritt: "progress", koordinaten: "coordinates",
   kameraflug: "cameraFlight", spiegelung: "reflection", videoart: "videoType", schnittstil: "cutStyle",
-  zugNr: "moveNo", kameras: "cameras", stempel: "stamp", intensitaet: "intensity",
+  zugNr: "moveNo", kameras: "cameras", stempel: "stamp", merksatz: "takeaway", intensitaet: "intensity",
   posttext: "postText", kommentar: "comment",
 };
 // i18n: format words, not texts
@@ -528,8 +532,8 @@ export function buildAiPrompt(o: PromptOptions): string {
     plattform: o.platform,
     laenge: 25,
     perspektive: "weiss",
-    look: "nova",
-    umgebung: "buehne",
+    look: "turnier",
+    umgebung: "schwebend",
     design: { figuren: "lack", untertitelStil: "kontur", schrift: "modern", musik: "spannung", textgroesse: 1 },
     posttext: { text: t("Kennst du diese Falle? Speicher sie dir für deine nächste Partie."), hashtags: ["#chess", t("#schach"), t("#schachfalle")], kommentar: t("Welche Falle soll ich als Nächstes zeigen?") },
     szenen: [
@@ -540,7 +544,7 @@ export function buildAiPrompt(o: PromptOptions): string {
       { karte: "umfrage", titel: t("Was spielt Schwarz?"), antworten: [t("A) Sf6"), "B) g6", t("C) De7")], countdown: 3 },
       { zug: t("3... Sf6"), titel: t("Der Fehler"), kamera: "seitlich", bewertung: "patzer", stimmung: "traurig", dauer: 2 },
       { zug: t("4. Dxf7#"), titel: t("Schachmatt!"), kamera: "tief", effekte: ["matt", "wackeln"], zugtempo: 0.7 },
-      { variante: { zurueck: 2 }, kleineZeile: t("Besser"), zug: "3... g6", titel: t("So verteidigst du"), untertitel: t("*g6* vertreibt die Dame."), pfeile: ["g6-h5 gut"], bewertung: "bester", kamera: "schraeg", effekte: ["spotlight"] },
+      { variante: { zurueck: 2 }, kleineZeile: t("Besser"), zug: "3... g6", titel: t("So verteidigst du"), untertitel: t("*g6* vertreibt die Dame."), merksatz: t("Greift die Dame früh an, vertreib sie mit Tempo."), pfeile: ["g6-h5 gut"], bewertung: "bester", kamera: "schraeg", effekte: ["spotlight"] },
       { karte: "abspann", titel: t("Folge für mehr Fallen"), untertitel: t("Teil 2 kommt morgen"), effekte: ["konfetti"] },
     ],
   };
@@ -567,6 +571,8 @@ export function buildAiPrompt(o: PromptOptions): string {
       longRules(o.answers?.level, o.length) +
       VIRAL_LONG() +
       "\n\n" +
+      LONG_LEARN() +
+      "\n" +
       LONG_EFFECTS() +
       "\n" +
       sub(LONG_QUESTION(), { title: FIT.title }) +
@@ -595,7 +601,7 @@ export function buildAiPrompt(o: PromptOptions): string {
   }
   const rules = long ? LONG_RULES() : t("SO WIRD ES FÜR ZUSCHAUER VERSTÄNDLICH\n1. Die erste Szene ist ein starker Hook, der in 2 Sekunden neugierig macht. Keine erfundenen Zahlen oder Statistiken.\n2. Viele Zuschauer können keine Notation lesen. Erkläre jeden wichtigen Zug in Worten (\"Der Springer greift e5 an\") und nenne dabei das Feld. Schreib Figuren aus (\"Springer nach f3\" statt \"Sf3\"). Felder, die im Untertitel stehen, leuchten auf dem Brett auf.\n3. Höchstens eine neue Idee pro Szene. Der Zuschauer muss gleichzeitig die Züge verfolgen: Untertitel höchstens {SHORT_CHUNK} Zeichen, ein kurzer Satz. Alles Weitere gehört in den Sprechtext, nicht ins Bild. Längere Untertitel teilt das Studio selbst in Häppchen. *Sternchen* um ein Wort färben es ein. Ein | teilt einen Untertitel in Teile, die nacheinander erscheinen.\n4. Zeig jede Drohung mit einem Pfeil: rot (gefahr) für Angriffe, grün (gut) für Verteidigung.\n5. Bleib bei EINER Sicht aufs Brett: \"perspektive\" ist die Seite, um die es geht (weiss oder schwarz, z. B. schwarz für Sizilianisch oder eine Falle für Schwarz). Die Kameras drehen sich automatisch mit. Nutze \"gegenueber\" nur ganz selten.\n6. Jede Szene kann einen Sprechtext haben: das, was ich dazu sage (natürlich gesprochen, etwa 2,5 Wörter pro Sekunde, passend zur Dauer). Er erscheint nicht im Bild.\n7. Für eigene Kamera, Text oder Pfeile pro Zug mach eine Szene pro Zug. Die Summe aller \"dauer\"-Werte soll ungefähr die Ziellänge ergeben.\n8. Ende mit einer Abspann-Szene, die zum Folgen, Kommentieren oder Speichern auffordert.\n\n", { SHORT_CHUNK });
   const layout = long ? LONG_LAYOUT() : t("SO SIEHT DAS VIDEO AUS ({0}, von oben nach unten)\n- Ganz oben: ein dünner Fortschrittsbalken und das Logo EndGameKing.\n- \"kleineZeile\": kleiner farbiger Streifen über dem Titel, höchstens {label} Zeichen (z. B. \"Variante 2\", \"Falle\", \"Teil 1\").\n- \"titel\": große, fette weiße Überschrift, höchstens 2 Zeilen, also etwa {title} Zeichen. Kurz und knackig, wie eine Schlagzeile.\n- Darunter die Zug-Anzeige (z. B. \"● 3. Lb5\") und der Zug in Worten (\"Weiß: Läufer nach b5\"), beides automatisch.\n- In der Mitte das Brett (3D-Show-Look, oder mit \"ansicht\": \"2d\" flach von oben).\n- \"untertitel\": unter dem Brett, höchstens 3 Zeilen, etwa {subtitle} Zeichen, daneben die KI-Kugel Lucena. *Sternchen*-Wörter werden in der Akzentfarbe gefärbt.\n- Ganz unten bleibt Platz frei, dort liegen die Knöpfe der App. Dahin kommt nie Text.\n- Karten: \"titel\" zeigt Überschrift und Untertitel groß vor dem Brett (für den Hook), \"frage\" und \"umfrage\" legen die Frage über das Brett, die Antwort-Knöpfe stehen in einer Reihe unter dem Brett (jede Antwort höchstens {option} Zeichen), \"abspann\" ist das große Schlussbild mit Logo.\n- Ein Titel oder Untertitel, der zu lang ist, wird kleiner geschrieben oder auf mehrere Bilder verteilt. Lieber zwei Szenen als eine überfüllte.\n\n", { 0: o.platform === "youtube" ? t("Querformat 16:9") : t("Hochformat 9:16"), label: FIT.label, title: FIT.title, subtitle: FIT.subtitle, option: FIT.option });
-  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + (long ? VIRAL_LONG() : VIRAL_SHORT() + "\n" + VIRAL_EXPLAIN_NOTE()) + "\n\n" + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + POST_FORMAT() + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n" + POST_CHECK() + "\n\n" + exampleBlock;
+  return prefix + TASK_INTRO().replace("{kind}", () => (long ? t("ein ruhiges, lehrreiches YouTube-Video im Querformat") : t("ein kurzes Schach-Video"))) + myVideo + answerLines(o.answers, false) + (o.scenario === "explain" && long ? "" : scenarioBrief(o.scenario) ? scenarioBrief(o.scenario) + "\n" : "") + "\n" + rules + (long ? VIRAL_LONG() + "\n\n" + LONG_LEARN() : VIRAL_SHORT() + "\n" + VIRAL_EXPLAIN_NOTE() + "\n\n" + SHORT_LEARN()) + "\n\n" + EFFECT_GLOSSARY() + "\n" + POLL_RULES() + "\n" + CAMERA_GLOSSARY() + "\n" + TEMPO_RULE() + "\n" + LUCENA_RULE() + "\n\n" + layout + DESIGN_BLOCK() + "\n\n" + CHESS_HEAD() + "\n" + CHESS_REST() + "\n\n" + sub(ALL_FIELDS(), limits) + "\n\n" + POST_FORMAT() + "\n\n" + sub(EXPLAIN_CHECK(), { title: FIT.title, chunk: long ? FIT.lesson : SHORT_CHUNK }) + "\n" + POST_CHECK() + "\n\n" + exampleBlock;
 }
 
 // ---------- reading the answer ----------
@@ -950,6 +956,7 @@ export function importAiScript(input: string, defaults: ImportDefaults = {}): Ai
         camera,
         cameras,
         stamp: text(field(o, "stempel", "stamp", "impacttext"), 14).toUpperCase(),
+        takeaway: text(field(o, "merksatz", "takeaway", "merke", "keypoint"), 140),
         power,
         // The edit's camera flies by itself: an own zoom, turn or focus of the AI only made the framing worse.
         zoom: edit ? 1 : Math.min(1.6, Math.max(0.45, number(field(o, "zoom")) ?? 1)),
@@ -1128,6 +1135,7 @@ export function toAiScript(project: StudioProject): string {
       ...(s.cameras.length ? { kameras: s.cameras.map((c) => rev(CAMERAS, c)) } : {}),
       ...(s.effects.length || Object.keys(s.power).length ? { effekte: effectsOut(s) } : {}),
       ...(s.stamp ? { stempel: s.stamp } : {}),
+      ...(s.takeaway ? { merksatz: s.takeaway } : {}),
       ...(s.badge ? { bewertung: rev(BADGES, s.badge) } : {}),
       ...(s.tempo !== 1 ? { zugtempo: s.tempo } : {}),
       ...(s.options.length ? { antworten: s.options } : {}),

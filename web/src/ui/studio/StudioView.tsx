@@ -1407,6 +1407,9 @@ function SceneEditor({
         <Field label={t("Untertitel")} hint={t("*Sternchen* um ein Wort färben es ein. Ein | teilt den Text in nacheinander gezeigte Teile.")}>
           <textarea rows={3} value={scene.text} onInput={(e) => onChange({ text: e.currentTarget.value })} maxLength={900} />
         </Field>
+        <Field label={t("Merksatz")} hint={t("Die eine Regel zum Mitnehmen. Steht als Notiz im Bild und kommt am Ende in den Rückblick.")}>
+          <input value={scene.takeaway} onInput={(e) => onChange({ takeaway: e.currentTarget.value })} maxLength={140} placeholder={t("Optional")} />
+        </Field>
         <Field label={t("Sprechtext")} hint={t("Was du über diese Szene sagst. Erscheint nicht im Video; die Szene läuft lang genug dafür. Unter ⋯ als Liste mit Zeiten.")}>
           <textarea rows={2} value={scene.speech} onInput={(e) => onChange({ speech: e.currentTarget.value })} maxLength={1200} placeholder={t("Optional")} />
         </Field>
