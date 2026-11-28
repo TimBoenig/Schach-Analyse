@@ -100,13 +100,22 @@ export type BoardView = "3d" | "2d" | "billboard" | "reel";
 export const VIEWS: BoardView[] = ["2d", "billboard", "3d", "reel"];
 export const VIEW_LABEL: Record<BoardView, string> = { "2d": t("2D – klar wie im Buch"), billboard: t("3D-Brett, 2D-Figuren"), "3d": t("3D – Show-Look"), reel: t("Reel – Schwarz-Weiß mit Glühen") };
 /**
- * Two ways to cut the reel look. "classic": grey board, tilted, mostly the whole board in view. "close": the look of the
- * reference edit: white and black squares, straight tight crop that follows the move, soft tinted squares in the rating colour,
- * a hand that drags the piece, wireframe flashes on the beat and glass that cracks at the big hits.
+ * Ways to cut the reel look, each with its own picture and its own camera grammar (see reelRig.ts).
+ * "classic": grey board, tilted, mostly the whole board in view, slow orbit. "close": the look of the reference edit: white and black
+ * squares, straight tight crop that follows the move, a hand that drags the piece, wireframe flashes and glass at the big hits.
+ * "cinema": wide screen bars, warm graded board, slow long glides, film grain and anamorphic flares. "neon": a night board with glowing
+ * grid lines and pieces, hard cuts on the beat and a push-in inside every shot. "comic": paper and halftone, ink outlines, speed lines,
+ * star bursts with the move's sign, hard panel cuts.
  */
-export type ReelLook = "classic" | "close";
-export const REEL_LOOKS: ReelLook[] = ["classic", "close"];
-export const REEL_LOOK_LABEL: Record<ReelLook, string> = { classic: t("Klassisch – schräg mit Überblick"), close: t("Nah dran – hell, ruhige Kamera, Glas") };
+export type ReelLook = "classic" | "close" | "cinema" | "neon" | "comic";
+export const REEL_LOOKS: ReelLook[] = ["classic", "close", "cinema", "neon", "comic"];
+export const REEL_LOOK_LABEL: Record<ReelLook, string> = {
+  classic: t("Klassisch – schräg mit Überblick"),
+  close: t("Nah dran – hell, ruhige Kamera, Glas"),
+  cinema: t("Kino – Breitbild, langsame Fahrten"),
+  neon: t("Neon – Nachtbrett, harte Schnitte"),
+  comic: t("Comic – Raster, Speedlines, Panels"),
+};
 /** The views with a 3D board (camera, surroundings, reflection). The reel look draws its own tilted flat board. */
 export const isBoard3d = (v: BoardView) => v === "3d" || v === "billboard";
 export const CAPTION_LABEL: Record<CaptionStyle, string> = { box: t("Im Kasten"), outline: t("Mit Kontur"), punch: t("Groß und fett") };
@@ -529,7 +538,7 @@ export function normalizeProject(raw: unknown): StudioProject {
     captionStyle: pick(st.captionStyle, Object.keys(CAPTION_LABEL) as CaptionStyle[], "box"),
     textScale: num(st.textScale, 0.8, 1.3, 1),
     // Projects from before the 2D board: YouTube lessons get the clearer flat board, short videos keep 3D.
-    reelLook: st.reelLook === "close" ? "close" : "classic",
+    reelLook: pick(st.reelLook, REEL_LOOKS, "classic"),
     view: st.view === "2d" || st.view === "3d" || st.view === "billboard" || st.view === "reel" ? st.view : vi.lesson === true && vi.format === "16:9" ? "2d" : "3d",
   };
   const bool = (v: unknown, d: boolean) => (typeof v === "boolean" ? v : d);

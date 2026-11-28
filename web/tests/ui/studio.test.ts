@@ -833,26 +833,35 @@ describe("reel look", () => {
     expect(plain.steps[0].t1 - plain.steps[0].t0).toBeLessThan(0.7);
   });
 
-  it("shows off a great move: in close on the piece, slow spin through the air, hard landing, back out", () => {
+  it("shows off a great move: already close at take-off, slides with the piece in one direction, hard landing, no way back", () => {
     const fork = tl.scenes.find((c) => c.scene.moves === "Nc7+")!;
     const step = fork.steps[fork.steps.length - 1];
     const at = (dt: number) => frameAt(tl, project, fork.start + dt)!;
     const cam = (dt: number) => reelCamera(at(dt), 1080, 1080);
-    // The camera is in before take-off, and the move itself is in slow motion (an ordinary move takes 0.4 s).
+    // The move itself is in slow motion (an ordinary move takes 0.4 s), and the camera is in before take-off: it does not dive in late.
     expect(step.t0).toBeGreaterThan(0.5);
     expect(step.t1 - step.t0).toBeGreaterThan(0.8);
-    expect(cam(step.t0).S).toBeGreaterThan(cam(0.02).S * 1.3);
-    // In the air the camera stays on the piece, close but still about three squares across.
-    const mid = (step.t0 + step.t1) / 2;
-    const flying = at(mid).pieces.find((p) => p.flight && p.flight.k > 0 && p.flight.k < 1)!;
-    expect(Math.hypot(cam(mid).fx - flying.x, cam(mid).fz - flying.z)).toBeLessThan(0.3);
-    expect(cam(mid).S).toBeLessThanOrEqual(1080 / 3.3 + 1e-6);
+    expect(1080 / cam(step.t0).S).toBeLessThan(5.5);
+    expect(Math.abs(Math.log(cam(step.t0 - 0.1).S / cam(step.t0).S))).toBeLessThan(0.05);
+    // In the air the camera slides along the flight, from the start square towards the landing, never back; close but still about three squares across.
+    const [ax, az] = squareXZ(step.from);
+    const [bx, bz] = squareXZ(step.to);
+    const along = (dt: number) => (cam(dt).fx - ax) * (bx - ax) + (cam(dt).fz - az) * (bz - az);
+    for (let dt = step.t0; dt < step.t1; dt += 0.05) expect(along(dt + 0.05)).toBeGreaterThanOrEqual(along(dt) - 1e-6);
+    expect(along(step.t1)).toBeGreaterThan(along(step.t0) + 0.3);
+    expect(cam((step.t0 + step.t1) / 2).S).toBeLessThanOrEqual(1080 / 3.3 + 1e-6);
     // The landing hits: the picture shakes and flashes briefly.
     const hit = cam(step.t1 + 0.02);
     expect(Math.abs(hit.shakeX) + Math.abs(hit.shakeY)).toBeGreaterThan(1);
     expect(hit.flash).toBeGreaterThan(0);
-    // Then the camera backs out again before the scene ends.
-    expect(cam(fork.dur - 0.02).S).toBeLessThan(cam(mid).S * 0.8);
+    // Then the picture only opens up once, for the arrows that follow the landing: it never dives back in (that in-out-in was the jerky part).
+    let wider = 0;
+    for (let dt = step.t1 + 0.25; dt < fork.dur - 0.05; dt += 0.05) {
+      const k = cam(dt + 0.05).S / cam(dt).S;
+      expect(k).toBeLessThan(1.03);
+      if (k < 0.995) wider++;
+    }
+    expect(wider).toBeGreaterThan(0);
     // A blunder is no show.
     const blunder = tl.scenes.find((c) => c.scene.badge === "blunder")!;
     expect(blunder.steps[0].t0).toBeLessThan(0.15);
